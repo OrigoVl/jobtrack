@@ -5,6 +5,12 @@ import { test, expect } from "@playwright/test";
  * формат: {company, pos, level, fit, status, applied, next, notes, url}) — ключовий флоу
  * "скинути файл і дані підтягнулись" (server/src/modules/vacancies/vacancies.routes.ts
  * POST /vacancies/import-json). Ідемпотентний (upsert за url), тож безпечний для повторних прогонів.
+ *
+ * URL навмисно НЕ на jobs.dou.ua: імпорт нових вакансій із посиланням автоматично намагається
+ * стягнути стек (tryAutoEnrichStack), а це справжній мережевий запит. E2E має лишатись швидким,
+ * детермінованим і офлайн (див. коментар у playwright.config.ts) — тому тут перевіряємо сам
+ * імпорт, а не автозбагачення (те окремо покрите юніт-тестом vacancy-analysis.service.test.ts
+ * з замоканим fetch).
  */
 test("imports vacancies from a job-tracker.json-shaped file", async ({ page }) => {
   await page.goto("/vacancies");
@@ -19,7 +25,7 @@ test("imports vacancies from a job-tracker.json-shaped file", async ({ page }) =
       applied: "2026-07-20",
       next: "",
       notes: "",
-      url: "https://jobs.dou.ua/companies/e2e-test/vacancies/999999/",
+      url: "https://example.com/careers/e2e-test-999999",
     },
   ]);
 

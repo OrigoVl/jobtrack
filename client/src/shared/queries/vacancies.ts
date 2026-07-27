@@ -32,13 +32,28 @@ export function useAddVacancy() {
 
 export function useUpdateVacancy() {
   const qc = useQueryClient();
+  const { toast } = useToast();
   const onError = useMutationErrorToast();
   const invalidateDerived = useInvalidateDerived();
   return useMutation({
     mutationFn: ({ id, patch }: { id: number; patch: Partial<Vacancy> }) => api.updateVacancy(id, patch),
-    onSuccess: async (row) => {
+    onSuccess: async (row, variables) => {
+      const prevUrl = qc.getQueryData<Vacancy[]>(queryKeys.vacancies)?.find((x) => x.id === row.id)?.url;
       qc.setQueryData<Vacancy[]>(queryKeys.vacancies, (cur) => cur?.map((x) => (x.id === row.id ? row : x)) ?? cur);
       await invalidateDerived();
+      // Сервер намагається автоматично стягнути стек/рівень/fit, коли з'являється/змінюється
+      // посилання (server/src/modules/vacancies/vacancy-analysis.service.ts tryAutoEnrichStack,
+      // best-effort, лише jobs.dou.ua) — повідомляємо користувача про результат.
+      if (variables.patch.url !== undefined && variables.patch.url !== prevUrl) {
+        toast(
+          row.stack.length > 0
+            ? `Стек підтягнуто з посилання: ${row.stack.slice(0, 5).join(", ")}${row.stack.length > 5 ? "…" : ""}`
+            : variables.patch.url
+              ? "Посилання збережено (автопідтягування стеку працює лише для jobs.dou.ua)"
+              : "Посилання прибрано",
+          row.stack.length > 0 ? "success" : "info",
+        );
+      }
     },
     onError,
   });

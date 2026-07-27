@@ -182,7 +182,7 @@ export function Vacancies() {
     <div className="space-y-4">
       <PageHeader
         title="Вакансії"
-        subtitle="Веди всі вакансії в одному місці. У режимі «Канбан» перетягуй картки між статусами (або обери картку й тисни ←/→ — без миші)."
+        subtitle="Веди всі вакансії в одному місці. Встав посилання на вакансію (jobs.dou.ua) — стек підтягнеться сам. У режимі «Канбан» перетягуй картки між статусами (або обери картку й тисни ←/→ — без миші)."
         actions={
           <div className="flex gap-2 flex-wrap">
             <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
@@ -277,11 +277,27 @@ export function Vacancies() {
                         onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { position: e.target.value } })}
                         className="bg-transparent text-slate-500 text-xs w-full outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
                       />
-                      {row.url && (
-                        <a href={row.url} target="_blank" rel="noreferrer" className="text-indigo-600 text-xs">
-                          ↗ вакансія
-                        </a>
-                      )}
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <input
+                          type="url"
+                          defaultValue={row.url}
+                          onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { url: e.target.value } })}
+                          placeholder="Посилання (jobs.dou.ua → стек підтягнеться сам)…"
+                          aria-label={`Посилання на вакансію — ${row.company}`}
+                          className="bg-transparent text-indigo-600 text-[11px] flex-1 min-w-0 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
+                        />
+                        {row.url && (
+                          <a
+                            href={row.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Відкрити вакансію"
+                            className="text-indigo-600 text-xs shrink-0"
+                          >
+                            ↗
+                          </a>
+                        )}
+                      </div>
                     </td>
                     <td className="p-3 max-w-[220px]">
                       <div className="flex flex-wrap gap-1">

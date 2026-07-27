@@ -38,3 +38,26 @@ export async function quickAnalyze(text: string): Promise<QuickAnalysis> {
   const gap = techs.filter((t) => !profile.skills.includes(t));
   return { techs, level, match, gap, fit: computeFit(match, gap) };
 }
+
+/**
+ * Best-effort автозбагачення стеку/рівня/fit за посиланням на вакансію — на відміну від
+ * fetchVacancyText/quickAnalyze НІКОЛИ не кидає: непідтримуваний домен (лише dou.ua —
+ * SSRF-захист у assertSafeVacancyUrl), мережева помилка, таймаут чи порожня сторінка просто
+ * повертають null, щоб виклик (створення/оновлення вакансії, імпорт) міг безпечно
+ * продовжити основну операцію навіть якщо автозбагачення не вдалося.
+ */
+export async function tryAutoEnrichStack(url: string): Promise<QuickAnalysis | null> {
+  if (!url) return null;
+  try {
+    assertSafeVacancyUrl(url);
+  } catch {
+    return null;
+  }
+  try {
+    const text = await fetchVacancyText(url);
+    if (text.length < 200) return null;
+    return await quickAnalyze(text);
+  } catch {
+    return null;
+  }
+}
