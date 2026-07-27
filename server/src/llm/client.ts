@@ -94,9 +94,19 @@ async function callProvider(
           messages: [{ role: "user", content: user }],
         }),
       });
-      const d = (await r.json()) as { content?: { text?: string }[] };
+      // Раніше тут не перевірявся r.ok: провайдер, що відповів 401/404/429/500 з JSON-тілом
+      // ФОРМИ {"error": {...}} (а не {"content": [...]}), тихо давав text="" (d?.content?.[0]?.text
+      // не існує) — і callProvider повертав null так само, як при легітимній порожній відповіді.
+      // Викликачі (reviewCv/matchCv тощо) не могли відрізнити "провайдер недоступний/помилка API"
+      // від "відповідь не розпарсилась", і мовчки йшли в offline-евристику БЕЗ жодного логу причини.
+      if (!r.ok) {
+        const body = await r.text().catch(() => "");
+        contextLogger().error({ status: r.status, body: body.slice(0, 500), model, provider: "anthropic" }, "LLM API error response");
+        return null;
+      }
+      const d = (await r.json()) as { content?: { text?: string }[]; stop_reason?: string };
       const text = d?.content?.[0]?.text || "";
-      return json ? safeJson(text) : text;
+      return json ? parseJsonOrLog(text, { model, provider: "anthropic", stopReason: d?.stop_reason }) : text;
     }
     // OpenAI (default)
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -114,9 +124,14 @@ async function callProvider(
         ...(json ? { response_format: { type: "json_object" } } : {}),
       }),
     });
-    const d = (await r.json()) as { choices?: { message?: { content?: string } }[] };
+    if (!r.ok) {
+      const body = await r.text().catch(() => "");
+      contextLogger().error({ status: r.status, body: body.slice(0, 500), model, provider: "openai" }, "LLM API error response");
+      return null;
+    }
+    const d = (await r.json()) as { choices?: { message?: { content?: string }; finish_reason?: string }[] };
     const text = d?.choices?.[0]?.message?.content || "";
-    return json ? safeJson(text) : text;
+    return json ? parseJsonOrLog(text, { model, provider: "openai", stopReason: d?.choices?.[0]?.finish_reason }) : text;
   } catch (e) {
     const timedOut = e instanceof Error && e.name === "TimeoutError";
     // contextLogger() підхоплює reqId поточного HTTP-запиту (якщо він є) через AsyncLocalStorage —
@@ -140,4 +155,28 @@ function safeJson(text: string): Record<string, unknown> | null {
     }
     return null;
   }
+}
+
+/**
+ * safeJson() + логування причини провалу. Раніше невдалий парсинг JSON-режиму (response_format
+ * json_object в OpenAI гарантує синтаксичну валідність ЛИШЕ якщо генерація не обрізана) проходив
+ * повністю мовчки: HTTP 200, r.ok===true, тож гілка помилки в callProvider не спрацьовувала, і
+ * викликачі (reviewCv/matchCv тощо) просто тихо йшли в офлайн-евристику без жодного логу причини.
+ * Найчастіша причина — generation обірвалась по `maxTokens` ДО завершення JSON (finish_reason /
+ * stop_reason === "length"/"max_tokens") — модель охоче генерує довші strengths/issues/rewrites,
+ * ніж закладений бюджет токенів. Логуємо finishReason і хвіст тексту (де і видно обрив), щоб таку
+ * причину можна було діагностувати з логів, а не гадати за response time.
+ */
+function parseJsonOrLog(
+  text: string,
+  ctx: { model: string; provider: "openai" | "anthropic"; stopReason?: string },
+): Record<string, unknown> | null {
+  const parsed = safeJson(text);
+  if (parsed) return parsed;
+  const truncated = ctx.stopReason === "length" || ctx.stopReason === "max_tokens";
+  contextLogger().warn(
+    { ...ctx, textLen: text.length, tail: text.slice(-200), likelyTruncated: truncated },
+    truncated ? "LLM JSON response truncated by maxTokens before it closed" : "LLM JSON response failed to parse",
+  );
+  return null;
 }

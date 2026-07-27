@@ -60,7 +60,20 @@ export interface CvReview {
   rewrites: { before: string; after: string }[];
 }
 
-function heuristicReview(cvText: string): CvReview {
+// "no-key" — LLM взагалі не налаштований (llmAvailable()===false). "llm-failed" — ключ Є, але
+// саме ЦЕЙ запит не дав валідної відповіді (таймаут/помилка провайдера/обрив JSON по maxTokens).
+// Раніше обидва випадки показували ОДНАКОВИЙ текст "Увімкни LLM у server/.env" — що вводило в
+// оману, коли LLM насправді ввімкнений і просто цей один запит не вдався (саме це репортував
+// користувач: LLM в .env є, а повідомлення каже його увімкнути).
+type FallbackReason = "no-key" | "llm-failed";
+
+function fallbackSummary(reason: FallbackReason): string {
+  return reason === "no-key"
+    ? "Базова офлайн-перевірка. Увімкни LLM у server/.env для глибокого персонального рев'ю."
+    : "AI тимчасово не відповів, тож показано базову перевірку за словником. Спробуй ще раз за хвилину.";
+}
+
+function heuristicReview(cvText: string, reason: FallbackReason = "no-key"): CvReview {
   const text = cvText || "";
   const issues: CvIssue[] = [];
   if (!/\d/.test(text))
@@ -76,7 +89,7 @@ function heuristicReview(cvText: string): CvReview {
   }
   return {
     score: Math.max(30, 80 - issues.length * 12),
-    summary: "Базова офлайн-перевірка. Увімкни LLM у server/.env для глибокого персонального рев'ю.",
+    summary: fallbackSummary(reason),
     strengths: [],
     issues,
     keywords: [],
@@ -99,9 +112,18 @@ export async function reviewCv(cvText: string): Promise<CvReview & { offline: bo
       `"issues":[{"title":"проблема","fix":"як виправити конкретно"}],` +
       `"keywords":["6-12 ключових слів/навичок, які варто додати під попит і ATS"],` +
       `"rewrites":[{"before":"слабке формулювання з резюме","after":"переписане, з результатом і метрикою"}]}`,
-    { json: true, maxTokens: 1200, temperature: 0.4, cache: true, tier: "smart" },
+    // maxTokens 2200 (не 1200) — рев'ю зі score+summary+3-5 strengths+кількома issues+6-12
+    // keywords+кількома rewrites (кожен: повне "before" І "after" речення) охоче виходить довшим
+    // за 1200 токенів; при обриві генерації по лімiту JSON лишається синтаксично невалідним і
+    // безшумно (HTTP 200, тому й не ловилось перевіркою r.ok вище) падає в офлайн-евристику —
+    // саме так виглядав репортований баг ("натискаю Поради — отримую generic-текст").
+    { json: true, maxTokens: 2200, temperature: 0.4, cache: true, tier: "smart" },
   );
-  if (!out || typeof out.score !== "number") return { offline: false, ...heuristicReview(cvText) };
+  // offline:true (НЕ false) — далі йде та сама офлайн-евристика, що й при вимкненому LLM
+  // (llmAvailable()===false вище). Хибне "offline:false" тут означало, що клієнт (і сам
+  // користувач) не міг відрізнити справжній глибокий AI-рев'ю від дефолтного офлайн-фолбеку —
+  // саме так виглядав звіт користувача "натискаю Поради — отримую generic-текст, offline:false".
+  if (!out || typeof out.score !== "number") return { offline: true, ...heuristicReview(cvText, "llm-failed") };
   return {
     offline: false,
     score: Math.max(0, Math.min(100, Math.round(out.score))),
@@ -139,7 +161,7 @@ export interface CvMatch {
   suggestions: { title: string; fix: string }[];
   tailoredSummary: string;
 }
-function heuristicMatch(cvText: string, jobText: string): CvMatch {
+function heuristicMatch(cvText: string, jobText: string, reason: FallbackReason = "no-key"): CvMatch {
   const cv = new Set(tokenizeSkills(cvText));
   const jobTokens = tokenizeSkills(jobText);
   const matched = jobTokens.filter((t) => cv.has(t));
@@ -147,7 +169,10 @@ function heuristicMatch(cvText: string, jobText: string): CvMatch {
   const score = jobTokens.length ? Math.round((matched.length / jobTokens.length) * 100) : 0;
   return {
     score,
-    verdict: "Базове офлайн-порівняння за ключовими словами. Увімкни LLM для точного gap-аналізу.",
+    verdict:
+      reason === "no-key"
+        ? "Базове офлайн-порівняння за ключовими словами. Увімкни LLM для точного gap-аналізу."
+        : "AI тимчасово не відповів, тож показано базове порівняння за ключовими словами. Спробуй ще раз за хвилину.",
     matched: matched.slice(0, 20),
     missing: missing.slice(0, 20),
     suggestions: [],
@@ -167,9 +192,11 @@ export async function matchCv(cvText: string, jobTitle: string, jobText: string)
       `"missing":["чого бракує саме під цю вакансію (навички/ключові слова)"],` +
       `"suggestions":[{"title":"що зробити","fix":"конкретна дія під цю вакансію"}],` +
       `"tailoredSummary":"переписаний під цю вакансію summary 2-3 речення, лише на основі реального досвіду кандидата"}`,
-    { json: true, maxTokens: 1000, temperature: 0.4, cache: true, tier: "smart" },
+    // maxTokens 1800 (не 1000) — той самий ризик обриву генерації, що й у reviewCv вище.
+    { json: true, maxTokens: 1800, temperature: 0.4, cache: true, tier: "smart" },
   );
-  if (!out || typeof out.score !== "number") return { offline: false, ...heuristicMatch(cvText, combined) };
+  // Той самий фікс, що й у reviewCv вище: це офлайн-евристика, а не результат LLM.
+  if (!out || typeof out.score !== "number") return { offline: true, ...heuristicMatch(cvText, combined, "llm-failed") };
   return {
     offline: false,
     score: Math.max(0, Math.min(100, Math.round(out.score))),

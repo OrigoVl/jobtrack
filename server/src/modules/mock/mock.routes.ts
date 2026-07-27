@@ -27,7 +27,9 @@ r.post(
       { json: true, maxTokens: 500, temperature: 0.3, cache: true, tier: "smart" },
     );
     if (!out || typeof out.score !== "number") {
-      return res.json({ offline: false, score: null, verdict: "Не вдалося оцінити — спробуй ще раз." });
+      // offline:true — LLM-виклик не дав валідної оцінки (помилка провайдера/таймаут/неправильний
+      // JSON), тож це такий самий "не справжній AI-результат" стан, як і llmAvailable()===false вище.
+      return res.json({ offline: true, score: null, verdict: "Не вдалося оцінити — спробуй ще раз." });
     }
     res.json({
       score: Math.max(0, Math.min(100, Math.round(out.score))),

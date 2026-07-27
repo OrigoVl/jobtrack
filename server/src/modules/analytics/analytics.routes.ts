@@ -156,7 +156,10 @@ r.get(
           .map((a: { title: string; why?: unknown }) => ({ title: a.title, why: typeof a.why === "string" ? a.why : "" }))
           .slice(0, 3)
       : [];
-    res.json({ actions: actions.length ? actions : heuristicFocus(summary) });
+    // offline:true, коли LLM не дав валідних дій (помилка провайдера/таймаут/поганий JSON) і ми
+    // показуємо той самий героустичний фолбек, що й при llmAvailable()===false вище — без цього
+    // прапорця клієнт (FocusWeekCard) не міг відрізнити персональний AI-аналіз від generic-порад.
+    res.json(actions.length ? { actions } : { offline: true, actions: heuristicFocus(summary) });
   }),
 );
 
