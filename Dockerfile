@@ -29,4 +29,7 @@ ENV PORT=3001
 ENV DB_PATH=/app/data/jobtrack.db
 EXPOSE 3001
 WORKDIR /app/server
+# wget є в busybox (alpine "з коробки") — без зайвих залежностей перевіряє, що API живе.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -q --spider http://127.0.0.1:${PORT}/api/health || exit 1
 CMD ["node", "--no-warnings", "dist/index.js"]

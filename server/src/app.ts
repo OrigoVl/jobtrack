@@ -19,9 +19,10 @@ export const app = express();
 // решта helmet-заголовків (HSTS, no-sniff, frameguard тощо) лишаються увімкненими.
 app.use(helmet({ contentSecurityPolicy: false }));
 // Same-origin в проді (сервер сам роздає client/dist) — CORS потрібен лише для dev
-// (Vite на іншому порту) та потенційних зовнішніх інтеграцій, тож дозволяємо всі origin,
-// але без credentials (кук/сесій немає — застосунок однокористувацький, auth не потрібен).
-app.use(cors());
+// (Vite на іншому порту) та потенційних зовнішніх інтеграцій. Без CORS_ORIGIN у .env — дозволені
+// всі origin (без credentials: кук/сесій немає, застосунок однокористувацький, auth не потрібен).
+// Задай CORS_ORIGIN, якщо потрібно явно обмежити список дозволених доменів.
+app.use(cors(env.corsOrigins ? { origin: env.corsOrigins } : {}));
 app.use(express.json({ limit: "4mb" }));
 app.use(
   pinoHttp({

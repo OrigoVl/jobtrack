@@ -73,6 +73,8 @@ GitHub Actions (`.github/workflows/ci.yml`) на кожен push/PR у `main` г
 
 Сервер захищений `helmet()` (security-заголовки) і глобальним rate-limit на `/api` (600 запитів/15хв
 на IP, health виключено) — щоб баг у фронтенді чи зловживання платними LLM-викликами не поклали сервіс.
+CORS відкритий для всіх origin за замовчуванням (auth/cookies немає), або обмеж через `CORS_ORIGIN`
+у `.env` (список origin через кому).
 
 ## Архітектура
 

@@ -15,6 +15,7 @@
     "lint": "pnpm --filter jobtrack-client lint && pnpm --filter jobtrack-server lint",
     "lint:fix": "pnpm --filter jobtrack-client lint:fix && pnpm --filter jobtrack-server lint:fix",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "pnpm --filter jobtrack-client typecheck && pnpm --filter jobtrack-server typecheck",
     "test": "pnpm --filter jobtrack-client test && pnpm --filter jobtrack-server test"
   },

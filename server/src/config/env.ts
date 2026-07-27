@@ -17,6 +17,9 @@ const RawEnvSchema = z.object({
   NODE_ENV: z.string().default("development"),
   PORT: z.coerce.number().int().positive().max(65535).default(3001),
   DB_PATH: z.string().trim().min(1).optional(),
+  // Список дозволених origin через кому (напр. "https://app.example.com,https://admin.example.com").
+  // Не задано → CORS відкритий для всіх origin (застосунок без auth/cookies, читає лише свій /api).
+  CORS_ORIGIN: z.string().trim().min(1).optional(),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).optional(),
   LLM_PROVIDER: z.enum(["openai", "anthropic"]).default("openai"),
   OPENAI_API_KEY: z.string().trim().min(1).optional(),
@@ -41,6 +44,12 @@ export const env = {
   isProduction,
   port: raw.PORT,
   dbPath: raw.DB_PATH || path.join(serverRoot, "jobtrack.db"),
+  // undefined → cors() без обмежень (дозволяє будь-який origin); масив → лише перелічені.
+  corsOrigins: raw.CORS_ORIGIN
+    ? raw.CORS_ORIGIN.split(",")
+        .map((o) => o.trim())
+        .filter(Boolean)
+    : undefined,
   logLevel: raw.LOG_LEVEL || (isProduction ? "info" : "debug"),
   clientDistPath: path.join(serverRoot, "..", "client", "dist"),
 
