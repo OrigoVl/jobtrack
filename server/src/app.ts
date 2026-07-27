@@ -6,11 +6,13 @@ import helmet from "helmet";
 import fs from "fs";
 import path from "path";
 import type { IncomingMessage } from "http";
+import { randomUUID } from "crypto";
 import { pinoHttp } from "pino-http";
 import { env } from "./config/env.js";
 import logger from "./core/logger.js";
 import { errorHandler } from "./core/error-handler.js";
 import { apiLimiter } from "./core/rate-limit.js";
+import { runWithRequestContext } from "./core/request-context.js";
 import routes from "./routes.js";
 
 export const app = express();
@@ -22,13 +24,20 @@ app.set("trust proxy", env.trustProxy);
 // CSP: застосунок сам віддає свій SPA з того ж origin (Vite білдить зовнішні <script type="module">,
 // inline-скриптів немає), тож можна тримати сувору політику. Єдиний зовнішній ресурс — Google Fonts
 // (стилі + шрифти), решта (script/connect/img/frame) обмежені 'self'.
+// style-src розділено на дві CSP3-директиви замість одного спільного 'unsafe-inline':
+//   - styleSrcElem (елементи <style>/<link>) — суворо БЕЗ 'unsafe-inline'. Це головний XSS-вектор
+//     (інжект цілого <style>-блоку/@import), і ми його повністю блокуємо.
+//   - styleSrcAttr (атрибут style="…") — 'unsafe-inline' лишається свідомо: у клієнті ~9 місць
+//     з динамічним style={{ width: `${pct}%` }} (progress bars), яких без CSS-nonce на кожен рендер
+//     інакше не зробити; ризик значно менший (не можна підключити зовнішній CSS чи @import).
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
+        styleSrcElem: ["'self'", "https://fonts.googleapis.com"],
+        styleSrcAttr: ["'unsafe-inline'"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         imgSrc: ["'self'", "data:", "blob:"],
         connectSrc: ["'self'"],
@@ -51,6 +60,12 @@ app.use(
     autoLogging: { ignore: (req: IncomingMessage) => req.url === "/api/health" },
   }),
 );
+// Прокидуємо reqId (виданий pino-http вище) через AsyncLocalStorage, щоб код без прямого
+// доступу до `req` (LLM-клієнт, глибокі сервіси) міг долучити його до своїх логів через
+// core/logger.ts#contextLogger() — наскрізна кореляція одного запиту в логах.
+app.use((req, _res, next) => {
+  runWithRequestContext(req.id != null ? String(req.id) : randomUUID(), next);
+});
 
 app.use("/api", apiLimiter, routes);
 // невідомий API-ендпоінт → JSON 404 (а не HTML SPA)

@@ -1,6 +1,6 @@
 // LLM-шар з graceful fallback: якщо немає ключа — офлайн-режим (шаблони/словник).
 import { getKvJson, setKvJson } from "../db/index.js";
-import logger from "../core/logger.js";
+import { contextLogger } from "../core/logger.js";
 import { hashString } from "../shared/hash.js";
 import { env } from "../config/env.js";
 
@@ -119,7 +119,9 @@ async function callProvider(
     return json ? safeJson(text) : text;
   } catch (e) {
     const timedOut = e instanceof Error && e.name === "TimeoutError";
-    logger.error({ err: e }, timedOut ? "LLM timeout" : "LLM error");
+    // contextLogger() підхоплює reqId поточного HTTP-запиту (якщо він є) через AsyncLocalStorage —
+    // дозволяє зкорелювати цю помилку з конкретним запитом користувача в access-логах pino-http.
+    contextLogger().error({ err: e, model }, timedOut ? "LLM timeout" : "LLM error");
     return null;
   }
 }

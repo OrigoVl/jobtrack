@@ -7,10 +7,18 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
  * E2E-конфіг: піднімає збірку продакшн-сервера (build + node dist/index.js), який сам
  * роздає зібраний фронтенд (client/dist), — тестуємо реальний білд, а не dev-режим
  * з окремим Vite-проксі. Ізольована БД через DB_PATH, щоб не чіпати локальну jobtrack.db.
+ *
+ * workers: 1 (не fullyParallel) — усі E2E-специфікації діляться ОДНІЄЮ БД одного
+ * запущеного сервера (без per-test ізоляції даних). Roadmap/Plan21 будуються динамічно
+ * з поточного стану вакансій (попит/прогалини перераховуються на кожен запит) — паралельний
+ * запуск разом із тестом, що додає вакансію (vacancies-kanban.spec.ts), зсуває ці
+ * розрахунки між кроками іншого тесту й ламає його (день/навичка, що існували на GET,
+ * стають невалідними до PUT). Послідовний прогін коштує кілька секунд, зате детермінований.
  */
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["html", { open: "never" }], ["list"]] : "list",

@@ -53,9 +53,13 @@ export function getRoadmapProgress(): Record<string, string> {
   return getKvObj("roadmapProgress") as Record<string, string>;
 }
 export function setRoadmapStatus(tech: string, status: string): Record<string, string> {
+  // На відміну від setDrillStatus/toggleChecklistItem, тут НЕ можна видаляти запис при
+  // "дефолтному" значенні ("todo"): GET /roadmap рахує дефолт як isKnown ? "done" : "todo"
+  // (roadmap.routes.ts), тож видалення явного "todo" для вже відомої (з CV/профілю) навички
+  // одразу після PUT відкочувало б її назад на "done" при наступному GET — статус ніколи не
+  // зберігався б, і клік по колу "знаю → не почато" на відомій навичці візуально не тримався б.
   const progress = getRoadmapProgress();
-  if (status === "todo") delete progress[tech];
-  else progress[tech] = status;
+  progress[tech] = status;
   setKvObj("roadmapProgress", progress);
   return progress;
 }
