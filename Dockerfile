@@ -1,5 +1,5 @@
 # ---- 1. Встановлення залежностей (pnpm workspace) + збірка фронтенду (Vite) ----
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 WORKDIR /app
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
@@ -12,7 +12,7 @@ RUN pnpm --filter jobtrack-client build
 RUN pnpm --filter jobtrack-server build
 
 # ---- 2. Рантайм: Node API, що роздає зібраний клієнт ----
-FROM node:24-alpine
+FROM node:26-alpine
 RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
 WORKDIR /app
 ENV NODE_ENV=production
