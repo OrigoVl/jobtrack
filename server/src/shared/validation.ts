@@ -30,6 +30,18 @@ function toStringArray(value: unknown, field: string): string[] {
   return Array.from(new Set((value as string[]).map((s) => s.trim()).filter(Boolean))).slice(0, 80);
 }
 
+// "applied"/"next" — порожній рядок означає "не задано", інакше МАЄ бути ISO YYYY-MM-DD:
+// server/src/modules/analytics/analytics.routes.ts і dashboard.tsx порівнюють ці поля як
+// рядки (v.next < today, a.next > b.next) — довільний вільний текст ("завтра", "15.08")
+// тихо ламає сортування "найближчі кроки" й детекцію протермінованих кроків без жодної помилки.
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+function toDateOrEmpty(value: unknown, field: string): string {
+  const raw = asString(value).trim();
+  if (!raw) return "";
+  if (!ISO_DATE_RE.test(raw)) throw new HttpError(400, `Поле "${field}" має бути датою у форматі РРРР-ММ-ДД`);
+  return raw;
+}
+
 function toUrl(value: unknown, field: string): string {
   const raw = asString(value).trim();
   if (!raw) return "";
@@ -76,8 +88,8 @@ export function parseVacancyInput(body: unknown, { partial = false }: { partial?
     if (!FITS.includes(fit as Fit)) throw new HttpError(400, `Некоректний fit: "${fit}"`);
     out.fit = fit as Fit;
   }
-  if (!partial || has("applied")) out.applied = asString(b.applied).trim().slice(0, 40);
-  if (!partial || has("next")) out.next = asString(b.next).trim().slice(0, 200);
+  if (!partial || has("applied")) out.applied = toDateOrEmpty(b.applied, "applied");
+  if (!partial || has("next")) out.next = toDateOrEmpty(b.next, "next");
   if (!partial || has("notes")) out.notes = asString(b.notes).slice(0, 5000);
   if (!partial || has("stack")) out.stack = toStringArray(b.stack, "stack");
   return out;

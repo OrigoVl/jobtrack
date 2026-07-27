@@ -37,6 +37,18 @@ describe("parseVacancyInput", () => {
     expect(() => parseVacancyInput({ url: "javascript:alert(1)" })).toThrow(HttpError);
   });
 
+  it("accepts an empty or ISO-formatted date for applied/next", () => {
+    expect(parseVacancyInput({ applied: "", next: "2026-08-15" }).next).toBe("2026-08-15");
+    expect(parseVacancyInput({ applied: "2026-01-02" }).applied).toBe("2026-01-02");
+  });
+
+  it("rejects a non-ISO date for applied/next (analytics compares these as strings)", () => {
+    // server/src/modules/analytics/analytics.routes.ts і client/dashboard.tsx порівнюють
+    // ці поля як рядки (напр. v.next < today) — вільний текст тихо ламає цю логіку.
+    expect(() => parseVacancyInput({ next: "завтра" })).toThrow(HttpError);
+    expect(() => parseVacancyInput({ applied: "15.08.2026" })).toThrow(HttpError);
+  });
+
   it("in partial mode only touches provided fields", () => {
     const out = parseVacancyInput({ notes: "оновлення" }, { partial: true });
     expect(out).toEqual({ notes: "оновлення" });

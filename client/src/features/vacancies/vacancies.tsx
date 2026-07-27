@@ -5,6 +5,14 @@ import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader } from "../../sh
 import { STATUSES, type Fit, type Vacancy } from "../../shared/types";
 import { fitTone, fitText } from "../../shared/fit-tone";
 
+/** Днів від дати подачі (YYYY-MM-DD) до сьогодні — показуємо, доки чекаємо відповіді. */
+function daysSinceApplied(applied: string): number | null {
+  if (!applied) return null;
+  const then = new Date(applied);
+  if (Number.isNaN(then.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - then.getTime()) / 86_400_000));
+}
+
 /* ---------- Vacancies board (drag-and-drop + клавіатура) ---------- */
 function VacancyBoard() {
   const { data: vacancies = [] } = useVacancies();
@@ -173,6 +181,7 @@ export function Vacancies() {
                   <th className="p-3">Стек</th>
                   <th className="p-3">Fit</th>
                   <th className="p-3">Статус</th>
+                  <th className="p-3">Подано</th>
                   <th className="p-3">Наступний крок</th>
                   <th className="p-3"></th>
                 </tr>
@@ -234,10 +243,23 @@ export function Vacancies() {
                     </td>
                     <td className="p-3">
                       <input
+                        type="date"
+                        defaultValue={row.applied}
+                        onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { applied: e.target.value } })}
+                        aria-label={`Дата подачі заявки — ${row.company}`}
+                        className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
+                      />
+                      {daysSinceApplied(row.applied) != null && (
+                        <div className="text-[11px] text-slate-400 mt-0.5">{daysSinceApplied(row.applied)} дн. очікування</div>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <input
+                        type="date"
                         defaultValue={row.next}
-                        onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { next: e.target.value } })}
-                        placeholder="—"
-                        className="bg-transparent w-28 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
+                        onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { next: e.target.value } })}
+                        aria-label={`Дата наступного кроку — ${row.company}`}
+                        className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
                       />
                     </td>
                     <td className="p-3 text-right">
