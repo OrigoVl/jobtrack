@@ -25,6 +25,13 @@ CREATE TABLE IF NOT EXISTS srs (
   due TEXT DEFAULT (date('now')), reps INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS kv ( k TEXT PRIMARY KEY, v TEXT );
+CREATE TABLE IF NOT EXISTS vacancy_status_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  vacancy_id INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  changed_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_vacancy_status_history_vacancy ON vacancy_status_history(vacancy_id);
 `);
 
 function seedProfileIfEmpty(): void {
@@ -42,8 +49,24 @@ function seedVacanciesIfEmpty(): void {
   }
 }
 
+// Бекфіл історії статусів для вакансій, створених до появи vacancy_status_history
+// (сідові дані чи старі рядки БД) — інакше "скільки вакансій колись досягли етапу X"
+// в аналітиці був би порожнім для всього, що існувало на момент цієї міграції.
+function backfillStatusHistory(): void {
+  const rows = db
+    .prepare(
+      `SELECT v.id, v.status FROM vacancies v
+       LEFT JOIN vacancy_status_history h ON h.vacancy_id = v.id
+       WHERE h.id IS NULL`,
+    )
+    .all() as { id: number; status: string }[];
+  const insert = db.prepare("INSERT INTO vacancy_status_history (vacancy_id, status) VALUES (?, ?)");
+  for (const row of rows) insert.run(row.id, row.status);
+}
+
 seedProfileIfEmpty();
 seedVacanciesIfEmpty();
+backfillStatusHistory();
 
 /** Легка перевірка, що з'єднання з БД живе й може виконати запит (для /api/health). */
 export function pingDb(): boolean {

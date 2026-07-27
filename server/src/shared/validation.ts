@@ -95,6 +95,41 @@ export function parseVacancyInput(body: unknown, { partial = false }: { partial?
   return out;
 }
 
+export interface JsonVacancyItem {
+  company: string;
+  position: string;
+  level: string;
+  url: string;
+  status: VacancyStatus;
+  fit: Fit;
+  applied: string;
+  next: string;
+  notes: string;
+}
+
+/**
+ * Парсить один елемент масиву імпорту у форматі зовнішнього трекера
+ * (`{company, pos, level, fit, status, applied, next, notes, url}` — напр. job-tracker.json,
+ * який власноруч веде користувач поза застосунком). Приймає "pos" як основну назву поля
+ * (і "position" для сумісності зі своїм же експортом), суворо валідує status/fit/дати —
+ * кидає HttpError на конкретному елементі, виклик має ловити її й не зупиняти весь імпорт.
+ */
+export function parseJsonVacancyItem(raw: unknown): JsonVacancyItem {
+  const b = (raw || {}) as Record<string, unknown>;
+  const company = asString(b.company, "Нова").trim().slice(0, 200) || "Нова";
+  const position = asString(b.pos ?? b.position).trim().slice(0, 200);
+  const level = asString(b.level).trim().slice(0, 40);
+  const url = toUrl(b.url, "url");
+  const status = asString(b.status, "Хочу подати");
+  if (!STATUSES.includes(status as VacancyStatus)) throw new HttpError(400, `Некоректний статус: "${status}"`);
+  const fit = asString(b.fit, "med");
+  if (!FITS.includes(fit as Fit)) throw new HttpError(400, `Некоректний fit: "${fit}"`);
+  const applied = toDateOrEmpty(b.applied, "applied");
+  const next = toDateOrEmpty(b.next, "next");
+  const notes = asString(b.notes).slice(0, 5000);
+  return { company, position, level, url, status: status as VacancyStatus, fit: fit as Fit, applied, next, notes };
+}
+
 export interface ProfileInput {
   skills: string[];
   cvText: string;

@@ -1,5 +1,5 @@
 import express from "express";
-import db, { getProfile, getSrsStateByCard } from "../../db/index.js";
+import db, { getProfile, getSrsStateByCard, getReachedCounts } from "../../db/index.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { asyncHandler } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
@@ -16,6 +16,20 @@ interface VacancyStatusRow {
 interface VacancyStatusNextRow {
   status: string;
   next: string;
+  applied: string;
+}
+
+// Скільки днів тиші після подачі вважати "затихлою" вакансією, вартою поштовху рекрутеру.
+const STALE_APPLICATION_DAYS = 14;
+// Статуси, де кандидат реально чекає на реакцію іншої сторони (на відміну від "Хочу подати" —
+// ще не подано, і термінальних "Оффер"/"Відмова"/"Пауза" — очікування вже завершене свідомо).
+const WAITING_STATUSES = ["Відправив CV", "Скринінг", "Тех.співбесіда", "Тестове завдання", "Фінал"];
+
+function isStaleApplication(v: VacancyStatusNextRow, nowMs: number): boolean {
+  if (!WAITING_STATUSES.includes(v.status) || !v.applied) return false;
+  const appliedMs = new Date(v.applied).getTime();
+  if (Number.isNaN(appliedMs)) return false;
+  return (nowMs - appliedMs) / 86_400_000 > STALE_APPLICATION_DAYS;
 }
 
 // ---------- analytics ----------
@@ -30,6 +44,13 @@ r.get("/analytics", (_q, res) => {
     const d = v.created || "";
     if (d) byDate[d] = (byDate[d] || 0) + 1;
   });
+  // funnel — лише ПОТОЧНИЙ розподіл (знімок "де вакансія зараз"): вакансія, відхилена на
+  // "Тех.співбесіді", там більше не рахується, бо статус перезаписано на "Відмова" — виглядає,
+  // ніби вона туди й не доходила. funnelReached — скільки вакансій КОЛИ-НЕБУДЬ мали кожен статус
+  // (з vacancy_status_history), тобто чесна воронка проходження етапів незалежно від фіналу.
+  const reached = getReachedCounts();
+  const funnelReached: Record<string, number> = {};
+  funnelOrder.forEach((s) => (funnelReached[s] = reached[s] || 0));
   const demand = demandMap();
   const profile = getProfile();
   const radar = Object.entries(demand)
@@ -40,7 +61,7 @@ r.get("/analytics", (_q, res) => {
       demand: cnt,
       you: profile.skills.includes(tech) ? cnt : 0,
     }));
-  res.json({ funnel, byDate, demand, radar });
+  res.json({ funnel, funnelReached, byDate, demand, radar });
 });
 
 interface FocusSummary {
@@ -52,6 +73,7 @@ interface FocusSummary {
   gaps: string[];
   skillsCount: number;
   dueCards: number;
+  staleApplications: number;
 }
 
 interface FocusAction {
@@ -81,6 +103,11 @@ function heuristicFocus(s: FocusSummary): FocusAction[] {
       title: `Повтори ${s.dueCards} карток`,
       why: "Є картки до повторення сьогодні — тримай знання свіжими за алгоритмом SRS.",
     });
+  if (s.staleApplications > 0)
+    actions.push({
+      title: `Поштовхни ${s.staleApplications} вакансій без відповіді`,
+      why: `Понад ${STALE_APPLICATION_DAYS} днів тиші після подачі — напиши рекрутеру фолоу-ап або познач "Відмова", якщо вже неактуально.`,
+    });
   return actions.slice(0, 3);
 }
 r.get(
@@ -89,7 +116,7 @@ r.get(
   asyncHandler(async (_q, res) => {
     const profile = getProfile();
     const demand = demandMap();
-    const rows = db.prepare("SELECT status, next FROM vacancies").all() as unknown as VacancyStatusNextRow[];
+    const rows = db.prepare("SELECT status, next, applied FROM vacancies").all() as unknown as VacancyStatusNextRow[];
     const skills = new Set(profile.skills);
     const gaps = Object.entries(demand)
       .filter(([t]) => !skills.has(t))
@@ -99,6 +126,7 @@ r.get(
     const funnel: Record<string, number> = {};
     rows.forEach((v) => (funnel[v.status] = (funnel[v.status] || 0) + 1));
     const today = new Date().toISOString().slice(0, 10);
+    const nowMs = Date.now();
     const srs = getSrsStateByCard();
     const summary: FocusSummary = {
       totalVac: rows.length,
@@ -112,6 +140,7 @@ r.get(
         const s = srs[c.id];
         return !s || s.due <= today;
       }).length,
+      staleApplications: rows.filter((v) => isStaleApplication(v, nowMs)).length,
     };
     if (!llmAvailable()) return res.json({ offline: true, actions: heuristicFocus(summary) });
     const role = profile.domain || "фахівець";

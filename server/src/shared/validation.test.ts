@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   parseVacancyInput,
+  parseJsonVacancyItem,
   parseProfileInput,
   parseCompanyInput,
   parsePagination,
@@ -52,6 +53,48 @@ describe("parseVacancyInput", () => {
   it("in partial mode only touches provided fields", () => {
     const out = parseVacancyInput({ notes: "оновлення" }, { partial: true });
     expect(out).toEqual({ notes: "оновлення" });
+  });
+});
+
+describe("parseJsonVacancyItem", () => {
+  const validItem = {
+    company: "Zone3000",
+    pos: "Full-Stack Engineer (Node.js, JS) (#1114)",
+    level: "Middle/Senior",
+    fit: "med",
+    status: "Хочу подати",
+    applied: "2026-07-26",
+    next: "",
+    notes: "",
+    url: "https://jobs.dou.ua/companies/zone3000/vacancies/345691/",
+  };
+
+  it("parses a job-tracker.json-shaped item, mapping 'pos' to 'position'", () => {
+    const out = parseJsonVacancyItem(validItem);
+    expect(out.position).toBe(validItem.pos);
+    expect(out.company).toBe("Zone3000");
+    expect(out.status).toBe("Хочу подати");
+    expect(out.fit).toBe("med");
+  });
+
+  it("accepts 'position' as a fallback key (own export round-trip)", () => {
+    const { pos, ...rest } = validItem;
+    void pos;
+    const out = parseJsonVacancyItem({ ...rest, position: "Backend Developer" });
+    expect(out.position).toBe("Backend Developer");
+  });
+
+  it("rejects an unknown status or fit", () => {
+    expect(() => parseJsonVacancyItem({ ...validItem, status: "не-статус" })).toThrow(HttpError);
+    expect(() => parseJsonVacancyItem({ ...validItem, fit: "ultra" })).toThrow(HttpError);
+  });
+
+  it("rejects a non-ISO applied/next date", () => {
+    expect(() => parseJsonVacancyItem({ ...validItem, applied: "26.07.2026" })).toThrow(HttpError);
+  });
+
+  it("rejects a non-http(s) url", () => {
+    expect(() => parseJsonVacancyItem({ ...validItem, url: "javascript:alert(1)" })).toThrow(HttpError);
   });
 });
 

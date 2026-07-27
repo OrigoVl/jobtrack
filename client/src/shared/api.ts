@@ -11,6 +11,7 @@ import type {
   FetchAllResult,
   FocusWeek,
   JobSearchResult,
+  JsonVacancyImportResult,
   KnowledgeData,
   LearnData,
   MockEvaluation,
@@ -52,6 +53,9 @@ export const api = {
       body: JSON.stringify({ html }),
     }),
   fetchAllVacancies: () => req<FetchAllResult>("/vacancies/fetch-all", { method: "POST", body: "{}" }),
+  importVacanciesJson: (items: unknown[]) =>
+    req<JsonVacancyImportResult>("/vacancies/import-json", { method: "POST", body: JSON.stringify(items) }),
+  exportVacancies: () => req<Record<string, string>[]>("/vacancies/export"),
 
   profile: () => req<Profile>("/profile"),
   saveProfile: (p: Profile) => req<Profile>("/profile", { method: "PUT", body: JSON.stringify(p) }),

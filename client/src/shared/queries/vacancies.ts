@@ -74,6 +74,25 @@ export function useImportVacancies() {
   });
 }
 
+export function useImportVacanciesJson() {
+  const { toast } = useToast();
+  const onError = useMutationErrorToast();
+  const invalidateAll = useInvalidateAll();
+  return useMutation({
+    mutationFn: (items: unknown[]) => api.importVacanciesJson(items),
+    onSuccess: async (res) => {
+      await invalidateAll();
+      const parts: string[] = [];
+      if (res.added) parts.push(`додано ${res.added}`);
+      if (res.updated) parts.push(`оновлено ${res.updated}`);
+      if (res.skipped) parts.push(`пропущено ${res.skipped} (помилки формату)`);
+      const ok = res.added > 0 || res.updated > 0;
+      toast(parts.length ? parts.join(", ") : "Нових даних не знайдено", ok ? "success" : "error");
+    },
+    onError,
+  });
+}
+
 export function useFetchAllVacancies() {
   const { toast } = useToast();
   const onError = useMutationErrorToast();

@@ -61,6 +61,7 @@ export function Analytics() {
   if (isLoading) return <CardsSkeleton count={2} />;
   if (!analytics) return null;
   const funnel = Object.entries(analytics.funnel).map(([name, value]) => ({ name, value }));
+  const funnelReached = Object.entries(analytics.funnelReached ?? {}).map(([name, value]) => ({ name, value }));
   const demand = Object.entries(analytics.demand)
     .map(([name, value]) => ({ name, value }))
     .sort((x, y) => y.value - x.value)
@@ -85,6 +86,27 @@ export function Analytics() {
               <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                 {funnel.map((_, i) => (
                   <Cell key={i} fill="#6366f1" />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+      <Card>
+        <div className="text-sm font-semibold mb-1 text-slate-700">Скільки вакансій колись досягли етапу</div>
+        <p className="text-xs text-slate-500 mb-3">
+          На відміну від «Воронки подач» вище (де зараз), тут — скільки вакансій за весь час хоч раз пройшли через
+          кожен етап, незалежно від того, чим усе закінчилось (напр. відхилення на співбесіді все одно рахується тут).
+        </p>
+        <div style={{ height: 260 }}>
+          <ResponsiveContainer>
+            <BarChart data={funnelReached}>
+              <XAxis dataKey="name" tick={{ fill: AXIS, fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
+              <YAxis tick={{ fill: AXIS }} allowDecimals={false} />
+              <Tooltip cursor={{ fill: "rgba(99,102,241,0.06)" }} contentStyle={TOOLTIP} />
+              <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                {funnelReached.map((_, i) => (
+                  <Cell key={i} fill="#8b5cf6" />
                 ))}
               </Bar>
             </BarChart>

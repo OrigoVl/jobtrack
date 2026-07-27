@@ -1,9 +1,29 @@
 import { useRef, useState } from "react";
 import { useUi } from "../../shared/ui-state";
-import { useAddVacancy, useDeleteVacancy, useImportVacancies, useUpdateVacancy, useVacancies } from "../../shared/queries";
+import {
+  useAddVacancy,
+  useDeleteVacancy,
+  useImportVacancies,
+  useImportVacanciesJson,
+  useUpdateVacancy,
+  useVacancies,
+} from "../../shared/queries";
+import { api } from "../../shared/api";
+import { useToast } from "../../shared/use-toast";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader } from "../../shared/ui";
 import { STATUSES, type Fit, type Vacancy } from "../../shared/types";
 import { fitTone, fitText } from "../../shared/fit-tone";
+
+/** Ініціює завантаження браузером JSON-файлу з переданими даними (для експорту вакансій). */
+function downloadJson(filename: string, data: unknown): void {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 /** Днів від дати подачі (YYYY-MM-DD) до сьогодні — показуємо, доки чекаємо відповіді. */
 function daysSinceApplied(applied: string): number | null {
@@ -11,6 +31,14 @@ function daysSinceApplied(applied: string): number | null {
   const then = new Date(applied);
   if (Number.isNaN(then.getTime())) return null;
   return Math.max(0, Math.floor((Date.now() - then.getTime()) / 86_400_000));
+}
+
+// Дзеркалить STALE_APPLICATION_DAYS/WAITING_STATUSES із server/src/modules/analytics/analytics.routes.ts
+// (лише для кольорового натяку в таблиці — авторитетне джерело правди все одно "Фокус тижня").
+const STALE_APPLICATION_DAYS = 14;
+const WAITING_STATUSES = ["Відправив CV", "Скринінг", "Тех.співбесіда", "Тестове завдання", "Фінал"];
+function isStaleApplication(status: string, days: number | null): boolean {
+  return days != null && days > STALE_APPLICATION_DAYS && WAITING_STATUSES.includes(status);
 }
 
 /* ---------- Vacancies board (drag-and-drop + клавіатура) ---------- */
@@ -119,11 +147,35 @@ export function Vacancies() {
   const updateVacancyMutation = useUpdateVacancy();
   const deleteVacancyMutation = useDeleteVacancy();
   const importVacanciesMutation = useImportVacancies();
+  const importJsonMutation = useImportVacanciesJson();
+  const { toast } = useToast();
+  const jsonFileInputRef = useRef<HTMLInputElement | null>(null);
   const [imp, setImp] = useUi("vacancies.import", "");
   const [view, setView] = useUi<"table" | "board">("vacancies.view", "table");
   const doImport = async () => {
     await importVacanciesMutation.mutateAsync(imp);
     setImp("");
+  };
+  const onImportJsonFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // дозволити повторний вибір того самого файлу
+    if (!file) return;
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      const items = Array.isArray(parsed) ? parsed : (parsed as { items?: unknown[] })?.items;
+      if (!Array.isArray(items)) throw new Error("Очікується масив вакансій у файлі");
+      await importJsonMutation.mutateAsync(items);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Не вдалося прочитати файл", "error");
+    }
+  };
+  const onExportJson = async () => {
+    try {
+      const items = await api.exportVacancies();
+      downloadJson("job-tracker.json", items);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Не вдалося експортувати вакансії", "error");
+    }
   };
   if (isLoading) return <CardsSkeleton count={3} />;
   return (
@@ -158,6 +210,31 @@ export function Vacancies() {
         <Btn className="mt-2" variant="ghost" onClick={doImport} disabled={!imp}>
           Імпортувати посилання
         </Btn>
+      </Card>
+
+      <Card>
+        <div className="text-sm font-semibold mb-1 text-slate-700">🔄 Імпорт / експорт JSON</div>
+        <p className="text-xs text-slate-500 mb-2">
+          Формат <code>job-tracker.json</code> — масив <code>{"{company, pos, level, fit, status, applied, next, notes, url}"}</code>.
+          Вакансії з тим самим посиланням (або компанією+позицією) оновляться, решта додасться — можна вести файл окремо
+          (напр. в іншому чаті) і просто скидати його сюди для синхронізації.
+        </p>
+        <div className="flex gap-2 flex-wrap">
+          <input
+            ref={jsonFileInputRef}
+            type="file"
+            accept="application/json,.json"
+            onChange={onImportJsonFile}
+            className="hidden"
+            aria-label="Файл job-tracker.json для імпорту"
+          />
+          <Btn variant="ghost" onClick={() => jsonFileInputRef.current?.click()} disabled={importJsonMutation.isPending}>
+            {importJsonMutation.isPending ? "Імпортую…" : "⬆ Імпортувати з файлу"}
+          </Btn>
+          <Btn variant="ghost" onClick={onExportJson} disabled={vacancies.length === 0}>
+            ⬇ Експортувати в job-tracker.json
+          </Btn>
+        </div>
       </Card>
 
       {vacancies.length === 0 ? (
@@ -250,7 +327,18 @@ export function Vacancies() {
                         className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
                       />
                       {daysSinceApplied(row.applied) != null && (
-                        <div className="text-[11px] text-slate-400 mt-0.5">{daysSinceApplied(row.applied)} дн. очікування</div>
+                        <div
+                          className={`text-[11px] mt-0.5 ${
+                            isStaleApplication(row.status, daysSinceApplied(row.applied)) ? "text-rose-600 font-medium" : "text-slate-400"
+                          }`}
+                          title={
+                            isStaleApplication(row.status, daysSinceApplied(row.applied))
+                              ? `Понад ${STALE_APPLICATION_DAYS} днів без відповіді — варто поштовхнути рекрутера`
+                              : undefined
+                          }
+                        >
+                          {daysSinceApplied(row.applied)} дн. очікування
+                        </div>
                       )}
                     </td>
                     <td className="p-3">

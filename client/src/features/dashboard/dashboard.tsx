@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { api } from "../../shared/api";
 import { useHealth, useLearn, useProfile, useRoadmap, useStudy, useVacancies } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
+import { useToast } from "../../shared/use-toast";
+import { enableNotifications, notificationsEnabled, notificationsSupported, maybeNotifyFollowUps } from "../../shared/notifications";
 import type { FocusWeek } from "../../shared/types";
 
 function FocusWeekCard({ llm }: { llm: boolean }) {
@@ -55,7 +57,24 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
   const { data: learn } = useLearn();
   const { data: health } = useHealth();
   const { data: profile } = useProfile();
+  const { toast } = useToast();
+  const [notifOn, setNotifOn] = useState(() => notificationsEnabled());
   const llm = health?.llm ?? false;
+  const today = new Date().toISOString().slice(0, 10);
+  const overdueCount = vacancies.filter((x) => x.next && x.next < today).length;
+  const dueTodayCount = vacancies.filter((x) => x.next === today).length;
+  useEffect(() => {
+    if (vacancies.length > 0) maybeNotifyFollowUps(overdueCount, dueTodayCount);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- нагадування раз на день незалежно від подальших ререндерів
+  }, [vacancies.length]);
+  const onEnableNotifications = async () => {
+    const ok = await enableNotifications();
+    setNotifOn(ok);
+    toast(
+      ok ? "Нагадування увімкнено — перевіримо прострочені кроки при наступному відкритті" : "Дозвіл на сповіщення не надано",
+      ok ? "success" : "error",
+    );
+  };
   if (loadingVacancies) return <CardsSkeleton count={4} />;
   const active = vacancies.filter((x) => !["Відмова", "Пауза", "Хочу подати"].includes(x.status)).length;
   const iv = vacancies.filter((x) => ["Тех.співбесіда", "Тестове завдання", "Фінал"].includes(x.status)).length;
@@ -128,7 +147,17 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
 
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
-          <div className="font-semibold mb-2 text-slate-800">📅 Найближчі кроки</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="font-semibold text-slate-800">📅 Найближчі кроки</div>
+            {notificationsSupported() &&
+              (notifOn ? (
+                <span className="text-[11px] text-emerald-600">🔔 Нагадування увімкнено</span>
+              ) : (
+                <button onClick={onEnableNotifications} className="text-[11px] text-indigo-600 hover:underline">
+                  🔔 Увімкнути нагадування
+                </button>
+              ))}
+          </div>
           {upcoming.length === 0 ? (
             <div className="text-slate-400 text-sm">Немає запланованих — додай дату «наступний крок» у вакансіях.</div>
           ) : (

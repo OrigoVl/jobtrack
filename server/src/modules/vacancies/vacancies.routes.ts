@@ -1,11 +1,11 @@
 import express from "express";
-import db, { getProfile, type VacancyRow, j, withStack } from "../../db/index.js";
+import db, { getProfile, recordStatusChange, deleteHistoryForVacancy, type VacancyRow, j, withStack } from "../../db/index.js";
 import { extractLevel } from "../../shared/tech-dict.js";
 import { extractSkills } from "../../shared/skill-extraction.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { HttpError, asyncHandler } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
-import { parseVacancyInput, parseText, parsePagination, type Fit } from "../../shared/validation.js";
+import { parseVacancyInput, parseJsonVacancyItem, parseText, parsePagination, type Fit, type JsonVacancyItem } from "../../shared/validation.js";
 import { fetchVacancyText, computeFit, quickAnalyze } from "./vacancy-analysis.service.js";
 
 const r = express.Router();
@@ -25,7 +25,9 @@ r.post("/vacancies", (req, res) => {
   const info = db
     .prepare("INSERT INTO vacancies (company,position,level,url,status,fit,applied,next,notes,stack) VALUES (?,?,?,?,?,?,?,?,?,?)")
     .run(b.company!, b.position!, b.level!, b.url!, b.status!, b.fit!, b.applied!, b.next!, b.notes!, JSON.stringify(b.stack));
-  const row = db.prepare("SELECT * FROM vacancies WHERE id=?").get(Number(info.lastInsertRowid)) as unknown as VacancyRow;
+  const id = Number(info.lastInsertRowid);
+  recordStatusChange(id, b.status!);
+  const row = db.prepare("SELECT * FROM vacancies WHERE id=?").get(id) as unknown as VacancyRow;
   res.status(201).json(withStack(row));
 });
 r.put("/vacancies/:id", (req, res) => {
@@ -60,11 +62,15 @@ r.put("/vacancies/:id", (req, res) => {
     JSON.stringify(m.stack),
     id,
   );
+  // Історія статусів — журналюємо лише реальну зміну (не кожен PUT: більшість оновлень
+  // редагують інші поля, напр. нотатки чи дату наступного кроку, без зміни статусу).
+  if (m.status !== cur.status) recordStatusChange(Number(id), m.status);
   res.json(withStack(db.prepare("SELECT * FROM vacancies WHERE id=?").get(id) as unknown as VacancyRow));
 });
 r.delete("/vacancies/:id", (req, res) => {
   const id = String(req.params.id);
   const info = db.prepare("DELETE FROM vacancies WHERE id=?").run(id);
+  deleteHistoryForVacancy(Number(id));
   res.json({ ok: true, deleted: Number(info.changes) });
 });
 
@@ -151,6 +157,70 @@ r.post("/vacancies/import", (req, res) => {
     added.push({ company, url });
   }
   res.json({ added: added.length, items: added });
+});
+
+// ---------- імпорт/експорт у форматі зовнішнього трекера (напр. job-tracker.json) ----------
+// Формат: масив {company, pos, level, fit, status, applied, next, notes, url} — сумісний із
+// файлом, який користувач сам веде поза застосунком (напр. інший AI-чат/таблиця), щоб можна
+// було "скинути" оновлений файл і синхронізувати дані без ручного передрукування.
+function upsertJsonVacancy(item: JsonVacancyItem): "added" | "updated" {
+  let existing = item.url
+    ? (db.prepare("SELECT * FROM vacancies WHERE url=?").get(item.url) as unknown as VacancyRow | undefined)
+    : undefined;
+  if (!existing && item.company && item.position) {
+    existing = db
+      .prepare("SELECT * FROM vacancies WHERE lower(company)=lower(?) AND lower(position)=lower(?)")
+      .get(item.company, item.position) as unknown as VacancyRow | undefined;
+  }
+  if (existing) {
+    db.prepare(
+      "UPDATE vacancies SET company=?,position=?,level=?,url=?,status=?,fit=?,applied=?,next=?,notes=? WHERE id=?",
+    ).run(item.company, item.position, item.level, item.url, item.status, item.fit, item.applied, item.next, item.notes, existing.id);
+    if (item.status !== existing.status) recordStatusChange(existing.id, item.status);
+    return "updated";
+  }
+  const info = db
+    .prepare("INSERT INTO vacancies (company,position,level,url,status,fit,applied,next,notes,stack) VALUES (?,?,?,?,?,?,?,?,?,'[]')")
+    .run(item.company, item.position, item.level, item.url, item.status, item.fit, item.applied, item.next, item.notes);
+  recordStatusChange(Number(info.lastInsertRowid), item.status);
+  return "added";
+}
+
+r.post("/vacancies/import-json", (req, res) => {
+  const body = req.body as unknown;
+  const items = Array.isArray(body) ? body : Array.isArray((body as { items?: unknown })?.items) ? (body as { items: unknown[] }).items : null;
+  if (!items) throw new HttpError(400, "Очікується масив вакансій (або {items:[...]})");
+  if (items.length > 1000) throw new HttpError(400, "Забагато елементів за один імпорт (максимум 1000)");
+  let added = 0;
+  let updated = 0;
+  const errors: { index: number; message: string }[] = [];
+  items.forEach((raw, index) => {
+    try {
+      const result = upsertJsonVacancy(parseJsonVacancyItem(raw));
+      if (result === "added") added++;
+      else updated++;
+    } catch (e) {
+      errors.push({ index, message: e instanceof HttpError ? e.message : "Невідома помилка" });
+    }
+  });
+  res.json({ added, updated, skipped: errors.length, errors });
+});
+
+r.get("/vacancies/export", (_req, res) => {
+  const rows = db.prepare("SELECT * FROM vacancies ORDER BY id DESC").all() as unknown as VacancyRow[];
+  const items = rows.map((v) => ({
+    company: v.company,
+    pos: v.position,
+    level: v.level,
+    fit: v.fit,
+    status: v.status,
+    applied: v.applied,
+    next: v.next,
+    notes: v.notes,
+    url: v.url,
+  }));
+  res.setHeader("Content-Disposition", 'attachment; filename="job-tracker.json"');
+  res.json(items);
 });
 
 export default r;

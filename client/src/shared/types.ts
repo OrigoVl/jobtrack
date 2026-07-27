@@ -59,10 +59,20 @@ export interface RadarPoint {
 }
 
 export interface Analytics {
+  /** Поточний розподіл вакансій за статусом (знімок "де зараз"). */
   funnel: Record<string, number>;
+  /** Скільки вакансій КОЛИ-НЕБУДЬ мали кожен статус — чесна воронка проходження етапів. */
+  funnelReached: Record<string, number>;
   byDate: Record<string, number>;
   demand: Record<string, number>;
   radar: RadarPoint[];
+}
+
+export interface JsonVacancyImportResult {
+  added: number;
+  updated: number;
+  skipped: number;
+  errors: { index: number; message: string }[];
 }
 
 export interface LearnGap {

@@ -6,3 +6,4 @@ export { pingDb, closeDb } from "./client.js";
 export * from "./types.js";
 export * from "./kv.js";
 export * from "./helpers.js";
+export * from "./vacancy-history.js";
