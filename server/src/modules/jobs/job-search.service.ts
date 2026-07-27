@@ -118,8 +118,9 @@ export async function fetchDou(query: string): Promise<RawJob[]> {
   const re = /<item>([\s\S]*?)<\/item>/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(xml)) && jobs.length < 60) {
-    const title = decodeXml((m[1].match(/<title>([\s\S]*?)<\/title>/)?.[1] || "").trim());
-    const link = (m[1].match(/<link>([\s\S]*?)<\/link>/)?.[1] || "").trim();
+    const item = m[1] ?? "";
+    const title = decodeXml((item.match(/<title>([\s\S]*?)<\/title>/)?.[1] || "").trim());
+    const link = (item.match(/<link>([\s\S]*?)<\/link>/)?.[1] || "").trim();
     if (!title || !link) continue;
     const { position, company, location } = splitDouTitle(title);
     jobs.push({ company, position, url: link, location: location || "Україна", tags: [], source: "DOU" });
@@ -132,8 +133,9 @@ export function interleave<T>(lists: T[][], limit: number): T[] {
   for (let i = 0; out.length < limit; i += 1) {
     let added = false;
     for (const list of lists) {
-      if (list[i]) {
-        out.push(list[i]);
+      const item = list[i];
+      if (item) {
+        out.push(item);
         added = true;
         if (out.length >= limit) break;
       }

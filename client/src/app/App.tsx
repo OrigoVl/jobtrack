@@ -1,25 +1,28 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ToastProvider, useToast } from "../shared/toast";
+import { ToastProvider } from "../shared/toast";
+import { useToast } from "../shared/use-toast";
 import { useHealth, useRoadmap } from "../shared/queries";
 import { CardsSkeleton, ProgressBar } from "../shared/ui";
 import { ErrorBoundary } from "../shared/error-boundary";
-import { Dashboard } from "../features/dashboard/dashboard";
-import { Vacancies } from "../features/vacancies/vacancies";
-import { Analyzer } from "../features/analyzer/analyzer";
-import { Study } from "../features/study/study";
-import { CVView } from "../features/cv/cv";
-import { CvBuilder } from "../features/cv/cv-builder";
-import { Companies } from "../features/companies/companies";
-import { Jobs } from "../features/jobs/jobs";
-import { LearnPlan } from "../features/knowledge/learn";
-import { Resources } from "../features/resources/resources";
-import { Projects } from "../features/projects/projects";
-import { Plan21 } from "../features/plan21/plan21";
-import { MockInterview } from "../features/mock/mock";
-import { Roadmap } from "../features/roadmap/roadmap";
 
+// Кожна фіч-сторінка — окремий route-based чанк: користувач довантажує лише те, куди
+// реально заходить, замість одного великого eager-бандла з усіма 14 сторінками одразу.
+const Dashboard = lazy(() => import("../features/dashboard/dashboard").then((m) => ({ default: m.Dashboard })));
+const Vacancies = lazy(() => import("../features/vacancies/vacancies").then((m) => ({ default: m.Vacancies })));
+const Analyzer = lazy(() => import("../features/analyzer/analyzer").then((m) => ({ default: m.Analyzer })));
+const Study = lazy(() => import("../features/study/study").then((m) => ({ default: m.Study })));
+const CVView = lazy(() => import("../features/cv/cv").then((m) => ({ default: m.CVView })));
+const CvBuilder = lazy(() => import("../features/cv/cv-builder").then((m) => ({ default: m.CvBuilder })));
+const Companies = lazy(() => import("../features/companies/companies").then((m) => ({ default: m.Companies })));
+const Jobs = lazy(() => import("../features/jobs/jobs").then((m) => ({ default: m.Jobs })));
+const LearnPlan = lazy(() => import("../features/knowledge/learn").then((m) => ({ default: m.LearnPlan })));
+const Resources = lazy(() => import("../features/resources/resources").then((m) => ({ default: m.Resources })));
+const Projects = lazy(() => import("../features/projects/projects").then((m) => ({ default: m.Projects })));
+const Plan21 = lazy(() => import("../features/plan21/plan21").then((m) => ({ default: m.Plan21 })));
+const MockInterview = lazy(() => import("../features/mock/mock").then((m) => ({ default: m.MockInterview })));
+const Roadmap = lazy(() => import("../features/roadmap/roadmap").then((m) => ({ default: m.Roadmap })));
 const SkillRadar = lazy(() => import("../features/analytics/charts").then((m) => ({ default: m.SkillRadar })));
 const Analytics = lazy(() => import("../features/analytics/charts").then((m) => ({ default: m.Analytics })));
 

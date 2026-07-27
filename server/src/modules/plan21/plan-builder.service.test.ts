@@ -49,7 +49,7 @@ describe("buildPlan", () => {
       profile: { skills: ["React"] },
       demand: { React: 5 },
     });
-    expect(phases[0].id).toBe("ph-refresh");
+    expect(phases[0]?.id).toBe("ph-refresh");
     expect(phases.at(-1)?.id).toBe("ph-final");
   });
 
@@ -63,7 +63,7 @@ describe("buildPlan", () => {
     });
     const reactPhase = phases.find((p) => p.id === "ph-react");
     expect(reactPhase?.personalized).toBe(true);
-    expect(reactPhase?.days[0].theory).toBe("Custom topic");
+    expect(reactPhase?.days[0]?.theory).toBe("Custom topic");
   });
 
   it("does not retroactively mutate a previously returned plan's final phase", () => {

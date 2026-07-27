@@ -1,8 +1,4 @@
-// Дрібні спільні хелпери, що використовуються у кількох view-файлах.
-import type { Fit } from "./types";
-
-export const fitTone: Record<Fit, "emerald" | "amber" | "rose"> = { high: "emerald", med: "amber", low: "rose" };
-export const fitText: Record<Fit, string> = { high: "text-emerald-600", med: "text-amber-600", low: "text-rose-600" };
+// Дрібні спільні компоненти, що використовуються у кількох view-файлах.
 
 /** Простий текстовий інпут з лейблом — використовується у CV (перегляд) та Конструкторі CV. */
 export function Field({

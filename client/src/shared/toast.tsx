@@ -1,13 +1,6 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import type { Toast, ToastType } from "./types";
-
-interface ToastApi {
-  toasts: Toast[];
-  toast: (message: string, type?: ToastType) => void;
-  dismissToast: (id: number) => void;
-}
-
-const ToastContext = createContext<ToastApi | null>(null);
+import { ToastContext } from "./toast-context";
 
 /**
  * Легкий, ізольований від даних контекст для toast-повідомлень. Раніше жив усередині
@@ -28,10 +21,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const dismissToast = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), []);
 
   return <ToastContext.Provider value={{ toasts, toast, dismissToast }}>{children}</ToastContext.Provider>;
-}
-
-export function useToast(): ToastApi {
-  const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error("useToast має використовуватись усередині <ToastProvider>");
-  return ctx;
 }

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { parseVacancyInput, parseProfileInput, parseCompanyInput, assertSafeVacancyUrl, STATUSES, FITS } from "./validation.js";
+import {
+  parseVacancyInput,
+  parseProfileInput,
+  parseCompanyInput,
+  parsePagination,
+  assertSafeVacancyUrl,
+  STATUSES,
+  FITS,
+} from "./validation.js";
 import { HttpError } from "../core/http.js";
 
 describe("parseVacancyInput", () => {
@@ -54,6 +62,31 @@ describe("parseCompanyInput", () => {
   it("accepts a valid company payload", () => {
     const out = parseCompanyInput({ name: "Acme", notes: "n", questions: ["Q1"] });
     expect(out).toEqual({ name: "Acme", notes: "n", questions: ["Q1"] });
+  });
+});
+
+describe("parsePagination", () => {
+  it("returns undefined limit and zero offset when no query params given", () => {
+    expect(parsePagination({})).toEqual({ limit: undefined, offset: 0 });
+    expect(parsePagination(undefined)).toEqual({ limit: undefined, offset: 0 });
+  });
+
+  it("parses valid limit/offset", () => {
+    expect(parsePagination({ limit: "20", offset: "10" })).toEqual({ limit: 20, offset: 10 });
+  });
+
+  it("caps limit at 500", () => {
+    expect(parsePagination({ limit: "10000" })).toEqual({ limit: 500, offset: 0 });
+  });
+
+  it("rejects a non-positive limit", () => {
+    expect(() => parsePagination({ limit: "0" })).toThrow(HttpError);
+    expect(() => parsePagination({ limit: "-5" })).toThrow(HttpError);
+    expect(() => parsePagination({ limit: "abc" })).toThrow(HttpError);
+  });
+
+  it("rejects a negative offset", () => {
+    expect(() => parsePagination({ offset: "-1" })).toThrow(HttpError);
   });
 });
 

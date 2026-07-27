@@ -38,9 +38,9 @@ function parseCsv(text: string): string[][] {
 }
 
 function csvToObjects(text: string): Record<string, string>[] {
-  const rows = parseCsv(text).filter((r) => !(r.length === 1 && r[0].trim() === ""));
+  const rows = parseCsv(text).filter((r) => !(r.length === 1 && (r[0] ?? "").trim() === ""));
   if (rows.length < 2) return [];
-  const headers = rows[0].map((h) => h.trim());
+  const headers = (rows[0] ?? []).map((h) => h.trim());
   return rows.slice(1).map((r) => Object.fromEntries(headers.map((h, i) => [h, (r[i] || "").trim()])));
 }
 
@@ -86,7 +86,7 @@ export function parseLinkedInArchive(buffer: Buffer): ParsedLinkedInCv {
     contact,
     summary: profile.Summary || "",
     photo: "",
-    skills: skillRows.map((s) => s.Name).filter(Boolean),
+    skills: skillRows.map((s) => s.Name).filter((n): n is string => Boolean(n)),
     experience: positions.map((p) => ({
       role: p.Title || "",
       company: p["Company Name"] || "",

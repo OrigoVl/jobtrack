@@ -17,9 +17,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "pnpm --filter jobtrack-client typecheck && pnpm --filter jobtrack-server typecheck",
-    "test": "pnpm --filter jobtrack-client test && pnpm --filter jobtrack-server test"
+    "test": "pnpm --filter jobtrack-client test && pnpm --filter jobtrack-server test",
+    "test:coverage": "pnpm --filter jobtrack-client test:coverage && pnpm --filter jobtrack-server test:coverage",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "concurrently": "^9.1.0",
     "prettier": "^3.3.3"
   },

@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import type { Profile } from "../types";
-import { useToast } from "../toast";
+import { useToast } from "../use-toast";
 import { queryKeys } from "./keys";
 import { useInvalidateDerived } from "./derived";
 

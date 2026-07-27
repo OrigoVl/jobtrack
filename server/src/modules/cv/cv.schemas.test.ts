@@ -92,7 +92,7 @@ describe("CvDocSchema", () => {
     }));
     const doc = CvDocSchema.parse({ experience });
     expect(doc.experience).toHaveLength(20);
-    expect(doc.experience[0].bullets).toEqual(["ok"]);
+    expect(doc.experience[0]?.bullets).toEqual(["ok"]);
   });
 
   it("rejects a malformed photo data URL but keeps a valid one", () => {
@@ -133,7 +133,7 @@ describe("CvPresetsSchema", () => {
     ];
     const out = CvPresetsSchema.parse(presets);
     expect(out).toHaveLength(1);
-    expect(out[0].name).toBe("Blue");
-    expect(out[0].theme.accent).toBe("#0000ff");
+    expect(out[0]?.name).toBe("Blue");
+    expect(out[0]?.theme.accent).toBe("#0000ff");
   });
 });

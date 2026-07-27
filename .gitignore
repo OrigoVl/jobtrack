@@ -31,3 +31,9 @@ npm-debug.log*
 # editor
 .vscode/
 .idea/
+
+# Playwright E2E
+playwright-report/
+test-results/
+e2e/.tmp/*
+!e2e/.tmp/.gitkeep

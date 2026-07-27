@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import type { ProjectsData } from "../types";
-import { useToast } from "../toast";
+import { useToast } from "../use-toast";
 import { queryKeys } from "./keys";
 
 export function useProjects() {

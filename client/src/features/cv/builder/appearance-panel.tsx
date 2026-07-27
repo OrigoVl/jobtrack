@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Btn, Segmented, Section } from "../../../shared/ui";
-import { useToast } from "../../../shared/toast";
+import { useToast } from "../../../shared/use-toast";
 import type { CvDoc, CvTheme } from "../../../shared/types";
 import { PhotoCropper } from "./photo-cropper";
 

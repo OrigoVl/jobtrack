@@ -31,6 +31,11 @@ const RawEnvSchema = z.object({
   // Скільки чекати відповіді від LLM-провайдера, перш ніж відмовитись — щоб зависла
   // відповідь OpenAI/Anthropic не тримала запит користувача (і з'єднання) вічно.
   LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+  // Express "trust proxy" — треба вмикати, лише якщо застосунок реально стоїть за
+  // reverse-proxy/LB (nginx, Cloudflare тощо), інакше req.ip і rate-limit бачитимуть IP проксі,
+  // а не клієнта. За замовчуванням вимкнено (застосунок слухає напряму).
+  // Приклади значень: "false" (дефолт), "1" (довіряти першому хопу), "loopback".
+  TRUST_PROXY: z.string().trim().default("false"),
 });
 
 const parsedEnv = RawEnvSchema.safeParse(process.env);
@@ -55,6 +60,14 @@ export const env = {
     : undefined,
   logLevel: raw.LOG_LEVEL || (isProduction ? "info" : "debug"),
   clientDistPath: path.join(serverRoot, "..", "client", "dist"),
+  // Express приймає boolean | number | string для "trust proxy" — коерсимо з рядка env.
+  trustProxy: (raw.TRUST_PROXY === "true"
+    ? true
+    : raw.TRUST_PROXY === "false"
+      ? false
+      : /^\d+$/.test(raw.TRUST_PROXY)
+        ? Number(raw.TRUST_PROXY)
+        : raw.TRUST_PROXY) as boolean | number | string,
 
   llm: {
     provider: raw.LLM_PROVIDER,

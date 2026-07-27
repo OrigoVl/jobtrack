@@ -15,9 +15,30 @@ import routes from "./routes.js";
 
 export const app = express();
 
-// CSP вимкнено: застосунок сам віддає свій SPA (inline Vite-скрипти) з того ж origin,
-// решта helmet-заголовків (HSTS, no-sniff, frameguard тощо) лишаються увімкненими.
-app.use(helmet({ contentSecurityPolicy: false }));
+// За замовчуванням вимкнено (env.trustProxy === false) — довіряти проксі можна лише свідомо
+// через TRUST_PROXY, інакше express-rate-limit і req.ip бачитимуть чужий/спільний IP.
+app.set("trust proxy", env.trustProxy);
+
+// CSP: застосунок сам віддає свій SPA з того ж origin (Vite білдить зовнішні <script type="module">,
+// inline-скриптів немає), тож можна тримати сувору політику. Єдиний зовнішній ресурс — Google Fonts
+// (стилі + шрифти), решта (script/connect/img/frame) обмежені 'self'.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        connectSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        frameAncestors: ["'self'"],
+      },
+    },
+  }),
+);
 // Same-origin в проді (сервер сам роздає client/dist) — CORS потрібен лише для dev
 // (Vite на іншому порту) та потенційних зовнішніх інтеграцій. Без CORS_ORIGIN у .env — дозволені
 // всі origin (без credentials: кук/сесій немає, застосунок однокористувацький, auth не потрібен).

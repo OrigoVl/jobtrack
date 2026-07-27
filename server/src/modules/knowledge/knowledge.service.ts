@@ -111,7 +111,13 @@ export async function getDynamicKnowledge(tech: string, { profile, demand }: Dyn
     { json: true, maxTokens: 650, temperature: 0.4, tier: "smart" },
   );
   if (!out || !Array.isArray(out.learn) || out.learn.length === 0) {
-    return { ...shared, focus: out?.focus || null, learn: base.learn, resources: base.resources, source: "static" };
+    return {
+      ...shared,
+      focus: typeof out?.focus === "string" ? out.focus : null,
+      learn: base.learn,
+      resources: base.resources,
+      source: "static",
+    };
   }
   const aiResources: AiResource[] = Array.isArray(out.resources) ? out.resources : [];
   const resources = await validateResources(base.resources, aiResources);

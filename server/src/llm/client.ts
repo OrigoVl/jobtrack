@@ -30,24 +30,35 @@ function modelFor(tier: LlmTier): string {
 
 /**
  * Викликає LLM (OpenAI/Anthropic) з graceful offline-fallback (повертає null без ключа).
- * Повертає `any`, бо форма відповіді залежить від конкретного промпту (json:true) —
- * кожен виклик валідує поля вручну одразу після отримання (typeof-перевірки нижче по коду).
+ * Форма відповіді залежить від промпту (json:true) — тип результату визначається
+ * прапорцем `json` через перевантаження нижче; для json-режиму викликач може передати
+ * власний generic-тип очікуваної структури (за замовчуванням — довільний об'єкт).
+ * Кожен виклик все одно валідує поля вручну (typeof/Array.isArray) — LLM не гарантує
+ * відповідність типу в рантаймі, лише декларує очікувану форму для компілятора.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function chat(system: string, user: string, options: ChatOptions = {}): Promise<any> {
+export async function chat(system: string, user: string, options?: ChatOptions & { json?: false }): Promise<string | null>;
+export async function chat<T extends object = Record<string, unknown>>(
+  system: string,
+  user: string,
+  options: ChatOptions & { json: true },
+): Promise<T | null>;
+export async function chat(system: string, user: string, options: ChatOptions = {}): Promise<LlmResult> {
   const { json = false, maxTokens = 900, temperature = 0.4, cache = false, tier = "fast" } = options;
   if (!llmAvailable()) return null;
   const model = modelFor(tier);
   const mode = json ? "json" : "text";
   const cacheKey = cache ? "llm:" + hashString([model, mode, system, user].join("|")) : null;
   if (cacheKey) {
-    const hit = getKvJson<{ value: unknown }>(cacheKey);
+    const hit = getKvJson<{ value: LlmResult }>(cacheKey);
     if (hit) return hit.value;
   }
   const result = await callProvider(system, user, { json, maxTokens, temperature, model });
   if (cacheKey && result != null) setKvJson(cacheKey, { value: result });
   return result;
 }
+
+/** Форма "сирого" результату виклику провайдера, до того як викликач звузить її до T через generic-перевантаження `chat`. */
+type LlmResult = string | Record<string, unknown> | null;
 
 interface CallProviderOptions {
   json: boolean;
@@ -56,8 +67,11 @@ interface CallProviderOptions {
   model: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function callProvider(system: string, user: string, { json, maxTokens, temperature, model }: CallProviderOptions): Promise<any> {
+async function callProvider(
+  system: string,
+  user: string,
+  { json, maxTokens, temperature, model }: CallProviderOptions,
+): Promise<LlmResult> {
   // AbortSignal.timeout — щоб зависла відповідь провайдера не тримала запит користувача
   // (і з'єднання з сервером) необмежено довго; помилка потрапляє в catch нижче й
   // повертається як graceful offline-фолбек, а не 500/зависання.
@@ -110,15 +124,14 @@ async function callProvider(system: string, user: string, { json, maxTokens, tem
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function safeJson(text: string): any {
+function safeJson(text: string): Record<string, unknown> | null {
   try {
-    return JSON.parse(text);
+    return JSON.parse(text) as Record<string, unknown>;
   } catch {
     const m = text.match(/\{[\s\S]*\}/);
     if (m) {
       try {
-        return JSON.parse(m[0]);
+        return JSON.parse(m[0]) as Record<string, unknown>;
       } catch {
         return null;
       }

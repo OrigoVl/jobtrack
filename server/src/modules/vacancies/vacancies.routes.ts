@@ -5,14 +5,19 @@ import { extractSkills } from "../../shared/skill-extraction.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { HttpError, asyncHandler } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
-import { parseVacancyInput, parseText, type Fit } from "../../shared/validation.js";
+import { parseVacancyInput, parseText, parsePagination, type Fit } from "../../shared/validation.js";
 import { fetchVacancyText, computeFit, quickAnalyze } from "./vacancy-analysis.service.js";
 
 const r = express.Router();
 
 // ---------- vacancies ----------
-r.get("/vacancies", (_q, res) => {
-  const rows = db.prepare("SELECT * FROM vacancies ORDER BY id DESC").all() as unknown as VacancyRow[];
+// Без ?limit/?offset — весь список (поточна поведінка, потрібна Kanban-дошці для групування
+// за статусом). З ?limit — обмежена сторінка, на випадок якщо список виросте.
+r.get("/vacancies", (req, res) => {
+  const { limit, offset } = parsePagination(req.query);
+  const rows = (limit != null
+    ? db.prepare("SELECT * FROM vacancies ORDER BY id DESC LIMIT ? OFFSET ?").all(limit, offset)
+    : db.prepare("SELECT * FROM vacancies ORDER BY id DESC").all()) as unknown as VacancyRow[];
   res.json(rows.map(withStack));
 });
 r.post("/vacancies", (req, res) => {
@@ -136,10 +141,11 @@ r.post("/vacancies/import", (req, res) => {
   const added: { company: string; url: string }[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(html))) {
-    if (seen.has(m[2])) continue;
-    seen.add(m[2]);
-    const url = m[0] + "/";
-    const company = m[1].replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const id = m[2] ?? "";
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const url = (m[0] ?? "") + "/";
+    const company = (m[1] ?? "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     if (db.prepare("SELECT id FROM vacancies WHERE url=?").get(url)) continue;
     db.prepare("INSERT INTO vacancies (company,position,url,status) VALUES (?,?,?,?)").run(company, "(імпортовано)", url, "Хочу подати");
     added.push({ company, url });

@@ -1,0 +1,9 @@
+Іван Петренко
+Full Stack Developer
+
+Досвід:
+- 3 роки розробки на React, TypeScript, Node.js та NestJS.
+- Побудова REST API з Express та MongoDB.
+- Docker, CI/CD, Git.
+
+Навички: React, TypeScript, Node.js, NestJS, Express, MongoDB, Docker, Git.

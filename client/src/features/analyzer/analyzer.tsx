@@ -4,7 +4,7 @@ import { useUi } from "../../shared/ui-state";
 import { useAddVacancy, useFetchAllVacancies } from "../../shared/queries";
 import { Btn, Card, Chip, PageHeader } from "../../shared/ui";
 import type { AnalyzeResult, Fit, FetchAllResult } from "../../shared/types";
-import { fitText } from "../../shared/view-kit";
+import { fitText } from "../../shared/fit-tone";
 
 /* ---------- Analyzer ---------- */
 export function Analyzer() {

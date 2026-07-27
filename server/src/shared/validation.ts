@@ -120,6 +120,35 @@ export function parseText(body: unknown, field = "text", { min = 1, max = 20000 
   return text.slice(0, max);
 }
 
+export interface Pagination {
+  /** undefined — пагінацію не запитано, повернути весь список (поточна поведінка за замовчуванням). */
+  limit?: number;
+  offset: number;
+}
+
+/**
+ * Опційна пагінація для list-ендпоінтів: якщо query-параметри не передані — повертаємо
+ * весь список як і раніше (сумісність зі старими клієнтами й Kanban-дошкою, якій треба
+ * бачити всі вакансії одразу для групування за статусом). limit/offset можна задати явно,
+ * коли список виросте настільки, що варто підвантажувати частинами.
+ */
+export function parsePagination(query: unknown): Pagination {
+  const q = (query || {}) as Record<string, unknown>;
+  let limit: number | undefined;
+  if (Object.prototype.hasOwnProperty.call(q, "limit")) {
+    const n = Number(q.limit);
+    if (!Number.isFinite(n) || n <= 0) throw new HttpError(400, 'Параметр "limit" має бути додатним числом');
+    limit = Math.min(Math.floor(n), 500);
+  }
+  let offset = 0;
+  if (Object.prototype.hasOwnProperty.call(q, "offset")) {
+    const n = Number(q.offset);
+    if (!Number.isFinite(n) || n < 0) throw new HttpError(400, 'Параметр "offset" має бути невідʼємним числом');
+    offset = Math.floor(n);
+  }
+  return { limit, offset };
+}
+
 // SSRF-захист: сервер ходить лише на jobs.dou.ua і лише по https.
 export function assertSafeVacancyUrl(rawUrl: string): string {
   let url: URL;

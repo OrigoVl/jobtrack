@@ -3,7 +3,7 @@ import { useUi } from "../../shared/ui-state";
 import { useAddVacancy, useDeleteVacancy, useImportVacancies, useUpdateVacancy, useVacancies } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader } from "../../shared/ui";
 import { STATUSES, type Fit, type Vacancy } from "../../shared/types";
-import { fitTone, fitText } from "../../shared/view-kit";
+import { fitTone, fitText } from "../../shared/fit-tone";
 
 /* ---------- Vacancies board (drag-and-drop + клавіатура) ---------- */
 function VacancyBoard() {

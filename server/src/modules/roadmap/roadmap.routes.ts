@@ -58,7 +58,7 @@ r.get("/roadmap", (_q, res) => {
   }
   const groups = GROUP_ORDER.filter((g) => byGroup[g]).map((g) => ({
     group: g,
-    nodes: byGroup[g].sort((a, b) => b.demand - a.demand || a.tech.localeCompare(b.tech)),
+    nodes: (byGroup[g] ?? []).sort((a, b) => b.demand - a.demand || a.tech.localeCompare(b.tech)),
   }));
   const all = groups.flatMap((g) => g.nodes);
   res.json({

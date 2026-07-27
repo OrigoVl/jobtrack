@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
-import { useToast } from "../../shared/toast";
+import { useToast } from "../../shared/use-toast";
 import { useApplyCvUpload, useProfile, useVacancies } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, PageHeader } from "../../shared/ui";
 import type { CvDoc, CvExperience, CvMatch, CvPreset, CvReview, CvTheme } from "../../shared/types";
