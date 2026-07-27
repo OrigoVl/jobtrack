@@ -8,7 +8,7 @@ import { HttpError, asyncHandler } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
 import { parseProfileInput } from "../../shared/validation.js";
 import { uploadSingle } from "../../shared/upload.js";
-import { CvDocSchema, CvPresetsSchema, type CvDoc } from "./cv.schemas.js";
+import { CvDocSchema, CvPresetsSchema } from "./cv.schemas.js";
 import { cvAnalysis, reviewCv, matchCv, strs } from "./cv-analysis.service.js";
 import { emptyCvDoc, parseCvDocFromText } from "./cv-document.service.js";
 
@@ -41,18 +41,21 @@ r.post(
       throw new HttpError(422, "Не вдалося витягти текст із файлу (можливо, це скан/зображення).");
     }
     const profile = getProfile();
-    const cvTechs = await extractSkills(text);
-    const domain = await detectDomain(text);
+    // extractSkills і detectDomain — незалежні LLM-виклики над тим самим текстом (жоден не
+    // читає результат іншого), тож запускаємо їх паралельно замість послідовного очікування —
+    // майже вдвічі швидше для юзера на завантаженні CV.
+    const [cvTechs, domain] = await Promise.all([extractSkills(text), detectDomain(text)]);
     profile.cvText = text.slice(0, 8000);
     profile.skills = Array.from(new Set([...profile.skills, ...cvTechs]));
     if (domain) profile.domain = domain;
     setProfile(profile);
-    const analysis = await cvAnalysis(text);
-    let cvDoc: CvDoc | null = null;
-    if (llmAvailable()) {
-      cvDoc = await parseCvDocFromText(profile.cvText);
-      setKvJson("cvDoc", cvDoc);
-    }
+    // cvAnalysis (порада з попиту ринку) і parseCvDocFromText (парсинг у структуру конструктора)
+    // теж незалежні одне від одного — обидва лише читають уже збережений profile.cvText.
+    const [analysis, cvDoc] = await Promise.all([
+      cvAnalysis(text),
+      llmAvailable() ? parseCvDocFromText(profile.cvText) : Promise.resolve(null),
+    ]);
+    if (cvDoc) setKvJson("cvDoc", cvDoc);
     res.json({ text: profile.cvText, skills: profile.skills, detected: cvTechs, domain: profile.domain, cvDoc, ...analysis });
   }),
 );

@@ -176,19 +176,22 @@ r.post(
   aiLimiter,
   asyncHandler(async (req, res) => {
     const text = parseText(req.body, "text");
-    const techs = await extractSkills(text);
-    const level = extractLevel(text);
     const profile = getProfile();
+    // extractSkills (екстракція стеку) і summary (оцінка відповідності текстом) — незалежні
+    // LLM-виклики над тим самим текстом; жоден не потребує результату іншого — паралельно.
+    const [techs, summary] = await Promise.all([
+      extractSkills(text),
+      llmAvailable()
+        ? chat(
+            "Ти рекрутер. Стисло українською.",
+            `Ось текст вакансії. Виділи 5-8 ключових вимог одним списком і 1 реченням оціни, чи підходить кандидат з навичками: ${profile.skills.join(", ")}.\n\n${text.slice(0, 4000)}`,
+            { maxTokens: 500, cache: true },
+          )
+        : Promise.resolve(null),
+    ]);
+    const level = extractLevel(text);
     const gap = techs.filter((t) => !profile.skills.includes(t));
     const match = techs.filter((t) => profile.skills.includes(t));
-    let summary = null;
-    if (llmAvailable()) {
-      summary = await chat(
-        "Ти рекрутер. Стисло українською.",
-        `Ось текст вакансії. Виділи 5-8 ключових вимог одним списком і 1 реченням оціни, чи підходить кандидат з навичками: ${profile.skills.join(", ")}.\n\n${text.slice(0, 4000)}`,
-        { maxTokens: 500, cache: true },
-      );
-    }
     res.json({ techs, level, gap, match, summary, fit: computeFit(match, gap) });
   }),
 );

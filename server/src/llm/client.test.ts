@@ -84,7 +84,9 @@ describe("chat() surfaces provider failures instead of a silent null", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns null (not a thrown error) when the provider responds with a non-2xx status", async () => {
+  it("returns null (not a thrown error) when the provider keeps responding with a non-2xx status", async () => {
+    // 429 — retryable, тож mockResolvedValue (без .Once) означає, що ОБИДВІ спроби (оригінал +
+    // 1 retry) отримають той самий 429 — і в результаті все одно null, а не виняток.
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: false,
       status: 429,
@@ -109,6 +111,39 @@ describe("chat() surfaces provider failures instead of a silent null", () => {
     const { chat } = await import("./client.js");
     const result = await chat<{ score: number }>("system", "user", { json: true });
     expect(result).toBeNull();
+  });
+
+  it("retries once on a transient 429 and succeeds if the second attempt is ok", async () => {
+    // Симулює короткочасне перевантаження провайдера: перша спроба 429, друга — успішна.
+    // callProvider() має розпізнати 429 як "варте повтору" і зробити РІВНО один retry.
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        text: async () => JSON.stringify({ error: { message: "Rate limit exceeded" } }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ choices: [{ message: { content: "ok after retry" }, finish_reason: "stop" }] }),
+      } as Response);
+    const { chat } = await import("./client.js");
+    const result = await chat("system", "user");
+    expect(result).toBe("ok after retry");
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry on a permanent 401 (bad api key) — fails fast with a single call", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => JSON.stringify({ error: { message: "Invalid API key" } }),
+    } as Response);
+    const { chat } = await import("./client.js");
+    const result = await chat("system", "user");
+    expect(result).toBeNull();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
   it("returns the parsed object in json mode when the provider responds with valid, complete JSON", async () => {

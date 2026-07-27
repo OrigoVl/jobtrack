@@ -39,7 +39,11 @@ export async function cvAnalysis(cvText: string): Promise<CvAnalysis> {
     const llm = await chat(
       `Ти кар'єрний коуч для ролі «${role}». Українською, конкретно.`,
       `CV кандидата:\n${cvText.slice(0, 5000)}\n\nПопит ринку (к-сть вакансій за навичкою): ${JSON.stringify(demand)}.\nДай 4-6 конкретних рекомендацій: що підтягнути й що підкреслити в резюме.`,
-      { maxTokens: 600, cache: true, tier: "smart" },
+      // "fast" достатньо: формулювання рекомендацій зі структурованих gaps/strengths — це
+      // задача форматування/сумаризації, не глибокий аналіз (той є в reviewCv/matchCv, де
+      // залишено "smart"). Викликається часто (кожен /cv/analyze і /cv/upload) — economия
+      // без відчутної втрати якості порад.
+      { maxTokens: 600, cache: true, tier: "fast" },
     );
     if (llm) advice = llm;
   }

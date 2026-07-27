@@ -26,11 +26,15 @@ const RawEnvSchema = z.object({
   OPENAI_MODEL: z.string().trim().min(1).default("gpt-4o-mini"),
   OPENAI_MODEL_SMART: z.string().trim().min(1).default("gpt-4o"),
   ANTHROPIC_API_KEY: z.string().trim().min(1).optional(),
-  ANTHROPIC_MODEL: z.string().trim().min(1).default("claude-3-5-haiku-latest"),
-  ANTHROPIC_MODEL_SMART: z.string().trim().min(1).default("claude-3-5-sonnet-latest"),
+  ANTHROPIC_MODEL: z.string().trim().min(1).default("claude-haiku-4-5-20251001"),
+  ANTHROPIC_MODEL_SMART: z.string().trim().min(1).default("claude-sonnet-4-5-20250929"),
   // Скільки чекати відповіді від LLM-провайдера, перш ніж відмовитись — щоб зависла
   // відповідь OpenAI/Anthropic не тримала запит користувача (і з'єднання) вічно.
+  // Two-tier timeout: "fast" (екстракція/підказки) фейлиться швидше, ніж "smart"
+  // (складна структурована генерація, якій потрібно більше часу) — швидший fallback
+  // на офлайн-евристику для простих задач, які не повинні "висіти" довго.
   LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+  LLM_TIMEOUT_MS_FAST: z.coerce.number().int().positive().default(15_000),
   // Express "trust proxy" — треба вмикати, лише якщо застосунок реально стоїть за
   // reverse-proxy/LB (nginx, Cloudflare тощо), інакше req.ip і rate-limit бачитимуть IP проксі,
   // а не клієнта. За замовчуванням вимкнено (застосунок слухає напряму).
@@ -78,6 +82,7 @@ export const env = {
     anthropicModel: raw.ANTHROPIC_MODEL,
     anthropicModelSmart: raw.ANTHROPIC_MODEL_SMART,
     timeoutMs: raw.LLM_TIMEOUT_MS,
+    timeoutMsFast: raw.LLM_TIMEOUT_MS_FAST,
     get isAvailable(): boolean {
       return !!(env.llm.openaiApiKey || env.llm.anthropicApiKey);
     },

@@ -28,7 +28,10 @@ export async function parseCvDocFromText(cvText: string): Promise<CvDoc> {
       `Формат строго: {"name":"","title":"","contact":"email/лінки","summary":"2-4 речення","skills":["..."],` +
       `"experience":[{"role":"","company":"","period":"","bullets":["результат-орієнтовані пункти"]}],"education":["..."],"projects":["..."],` +
       `"languages":[{"name":"English","level":"B2|C1|Рідна тощо"}]}`,
-    { json: true, maxTokens: 1500, temperature: 0.3, cache: true, tier: "smart" },
+    // Повне резюме (кілька місць роботи × кілька буллетів + освіта/проєкти/мови) — 1500
+    // токенів реально не вистачало на насичені CV (той самий клас обрізання JSON, що й
+    // у reviewCv/matchCv), і generation тихо обрізався по maxTokens ще до закриття JSON.
+    { json: true, maxTokens: 2600, temperature: 0.3, cache: true, tier: "smart" },
   );
   const doc = CvDocSchema.parse(out || {});
   const prev = getKvJson<CvDoc>("cvDoc");

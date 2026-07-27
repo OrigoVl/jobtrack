@@ -148,7 +148,9 @@ r.get(
       `Ти кар'єрний ментор для кандидата (${role}) у пошуку роботи. Аналізуєш його стан і даєш 3 найважливіші конкретні дії на цей тиждень. Відповідай ЛИШЕ валідним JSON українською.`,
       `Стан пошуку (JSON): ${JSON.stringify(summary)}.\n` +
         `Дай рівно 3 пріоритетні дії з поясненням чому саме зараз. Формат строго: {"actions":[{"title":"коротка дія","why":"1 речення чому"}]}`,
-      { json: true, maxTokens: 500, temperature: 0.5, cache: true, tier: "smart" },
+      // "fast": пріоритизація 3 дій зі структурованого стану воронки — легка задача,
+      // не потребує "smart"-рівня; дешевше й швидше для картки, яку юзер бачить щодня.
+      { json: true, maxTokens: 500, temperature: 0.5, cache: true, tier: "fast" },
     );
     const actions: FocusAction[] = Array.isArray(out?.actions)
       ? out.actions

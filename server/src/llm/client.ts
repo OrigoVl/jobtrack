@@ -52,7 +52,10 @@ export async function chat(system: string, user: string, options: ChatOptions = 
     const hit = getKvJson<{ value: LlmResult }>(cacheKey);
     if (hit) return hit.value;
   }
-  const result = await callProvider(system, user, { json, maxTokens, temperature, model });
+  // tier-aware timeout: "fast" (екстракція/підказки) фейлиться швидше й падає на офлайн-
+  // евристику раніше, ніж "smart" (складна структурована генерація потребує більше часу).
+  const timeoutMs = tier === "smart" ? env.llm.timeoutMs : env.llm.timeoutMsFast;
+  const result = await callProvider(system, user, { json, maxTokens, temperature, model, timeoutMs });
   if (cacheKey && result != null) setKvJson(cacheKey, { value: result });
   return result;
 }
@@ -65,17 +68,42 @@ interface CallProviderOptions {
   maxTokens: number;
   temperature: number;
   model: string;
+  timeoutMs: number;
 }
+
+// HTTP-статуси провайдера, варті одного повтору: короткочасні збої інфраструктури
+// (5xx) або перевантаження (429). Інші (400/401/404 тощо) — постійні помилки конфігурації/
+// запиту, повтор їх не виправить, тож не витрачаємо на них зайвий раунд-тріп.
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+// Короткий фіксований backoff перед єдиним повтором — досить, щоб пережити мікро-збій
+// провайдера, але не настільки довго, щоб суттєво зіпсувати відчуття швидкості для юзера.
+const RETRY_DELAY_MS = 400;
 
 async function callProvider(
   system: string,
   user: string,
-  { json, maxTokens, temperature, model }: CallProviderOptions,
+  { json, maxTokens, temperature, model, timeoutMs }: CallProviderOptions,
 ): Promise<LlmResult> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const outcome = await callProviderOnce(system, user, { json, maxTokens, temperature, model, timeoutMs });
+    if (outcome.retryable && attempt === 0) {
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      continue;
+    }
+    return outcome.result;
+  }
+  return null;
+}
+
+async function callProviderOnce(
+  system: string,
+  user: string,
+  { json, maxTokens, temperature, model, timeoutMs }: CallProviderOptions,
+): Promise<{ result: LlmResult; retryable: boolean }> {
   // AbortSignal.timeout — щоб зависла відповідь провайдера не тримала запит користувача
   // (і з'єднання з сервером) необмежено довго; помилка потрапляє в catch нижче й
   // повертається як graceful offline-фолбек, а не 500/зависання.
-  const signal = AbortSignal.timeout(env.llm.timeoutMs);
+  const signal = AbortSignal.timeout(timeoutMs);
   try {
     if (env.llm.provider === "anthropic" && env.llm.anthropicApiKey) {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -102,11 +130,12 @@ async function callProvider(
       if (!r.ok) {
         const body = await r.text().catch(() => "");
         contextLogger().error({ status: r.status, body: body.slice(0, 500), model, provider: "anthropic" }, "LLM API error response");
-        return null;
+        return { result: null, retryable: RETRYABLE_STATUSES.has(r.status) };
       }
       const d = (await r.json()) as { content?: { text?: string }[]; stop_reason?: string };
       const text = d?.content?.[0]?.text || "";
-      return json ? parseJsonOrLog(text, { model, provider: "anthropic", stopReason: d?.stop_reason }) : text;
+      const result = json ? parseJsonOrLog(text, { model, provider: "anthropic", stopReason: d?.stop_reason }) : text;
+      return { result, retryable: false };
     }
     // OpenAI (default)
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -127,17 +156,21 @@ async function callProvider(
     if (!r.ok) {
       const body = await r.text().catch(() => "");
       contextLogger().error({ status: r.status, body: body.slice(0, 500), model, provider: "openai" }, "LLM API error response");
-      return null;
+      return { result: null, retryable: RETRYABLE_STATUSES.has(r.status) };
     }
     const d = (await r.json()) as { choices?: { message?: { content?: string }; finish_reason?: string }[] };
     const text = d?.choices?.[0]?.message?.content || "";
-    return json ? parseJsonOrLog(text, { model, provider: "openai", stopReason: d?.choices?.[0]?.finish_reason }) : text;
+    const result = json ? parseJsonOrLog(text, { model, provider: "openai", stopReason: d?.choices?.[0]?.finish_reason }) : text;
+    return { result, retryable: false };
   } catch (e) {
     const timedOut = e instanceof Error && e.name === "TimeoutError";
     // contextLogger() підхоплює reqId поточного HTTP-запиту (якщо він є) через AsyncLocalStorage —
     // дозволяє зкорелювати цю помилку з конкретним запитом користувача в access-логах pino-http.
     contextLogger().error({ err: e, model }, timedOut ? "LLM timeout" : "LLM error");
-    return null;
+    // Мережеві помилки/таймаут — теж варті одного повтору (можуть бути мікро-збоєм з'єднання),
+    // окрім явного таймауту нашого ж бюджету: якщо провайдер не встиг за timeoutMs один раз,
+    // повторний виклик з тим самим бюджетом навряд встигне швидше — не витрачаємо на це раунд-тріп.
+    return { result: null, retryable: !timedOut };
   }
 }
 
