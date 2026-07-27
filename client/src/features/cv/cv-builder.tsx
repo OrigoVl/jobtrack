@@ -6,12 +6,13 @@ import { useApplyCvUpload, useProfile, useVacancies } from "../../shared/queries
 import { Btn, Card, CardsSkeleton, PageHeader } from "../../shared/ui";
 import type { CvDoc, CvExperience, CvMatch, CvPreset, CvReview, CvTheme } from "../../shared/types";
 import { CvMatchPanel, CvReviewPanel } from "./cv";
-import { DEFAULT_ORDER, buildCvHtml, cvDocToText, exportCvDoc, themeOf } from "./builder/cv-doc-utils";
+import { DEFAULT_ORDER, cvDocToText, exportCvDoc, themeOf } from "./builder/cv-doc-utils";
 import { BasicInfoCard } from "./builder/basic-info-card";
 import { ExperienceCard } from "./builder/experience-card";
 import { LanguagesCard, ProjectsEducationCard } from "./builder/extra-sections-cards";
 import { AppearancePanel } from "./builder/appearance-panel";
 import { LayoutPresetsPanel } from "./builder/layout-presets-panel";
+import { CvPreviewPanel } from "./builder/cv-preview-panel";
 
 /* ---------- CV Builder ---------- */
 export function CvBuilder({ llm }: { llm: boolean }) {
@@ -232,7 +233,11 @@ export function CvBuilder({ llm }: { llm: boolean }) {
         subtitle="Структуроване резюме з фокусом на результатах. Заповни з наявного CV, відредагуй і експортуй у PDF."
         actions={
           <>
-            <Btn variant="ghost" onClick={() => exportCvDoc(doc)}>
+            <Btn
+              variant="ghost"
+              onClick={() => exportCvDoc(doc)}
+              title="У вікні друку браузера дата/назва документа зверху сторінок вимкнені автоматично; якщо все ж з'являються — вимкни «Заголовки та підвали»"
+            >
               ⬇️ PDF
             </Btn>
             <Btn onClick={save} disabled={busy === "save"}>
@@ -391,15 +396,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
               saving={busy === "preset"}
             />
           </div>
-          <Card className="p-0 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Прев'ю (як у PDF)</span>
-              <Btn size="sm" variant="ghost" onClick={() => exportCvDoc(doc)}>
-                ⬇️ PDF
-              </Btn>
-            </div>
-            <iframe title="CV preview" srcDoc={buildCvHtml(doc)} className="w-full h-[78vh] bg-white border-0" />
-          </Card>
+          <CvPreviewPanel doc={doc} onExport={() => exportCvDoc(doc)} />
         </div>
       </div>
     </div>

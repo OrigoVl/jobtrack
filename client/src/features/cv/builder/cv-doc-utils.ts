@@ -115,7 +115,16 @@ export function buildCvHtml(doc: CvDoc): string {
     `.company{color:#64748b;font-size:${px(fs * 0.9)}}ul{margin:4px 0;padding-left:18px}li{margin:2px 0}` +
     `.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{background:${t.accent}14;color:${t.accent};border:1px solid ${t.accent}33;border-radius:6px;padding:2px 8px;font-size:${px(fs * 0.85)}}` +
     extraCss +
-    `@media print{body{margin:0;max-width:none}}`;
+    // `@page{margin:0}` — прибирає системний заголовок/підвал браузера (дата, назва
+    // документа, URL, номер сторінки) на кожній сторінці друку: у Chrome/Edge вони
+    // рендеряться саме в полях сторінки, зарезервованих під друк, тож без полів для них
+    // просто немає місця. Власні відступи від фізичного краю паперу задаємо через
+    // padding у body (замість поля сторінки), інакше контент притискався б до краю.
+    // Це не потребує від користувача вручну знімати галочку "Заголовки та підвали" у
+    // вікні друку — але в деяких браузерах (напр. Safari) вона все ж може лишатися,
+    // тож галочку варто перевірити, якщо дата/назва все одно з'явиться.
+    `@page{margin:0}` +
+    `@media print{body{margin:0;max-width:none;padding:14mm 12mm}}`;
   return `<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>${esc(doc.name || "CV")}</title><style>${css}</style></head><body>${layout}</body></html>`;
 }
 

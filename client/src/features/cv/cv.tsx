@@ -19,7 +19,9 @@ function exportPdf(title: string, body: string): void {
     `<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>${esc(title)}</title>` +
       `<style>body{font-family:Inter,system-ui,-apple-system,sans-serif;max-width:720px;margin:40px auto;padding:0 24px;color:#1e293b;line-height:1.6}` +
       `h1{font-size:22px;margin:0 0 16px}pre{white-space:pre-wrap;word-wrap:break-word;font-family:inherit;font-size:14px}` +
-      `@media print{body{margin:0}}</style></head><body><h1>${esc(title)}</h1><pre>${esc(body)}</pre></body></html>`,
+      // @page{margin:0} прибирає системний заголовок/підвал друку (дата, назва, URL, номер
+      // сторінки) — див. детальний коментар біля тієї ж властивості в cv-doc-utils.ts.
+      `@page{margin:0}@media print{body{margin:0;padding:14mm 12mm}}</style></head><body><h1>${esc(title)}</h1><pre>${esc(body)}</pre></body></html>`,
   );
   w.document.close();
   w.focus();
