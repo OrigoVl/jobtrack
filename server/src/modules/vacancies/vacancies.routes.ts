@@ -5,7 +5,14 @@ import { extractSkills } from "../../shared/skill-extraction.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { HttpError, asyncHandler } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
-import { parseVacancyInput, parseJsonVacancyItem, parseText, parsePagination, type Fit, type JsonVacancyItem } from "../../shared/validation.js";
+import {
+  parseVacancyInput,
+  parseJsonVacancyItem,
+  parseText,
+  parsePagination,
+  type Fit,
+  type JsonVacancyItem,
+} from "../../shared/validation.js";
 import { fetchVacancyText, computeFit, quickAnalyze } from "./vacancy-analysis.service.js";
 
 const r = express.Router();
@@ -173,9 +180,18 @@ function upsertJsonVacancy(item: JsonVacancyItem): "added" | "updated" {
       .get(item.company, item.position) as unknown as VacancyRow | undefined;
   }
   if (existing) {
-    db.prepare(
-      "UPDATE vacancies SET company=?,position=?,level=?,url=?,status=?,fit=?,applied=?,next=?,notes=? WHERE id=?",
-    ).run(item.company, item.position, item.level, item.url, item.status, item.fit, item.applied, item.next, item.notes, existing.id);
+    db.prepare("UPDATE vacancies SET company=?,position=?,level=?,url=?,status=?,fit=?,applied=?,next=?,notes=? WHERE id=?").run(
+      item.company,
+      item.position,
+      item.level,
+      item.url,
+      item.status,
+      item.fit,
+      item.applied,
+      item.next,
+      item.notes,
+      existing.id,
+    );
     if (item.status !== existing.status) recordStatusChange(existing.id, item.status);
     return "updated";
   }
@@ -188,7 +204,11 @@ function upsertJsonVacancy(item: JsonVacancyItem): "added" | "updated" {
 
 r.post("/vacancies/import-json", (req, res) => {
   const body = req.body as unknown;
-  const items = Array.isArray(body) ? body : Array.isArray((body as { items?: unknown })?.items) ? (body as { items: unknown[] }).items : null;
+  const items = Array.isArray(body)
+    ? body
+    : Array.isArray((body as { items?: unknown })?.items)
+      ? (body as { items: unknown[] }).items
+      : null;
   if (!items) throw new HttpError(400, "Очікується масив вакансій (або {items:[...]})");
   if (items.length > 1000) throw new HttpError(400, "Забагато елементів за один імпорт (максимум 1000)");
   let added = 0;

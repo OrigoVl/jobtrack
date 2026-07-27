@@ -11,9 +11,10 @@ export function recordStatusChange(vacancyId: number, status: string): void {
 
 /** Кількість УНІКАЛЬНИХ вакансій, що коли-небудь мали кожен статус (незалежно від поточного). */
 export function getReachedCounts(): Record<string, number> {
-  const rows = db
-    .prepare("SELECT status, COUNT(DISTINCT vacancy_id) c FROM vacancy_status_history GROUP BY status")
-    .all() as { status: string; c: number }[];
+  const rows = db.prepare("SELECT status, COUNT(DISTINCT vacancy_id) c FROM vacancy_status_history GROUP BY status").all() as {
+    status: string;
+    c: number;
+  }[];
   return Object.fromEntries(rows.map((r) => [r.status, Number(r.c)]));
 }
 

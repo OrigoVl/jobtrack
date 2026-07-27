@@ -216,8 +216,8 @@ export function Vacancies() {
         <div className="text-sm font-semibold mb-1 text-slate-700">🔄 Імпорт / експорт JSON</div>
         <p className="text-xs text-slate-500 mb-2">
           Формат <code>job-tracker.json</code> — масив <code>{"{company, pos, level, fit, status, applied, next, notes, url}"}</code>.
-          Вакансії з тим самим посиланням (або компанією+позицією) оновляться, решта додасться — можна вести файл окремо
-          (напр. в іншому чаті) і просто скидати його сюди для синхронізації.
+          Вакансії з тим самим посиланням (або компанією+позицією) оновляться, решта додасться — можна вести файл окремо (напр. в іншому
+          чаті) і просто скидати його сюди для синхронізації.
         </p>
         <div className="flex gap-2 flex-wrap">
           <input

@@ -117,7 +117,9 @@ export interface JsonVacancyItem {
 export function parseJsonVacancyItem(raw: unknown): JsonVacancyItem {
   const b = (raw || {}) as Record<string, unknown>;
   const company = asString(b.company, "Нова").trim().slice(0, 200) || "Нова";
-  const position = asString(b.pos ?? b.position).trim().slice(0, 200);
+  const position = asString(b.pos ?? b.position)
+    .trim()
+    .slice(0, 200);
   const level = asString(b.level).trim().slice(0, 40);
   const url = toUrl(b.url, "url");
   const status = asString(b.status, "Хочу подати");
