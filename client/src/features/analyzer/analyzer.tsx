@@ -124,6 +124,7 @@ export function Analyzer() {
           {res.summary && <div className="text-sm text-slate-700 whitespace-pre-wrap border-t border-slate-100 pt-3">🤖 {res.summary}</div>}
           <Btn
             variant="ghost"
+            loading={addVacancyMutation.isPending}
             onClick={() =>
               addVacancyMutation.mutate({ company: "З аналізу", position: "", stack: res.techs, fit: res.fit, level: res.level })
             }

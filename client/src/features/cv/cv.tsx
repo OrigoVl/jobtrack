@@ -291,7 +291,9 @@ export function CVView({ llm }: { llm: boolean }) {
             <Btn variant="ghost" onClick={() => exportPdf("CV", cvText)} disabled={!cvText.trim()}>
               ⬇️ CV у PDF
             </Btn>
-            <Btn onClick={() => saveProfileMutation.mutate({ skills, cvText, domain })}>💾 Зберегти</Btn>
+            <Btn loading={saveProfileMutation.isPending} onClick={() => saveProfileMutation.mutate({ skills, cvText, domain })}>
+              💾 Зберегти
+            </Btn>
           </>
         }
       />

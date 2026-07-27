@@ -185,37 +185,43 @@ export function Jobs() {
                   />
                 </div>
               </div>
-              {pageJobs.map((job) => (
-                <Card key={job.url} className="flex flex-col gap-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-slate-800">{job.position}</span>
-                    {job.matchCount > 0 && <Chip tone="emerald">★ {job.matchCount} збіг</Chip>}
-                    <Chip>{job.source}</Chip>
-                    <span className="text-xs text-slate-400 ml-auto">{job.location}</span>
-                  </div>
-                  <div className="text-sm text-slate-500">{job.company}</div>
-                  {job.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {job.tags.slice(0, 8).map((t) => (
-                        <Chip key={t}>{t}</Chip>
-                      ))}
+              {pageJobs.map((job) => {
+                // Один mutation-хук обслуговує кнопки всіх карток на сторінці — скоупимо
+                // isPending за variables.url (аргументами САМЕ цього виклику), інакше лоадер
+                // блимав би одразу в усіх картках при доданні будь-якої з них.
+                const isAdding = addVacancyMutation.isPending && addVacancyMutation.variables?.url === job.url;
+                return (
+                  <Card key={job.url} className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-slate-800">{job.position}</span>
+                      {job.matchCount > 0 && <Chip tone="emerald">★ {job.matchCount} збіг</Chip>}
+                      <Chip>{job.source}</Chip>
+                      <span className="text-xs text-slate-400 ml-auto">{job.location}</span>
                     </div>
-                  )}
-                  <div className="flex gap-2 mt-1">
-                    <a
-                      href={job.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm px-3 py-1.5 rounded-lg bg-slate-100 text-indigo-600 hover:bg-slate-200 transition-colors"
-                    >
-                      Відкрити ↗
-                    </a>
-                    <Btn size="sm" variant="ghost" onClick={() => addJob(job)} disabled={added[job.url]}>
-                      {added[job.url] ? "✓ у трекері" : "➕ у трекер"}
-                    </Btn>
-                  </div>
-                </Card>
-              ))}
+                    <div className="text-sm text-slate-500">{job.company}</div>
+                    {job.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {job.tags.slice(0, 8).map((t) => (
+                          <Chip key={t}>{t}</Chip>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-2 mt-1">
+                      <a
+                        href={job.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm px-3 py-1.5 rounded-lg bg-slate-100 text-indigo-600 hover:bg-slate-200 transition-colors"
+                      >
+                        Відкрити ↗
+                      </a>
+                      <Btn size="sm" variant="ghost" loading={isAdding} onClick={() => addJob(job)} disabled={added[job.url]}>
+                        {added[job.url] ? "✓ у трекері" : "➕ у трекер"}
+                      </Btn>
+                    </div>
+                  </Card>
+                );
+              })}
               {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-3 pt-1">
                   <Btn size="sm" variant="ghost" onClick={() => goPage(current - 1)} disabled={current <= 1}>
