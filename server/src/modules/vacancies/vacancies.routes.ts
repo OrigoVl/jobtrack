@@ -2,6 +2,8 @@ import express from "express";
 import db, { getProfile, recordStatusChange, deleteHistoryForVacancy, type VacancyRow, j, withStack } from "../../db/index.js";
 import { extractLevel } from "../../shared/tech-dict.js";
 import { extractSkills } from "../../shared/skill-extraction.js";
+import { demandMap } from "../../shared/demand.js";
+import { embeddingsAvailable, semanticSimilarity } from "../../llm/embeddings.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { HttpError, asyncHandler } from "../../core/http.js";
 import { contextLogger } from "../../core/logger.js";
@@ -183,9 +185,10 @@ r.post(
   asyncHandler(async (req, res) => {
     const text = parseText(req.body, "text");
     const profile = getProfile();
-    // extractSkills (екстракція стеку) і summary (оцінка відповідності текстом) — незалежні
-    // LLM-виклики над тим самим текстом; жоден не потребує результату іншого — паралельно.
-    const [techs, summary] = await Promise.all([
+    // extractSkills (екстракція стеку), summary (оцінка відповідності текстом) і semanticFit
+    // (embeddings-схожість CV↔вакансія) — три незалежні виклики над тим самим текстом; жоден
+    // не потребує результату іншого — паралельно.
+    const [techs, summary, semanticFit] = await Promise.all([
       extractSkills(text),
       llmAvailable()
         ? chat(
@@ -194,11 +197,12 @@ r.post(
             { maxTokens: 500, cache: true },
           )
         : Promise.resolve(null),
+      embeddingsAvailable() && profile.cvText ? semanticSimilarity(text, profile.cvText) : Promise.resolve(null),
     ]);
     const level = extractLevel(text);
     const gap = techs.filter((t) => !profile.skills.includes(t));
     const match = techs.filter((t) => profile.skills.includes(t));
-    res.json({ techs, level, gap, match, summary, fit: computeFit(match, gap) });
+    res.json({ techs, level, gap, match, summary, fit: computeFit(match, gap, demandMap()), semanticFit });
   }),
 );
 

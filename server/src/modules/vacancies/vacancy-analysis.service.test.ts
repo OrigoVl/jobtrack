@@ -15,6 +15,19 @@ vi.mock("../../llm/index.js", () => ({
   llmAvailable: vi.fn(() => false),
   chat: vi.fn(),
 }));
+// embeddingsAvailable() reads real env (OPENAI_API_KEY/LLM_PROVIDER) — mocked here so this
+// suite never depends on whatever is actually configured in server/.env on the dev machine
+// running the tests, and never makes a real network call to OpenAI's embeddings endpoint.
+vi.mock("../../llm/embeddings.js", () => ({
+  embeddingsAvailable: vi.fn(() => false),
+  semanticSimilarity: vi.fn(async () => null),
+}));
+// quickAnalyze() (called by tryAutoEnrichStack) weighs fit by market demand — demand.ts hits
+// the real SQLite db directly (not the ../../db/index.js mock above, which only stubs the
+// three named exports this suite needs), so it's mocked separately here to keep this suite
+// about URL fetching/SSRF/logging, not about demand-weighted fit scoring (covered in
+// vacancy-text.test.ts instead).
+vi.mock("../../shared/demand.js", () => ({ demandMap: vi.fn(() => ({})) }));
 const mockLog = { debug: vi.fn(), warn: vi.fn(), error: vi.fn() };
 vi.mock("../../core/logger.js", () => ({ contextLogger: () => mockLog }));
 

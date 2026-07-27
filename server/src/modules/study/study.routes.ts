@@ -7,6 +7,8 @@ import { aiLimiter } from "../../core/rate-limit.js";
 import { CARDS } from "./content.js";
 import { slugify } from "../../shared/slug.js";
 import { genDrills, allDrills, genCards, allCards } from "./content-store.js";
+import { scheduleFsrs, type FsrsRating } from "./fsrs.js";
+import type { SrsRow } from "../../db/types.js";
 
 const r = express.Router();
 
@@ -144,25 +146,33 @@ r.get("/study/due", (_q, res) => {
 r.post("/study/grade", (req, res) => {
   const { cardId, grade } = req.body || {};
   if (typeof cardId !== "string" || !allCards().some((c) => c.id === cardId)) throw new HttpError(400, "Невідома картка");
-  if (grade !== 0 && grade !== 1) throw new HttpError(400, "grade має бути 0 або 1");
-  const today = new Date();
-  const existing = db.prepare("SELECT * FROM srs WHERE cardId=?").get(cardId) as
-    { ease: number; interval: number; reps: number } | undefined;
-  const s = existing || { ease: 2.5, interval: 0, reps: 0 };
-  if (grade === 0) {
-    s.interval = 0;
-    s.reps = 0;
-    s.ease = Math.max(1.3, s.ease - 0.2);
-  } else {
-    s.reps += 1;
-    s.interval = s.reps === 1 ? 1 : s.reps === 2 ? 3 : Math.round(s.interval * s.ease);
-    s.ease = Math.min(2.8, s.ease + 0.05);
+  // 1=Знову (не пам'ятаю), 2=Важко, 3=Добре, 4=Легко — 4-точкова шкала FSRS замість старої
+  // бінарної (0/1), щоб алгоритм міг розрізняти "ледь згадав" від "згадав миттєво" —
+  // це і є основний виграш FSRS над SM-2 з бінарною оцінкою.
+  if (grade !== 1 && grade !== 2 && grade !== 3 && grade !== 4) {
+    throw new HttpError(400, "grade має бути 1-4 (FSRS: 1=Знову, 2=Важко, 3=Добре, 4=Легко)");
   }
-  const due = new Date(today.getTime() + s.interval * 86400000).toISOString().slice(0, 10);
+  const rating = grade as FsrsRating;
+  const now = new Date();
+  const existing = db.prepare("SELECT * FROM srs WHERE cardId=?").get(cardId) as SrsRow | undefined;
+  const prev = existing?.difficulty != null && existing?.stability != null
+    ? { difficulty: existing.difficulty, stability: existing.stability }
+    : null;
+  // Скільки днів минуло від останнього огляду — ключовий вхід у формулу retrievability
+  // FSRS; для нової картки (prev===null) elapsedDays ігнорується всередині scheduleFsrs.
+  const elapsedDays = existing?.lastReview
+    ? Math.max(0, Math.round((now.getTime() - new Date(existing.lastReview).getTime()) / 86400000))
+    : 0;
+  const { difficulty, stability, intervalDays } = scheduleFsrs(prev, elapsedDays, rating);
+  const reps = (existing?.reps || 0) + 1;
+  const due = new Date(now.getTime() + intervalDays * 86400000).toISOString().slice(0, 10);
+  const lastReview = now.toISOString();
   db.prepare(
-    "INSERT INTO srs (cardId,ease,interval,due,reps) VALUES (?,?,?,?,?) ON CONFLICT(cardId) DO UPDATE SET ease=?,interval=?,due=?,reps=?",
-  ).run(cardId, s.ease, s.interval, due, s.reps, s.ease, s.interval, due, s.reps);
-  res.json({ ok: true, due, interval: s.interval });
+    `INSERT INTO srs (cardId, difficulty, stability, interval, due, reps, lastReview) VALUES (?,?,?,?,?,?,?)
+     ON CONFLICT(cardId) DO UPDATE SET difficulty=excluded.difficulty, stability=excluded.stability,
+       interval=excluded.interval, due=excluded.due, reps=excluded.reps, lastReview=excluded.lastReview`,
+  ).run(cardId, difficulty, stability, intervalDays, due, reps, lastReview);
+  res.json({ ok: true, due, interval: intervalDays, difficulty, stability });
 });
 
 export default r;

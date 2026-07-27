@@ -19,6 +19,7 @@
     "typecheck": "pnpm --filter jobtrack-client typecheck && pnpm --filter jobtrack-server typecheck",
     "test": "pnpm --filter jobtrack-client test && pnpm --filter jobtrack-server test",
     "test:coverage": "pnpm --filter jobtrack-client test:coverage && pnpm --filter jobtrack-server test:coverage",
+    "pretest:e2e": "rm -f e2e/.tmp/e2e.db e2e/.tmp/e2e.db-shm e2e/.tmp/e2e.db-wal",
     "test:e2e": "playwright test"
   },
   "devDependencies": {

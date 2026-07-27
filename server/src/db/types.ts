@@ -30,8 +30,15 @@ export interface CompanyRow {
 
 export interface SrsRow {
   cardId: string;
+  /** @deprecated Залишок SM-2-планувальника — новий код (FSRS) не читає/не пише це поле. */
   ease: number;
   interval: number;
   due: string;
   reps: number;
+  /** FSRS difficulty (1..10). NULL — картку ще ніколи не оцінювали новим планувальником. */
+  difficulty: number | null;
+  /** FSRS stability у днях. NULL — картку ще ніколи не оцінювали новим планувальником. */
+  stability: number | null;
+  /** Дата останнього огляду (ISO), потрібна щоб рахувати elapsed days для FSRS. NULL — нова картка. */
+  lastReview: string | null;
 }

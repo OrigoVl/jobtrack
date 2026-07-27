@@ -35,6 +35,26 @@ CREATE TABLE IF NOT EXISTS vacancy_status_history (
 CREATE INDEX IF NOT EXISTS idx_vacancy_status_history_vacancy ON vacancy_status_history(vacancy_id);
 `);
 
+// Міграція: додає колонку, якщо її ще немає в існуючій БД. SQLite не підтримує
+// "ALTER TABLE ... ADD COLUMN IF NOT EXISTS" (на відміну від Postgres), тож перевіряємо
+// наявність колонки вручну через PRAGMA table_info — інакше повторний запуск на вже
+// змігрованій БД впав би з "duplicate column name".
+function addColumnIfMissing(table: string, column: string, ddl: string): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+  }
+}
+
+// FSRS (замінив спрощений SM-2, що жив лише на ease/interval) потребує difficulty/stability
+// (D/S — два з трьох компонентів моделі пам'яті FSRS) і дату останнього огляду (щоб рахувати
+// elapsed days для retrievability). Старі колонки ease/interval лишаються в таблиці (не
+// видаляємо — SQLite ALTER TABLE DROP COLUMN вимагає повного перестворення таблиці, а сенсу
+// це виправдовує лише для великих таблиц) і просто більше не читаються новим кодом планування.
+addColumnIfMissing("srs", "difficulty", "difficulty REAL");
+addColumnIfMissing("srs", "stability", "stability REAL");
+addColumnIfMissing("srs", "lastReview", "lastReview TEXT");
+
 function seedProfileIfEmpty(): void {
   if (!db.prepare("SELECT v FROM kv WHERE k='profile'").get()) {
     db.prepare("INSERT INTO kv (k,v) VALUES ('profile', ?)").run(JSON.stringify(DEFAULT_PROFILE));

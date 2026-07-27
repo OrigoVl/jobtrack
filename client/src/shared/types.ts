@@ -230,6 +230,8 @@ export interface AnalyzeResult {
   match: string[];
   summary: string | null;
   fit: Fit;
+  /** Косинусна схожість embeddings CV↔вакансія, [0,1]. null — embeddings недоступні (не-OpenAI/без CV). */
+  semanticFit: number | null;
 }
 
 export interface CvAnalysis {

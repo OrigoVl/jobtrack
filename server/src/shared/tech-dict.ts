@@ -1,5 +1,7 @@
 // Словник технологій для офлайн-аналізу тексту вакансій/CV.
 // canonical -> { cat, re } де re — регулярка з алясами.
+import { isFuzzyMatch } from "./fuzzy-match.js";
+
 export interface TechDef {
   cat: string;
   re: RegExp;
@@ -48,11 +50,41 @@ export interface TechMatch {
   cat: string;
 }
 
+// Складені назви (два слова/скорочення-абревіатури) виключено з fuzzy-фолбеку: злиття
+// "REST API" -> "restapi" для порівняння відстані Левенштейна дає малокорисні збіги
+// (типові друкарські помилки трапляються в ОДНОМУ слові, не в склеєній фразі).
+const FUZZY_EXCLUDE = new Set(["REST API", "HTML/CSS", "CI/CD", "AI/LLM"]);
+const FUZZY_KEYS: { name: string; key: string }[] = Object.keys(TECHS)
+  .filter((name) => !FUZZY_EXCLUDE.has(name))
+  .map((name) => ({ name, key: name.toLowerCase().replace(/[^a-z0-9]/g, "") }));
+
+/**
+ * Знаходить технології в довільному тексті: спершу точний regex-словник (швидко, надійно,
+ * підтримує відомі алiаси — "k8s", "pg" тощо), а для того, що НЕ зловив regex, — fuzzy-фолбек
+ * на друкарські помилки/варіації написання (isFuzzyMatch, толерантність за довжиною слова:
+ * короткі слова взагалі не толеруються, щоб не плодити фолс-позитиви). Fuzzy НЕ замінює
+ * точний словник — лише додає те, що точний словник пропустив через typo.
+ */
 export function extractTechs(text: unknown): TechMatch[] {
   const t = String(text || "");
   const found: TechMatch[] = [];
+  const foundNames = new Set<string>();
   for (const [name, def] of Object.entries(TECHS)) {
-    if (def.re.test(t)) found.push({ name, cat: def.cat });
+    if (def.re.test(t)) {
+      found.push({ name, cat: def.cat });
+      foundNames.add(name);
+    }
+  }
+  const tokens = new Set(t.toLowerCase().match(/[a-z0-9+#.]+/g) || []);
+  for (const { name, key } of FUZZY_KEYS) {
+    if (foundNames.has(name)) continue;
+    for (const token of tokens) {
+      if (isFuzzyMatch(token, key)) {
+        found.push({ name, cat: TECHS[name]!.cat });
+        foundNames.add(name);
+        break;
+      }
+    }
   }
   return found;
 }

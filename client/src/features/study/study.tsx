@@ -227,16 +227,22 @@ export function Study() {
             <div className="text-xs uppercase tracking-wide text-indigo-600 font-bold">{card.cat}</div>
             <div className="text-lg font-semibold mt-2 text-slate-800">{card.q}</div>
             {show && <div className="mt-3 pt-3 border-t border-slate-100 text-slate-700">{card.a}</div>}
-            <div className="mt-auto pt-4 flex gap-2">
+            <div className="mt-auto pt-4 flex flex-wrap gap-2">
               {!show ? (
                 <Btn onClick={() => setShow(true)}>👁 Показати відповідь</Btn>
               ) : (
                 <>
-                  <Btn variant="ghost" className="!bg-amber-50 !text-amber-700 !border-amber-200" onClick={() => grade(0)}>
-                    🔁 Повторити
+                  <Btn variant="ghost" className="!bg-rose-50 !text-rose-700 !border-rose-200" onClick={() => grade(1)}>
+                    🔁 Знову
                   </Btn>
-                  <Btn variant="ghost" className="!bg-emerald-50 !text-emerald-700 !border-emerald-200" onClick={() => grade(1)}>
-                    ✅ Знаю
+                  <Btn variant="ghost" className="!bg-amber-50 !text-amber-700 !border-amber-200" onClick={() => grade(2)}>
+                    😓 Важко
+                  </Btn>
+                  <Btn variant="ghost" className="!bg-emerald-50 !text-emerald-700 !border-emerald-200" onClick={() => grade(3)}>
+                    ✅ Добре
+                  </Btn>
+                  <Btn variant="ghost" className="!bg-sky-50 !text-sky-700 !border-sky-200" onClick={() => grade(4)}>
+                    🚀 Легко
                   </Btn>
                 </>
               )}

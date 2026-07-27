@@ -88,10 +88,15 @@ export function Analyzer() {
 
       {res && (
         <Card className="space-y-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm text-slate-500">Fit:</span>
             <span className={"font-bold " + fitText[res.fit]}>{res.fit.toUpperCase()}</span>
             {res.level && <Chip>{res.level}</Chip>}
+            {res.semanticFit != null && (
+              <Chip tone={res.semanticFit >= 0.75 ? "emerald" : res.semanticFit >= 0.5 ? "amber" : "rose"}>
+                🧠 Семантична схожість з CV: {Math.round(res.semanticFit * 100)}%
+              </Chip>
+            )}
           </div>
           <div>
             <div className="text-xs text-slate-500 mb-1">✅ Збіг із твоїм стеком</div>

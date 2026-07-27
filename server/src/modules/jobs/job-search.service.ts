@@ -144,20 +144,3 @@ export async function fetchDou(query: string): Promise<RawJob[]> {
   }
   return jobs;
 }
-
-export function interleave<T>(lists: T[][], limit: number): T[] {
-  const out: T[] = [];
-  for (let i = 0; out.length < limit; i += 1) {
-    let added = false;
-    for (const list of lists) {
-      const item = list[i];
-      if (item) {
-        out.push(item);
-        added = true;
-        if (out.length >= limit) break;
-      }
-    }
-    if (!added) break;
-  }
-  return out;
-}
