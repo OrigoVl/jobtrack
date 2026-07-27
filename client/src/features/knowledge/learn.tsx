@@ -110,8 +110,8 @@ export function LearnPlan({ llm }: { llm: boolean }) {
         title="План навчання"
         subtitle={`Будується динамічно з ${learn.totalVacancies} доданих вакансій, порівняних із твоїм профілем. Закривай прогалини зверху вниз.`}
         actions={
-          <Btn onClick={genPlan} disabled={busy || !llm}>
-            {busy ? "…" : "🤖 Персональний план (AI)"}
+          <Btn onClick={genPlan} loading={busy} disabled={!llm}>
+            🤖 Персональний план (AI)
           </Btn>
         }
       />

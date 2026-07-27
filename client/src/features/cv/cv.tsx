@@ -3,7 +3,7 @@ import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useToast } from "../../shared/use-toast";
 import { useApplyCvUpload, useProfile, useSaveProfile } from "../../shared/queries";
-import { Btn, Card, Chip, PageHeader } from "../../shared/ui";
+import { Btn, Card, Chip, PageHeader, Spinner } from "../../shared/ui";
 import type { CvAnalysis, CvMatch, CvReview } from "../../shared/types";
 import { Field } from "../../shared/view-kit";
 
@@ -303,16 +303,22 @@ export function CVView({ llm }: { llm: boolean }) {
           <label
             className={`inline-flex items-center gap-1.5 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer transition-colors ${busy === "upload" ? "bg-indigo-300 text-white" : "bg-indigo-600 text-white hover:bg-indigo-500"}`}
           >
-            {busy === "upload" ? "⏳ Обробляю…" : "📎 CV (PDF / DOCX / TXT)"}
+            {busy === "upload" ? (
+              <>
+                <Spinner className="h-3 w-3" /> Обробляю…
+              </>
+            ) : (
+              "📎 CV (PDF / DOCX / TXT)"
+            )}
             <input type="file" accept=".pdf,.docx,.txt" onChange={onFile} className="hidden" disabled={busy === "upload"} />
           </label>
           <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />
           <span className="text-xs font-semibold text-slate-500">AI-аналіз:</span>
-          <Btn size="sm" variant="ghost" onClick={analyze} disabled={busy === "cv" || !cvText.trim()}>
-            {busy === "cv" ? "…" : "🔍 CV vs ринок"}
+          <Btn size="sm" variant="ghost" onClick={analyze} loading={busy === "cv"} disabled={!cvText.trim()}>
+            🔍 CV vs ринок
           </Btn>
-          <Btn size="sm" variant="ghost" onClick={doReview} disabled={busy === "review" || !cvText.trim()}>
-            {busy === "review" ? "…" : "🔎 Глибокий рев'ю"}
+          <Btn size="sm" variant="ghost" onClick={doReview} loading={busy === "review"} disabled={!cvText.trim()}>
+            🔎 Глибокий рев'ю
           </Btn>
         </div>
         <details className="text-xs text-slate-500 border-t border-slate-100 pt-2.5">
@@ -366,8 +372,8 @@ export function CVView({ llm }: { llm: boolean }) {
       <div className="grid md:grid-cols-2 gap-4 items-start">
         <Card className="space-y-2">
           <div className="text-sm font-semibold text-slate-700">🔧 Оновити секцію Skills</div>
-          <Btn size="sm" variant="ghost" onClick={gen} disabled={busy === "skills"}>
-            {busy === "skills" ? "…" : "Згенерувати"}
+          <Btn size="sm" variant="ghost" onClick={gen} loading={busy === "skills"}>
+            Згенерувати
           </Btn>
           {skillsOut && (
             <pre className="mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs whitespace-pre-wrap text-slate-700">
@@ -385,8 +391,8 @@ export function CVView({ llm }: { llm: boolean }) {
             className="w-full h-16 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
           <div className="flex gap-2 flex-wrap">
-            <Btn size="sm" variant="ghost" onClick={genCover} disabled={busy === "cover"}>
-              {busy === "cover" ? "…" : "Згенерувати лист"}
+            <Btn size="sm" variant="ghost" onClick={genCover} loading={busy === "cover"}>
+              Згенерувати лист
             </Btn>
             {cover && (
               <Btn size="sm" variant="ghost" onClick={() => exportPdf("Cover Letter", cover)}>

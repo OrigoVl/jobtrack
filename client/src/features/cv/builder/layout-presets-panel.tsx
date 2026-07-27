@@ -99,8 +99,8 @@ export function LayoutPresetsPanel({
             placeholder="напр. Мій синій компакт"
             className="flex-1 bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
-          <Btn size="sm" onClick={onSavePreset} disabled={saving}>
-            {saving ? "…" : "Зберегти"}
+          <Btn size="sm" onClick={onSavePreset} loading={saving}>
+            Зберегти
           </Btn>
         </div>
         <div className="text-[11px] text-slate-400">Пресет запам'ятовує шаблон, колір, шрифт, масштаб, фото-стиль і порядок секцій.</div>

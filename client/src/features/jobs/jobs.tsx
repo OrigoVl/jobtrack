@@ -88,8 +88,8 @@ export function Jobs() {
             placeholder={profile?.skills.slice(0, 3).join(" ") || "напр. react node typescript"}
             className="flex-1 min-w-[220px] bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
-          <Btn onClick={search} disabled={loading}>
-            {loading ? "⏳ Шукаю…" : "🔎 Знайти"}
+          <Btn onClick={search} loading={loading}>
+            {loading ? "Шукаю…" : "🔎 Знайти"}
           </Btn>
         </div>
         <div className="flex items-center gap-2 mt-2 flex-wrap">

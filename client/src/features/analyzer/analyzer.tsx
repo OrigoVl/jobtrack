@@ -47,7 +47,7 @@ export function Analyzer() {
           Пройдеться по всіх доданих вакансіях, завантажить текст за посиланням і оновить стек/рівень/fit. Дані миттєво зʼявляться у
           Skill-radar, Аналітиці та Роудмапі.
         </p>
-        <Btn onClick={fetchAll} disabled={batchBusy}>
+        <Btn onClick={fetchAll} loading={batchBusy}>
           {batchBusy ? "Парсю всі вакансії…" : "🔗 Спарсити й проаналізувати всі вакансії"}
         </Btn>
         {batch && (
@@ -81,7 +81,7 @@ export function Analyzer() {
           placeholder="Встав текст вакансії…"
           className="w-full h-40 bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
         />
-        <Btn className="mt-2" onClick={run} disabled={!text || busy}>
+        <Btn className="mt-2" onClick={run} loading={busy} disabled={!text}>
           {busy ? "Аналізую…" : "Проаналізувати"}
         </Btn>
       </Card>

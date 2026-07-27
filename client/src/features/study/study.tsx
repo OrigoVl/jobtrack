@@ -212,10 +212,11 @@ export function Study() {
             variant="ghost"
             className="ml-auto"
             onClick={onGenerateCards}
-            disabled={generatingCards || !llm}
+            loading={generatingCards}
+            disabled={!llm}
             title={llm ? "" : "Потрібен LLM-ключ"}
           >
-            {generatingCards ? "⏳ Генерую…" : `✨ Ще картки під «${cardTopic}»`}
+            ✨ Ще картки під «{cardTopic}»
           </Btn>
         )}
       </div>
@@ -297,8 +298,15 @@ export function Study() {
             </label>
             <div className="ml-auto flex items-center gap-2">
               {genTech && (
-                <Btn size="sm" variant="ghost" onClick={onGenerate} disabled={generating || !llm} title={llm ? "" : "Потрібен LLM-ключ"}>
-                  {generating ? "⏳ Генерую…" : `✨ Ще задачі під «${genTech}»`}
+                <Btn
+                  size="sm"
+                  variant="ghost"
+                  onClick={onGenerate}
+                  loading={generating}
+                  disabled={!llm}
+                  title={llm ? "" : "Потрібен LLM-ключ"}
+                >
+                  ✨ Ще задачі під «{genTech}»
                 </Btn>
               )}
               <span className="text-xs text-slate-400">{filteredDrills.length} задач</span>
@@ -344,14 +352,8 @@ export function Study() {
               <div className="mt-auto pt-4 flex flex-wrap gap-2">
                 {!show && <Btn onClick={() => setShow(true)}>👁 Показати розвʼязок</Btn>}
                 {!show && (
-                  <Btn variant="ghost" onClick={revealHint} disabled={loadingHint || (hints.length > 0 && hintsShown >= hints.length)}>
-                    {loadingHint
-                      ? "⏳…"
-                      : hintsShown === 0
-                        ? "💡 Підказка"
-                        : hintsShown < hints.length
-                          ? "💡 Ще підказка"
-                          : "💡 Підказки вичерпано"}
+                  <Btn variant="ghost" onClick={revealHint} loading={loadingHint} disabled={hints.length > 0 && hintsShown >= hints.length}>
+                    {hintsShown === 0 ? "💡 Підказка" : hintsShown < hints.length ? "💡 Ще підказка" : "💡 Підказки вичерпано"}
                   </Btn>
                 )}
                 {drillProgress[drill.id] === "solved" ? (

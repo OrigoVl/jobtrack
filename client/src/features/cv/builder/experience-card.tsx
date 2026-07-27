@@ -67,9 +67,10 @@ export function ExperienceCard({ experience, onAdd, onRemove, onSet, onMove, llm
                 size="sm"
                 variant="ghost"
                 onClick={() => onImproveBullets(i)}
-                disabled={busyKey === `b${i}` || !llm || e.bullets.filter(Boolean).length === 0}
+                loading={busyKey === `b${i}`}
+                disabled={!llm || e.bullets.filter(Boolean).length === 0}
               >
-                {busyKey === `b${i}` ? "…" : "✨ результат-фокус"}
+                ✨ результат-фокус
               </Btn>
             </span>
             <textarea

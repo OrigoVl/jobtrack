@@ -189,8 +189,8 @@ export function MockInterview() {
             className="w-full h-24 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
           <div className="flex gap-2 mt-2 items-center">
-            <Btn size="sm" variant="ghost" onClick={evaluate} disabled={!answer.trim() || evaluating}>
-              {evaluating ? "⏳ Оцінюю…" : "✨ Оцінити відповідь (AI)"}
+            <Btn size="sm" variant="ghost" onClick={evaluate} loading={evaluating} disabled={!answer.trim()}>
+              ✨ Оцінити відповідь (AI)
             </Btn>
             {!llm && <span className="text-xs text-slate-400">AI офлайн — увімкни ключ у server/.env</span>}
           </div>

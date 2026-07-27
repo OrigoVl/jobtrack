@@ -34,8 +34,8 @@ export function BasicInfoCard({ doc, onChange, llm, improvingSummary, onImproveS
       <label className="block">
         <span className="text-xs font-semibold text-slate-500 flex items-center gap-2">
           Підсумок (summary)
-          <Btn size="sm" variant="ghost" onClick={onImproveSummary} disabled={improvingSummary || !llm || !doc.summary.trim()}>
-            {improvingSummary ? "…" : "✨ покращити"}
+          <Btn size="sm" variant="ghost" onClick={onImproveSummary} loading={improvingSummary} disabled={!llm || !doc.summary.trim()}>
+            ✨ покращити
           </Btn>
         </span>
         <textarea

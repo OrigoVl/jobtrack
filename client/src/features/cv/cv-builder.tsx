@@ -3,7 +3,7 @@ import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useToast } from "../../shared/use-toast";
 import { useApplyCvUpload, useProfile, useVacancies } from "../../shared/queries";
-import { Btn, Card, CardsSkeleton, PageHeader, Segmented } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, PageHeader, Segmented, Spinner } from "../../shared/ui";
 import type { CvDoc, CvExperience, CvMatch, CvPreset, CvReview, CvTheme } from "../../shared/types";
 import { CvMatchPanel, CvReviewPanel } from "./cv";
 import { DEFAULT_ORDER, cvDocToText, exportCvDoc, themeOf } from "./builder/cv-doc-utils";
@@ -244,8 +244,8 @@ export function CvBuilder({ llm }: { llm: boolean }) {
             >
               ⬇️ PDF
             </Btn>
-            <Btn onClick={save} disabled={busy === "save"}>
-              {busy === "save" ? "…" : "💾 Зберегти"}
+            <Btn onClick={save} loading={busy === "save"}>
+              💾 Зберегти
             </Btn>
           </>
         }
@@ -256,7 +256,13 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           <label
             className={`inline-flex items-center gap-1.5 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer transition-colors ${busy === "upload" ? "bg-indigo-300 text-white" : "bg-indigo-600 text-white hover:bg-indigo-500"}`}
           >
-            {busy === "upload" ? "⏳ Розбираю…" : "📎 З файлу CV"}
+            {busy === "upload" ? (
+              <>
+                <Spinner className="h-3 w-3" /> Розбираю…
+              </>
+            ) : (
+              "📎 З файлу CV"
+            )}
             <input
               type="file"
               accept=".pdf,.docx,.txt"
@@ -268,7 +274,13 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           <label
             className={`inline-flex items-center gap-1.5 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer transition-colors ${busy === "li" ? "bg-slate-200 text-slate-500" : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"}`}
           >
-            {busy === "li" ? "⏳ Імпорт…" : "🔗 LinkedIn (.zip)"}
+            {busy === "li" ? (
+              <>
+                <Spinner className="h-3 w-3" /> Імпорт…
+              </>
+            ) : (
+              "🔗 LinkedIn (.zip)"
+            )}
             <input
               type="file"
               accept=".zip,application/zip"
@@ -277,13 +289,13 @@ export function CvBuilder({ llm }: { llm: boolean }) {
               onChange={(e) => importLinkedIn(e.target.files?.[0])}
             />
           </label>
-          <Btn size="sm" variant="ghost" onClick={fromText} disabled={busy === "gen" || !llm}>
-            {busy === "gen" ? "…" : "🪄 З тексту профілю (AI)"}
+          <Btn size="sm" variant="ghost" onClick={fromText} loading={busy === "gen"} disabled={!llm}>
+            🪄 З тексту профілю (AI)
           </Btn>
           <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />
           <span className="text-xs font-semibold text-slate-500">AI-аналіз:</span>
-          <Btn size="sm" variant="ghost" onClick={doReview} disabled={busy === "review"}>
-            {busy === "review" ? "…" : "🔎 Поради"}
+          <Btn size="sm" variant="ghost" onClick={doReview} loading={busy === "review"}>
+            🔎 Поради
           </Btn>
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2.5">
@@ -305,8 +317,8 @@ export function CvBuilder({ llm }: { llm: boolean }) {
                   </option>
                 ))}
               </select>
-              <Btn size="sm" onClick={doMatch} disabled={busy === "match" || !matchVacId}>
-                {busy === "match" ? "…" : "Порівняти"}
+              <Btn size="sm" onClick={doMatch} loading={busy === "match"} disabled={!matchVacId}>
+                Порівняти
               </Btn>
             </>
           )}
@@ -325,8 +337,8 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           <div className="text-sm text-slate-700 flex-1">
             У профілі вже є текст CV, а конструктор ще порожній. Розібрати його на секції автоматично?
           </div>
-          <Btn size="sm" onClick={fromText} disabled={busy === "gen"}>
-            {busy === "gen" ? "…" : "🪄 Розібрати CV"}
+          <Btn size="sm" onClick={fromText} loading={busy === "gen"}>
+            🪄 Розібрати CV
           </Btn>
           <Btn size="sm" variant="ghost" onClick={() => setDismissedSuggest(true)}>
             Пізніше
