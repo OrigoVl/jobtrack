@@ -35,7 +35,22 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
+        // 'unsafe-eval' — свідомий, вузько-скопований виняток ЛИШЕ для `new Function(...)` у
+        // features/study/runner.ts (пісочниця "запустити JS-код" для drill-практики) — без нього
+        // CSP блокує сам eval-виклик навіть УСЕРЕДИНІ Web Worker (worker успадковує script-src
+        // сторінки, окремої "worker-only eval" директиви в CSP не існує). Залишковий ризик
+        // прийнятний: (1) код виконується в ІЗОЛЬОВАНОМУ Worker — немає доступу до window/
+        // document/localStorage/cookies головної сторінки, лише console.log-перехоплення;
+        // (2) 'unsafe-eval' сам по собі НЕ дозволяє завантажити зовнішній скрипт (той факт, що
+        // немає dangerouslySetInnerHTML/innerHTML в клієнті — див. аудит — означає немає й іншого
+        // XSS-вектора, яким цей eval міг би зловживатись).
+        scriptSrc: ["'self'", "'unsafe-eval'"],
+        // worker-src не успадковує 'self' від script-src для blob: (відома особливість CSP:
+        // 'self' звіряє СХЕМУ+ORIGIN, а blob:/data: — спеціальні "локальні" схеми, які потрібно
+        // дозволяти явно навіть якщо blob: створено тим самим origin) — без цього рядка
+        // `new Worker(blobUrl)` у runner.ts блокується CSP ("worker-src не задано, фолбек на
+        // script-src... заблоковано") іще ДО того, як код усередині встигає хоч раз виконатись.
+        workerSrc: ["'self'", "blob:"],
         styleSrcElem: ["'self'", "https://fonts.googleapis.com"],
         styleSrcAttr: ["'unsafe-inline'"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],

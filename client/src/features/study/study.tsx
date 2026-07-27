@@ -22,6 +22,7 @@ function DrillSandbox({ drill }: { drill: Drill }) {
   const starter = useMemo(() => `${drill.sol}\n\n// Виклич функцію і виведи результат: console.log(...)\n`, [drill.sol]);
   const [code, setCode] = useState(starter);
   const [result, setResult] = useState<{ logs: string[]; error: string | null; ms: number } | null>(null);
+  const [running, setRunning] = useState(false);
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
@@ -35,7 +36,18 @@ function DrillSandbox({ drill }: { drill: Drill }) {
       <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border-b border-slate-200">
         <span className="text-xs font-semibold text-slate-500">🧪 Пісочниця JS</span>
         <div className="ml-auto flex gap-1">
-          <Btn size="sm" onClick={() => setResult(runJs(code))}>
+          <Btn
+            size="sm"
+            loading={running}
+            onClick={async () => {
+              setRunning(true);
+              try {
+                setResult(await runJs(code));
+              } finally {
+                setRunning(false);
+              }
+            }}
+          >
             ▶ Запустити
           </Btn>
           <Btn
