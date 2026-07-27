@@ -79,11 +79,15 @@ export function MockInterview() {
     const t = setInterval(() => setSec((s) => s + 1), 1000);
     return () => clearInterval(t);
   }, [idx, session]);
-  useEffect(() => {
+  // Скидання під час рендеру (а не в ефекті) — React офіційно рекомендує цей підхід
+  // для "reset state when a prop changes", уникаючи зайвого проміжного ре-рендеру.
+  const [resetForIdx, setResetForIdx] = useState(idx);
+  if (idx !== resetForIdx) {
+    setResetForIdx(idx);
     setSec(0);
     setAnswer("");
     setEvaluation(null);
-  }, [idx]);
+  }
   const pool = useMemo<MockItem[]>(
     () => [
       ...(study?.due ?? []).map((c) => ({ type: "card" as const, q: c.q, a: c.a, cat: c.cat })),

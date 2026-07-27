@@ -125,16 +125,22 @@ export function Study() {
     const t = setInterval(() => setSec((s) => s + 1), 1000);
     return () => clearInterval(t);
   }, [i, mode]);
-  useEffect(() => {
+  // Скидання під час рендеру (а не в ефекті) — React офіційно рекомендує цей підхід
+  // для "reset state when a prop changes", уникаючи зайвого проміжного ре-рендеру.
+  const [secResetKey, setSecResetKey] = useState(`${i}:${mode}`);
+  if (secResetKey !== `${i}:${mode}`) {
+    setSecResetKey(`${i}:${mode}`);
     setSec(0);
-  }, [i, mode]);
+  }
   const card = due[Math.min(i, Math.max(0, due.length - 1))];
   const drillIdx = filteredDrills.length ? ((i % filteredDrills.length) + filteredDrills.length) % filteredDrills.length : 0;
   const drill = filteredDrills[drillIdx];
-  useEffect(() => {
+  const [hintsResetKey, setHintsResetKey] = useState(drill?.id);
+  if (hintsResetKey !== drill?.id) {
+    setHintsResetKey(drill?.id);
     setHints([]);
     setHintsShown(0);
-  }, [drill?.id]);
+  }
   const genTech = drillCat !== "all" ? drillCat : learn?.gaps?.[0]?.tech;
   const grade = async (g: number) => {
     if (!card) return;

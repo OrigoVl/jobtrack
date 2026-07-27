@@ -23,14 +23,11 @@ export function PhotoCropper({ src, onCancel, onDone }: { src: string; onCancel:
     const maxY = Math.max(0, (dispH - CROP_VIEWPORT) / 2);
     return { x: Math.min(maxX, Math.max(-maxX, o.x)), y: Math.min(maxY, Math.max(-maxY, o.y)) };
   };
-  useEffect(() => {
-    setOffset((o) => ({
-      x: Math.min(Math.max(0, (dispW - CROP_VIEWPORT) / 2), Math.max(-Math.max(0, (dispW - CROP_VIEWPORT) / 2), o.x)),
-      y: Math.min(Math.max(0, (dispH - CROP_VIEWPORT) / 2), Math.max(-Math.max(0, (dispH - CROP_VIEWPORT) / 2), o.y)),
-    }));
-  }, [zoom, img, dispW, dispH]);
-  const left = CROP_VIEWPORT / 2 - dispW / 2 + offset.x;
-  const top = CROP_VIEWPORT / 2 - dispH / 2 + offset.y;
+  // Похідне значення замість ефекту: показуємо завжди затиснутий offset, тож зміна
+  // zoom/розмірів фото коригує позицію прямо під час рендеру, без зайвого ре-рендеру.
+  const clampedOffset = clamp(offset);
+  const left = CROP_VIEWPORT / 2 - dispW / 2 + clampedOffset.x;
+  const top = CROP_VIEWPORT / 2 - dispH / 2 + clampedOffset.y;
   const confirm = () => {
     if (!img) return;
     const k = CROP_OUTPUT / CROP_VIEWPORT;

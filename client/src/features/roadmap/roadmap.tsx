@@ -21,6 +21,9 @@ function Node({ node }: { node: RoadmapNode }) {
   const [loadingDyn, setLoadingDyn] = useState(false);
   useEffect(() => {
     if (!open || !llm || dyn || loadingDyn) return;
+    // Прапорець завантаження перед стартом async-запиту — стандартний і безпечний
+    // паттерн data-fetching-ефекту.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingDyn(true);
     api
       .knowledge(node.tech)

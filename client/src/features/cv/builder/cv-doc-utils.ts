@@ -75,7 +75,7 @@ export function buildCvHtml(doc: CvDoc): string {
   const compact = t.template === "compact";
   const gap = compact ? "9px" : "16px";
   const px = (n: number) => `${n.toFixed(1)}px`;
-  let layout = "";
+  let layout: string;
   let extraCss = "";
   const headerRow = `<header class="hrow">${photoImg}${hmeta}</header>`;
   if (t.template === "twocol") {

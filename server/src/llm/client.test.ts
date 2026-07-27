@@ -178,6 +178,7 @@ describe("callProvider() falls back to the secondary provider", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   it("tries anthropic after openai fails permanently (401), when both keys are configured", async () => {
@@ -281,6 +282,7 @@ describe("chatJson()", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   it("returns the parsed+typed data on the first attempt when it already matches the schema", async () => {
