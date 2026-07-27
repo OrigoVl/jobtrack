@@ -1,8 +1,9 @@
 // tryAutoEnrichStack() — best-effort автозбагачення стеку вакансії за посиланням (викликається
 // автоматично при створенні/оновленні вакансії з URL і при імпорті — див. vacancies.routes.ts).
-// Ключовий контракт: НІКОЛИ не кидає й не блокує виклик — недоступний домен, мережева помилка чи
-// порожня сторінка мають тихо повертати null. dou.ua-обмеження (SSRF-захист) тестуємо тут окремо
-// від assertSafeVacancyUrl (validation.test.ts), бо саме tryAutoEnrichStack гарантує "без мережі".
+// Ключовий контракт: НІКОЛИ не кидає й не блокує виклик — заблокований SSRF-захистом хост,
+// мережева помилка чи порожня сторінка мають тихо повертати null. SSRF-блок (внутрішні/локальні
+// адреси) тестуємо тут окремо від assertSafeVacancyUrl (validation.test.ts), бо саме
+// tryAutoEnrichStack гарантує "без мережі".
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../db/index.js", () => ({
@@ -34,8 +35,8 @@ describe("tryAutoEnrichStack()", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("returns null for a non-dou.ua url without any network call (SSRF guard)", async () => {
-    const result = await tryAutoEnrichStack("https://example.com/careers/1");
+  it("returns null for a private/internal url without any network call (SSRF guard)", async () => {
+    const result = await tryAutoEnrichStack("https://169.254.169.254/latest/meta-data/");
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -50,6 +51,20 @@ describe("tryAutoEnrichStack()", () => {
     expect(result).not.toBeNull();
     expect(result?.techs).toEqual(expect.arrayContaining(["React", "TypeScript", "Docker"]));
     expect(result?.match).toContain("React");
+  });
+
+  // Найважливіший тест для цієї зміни: раніше НЕ-dou.ua хост блокувався allowlist'ом ще до
+  // мережевого запиту (assertSafeVacancyUrl) — тепер довільний публічний хост (тут: умовний
+  // LinkedIn) успішно проходить SSRF-перевірку й аналізується так само, як jobs.dou.ua.
+  it("fetches and analyzes the page text for an arbitrary public (non-dou.ua) vacancy url", async () => {
+    const html = `<html><body>${"Looking for a Senior React TypeScript engineer, Docker is a plus. ".repeat(5)}</body></html>`;
+    fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(html) });
+
+    const result = await tryAutoEnrichStack("https://www.linkedin.com/jobs/view/123456/");
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(result).not.toBeNull();
+    expect(result?.techs).toEqual(expect.arrayContaining(["React", "TypeScript", "Docker"]));
   });
 
   it("returns null (without throwing) when the page request fails", async () => {

@@ -150,11 +150,37 @@ describe("assertSafeVacancyUrl (SSRF guard)", () => {
     expect(assertSafeVacancyUrl("https://jobs.dou.ua/companies/acme/vacancies/1/")).toContain("jobs.dou.ua");
   });
 
+  // Раніше тут був жорсткий allowlist лише на dou.ua — тепер дозволений будь-який публічний
+  // https-хост (користувач сам вирішує, з якого сайту тягнути вакансії: LinkedIn, Djinni,
+  // robota.ua, Indeed тощо), заблоковані лише внутрішні/локальні цілі (тести нижче).
+  it("allows an arbitrary public https host (no longer restricted to dou.ua)", () => {
+    expect(assertSafeVacancyUrl("https://www.linkedin.com/jobs/view/123/")).toContain("linkedin.com");
+    expect(assertSafeVacancyUrl("https://djinni.co/jobs/123-backend-developer/")).toContain("djinni.co");
+  });
+
   it("rejects non-https protocols", () => {
     expect(() => assertSafeVacancyUrl("http://jobs.dou.ua/vacancies/1/")).toThrow(HttpError);
   });
 
-  it("rejects hosts other than dou.ua", () => {
-    expect(() => assertSafeVacancyUrl("https://evil.example.com/")).toThrow(HttpError);
+  it("rejects localhost and *.local/*.internal hostnames", () => {
+    expect(() => assertSafeVacancyUrl("https://localhost/admin")).toThrow(HttpError);
+    expect(() => assertSafeVacancyUrl("https://router.local/")).toThrow(HttpError);
+    expect(() => assertSafeVacancyUrl("https://api.internal/")).toThrow(HttpError);
+  });
+
+  it("rejects loopback/private/link-local IPv4 literals, including the cloud-metadata address", () => {
+    expect(() => assertSafeVacancyUrl("https://127.0.0.1/")).toThrow(HttpError);
+    expect(() => assertSafeVacancyUrl("https://10.0.0.5/")).toThrow(HttpError);
+    expect(() => assertSafeVacancyUrl("https://192.168.1.1/")).toThrow(HttpError);
+    expect(() => assertSafeVacancyUrl("https://172.16.0.1/")).toThrow(HttpError);
+    expect(() => assertSafeVacancyUrl("https://169.254.169.254/latest/meta-data/")).toThrow(HttpError);
+  });
+
+  it("rejects the IPv6 loopback literal", () => {
+    expect(() => assertSafeVacancyUrl("https://[::1]/")).toThrow(HttpError);
+  });
+
+  it("allows a public IPv4 literal (not private/reserved)", () => {
+    expect(assertSafeVacancyUrl("https://93.184.216.34/")).toContain("93.184.216.34");
   });
 });

@@ -1,4 +1,5 @@
 // Легка валідація вхідних DTO без зовнішніх залежностей (у стилі node:sqlite — zero-deps).
+import net from "node:net";
 import { HttpError } from "../core/http.js";
 
 export const STATUSES = [
@@ -198,7 +199,55 @@ export function parsePagination(query: unknown): Pagination {
   return { limit, offset };
 }
 
-// SSRF-захист: сервер ходить лише на jobs.dou.ua і лише по https.
+const BLOCKED_HOSTNAMES = new Set(["localhost", "0.0.0.0", "metadata.google.internal"]);
+const BLOCKED_HOSTNAME_SUFFIXES = [".local", ".internal", ".localhost"];
+
+function isPrivateOrReservedIp(ip: string): boolean {
+  if (net.isIPv4(ip)) {
+    const parts = ip.split(".").map(Number);
+    const a = parts[0] ?? 0;
+    const b = parts[1] ?? 0;
+    return (
+      a === 127 || // loopback (127.0.0.0/8)
+      a === 10 || // приватна (10.0.0.0/8)
+      a === 0 || // "this network" (0.0.0.0/8)
+      (a === 169 && b === 254) || // link-local, у т.ч. 169.254.169.254 — типова адреса cloud-metadata
+      (a === 172 && b >= 16 && b <= 31) || // приватна (172.16.0.0/12)
+      (a === 192 && b === 168) // приватна (192.168.0.0/16)
+    );
+  }
+  if (net.isIPv6(ip)) {
+    const lower = ip.toLowerCase();
+    return (
+      lower === "::1" || // loopback
+      lower.startsWith("fe80") || // link-local
+      lower.startsWith("fc") || // unique local (fc00::/7)
+      lower.startsWith("fd") ||
+      lower.startsWith("::ffff:127.") || // IPv4-mapped варіанти вище
+      lower.startsWith("::ffff:10.") ||
+      lower.startsWith("::ffff:169.254.") ||
+      lower.startsWith("::ffff:192.168.")
+    );
+  }
+  return false;
+}
+
+/**
+ * SSRF-захист для парсингу вакансій за посиланням. Раніше тут був жорсткий allowlist лише на
+ * jobs.dou.ua — користувач цілком справедливо зауважив, що хоче автопідтягування стеку з БУДЬ-ЯКОГО
+ * джерела (LinkedIn, Djinni, robota.ua, Indeed тощо), а не лише з одного сайту. Тепер дозволено
+ * будь-який публічний https-хост; блокуємо лише очевидні внутрішні/локальні цілі — localhost,
+ * приватні/loopback/link-local IP-літерали (зокрема 169.254.169.254 — класична адреса
+ * cloud-metadata сервісів AWS/GCP/Azure, популярна ціль SSRF-атак).
+ *
+ * Це syntax-only перевірка БЕЗ реального DNS resolve (свідомий трейдофф, не повний SSRF-щит):
+ * застосунок — локальний однокористувацький трекер, посилання вводить сам користувач, а
+ * асинхронний dns.lookup() на кожен виклик ускладнив би контракт (ця функція лишається
+ * синхронною й викликається в кількох місцях) і зробив би юніт-тести залежними від мережі.
+ * Залишковий ризик — публічний хост, що через DNS rebinding резолвиться в приватну IP саме в
+ * момент запиту, — прийнятний тут; для мультитенантного/публічно доступного деплою знадобився б
+ * повноцінний resolve-and-pin (перевірка IP ПІСЛЯ резолву, з'єднання саме на перевірену IP).
+ */
 export function assertSafeVacancyUrl(rawUrl: string): string {
   let url: URL;
   try {
@@ -207,8 +256,14 @@ export function assertSafeVacancyUrl(rawUrl: string): string {
     throw new HttpError(400, "Некоректний URL вакансії");
   }
   if (url.protocol !== "https:") throw new HttpError(400, "Дозволені лише https-посилання");
-  if (!/(^|\.)dou\.ua$/i.test(url.hostname)) {
-    throw new HttpError(400, "Парсинг дозволено лише для посилань jobs.dou.ua");
+  // url.hostname для IPv6-літералів повертає адресу В КВАДРАТНИХ ДУЖКАХ (напр. "[::1]") —
+  // net.isIP()/net.isIPv6() дужок не розуміють і мовчки повернули б false, пропускаючи перевірку.
+  const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (BLOCKED_HOSTNAMES.has(hostname) || BLOCKED_HOSTNAME_SUFFIXES.some((suffix) => hostname.endsWith(suffix))) {
+    throw new HttpError(400, "Це посилання веде на локальний/внутрішній ресурс — заборонено");
+  }
+  if (net.isIP(hostname) && isPrivateOrReservedIp(hostname)) {
+    throw new HttpError(400, "Це посилання веде на приватну IP-адресу — заборонено");
   }
   return url.toString();
 }

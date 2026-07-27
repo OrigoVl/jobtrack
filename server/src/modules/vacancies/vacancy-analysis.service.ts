@@ -40,11 +40,12 @@ export async function quickAnalyze(text: string): Promise<QuickAnalysis> {
 }
 
 /**
- * Best-effort автозбагачення стеку/рівня/fit за посиланням на вакансію — на відміну від
- * fetchVacancyText/quickAnalyze НІКОЛИ не кидає: непідтримуваний домен (лише dou.ua —
- * SSRF-захист у assertSafeVacancyUrl), мережева помилка, таймаут чи порожня сторінка просто
- * повертають null, щоб виклик (створення/оновлення вакансії, імпорт) міг безпечно
- * продовжити основну операцію навіть якщо автозбагачення не вдалося.
+ * Best-effort автозбагачення стеку/рівня/fit за посиланням на вакансію (з будь-якого публічного
+ * https-джерела — LinkedIn, Djinni, robota.ua, jobs.dou.ua тощо, див. assertSafeVacancyUrl) —
+ * на відміну від fetchVacancyText/quickAnalyze НІКОЛИ не кидає: заблокований SSRF-захистом
+ * хост (локальний/внутрішній), мережева помилка, таймаут чи порожня сторінка просто повертають
+ * null, щоб виклик (створення/оновлення вакансії, імпорт) міг безпечно продовжити основну
+ * операцію навіть якщо автозбагачення не вдалося.
  */
 export async function tryAutoEnrichStack(url: string): Promise<QuickAnalysis | null> {
   if (!url) return null;

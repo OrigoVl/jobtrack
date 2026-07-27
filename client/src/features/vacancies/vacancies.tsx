@@ -202,7 +202,7 @@ export function Vacancies() {
     <div className="space-y-4">
       <PageHeader
         title="Вакансії"
-        subtitle="Веди всі вакансії в одному місці. Встав посилання на вакансію (jobs.dou.ua) — стек підтягнеться сам. У режимі «Канбан» перетягуй картки між статусами (або обери картку й тисни ←/→ — без миші)."
+        subtitle="Веди всі вакансії в одному місці. Встав посилання на вакансію (з будь-якого сайту — LinkedIn, Djinni, robota.ua, dou.ua тощо) — стек підтягнеться сам. У режимі «Канбан» перетягуй картки між статусами (або обери картку й тисни ←/→ — без миші)."
         actions={
           <div className="flex gap-2 flex-wrap">
             <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
@@ -320,7 +320,7 @@ export function Vacancies() {
                             type="url"
                             defaultValue={row.url}
                             onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { url: e.target.value } })}
-                            placeholder="Посилання (jobs.dou.ua → стек підтягнеться сам)…"
+                            placeholder="Посилання на вакансію (з будь-якого сайту) → стек підтягнеться сам…"
                             aria-label={`Посилання на вакансію — ${row.company}`}
                             className="bg-transparent text-indigo-600 text-[11px] flex-1 min-w-0 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
                           />

@@ -37,7 +37,8 @@ r.post(
     const id = Number(info.lastInsertRowid);
     recordStatusChange(id, b.status!);
     // Автозбагачення: якщо додають вакансію одразу з посиланням і без явного стеку — спробувати
-    // стягнути стек/рівень/fit з тексту вакансії (лише dou.ua, best-effort — див. tryAutoEnrichStack).
+    // стягнути стек/рівень/fit з тексту вакансії (будь-який публічний https-хост, best-effort —
+    // див. tryAutoEnrichStack).
     if (b.url && b.stack!.length === 0) {
       const enrichment = await tryAutoEnrichStack(b.url);
       if (enrichment) {
@@ -75,7 +76,8 @@ r.put(
       stack: patch.stack ?? j(cur.stack),
     };
     // Автозбагачення: URL щойно з'явився/змінився і в цьому ж запиті стек не редагували
-    // вручну — стягнути свіжий стек/рівень/fit із посилання (best-effort, лише dou.ua).
+    // вручну — стягнути свіжий стек/рівень/fit із посилання (best-effort, будь-який публічний
+    // https-хост).
     if (patch.url !== undefined && patch.url !== cur.url && patch.stack === undefined && m.url) {
       const enrichment = await tryAutoEnrichStack(m.url);
       if (enrichment) {

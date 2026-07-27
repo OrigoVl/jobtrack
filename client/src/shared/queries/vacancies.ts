@@ -43,13 +43,14 @@ export function useUpdateVacancy() {
       await invalidateDerived();
       // Сервер намагається автоматично стягнути стек/рівень/fit, коли з'являється/змінюється
       // посилання (server/src/modules/vacancies/vacancy-analysis.service.ts tryAutoEnrichStack,
-      // best-effort, лише jobs.dou.ua) — повідомляємо користувача про результат.
+      // best-effort, будь-який публічний https-хост — LinkedIn, Djinni, robota.ua, dou.ua тощо,
+      // крім локальних/внутрішніх адрес, заблокованих SSRF-захистом) — повідомляємо про результат.
       if (variables.patch.url !== undefined && variables.patch.url !== prevUrl) {
         toast(
           row.stack.length > 0
             ? `Стек підтягнуто з посилання: ${row.stack.slice(0, 5).join(", ")}${row.stack.length > 5 ? "…" : ""}`
             : variables.patch.url
-              ? "Посилання збережено (автопідтягування стеку працює лише для jobs.dou.ua)"
+              ? "Посилання збережено (не вдалося автоматично розпізнати стек зі сторінки)"
               : "Посилання прибрано",
           row.stack.length > 0 ? "success" : "info",
         );
