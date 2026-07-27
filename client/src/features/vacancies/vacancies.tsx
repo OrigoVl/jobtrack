@@ -11,8 +11,16 @@ import {
 import { api } from "../../shared/api";
 import { useToast } from "../../shared/use-toast";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader } from "../../shared/ui";
-import { STATUSES, type Fit, type Vacancy } from "../../shared/types";
+import { STATUSES, type Fit, type Vacancy, type VacancyStatus } from "../../shared/types";
 import { fitTone, fitText } from "../../shared/fit-tone";
+import {
+  STATUS_SELECT_CLASS,
+  STATUS_DOT_CLASS,
+  STATUS_BORDER_L_CLASS,
+  DEFAULT_STATUS_SELECT_CLASS,
+  DEFAULT_STATUS_DOT_CLASS,
+  DEFAULT_STATUS_BORDER_L_CLASS,
+} from "../../shared/status-tone";
 
 /** Ініціює завантаження браузером JSON-файлу з переданими даними (для експорту вакансій). */
 function downloadJson(filename: string, data: unknown): void {
@@ -87,7 +95,10 @@ function VacancyBoard() {
             }`}
           >
             <div className="flex items-center justify-between px-1.5 py-1 mb-1.5">
-              <span className="text-xs font-bold text-slate-600">{status}</span>
+              <span className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT_CLASS[status] ?? DEFAULT_STATUS_DOT_CLASS}`} />
+                {status}
+              </span>
               <span className="text-[11px] text-slate-400">{items.length}</span>
             </div>
             <div className="space-y-2 min-h-[40px]">
@@ -115,7 +126,7 @@ function VacancyBoard() {
                         moveByKeyboard(v, -1);
                       }
                     }}
-                    className="bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-card focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    className={`bg-white border border-slate-200 border-l-4 ${STATUS_BORDER_L_CLASS[status] ?? DEFAULT_STATUS_BORDER_L_CLASS} rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-card focus:outline-none focus:ring-2 focus:ring-indigo-400`}
                   >
                     <div className="font-semibold text-sm text-slate-800 truncate">{v.company}</div>
                     <div className="text-xs text-slate-500 truncate">{v.position}</div>
@@ -327,7 +338,9 @@ export function Vacancies() {
                       <select
                         defaultValue={row.status}
                         onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { status: e.target.value } })}
-                        className="bg-slate-100 border border-slate-200 rounded px-1.5 py-1 text-xs"
+                        className={`border rounded px-1.5 py-1 text-xs font-medium ${
+                          STATUS_SELECT_CLASS[row.status as VacancyStatus] ?? DEFAULT_STATUS_SELECT_CLASS
+                        }`}
                       >
                         {STATUSES.map((s) => (
                           <option key={s}>{s}</option>
