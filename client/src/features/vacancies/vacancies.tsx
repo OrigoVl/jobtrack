@@ -1,21 +1,35 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useUi } from "../../shared/ui-state";
 import { useAddVacancy, useDeleteVacancy, useImportVacancies, useUpdateVacancy, useVacancies } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader } from "../../shared/ui";
-import { STATUSES, type Fit } from "../../shared/types";
+import { STATUSES, type Fit, type Vacancy } from "../../shared/types";
 import { fitTone, fitText } from "../../shared/view-kit";
 
-/* ---------- Vacancies board (drag-and-drop) ---------- */
+/* ---------- Vacancies board (drag-and-drop + клавіатура) ---------- */
 function VacancyBoard() {
   const { data: vacancies = [] } = useVacancies();
   const updateVacancyMutation = useUpdateVacancy();
   const [over, setOver] = useState<string | null>(null);
+  // Рефи карток для DnD-незалежного (keyboard-only) переміщення: після зміни статусу
+  // React перемонтовує картку в іншу колонку — без цього фокус загубився б.
+  const cardRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const onDrop = (status: string) => (e: React.DragEvent) => {
     e.preventDefault();
     setOver(null);
     const id = Number(e.dataTransfer.getData("text/plain"));
     const v = vacancies.find((x) => x.id === id);
     if (v && v.status !== status) updateVacancyMutation.mutate({ id, patch: { status } });
+  };
+  // Клавіатурна альтернатива drag-and-drop: ←/→ на фокусованій картці перемикають
+  // її на сусідній статус (порядок — як у STATUSES), фокус лишається на тій самій картці.
+  const moveByKeyboard = (v: Vacancy, direction: -1 | 1) => {
+    const idx = STATUSES.indexOf(v.status as (typeof STATUSES)[number]);
+    const nextStatus = STATUSES[idx + direction];
+    if (idx === -1 || !nextStatus) return;
+    updateVacancyMutation.mutate(
+      { id: v.id, patch: { status: nextStatus } },
+      { onSuccess: () => requestAnimationFrame(() => cardRefs.current[v.id]?.focus()) },
+    );
   };
   return (
     <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
@@ -24,6 +38,8 @@ function VacancyBoard() {
         return (
           <div
             key={status}
+            role="list"
+            aria-label={`Колонка «${status}», ${items.length} вакансій`}
             onDragOver={(e) => {
               e.preventDefault();
               setOver(status);
@@ -39,27 +55,47 @@ function VacancyBoard() {
               <span className="text-[11px] text-slate-400">{items.length}</span>
             </div>
             <div className="space-y-2 min-h-[40px]">
-              {items.map((v) => (
-                <div
-                  key={v.id}
-                  draggable
-                  onDragStart={(e) => e.dataTransfer.setData("text/plain", String(v.id))}
-                  className="bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-card"
-                >
-                  <div className="font-semibold text-sm text-slate-800 truncate">{v.company}</div>
-                  <div className="text-xs text-slate-500 truncate">{v.position}</div>
-                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                    <Chip tone={fitTone[v.fit]}>{v.fit}</Chip>
-                    {v.stack.slice(0, 2).map((s) => (
-                      <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
-                        {s}
-                      </span>
-                    ))}
-                    {v.stack.length > 2 && <span className="text-[10px] text-slate-400">+{v.stack.length - 2}</span>}
+              {items.map((v) => {
+                const idx = STATUSES.indexOf(status);
+                return (
+                  <div
+                    key={v.id}
+                    ref={(el) => {
+                      cardRefs.current[v.id] = el;
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${v.company}, ${v.position}. Статус: ${status}.${idx > 0 ? ` Стрілка вліво — «${STATUSES[idx - 1]}».` : ""}${
+                      idx < STATUSES.length - 1 ? ` Стрілка вправо — «${STATUSES[idx + 1]}».` : ""
+                    }`}
+                    draggable
+                    onDragStart={(e) => e.dataTransfer.setData("text/plain", String(v.id))}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowRight") {
+                        e.preventDefault();
+                        moveByKeyboard(v, 1);
+                      } else if (e.key === "ArrowLeft") {
+                        e.preventDefault();
+                        moveByKeyboard(v, -1);
+                      }
+                    }}
+                    className="bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-card focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  >
+                    <div className="font-semibold text-sm text-slate-800 truncate">{v.company}</div>
+                    <div className="text-xs text-slate-500 truncate">{v.position}</div>
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      <Chip tone={fitTone[v.fit]}>{v.fit}</Chip>
+                      {v.stack.slice(0, 2).map((s) => (
+                        <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                          {s}
+                        </span>
+                      ))}
+                      {v.stack.length > 2 && <span className="text-[10px] text-slate-400">+{v.stack.length - 2}</span>}
+                    </div>
+                    {v.next && <div className="text-[11px] text-amber-600 mt-1">⏭ {v.next}</div>}
                   </div>
-                  {v.next && <div className="text-[11px] text-amber-600 mt-1">⏭ {v.next}</div>}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         );
@@ -86,7 +122,7 @@ export function Vacancies() {
     <div className="space-y-4">
       <PageHeader
         title="Вакансії"
-        subtitle="Веди всі вакансії в одному місці. У режимі «Канбан» перетягуй картки між статусами."
+        subtitle="Веди всі вакансії в одному місці. У режимі «Канбан» перетягуй картки між статусами (або обери картку й тисни ←/→ — без миші)."
         actions={
           <div className="flex gap-2 flex-wrap">
             <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
