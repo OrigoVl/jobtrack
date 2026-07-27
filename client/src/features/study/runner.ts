@@ -63,7 +63,11 @@ export function runJs(code: string): Promise<RunResult> {
     };
 
     const timeoutId = setTimeout(() => {
-      finish({ logs: [], error: `⏱ Перевищено ліміт часу виконання (${EXECUTION_TIMEOUT_MS} мс) — можливо, нескінченний цикл.`, ms: Math.round(performance.now() - start) });
+      finish({
+        logs: [],
+        error: `⏱ Перевищено ліміт часу виконання (${EXECUTION_TIMEOUT_MS} мс) — можливо, нескінченний цикл.`,
+        ms: Math.round(performance.now() - start),
+      });
     }, EXECUTION_TIMEOUT_MS);
 
     worker.onmessage = (e: MessageEvent<RunResult>) => finish(e.data);

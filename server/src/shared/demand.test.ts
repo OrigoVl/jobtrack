@@ -49,24 +49,30 @@ describe("demandMap()", () => {
     expect(demandMap(now)).toEqual({ React: 1 });
   });
 
-  it("weighs an old vacancy's skills less than a recent vacancy's — same skill mentioned in both " +
-    "sources still nets out higher than an old-only mention", () => {
-    rows.length = 0;
-    rows.push(
-      { stack: JSON.stringify(["React"]), created: "2026-01-01" }, // сьогодні, вага ~1
-      { stack: JSON.stringify(["COBOL"]), created: "2024-01-01" }, // ~2 роки тому, вага ~0
-    );
-    const demand = demandMap(now);
-    expect(demand.React).toBeGreaterThan(demand.COBOL ?? 0);
-  });
+  it(
+    "weighs an old vacancy's skills less than a recent vacancy's — same skill mentioned in both " +
+      "sources still nets out higher than an old-only mention",
+    () => {
+      rows.length = 0;
+      rows.push(
+        { stack: JSON.stringify(["React"]), created: "2026-01-01" }, // сьогодні, вага ~1
+        { stack: JSON.stringify(["COBOL"]), created: "2024-01-01" }, // ~2 роки тому, вага ~0
+      );
+      const demand = demandMap(now);
+      expect(demand.React).toBeGreaterThan(demand.COBOL ?? 0);
+    },
+  );
 
-  it("still lists a skill mentioned only in a very old vacancy, even if its rounded weight is 0 — " +
-    "keeps it visible in the roadmap 'universe' just deprioritized, not erased", () => {
-    rows.length = 0;
-    rows.push({ stack: JSON.stringify(["COBOL"]), created: "2020-01-01" });
-    const demand = demandMap(now);
-    expect(Object.keys(demand)).toContain("COBOL");
-  });
+  it(
+    "still lists a skill mentioned only in a very old vacancy, even if its rounded weight is 0 — " +
+      "keeps it visible in the roadmap 'universe' just deprioritized, not erased",
+    () => {
+      rows.length = 0;
+      rows.push({ stack: JSON.stringify(["COBOL"]), created: "2020-01-01" });
+      const demand = demandMap(now);
+      expect(Object.keys(demand)).toContain("COBOL");
+    },
+  );
 
   it("returns an empty object when there are no vacancies", () => {
     rows.length = 0;

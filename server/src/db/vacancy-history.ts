@@ -65,9 +65,11 @@ export interface StageDuration {
  * паузу — інформація, якої немає в статичних funnel/funnelReached (лише "скільки", не "як довго").
  */
 export function getAvgDaysInStage(): StageDuration[] {
-  const rows = db
-    .prepare("SELECT vacancy_id, status, changed_at FROM vacancy_status_history ORDER BY vacancy_id, changed_at")
-    .all() as { vacancy_id: number; status: string; changed_at: string }[];
+  const rows = db.prepare("SELECT vacancy_id, status, changed_at FROM vacancy_status_history ORDER BY vacancy_id, changed_at").all() as {
+    vacancy_id: number;
+    status: string;
+    changed_at: string;
+  }[];
   const sums = new Map<string, { total: number; count: number }>();
   for (let i = 0; i < rows.length - 1; i++) {
     const cur = rows[i]!;

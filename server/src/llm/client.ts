@@ -125,7 +125,10 @@ async function callProvider(system: string, user: string, { json, maxTokens, tem
       break; // цей провайдер вичерпав спроби — переходимо до наступного (якщо є) поза внутрішнім циклом
     }
     if (!isLastProvider) {
-      contextLogger().warn({ failedProvider: provider, fallbackProvider: providers[i + 1] }, "LLM provider failed, trying fallback provider");
+      contextLogger().warn(
+        { failedProvider: provider, fallbackProvider: providers[i + 1] },
+        "LLM provider failed, trying fallback provider",
+      );
     }
   }
   return null;

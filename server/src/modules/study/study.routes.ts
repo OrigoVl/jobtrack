@@ -161,9 +161,8 @@ r.post("/study/grade", (req, res) => {
   const rating = grade as FsrsRating;
   const now = new Date();
   const existing = db.prepare("SELECT * FROM srs WHERE cardId=?").get(cardId) as SrsRow | undefined;
-  const prev = existing?.difficulty != null && existing?.stability != null
-    ? { difficulty: existing.difficulty, stability: existing.stability }
-    : null;
+  const prev =
+    existing?.difficulty != null && existing?.stability != null ? { difficulty: existing.difficulty, stability: existing.stability } : null;
   // Скільки днів минуло від останнього огляду — ключовий вхід у формулу retrievability
   // FSRS; для нової картки (prev===null) elapsedDays ігнорується всередині scheduleFsrs.
   const elapsedDays = existing?.lastReview

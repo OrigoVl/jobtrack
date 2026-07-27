@@ -67,12 +67,15 @@ describe("scheduleFsrs() — subsequent reviews", () => {
     expect(result.stability).toBeLessThan(learned.stability);
   });
 
-  it("penalizes a lapse MORE when it happens early (still high retrievability expected) than when it " +
-    "happens very late (low retrievability — forgetting was already expected, less of a surprise)", () => {
-    const reviewedOnTime = scheduleFsrs(learned, 1, 1);
-    const reviewedLate = scheduleFsrs(learned, 60, 1);
-    expect(reviewedOnTime.stability).toBeLessThanOrEqual(reviewedLate.stability);
-  });
+  it(
+    "penalizes a lapse MORE when it happens early (still high retrievability expected) than when it " +
+      "happens very late (low retrievability — forgetting was already expected, less of a surprise)",
+    () => {
+      const reviewedOnTime = scheduleFsrs(learned, 1, 1);
+      const reviewedLate = scheduleFsrs(learned, 60, 1);
+      expect(reviewedOnTime.stability).toBeLessThanOrEqual(reviewedLate.stability);
+    },
+  );
 
   it("keeps difficulty within the [1, 10] bounds across many repeated lapses", () => {
     let state: FsrsCardState = { difficulty: 5, stability: 5 };

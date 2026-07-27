@@ -30,13 +30,16 @@ describe("embeddingsAvailable() / embed() — offline / non-openai fallback", ()
     expect(embeddingsAvailable()).toBe(false);
   });
 
-  it("is unavailable when the configured provider is anthropic, even with a key set — " +
-    "there is no public embeddings API for anthropic wired up here", async () => {
-    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test");
-    vi.stubEnv("LLM_PROVIDER", "anthropic");
-    const { embeddingsAvailable } = await import("./embeddings.js");
-    expect(embeddingsAvailable()).toBe(false);
-  });
+  it(
+    "is unavailable when the configured provider is anthropic, even with a key set — " +
+      "there is no public embeddings API for anthropic wired up here",
+    async () => {
+      vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test");
+      vi.stubEnv("LLM_PROVIDER", "anthropic");
+      const { embeddingsAvailable } = await import("./embeddings.js");
+      expect(embeddingsAvailable()).toBe(false);
+    },
+  );
 
   it("embed() resolves to null without calling the network when unavailable", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");

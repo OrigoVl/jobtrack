@@ -98,8 +98,7 @@ function nextStabilityOnRecall(difficulty: number, stability: number, retrievabi
 
 function nextStabilityOnLapse(difficulty: number, stability: number, retrievabilityNow: number): number {
   const w = getFsrsWeights();
-  const s =
-    w[11] * Math.pow(difficulty, -w[12]) * (Math.pow(stability + 1, w[13]) - 1) * Math.exp((1 - retrievabilityNow) * w[14]);
+  const s = w[11] * Math.pow(difficulty, -w[12]) * (Math.pow(stability + 1, w[13]) - 1) * Math.exp((1 - retrievabilityNow) * w[14]);
   // Провал НЕ повинен підвищувати стабільність понад те, що вже було — інакше "забув картку"
   // парадоксально планував би довший інтервал, ніж до провалу.
   return Math.max(Math.min(s, stability), MIN_STABILITY);

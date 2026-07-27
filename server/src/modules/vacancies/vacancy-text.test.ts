@@ -11,10 +11,13 @@ describe("computeFit", () => {
     expect(computeFit(["React"], ["Docker"])).toBe("med");
   });
 
-  it("returns low when there are zero matches, however few the gaps are — fixes the old bug where " +
-    "0 matches / 2 gaps (0% fit) was misclassified as 'med'", () => {
-    expect(computeFit([], ["Docker", "AWS"])).toBe("low");
-  });
+  it(
+    "returns low when there are zero matches, however few the gaps are — fixes the old bug where " +
+      "0 matches / 2 gaps (0% fit) was misclassified as 'med'",
+    () => {
+      expect(computeFit([], ["Docker", "AWS"])).toBe("low");
+    },
+  );
 
   it("returns low when gaps clearly outweigh matches", () => {
     expect(computeFit([], ["Docker", "AWS", "Kubernetes"])).toBe("low");
@@ -25,8 +28,7 @@ describe("computeFit", () => {
     expect(computeFit([], [])).toBe("high");
   });
 
-  it("weighs a matched skill that is in high market demand more than a missing niche one, " +
-    "given a demand map", () => {
+  it("weighs a matched skill that is in high market demand more than a missing niche one, " + "given a demand map", () => {
     const demand = { React: 20, COBOL: 1 };
     const withDemand = computeFit(["React"], ["COBOL"], demand);
     const withoutDemand = computeFit(["React"], ["COBOL"]);

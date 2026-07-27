@@ -185,7 +185,11 @@ describe("callProvider() falls back to the secondary provider", () => {
       if (String(url).includes("openai.com")) {
         return { ok: false, status: 401, text: async () => JSON.stringify({ error: { message: "Invalid API key" } }) } as Response;
       }
-      return { ok: true, status: 200, json: async () => ({ content: [{ text: "answer from anthropic" }], stop_reason: "end_turn" }) } as Response;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ content: [{ text: "answer from anthropic" }], stop_reason: "end_turn" }),
+      } as Response;
     });
     const { chat } = await import("./client.js");
     const result = await chat("system", "user");
@@ -201,7 +205,11 @@ describe("callProvider() falls back to the secondary provider", () => {
       if (String(url).includes("openai.com")) {
         return { ok: false, status: 429, text: async () => JSON.stringify({ error: { message: "Rate limit exceeded" } }) } as Response;
       }
-      return { ok: true, status: 200, json: async () => ({ content: [{ text: "answer from anthropic" }], stop_reason: "end_turn" }) } as Response;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ content: [{ text: "answer from anthropic" }], stop_reason: "end_turn" }),
+      } as Response;
     });
     const { chat } = await import("./client.js");
     const result = await chat("system", "user");
