@@ -2,12 +2,14 @@ import express from "express";
 import { getProfile } from "../../db/index.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { HttpError, asyncHandler } from "../../core/http.js";
+import { aiLimiter } from "../../core/rate-limit.js";
 
 const r = express.Router();
 
 // ---------- Мок-інтерв'ю: LLM-оцінка відповіді кандидата ----------
 r.post(
   "/mock/evaluate",
+  aiLimiter,
   asyncHandler(async (req, res) => {
     const question = String(req.body?.question || "").slice(0, 2000);
     const answer = String(req.body?.answer || "").trim();

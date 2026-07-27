@@ -5,8 +5,9 @@ import { extractSkills, detectDomain } from "../../shared/skill-extraction.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { extractText } from "./cv-extract.service.js";
 import { HttpError, asyncHandler } from "../../core/http.js";
+import { aiLimiter } from "../../core/rate-limit.js";
 import { parseProfileInput } from "../../shared/validation.js";
-import { upload } from "../../shared/upload.js";
+import { uploadSingle } from "../../shared/upload.js";
 import { CvDocSchema, CvPresetsSchema, type CvDoc } from "./cv.schemas.js";
 import { cvAnalysis, reviewCv, matchCv, strs } from "./cv-analysis.service.js";
 import { emptyCvDoc, parseCvDocFromText } from "./cv-document.service.js";
@@ -23,6 +24,7 @@ r.put("/profile", (req, res) => {
 // ---------- аналіз CV відносно попиту ринку ----------
 r.post(
   "/cv/analyze",
+  aiLimiter,
   asyncHandler(async (req, res) => {
     res.json(await cvAnalysis(req.body?.cvText || getProfile().cvText));
   }),
@@ -30,7 +32,8 @@ r.post(
 
 r.post(
   "/cv/upload",
-  upload.single("file"),
+  aiLimiter,
+  uploadSingle("file"),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new HttpError(400, "Файл не отримано");
     const text = await extractText(req.file.buffer, req.file.originalname, req.file.mimetype);
@@ -56,6 +59,7 @@ r.post(
 
 r.post(
   "/cv/skills-update",
+  aiLimiter,
   asyncHandler(async (req, res) => {
     const done = strs(req.body?.completed);
     const profile = getProfile();
@@ -77,6 +81,7 @@ r.post(
 // ---------- глибокий рев'ю CV (структуровані, дієві поради) ----------
 r.post(
   "/cv/review",
+  aiLimiter,
   asyncHandler(async (req, res) => {
     const cvText = String(req.body?.cvText || getProfile().cvText || "").slice(0, 8000);
     if (cvText.trim().length < 30) throw new HttpError(400, "Замало тексту CV для рев'ю");
@@ -87,6 +92,7 @@ r.post(
 // ---------- порівняння CV з конкретною вакансією ----------
 r.post(
   "/cv/match",
+  aiLimiter,
   asyncHandler(async (req, res) => {
     const cvText = String(req.body?.cvText || getProfile().cvText || "").slice(0, 8000);
     const jobTitle = String(req.body?.jobTitle || "").slice(0, 200);
@@ -117,7 +123,7 @@ r.put("/cv/presets", (req, res) => {
 });
 r.post(
   "/cv/linkedin-import",
-  upload.single("file"),
+  uploadSingle("file"),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new HttpError(400, "Файл не отримано");
     let parsed;
@@ -140,6 +146,7 @@ r.post(
 );
 r.post(
   "/cv/doc/generate",
+  aiLimiter,
   asyncHandler(async (req, res) => {
     const cvText = String(req.body?.cvText || getProfile().cvText || "").slice(0, 8000);
     if (!llmAvailable() || cvText.trim().length < 30)
@@ -151,6 +158,7 @@ r.post(
 );
 r.post(
   "/cv/improve",
+  aiLimiter,
   asyncHandler(async (req, res) => {
     const text = String(req.body?.text || "").trim();
     const kind = String(req.body?.kind || "bullet");

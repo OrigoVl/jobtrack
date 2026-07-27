@@ -9,6 +9,12 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: "development"
+    ignore:
+      # TypeScript 7 (нативний Go-компілятор) поки не підтримується typescript-eslint
+      # (peer-range "<6.1.0"), тож груповий PR з dev-залежностями падає на CI щоразу.
+      # Знімемо цей ignore, коли typescript-eslint офіційно підтримає TS 7.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/"

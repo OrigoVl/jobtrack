@@ -4,6 +4,7 @@ import { extractLevel } from "../../shared/tech-dict.js";
 import { extractSkills } from "../../shared/skill-extraction.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { HttpError, asyncHandler } from "../../core/http.js";
+import { aiLimiter } from "../../core/rate-limit.js";
 import { parseVacancyInput, parseText, type Fit } from "../../shared/validation.js";
 import { fetchVacancyText, computeFit, quickAnalyze } from "./vacancy-analysis.service.js";
 
@@ -23,7 +24,10 @@ r.post("/vacancies", (req, res) => {
   res.status(201).json(withStack(row));
 });
 r.put("/vacancies/:id", (req, res) => {
-  const cur = db.prepare("SELECT * FROM vacancies WHERE id=?").get(req.params.id) as unknown as VacancyRow | undefined;
+  // Express 5: req.params.* типізовано як string | string[] (повторювані сегменти шляху),
+  // хоча для "/:id" рантайм завжди повертає string.
+  const id = String(req.params.id);
+  const cur = db.prepare("SELECT * FROM vacancies WHERE id=?").get(id) as unknown as VacancyRow | undefined;
   if (!cur) throw new HttpError(404, "Вакансію не знайдено");
   const patch = parseVacancyInput(req.body, { partial: true });
   const m = {
@@ -49,20 +53,23 @@ r.put("/vacancies/:id", (req, res) => {
     m.next,
     m.notes,
     JSON.stringify(m.stack),
-    req.params.id,
+    id,
   );
-  res.json(withStack(db.prepare("SELECT * FROM vacancies WHERE id=?").get(req.params.id) as unknown as VacancyRow));
+  res.json(withStack(db.prepare("SELECT * FROM vacancies WHERE id=?").get(id) as unknown as VacancyRow));
 });
 r.delete("/vacancies/:id", (req, res) => {
-  const info = db.prepare("DELETE FROM vacancies WHERE id=?").run(req.params.id);
+  const id = String(req.params.id);
+  const info = db.prepare("DELETE FROM vacancies WHERE id=?").run(id);
   res.json({ ok: true, deleted: Number(info.changes) });
 });
 
 // спарсити ОДНУ вакансію за посиланням і оновити стек
 r.post(
   "/vacancies/:id/fetch",
+  aiLimiter,
   asyncHandler(async (req, res) => {
-    const v = db.prepare("SELECT * FROM vacancies WHERE id=?").get(req.params.id) as unknown as VacancyRow | undefined;
+    const id = String(req.params.id);
+    const v = db.prepare("SELECT * FROM vacancies WHERE id=?").get(id) as unknown as VacancyRow | undefined;
     if (!v) throw new HttpError(404, "Вакансію не знайдено");
     if (!v.url) throw new HttpError(400, "У вакансії немає посилання");
     const text = await fetchVacancyText(v.url);
@@ -75,6 +82,7 @@ r.post(
 // спарсити ВСІ вакансії з посиланнями
 r.post(
   "/vacancies/fetch-all",
+  aiLimiter,
   asyncHandler(async (_req, res) => {
     const rows = db.prepare("SELECT * FROM vacancies WHERE url IS NOT NULL AND url<>''").all() as unknown as VacancyRow[];
     const results: Array<{ id: number; company: string; techs?: string[]; level?: string; fit?: Fit; error?: string }> = [];
@@ -100,6 +108,7 @@ r.post(
 // аналіз тексту вакансії (офлайн словник + опційно LLM)
 r.post(
   "/vacancies/analyze",
+  aiLimiter,
   asyncHandler(async (req, res) => {
     const text = parseText(req.body, "text");
     const techs = await extractSkills(text);

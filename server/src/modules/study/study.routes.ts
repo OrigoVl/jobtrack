@@ -3,6 +3,7 @@ import db, { getProfile, getDrillProgress, setDrillStatus, setKvJson, getSrsStat
 import { catFor } from "../knowledge/knowledge-base.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { HttpError, asyncHandler } from "../../core/http.js";
+import { aiLimiter } from "../../core/rate-limit.js";
 import { CARDS } from "./content.js";
 import { slugify } from "../../shared/slug.js";
 import { genDrills, allDrills, genCards, allCards } from "./content-store.js";
@@ -22,6 +23,7 @@ r.put("/study/drill", (req, res) => {
 // прогресивні підказки до задачі (LLM, кеш) — не розкриваємо розв'язок одразу
 r.post(
   "/study/drill-hint",
+  aiLimiter,
   asyncHandler(async (req, res) => {
     const id = String(req.body?.id || "");
     const drill = allDrills().find((d) => d.id === id);
@@ -43,6 +45,7 @@ r.post(
 // генерація персональних задач саме під технологію-прогалину (доповнює статичний пул)
 r.post(
   "/study/generate",
+  aiLimiter,
   asyncHandler(async (req, res) => {
     const tech = String(req.body?.tech || "")
       .trim()
@@ -93,6 +96,7 @@ r.post(
 // генерація персональних флеш-карток під домен/тему (доповнює статичний пул SRS)
 r.post(
   "/study/generate-cards",
+  aiLimiter,
   asyncHandler(async (req, res) => {
     const profile = getProfile();
     const role = profile.domain || "фахівець";

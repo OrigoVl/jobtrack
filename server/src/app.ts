@@ -3,7 +3,6 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
 import fs from "fs";
 import path from "path";
 import type { IncomingMessage } from "http";
@@ -11,6 +10,7 @@ import { pinoHttp } from "pino-http";
 import { env } from "./config/env.js";
 import logger from "./core/logger.js";
 import { errorHandler } from "./core/error-handler.js";
+import { apiLimiter } from "./core/rate-limit.js";
 import routes from "./routes.js";
 
 export const app = express();
@@ -31,16 +31,6 @@ app.use(
   }),
 );
 
-// Захист від runaway-циклів і зловживання платними LLM-викликами: щедрий ліміт для
-// живої людини за UI, але зупиняє нескінченні цикли/скрипти. Health не лічимо.
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 600,
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => req.path === "/health",
-  message: { error: "Забагато запитів. Спробуй ще раз за кілька хвилин." },
-});
 app.use("/api", apiLimiter, routes);
 // невідомий API-ендпоінт → JSON 404 (а не HTML SPA)
 app.use("/api", (_q, res) => res.status(404).json({ error: "Ендпоінт не знайдено" }));
@@ -48,7 +38,10 @@ app.use("/api", (_q, res) => res.status(404).json({ error: "Ендпоінт н�
 // віддаємо зібраний фронтенд, якщо є
 if (fs.existsSync(env.clientDistPath)) {
   app.use(express.static(env.clientDistPath));
-  app.get("*", (_q, res) => res.sendFile(path.join(env.clientDistPath, "index.html")));
+  // Express 5 (path-to-regexp v8): голий "*" більше не працює як catch-all — потрібен
+  // іменований splat-параметр ("/*name"). SPA-фолбек: усе, що не /api і не статичний файл,
+  // віддає index.html (маршрутизація — на клієнті, React Router).
+  app.get("/*splat", (_q, res) => res.sendFile(path.join(env.clientDistPath, "index.html")));
 }
 
 // єдиний обробник помилок — консистентний формат {error, details}

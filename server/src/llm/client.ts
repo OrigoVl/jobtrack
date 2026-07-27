@@ -58,10 +58,15 @@ interface CallProviderOptions {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function callProvider(system: string, user: string, { json, maxTokens, temperature, model }: CallProviderOptions): Promise<any> {
+  // AbortSignal.timeout — щоб зависла відповідь провайдера не тримала запит користувача
+  // (і з'єднання з сервером) необмежено довго; помилка потрапляє в catch нижче й
+  // повертається як graceful offline-фолбек, а не 500/зависання.
+  const signal = AbortSignal.timeout(env.llm.timeoutMs);
   try {
     if (env.llm.provider === "anthropic" && env.llm.anthropicApiKey) {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
+        signal,
         headers: {
           "content-type": "application/json",
           "x-api-key": env.llm.anthropicApiKey,
@@ -82,6 +87,7 @@ async function callProvider(system: string, user: string, { json, maxTokens, tem
     // OpenAI (default)
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
+      signal,
       headers: { "content-type": "application/json", authorization: `Bearer ${env.llm.openaiApiKey}` },
       body: JSON.stringify({
         model,
@@ -98,7 +104,8 @@ async function callProvider(system: string, user: string, { json, maxTokens, tem
     const text = d?.choices?.[0]?.message?.content || "";
     return json ? safeJson(text) : text;
   } catch (e) {
-    logger.error({ err: e }, "LLM error");
+    const timedOut = e instanceof Error && e.name === "TimeoutError";
+    logger.error({ err: e }, timedOut ? "LLM timeout" : "LLM error");
     return null;
   }
 }

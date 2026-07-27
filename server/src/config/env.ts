@@ -28,6 +28,9 @@ const RawEnvSchema = z.object({
   ANTHROPIC_API_KEY: z.string().trim().min(1).optional(),
   ANTHROPIC_MODEL: z.string().trim().min(1).default("claude-3-5-haiku-latest"),
   ANTHROPIC_MODEL_SMART: z.string().trim().min(1).default("claude-3-5-sonnet-latest"),
+  // Скільки чекати відповіді від LLM-провайдера, перш ніж відмовитись — щоб зависла
+  // відповідь OpenAI/Anthropic не тримала запит користувача (і з'єднання) вічно.
+  LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
 });
 
 const parsedEnv = RawEnvSchema.safeParse(process.env);
@@ -61,6 +64,7 @@ export const env = {
     anthropicApiKey: raw.ANTHROPIC_API_KEY,
     anthropicModel: raw.ANTHROPIC_MODEL,
     anthropicModelSmart: raw.ANTHROPIC_MODEL_SMART,
+    timeoutMs: raw.LLM_TIMEOUT_MS,
     get isAvailable(): boolean {
       return !!(env.llm.openaiApiKey || env.llm.anthropicApiKey);
     },

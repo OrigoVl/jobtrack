@@ -3,12 +3,14 @@ import { getProfile } from "../../db/index.js";
 import { extractTechs } from "../../shared/tech-dict.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { asyncHandler } from "../../core/http.js";
+import { aiLimiter } from "../../core/rate-limit.js";
 
 const r = express.Router();
 
 // ---------- LLM: cover letter / rewrite ----------
 r.post(
   "/llm/cover-letter",
+  aiLimiter,
   asyncHandler(async (req, res) => {
     const { vacancyText, company } = req.body || {};
     const profile = getProfile();
@@ -34,6 +36,7 @@ r.post(
 );
 r.post(
   "/llm/rewrite",
+  aiLimiter,
   asyncHandler(async (req, res) => {
     const { text, tone } = req.body || {};
     if (!llmAvailable()) return res.json({ text, offline: true });

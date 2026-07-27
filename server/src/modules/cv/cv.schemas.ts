@@ -8,31 +8,41 @@ export const CV_FONTS = ["sans", "serif"] as const;
 export const CV_SECTIONS = ["summary", "skills", "experience", "projects", "education", "languages"] as const;
 export type CvSection = (typeof CV_SECTIONS)[number];
 
-const str = (max: number) => z.any().transform((v) => (typeof v === "string" ? v.slice(0, max) : ""));
+// Zod v4: `.any()`/`.unknown()`, коли є ОБОВʼЯЗКОВИМ полем `z.object({...})`, більше не
+// приймає мовчки відсутній ключ/undefined (кидає ZodError "expected nonoptional") — на
+// відміну від v3. Додаємо `.optional()` одразу після `.any()`, щоб .transform() все одно
+// відпрацював на undefined і повернув безпечний дефолт (семантика файлу не змінюється).
+const str = (max: number) => z.any().optional().transform((v) => (typeof v === "string" ? v.slice(0, max) : ""));
 const strArr = (max: number, itemMax = 300) =>
-  z.any().transform((v) =>
-    Array.isArray(v)
-      ? v
-          .filter((x): x is string => typeof x === "string")
-          .map((x) => x.slice(0, itemMax))
-          .slice(0, max)
-      : [],
-  );
+  z
+    .any()
+    .optional()
+    .transform((v) =>
+      Array.isArray(v)
+        ? v
+            .filter((x): x is string => typeof x === "string")
+            .map((x) => x.slice(0, itemMax))
+            .slice(0, max)
+        : [],
+    );
 
-const CvOrderSchema = z.any().transform((v): CvSection[] => {
-  const seen = new Set<string>();
-  const order: CvSection[] = [];
-  if (Array.isArray(v)) {
-    for (const k of v) {
-      if ((CV_SECTIONS as readonly string[]).includes(k) && !seen.has(k)) {
-        seen.add(k);
-        order.push(k as CvSection);
+const CvOrderSchema = z
+  .any()
+  .optional()
+  .transform((v): CvSection[] => {
+    const seen = new Set<string>();
+    const order: CvSection[] = [];
+    if (Array.isArray(v)) {
+      for (const k of v) {
+        if ((CV_SECTIONS as readonly string[]).includes(k) && !seen.has(k)) {
+          seen.add(k);
+          order.push(k as CvSection);
+        }
       }
     }
-  }
-  for (const k of CV_SECTIONS) if (!seen.has(k)) order.push(k);
-  return order;
-});
+    for (const k of CV_SECTIONS) if (!seen.has(k)) order.push(k);
+    return order;
+  });
 
 const asObject = (v: unknown): object => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
 
@@ -51,7 +61,10 @@ export const CvThemeSchema = z.preprocess(
       .catch(1)
       .transform((n) => Math.min(1.3, Math.max(0.8, n))),
     order: CvOrderSchema,
-    showPhoto: z.any().transform((v) => v !== false),
+    showPhoto: z
+      .any()
+      .optional()
+      .transform((v) => v !== false),
     photoShape: z.enum(["circle", "square"]).catch("circle"),
     photoPos: z.enum(["left", "right"]).catch("left"),
   }),
@@ -60,6 +73,7 @@ export type CvTheme = z.infer<typeof CvThemeSchema>;
 
 export const CvPhotoSchema = z
   .any()
+  .optional()
   .transform((v) =>
     typeof v === "string" && /^data:image\/(png|jpe?g|webp|gif);base64,[a-zA-Z0-9+/=]+$/.test(v) && v.length <= 700000 ? v : "",
   );
@@ -69,14 +83,17 @@ export interface CvLanguage {
   level: string;
 }
 
-export const CvLanguagesSchema = z.any().transform((v): CvLanguage[] =>
-  Array.isArray(v)
-    ? v
-        .filter((x) => x && typeof x.name === "string" && x.name.trim())
-        .slice(0, 12)
-        .map((x) => ({ name: x.name.trim().slice(0, 60), level: typeof x.level === "string" ? x.level.trim().slice(0, 40) : "" }))
-    : [],
-);
+export const CvLanguagesSchema = z
+  .any()
+  .optional()
+  .transform((v): CvLanguage[] =>
+    Array.isArray(v)
+      ? v
+          .filter((x) => x && typeof x.name === "string" && x.name.trim())
+          .slice(0, 12)
+          .map((x) => ({ name: x.name.trim().slice(0, 60), level: typeof x.level === "string" ? x.level.trim().slice(0, 40) : "" }))
+      : [],
+  );
 
 export interface CvExperienceItem {
   role: string;
@@ -94,6 +111,7 @@ const CvExperienceItemSchema = z.any().transform((e): CvExperienceItem => ({
 
 export const CvExperienceSchema = z
   .any()
+  .optional()
   .transform((v): CvExperienceItem[] => (Array.isArray(v) ? v.slice(0, 20).map((e) => CvExperienceItemSchema.parse(e)) : []));
 
 export const CvDocSchema = z.preprocess(

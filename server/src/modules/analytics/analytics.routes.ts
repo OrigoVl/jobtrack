@@ -2,6 +2,7 @@ import express from "express";
 import db, { getProfile, getSrsStateByCard } from "../../db/index.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { asyncHandler } from "../../core/http.js";
+import { aiLimiter } from "../../core/rate-limit.js";
 import { demandMap } from "../../shared/demand.js";
 import { allCards } from "../study/content-store.js";
 
@@ -84,6 +85,7 @@ function heuristicFocus(s: FocusSummary): FocusAction[] {
 }
 r.get(
   "/insights/focus",
+  aiLimiter,
   asyncHandler(async (_q, res) => {
     const profile = getProfile();
     const demand = demandMap();

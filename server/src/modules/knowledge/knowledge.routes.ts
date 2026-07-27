@@ -4,6 +4,7 @@ import { getDynamicKnowledge } from "./knowledge.service.js";
 import { kbFor } from "./knowledge-base.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { asyncHandler } from "../../core/http.js";
+import { aiLimiter } from "../../core/rate-limit.js";
 import { demandMap } from "../../shared/demand.js";
 
 const r = express.Router();
@@ -11,8 +12,11 @@ const r = express.Router();
 // ---------- персональна база знань (LLM + кеш, fallback на статичну) ----------
 r.get(
   "/knowledge/:tech",
+  aiLimiter,
   asyncHandler(async (req, res) => {
-    const tech = decodeURIComponent(req.params.tech);
+    // Express 5: типи req.params допускають string[] (для повторюваних сегментів шляху),
+    // хоча для "/:tech" рантайм завжди повертає string.
+    const tech = decodeURIComponent(String(req.params.tech));
     res.json(await getDynamicKnowledge(tech, { profile: getProfile(), demand: demandMap() }));
   }),
 );
@@ -35,6 +39,7 @@ r.get("/learn", (_q, res) => {
 });
 r.post(
   "/learn/plan",
+  aiLimiter,
   asyncHandler(async (_req, res) => {
     if (!llmAvailable()) return res.json({ plan: null, offline: true });
     const profile = getProfile();
