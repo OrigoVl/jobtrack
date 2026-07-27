@@ -162,7 +162,10 @@ export function CvPreviewPanel({ doc, onExport }: { doc: CvDoc; onExport: () => 
           onToggleFullscreen={() => setFullscreen(true)}
           fullscreenLabel="На весь екран"
         />
-        <ScaledFrame html={html} zoom={zoom} maxHeight="72vh" onContentHeight={setContentHeight} />
+        {/* Тепер це єдиний елемент у sticky-колонці (Appearance/Presets переїхали у вкладку
+            "Дизайн" зліва) — можна віддати прев'ю більше видимої висоти, ніж коли воно було
+            затиснуте під іншими панелями. */}
+        <ScaledFrame html={html} zoom={zoom} maxHeight="calc(100vh - 11rem)" onContentHeight={setContentHeight} />
         {empties.length > 0 && (
           <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100">
             Порожні секції (не потраплять у PDF): {empties.join(", ")}

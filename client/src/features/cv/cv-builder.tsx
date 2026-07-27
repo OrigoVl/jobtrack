@@ -3,7 +3,7 @@ import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useToast } from "../../shared/use-toast";
 import { useApplyCvUpload, useProfile, useVacancies } from "../../shared/queries";
-import { Btn, Card, CardsSkeleton, PageHeader } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, PageHeader, Segmented } from "../../shared/ui";
 import type { CvDoc, CvExperience, CvMatch, CvPreset, CvReview, CvTheme } from "../../shared/types";
 import { CvMatchPanel, CvReviewPanel } from "./cv";
 import { DEFAULT_ORDER, cvDocToText, exportCvDoc, themeOf } from "./builder/cv-doc-utils";
@@ -28,6 +28,10 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   const [match, setMatch] = useUi<CvMatch | null>("cvbuilder.match", null);
   const [matchVacId, setMatchVacId] = useUi<number>("cvbuilder.matchVac", 0);
   const [dismissedSuggest, setDismissedSuggest] = useState(false);
+  // Контент і дизайн розведені по вкладках (а не стековані одне над одним в одній колонці) —
+  // саме так прев'ю праворуч лишається sticky й одразу видимим замість "падіння" вниз під
+  // Appearance/Presets-панелями (звідси й був "прев'ю знизу справа").
+  const [tab, setTab] = useUi<"content" | "design">("cvbuilder.tab", "content");
   useEffect(() => {
     api
       .cvDoc()
@@ -360,42 +364,71 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           <CvReviewPanel review={review} onAddKeyword={addSkill} onApplyRewrite={applyRewrite} />
         </div>
       )}
-      <div className="grid lg:grid-cols-2 gap-4 items-start">
-        <div className="space-y-3">
-          <BasicInfoCard doc={doc} onChange={set} llm={llm} improvingSummary={busy === "sum"} onImproveSummary={improveSummary} />
-          <ExperienceCard
-            experience={doc.experience}
-            onAdd={() => set({ experience: [...doc.experience, { role: "", company: "", period: "", bullets: [] }] })}
-            onRemove={(i) => set({ experience: doc.experience.filter((_, idx) => idx !== i) })}
-            onSet={setExp}
-            onMove={moveExp}
-            llm={llm}
-            busyKey={busy}
-            onImproveBullets={improveBullets}
-          />
-          <ProjectsEducationCard
-            projects={doc.projects}
-            education={doc.education}
-            onChangeProjects={(v) => set({ projects: v.split("\n") })}
-            onChangeEducation={(v) => set({ education: v.split("\n") })}
-          />
-          <LanguagesCard languages={langs} onChange={(languages) => set({ languages })} />
-        </div>
-        <div className="lg:sticky lg:top-6 space-y-3">
-          <div className="space-y-2">
-            <AppearancePanel doc={doc} theme={theme} onSetTheme={setTheme} onSetPhoto={(photo) => set({ photo })} />
-            <LayoutPresetsPanel
-              sectionOrder={sectionOrder}
-              onMoveSection={moveSection}
-              presets={presets}
-              presetName={presetName}
-              onPresetNameChange={setPresetName}
-              onSavePreset={savePreset}
-              onApplyPreset={applyPreset}
-              onDeletePreset={deletePreset}
-              saving={busy === "preset"}
+      {/* grid-cols-1 (не просто "grid" без колонок) — важливо: Tailwind явно ставить
+          `minmax(0, 1fr)`, тоді як "none" (дефолт implicit-грід без жодного `grid-cols-*`)
+          дає track sizing "auto", який враховує min-content нащадків. Прев'ю CV рендерить
+          iframe фіксованої "сторінкової" ширини 880px (PAGE_WIDTH у cv-preview-panel.tsx) і
+          масштабує його лише візуально (CSS transform) — це фіксована пікселева ширина, яка
+          на мобільних БЕЗ minmax(0,...) розтягувала б track (а з ним і всю колонку зі
+          сторонніми картками зліва, бо в одноколонковому гріді всі рядки спільно ту саму
+          ширину) до 880px і викликала горизонтальний скрол усієї сторінки. */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-4 items-start">
+        <div className="min-w-0 space-y-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Segmented
+              value={tab}
+              onChange={setTab}
+              size="md"
+              options={[
+                { value: "content", label: "📝 Зміст" },
+                { value: "design", label: "🎨 Дизайн" },
+              ]}
             />
+            <span className="text-xs text-slate-400">
+              {tab === "content" ? "Текст резюме — прев'ю праворуч оновлюється одразу" : "Шаблон, колір, фото, порядок секцій і пресети"}
+            </span>
           </div>
+          {tab === "content" ? (
+            <>
+              <BasicInfoCard doc={doc} onChange={set} llm={llm} improvingSummary={busy === "sum"} onImproveSummary={improveSummary} />
+              <ExperienceCard
+                experience={doc.experience}
+                onAdd={() => set({ experience: [...doc.experience, { role: "", company: "", period: "", bullets: [] }] })}
+                onRemove={(i) => set({ experience: doc.experience.filter((_, idx) => idx !== i) })}
+                onSet={setExp}
+                onMove={moveExp}
+                llm={llm}
+                busyKey={busy}
+                onImproveBullets={improveBullets}
+              />
+              <ProjectsEducationCard
+                projects={doc.projects}
+                education={doc.education}
+                onChangeProjects={(v) => set({ projects: v.split("\n") })}
+                onChangeEducation={(v) => set({ education: v.split("\n") })}
+              />
+              <LanguagesCard languages={langs} onChange={(languages) => set({ languages })} />
+            </>
+          ) : (
+            <div className="space-y-2">
+              <AppearancePanel doc={doc} theme={theme} onSetTheme={setTheme} onSetPhoto={(photo) => set({ photo })} />
+              <LayoutPresetsPanel
+                sectionOrder={sectionOrder}
+                onMoveSection={moveSection}
+                presets={presets}
+                presetName={presetName}
+                onPresetNameChange={setPresetName}
+                onSavePreset={savePreset}
+                onApplyPreset={applyPreset}
+                onDeletePreset={deletePreset}
+                saving={busy === "preset"}
+              />
+            </div>
+          )}
+        </div>
+        {/* Права колонка — лише прев'ю, без нічого над ним: sticky й одразу у фокусі незалежно
+            від того, яку вкладку зліва обрано (перемикання на "Дизайн" й далі видно результат). */}
+        <div className="min-w-0 lg:sticky lg:top-6">
           <CvPreviewPanel doc={doc} onExport={() => exportCvDoc(doc)} />
         </div>
       </div>

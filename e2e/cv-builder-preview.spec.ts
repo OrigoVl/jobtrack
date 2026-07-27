@@ -40,3 +40,37 @@ test("CV preview shows a page-count badge and opens/closes a real fullscreen ove
   await page.getByRole("button", { name: "Закрити", exact: true }).click();
   await expect(modalHeading).not.toBeVisible();
 });
+
+/**
+ * Регресія компоновки: прев'ю раніше йшло в тій самій sticky-колонці ПІСЛЯ панелей
+ * Appearance/Presets ("превью знизу справа" — скарга користувача), тож перевіряємо, що
+ * воно завжди першим і видимим одразу, незалежно від активної вкладки зліва ("Зміст"/"Дизайн").
+ *
+ * Друга частина — регресія CSS Grid "blowout": iframe прев'ю рендериться з фіксованою
+ * "сторінковою" шириною 880px (PAGE_WIDTH у cv-preview-panel.tsx) і лише візуально
+ * масштабується transform-ом. Без явного `grid-cols-1` (Tailwind ставить `minmax(0,1fr)`)
+ * замість неявного одноколонкового гріда (track sizing "auto", що враховує min-content
+ * нащадків) ця фіксована ширина розтягувала ВСЮ мобільну сторінку в горизонтальний скрол —
+ * jsdom/vitest не рендерить справжній layout і такий баг непомітний без реального браузера.
+ */
+test("preview column stays visible-first across tabs and never causes horizontal overflow on mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/cvbuilder");
+
+  const noHorizontalOverflow = async () => {
+    const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
+  };
+  await noHorizontalOverflow();
+
+  await page.getByRole("button", { name: "🎨 Дизайн" }).click();
+  await expect(page.getByText("Шаблон, колір, фото")).toBeVisible();
+  await noHorizontalOverflow();
+
+  await page.getByRole("button", { name: "📝 Зміст" }).click();
+  await expect(page.getByText("прев'ю праворуч оновлюється одразу")).toBeVisible();
+  await noHorizontalOverflow();
+});
