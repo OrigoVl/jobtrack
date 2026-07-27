@@ -4,6 +4,22 @@ import { env } from "./config/env.js";
 import logger from "./core/logger.js";
 import { closeDb } from "./db/index.js";
 
+// Без цих двох обробників несподіваний виняток поза Express-запитом (напр. throw у
+// setTimeout/фоновому таймері, або unhandled Promise-rejection з коду, який ніхто не await'нув)
+// або впав би з неструктурованим стек-трейсом просто у stderr (Node's default), або — в
+// новіших версіях Node — обірвав би процес одразу без жодного шансу залогувати причину
+// структуровано (з reqId/контекстом, як усе інше в застосунку йде через pino).
+process.on("unhandledRejection", (reason) => {
+  logger.error({ err: reason }, "Unhandled promise rejection");
+});
+process.on("uncaughtException", (err) => {
+  // uncaughtException — сигнал, що стан процесу вже може бути непередбачуваним (пошкоджені
+  // замикання/ресурси). Best practice Node: залогувати з максимальним контекстом і ЗАВЕРШИТИ
+  // процес (а не "лікувати" й жити далі) — supervisor (Docker/pm2/systemd) підніме новий.
+  logger.fatal({ err }, "Uncaught exception — shutting down");
+  process.exit(1);
+});
+
 const server = app.listen(env.port, () =>
   logger.info(`✅ JobTrack API на http://localhost:${env.port} (LLM: ${env.llm.isAvailable ? "on" : "off — офлайн-режим"})`),
 );

@@ -1,4 +1,5 @@
 // Пошук вакансій у зовнішніх агрегаторах (Remotive, Arbeitnow, DOU) — без API-ключів.
+import { contextLogger } from "../../core/logger.js";
 
 export interface RawJob {
   company: string;
@@ -14,9 +15,17 @@ async function fetchRemote(url: string, ms = 8000): Promise<Response | null> {
   const to = setTimeout(() => ac.abort(), ms);
   try {
     const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (JobTrack)" }, signal: ac.signal });
-    if (!res.ok) return null;
+    // Раніше тихо повертали null на будь-яку не-2xx відповідь — якщо агрегатор (Remotive/
+    // Arbeitnow/DOU) поміняє схему, почне блокувати чи впаде, /jobs/search просто мовчки
+    // повертав менше результатів (або offline:true), і не було ЖОДНОГО логу, звідки копати.
+    if (!res.ok) {
+      contextLogger().warn({ url, status: res.status }, "Job aggregator responded with non-2xx status");
+      return null;
+    }
     return res;
-  } catch {
+  } catch (e) {
+    const timedOut = e instanceof Error && e.name === "AbortError";
+    contextLogger().warn({ url, err: e }, timedOut ? "Job aggregator request timed out" : "Job aggregator request failed");
     return null;
   } finally {
     clearTimeout(to);
@@ -24,11 +33,19 @@ async function fetchRemote(url: string, ms = 8000): Promise<Response | null> {
 }
 async function fetchJson<T = unknown>(url: string, ms = 8000): Promise<T | null> {
   const res = await fetchRemote(url, ms);
-  return res ? (res.json().catch(() => null) as Promise<T | null>) : null;
+  if (!res) return null;
+  return (await res.json().catch((e: unknown) => {
+    contextLogger().warn({ url, err: e }, "Job aggregator returned a 2xx response with invalid JSON");
+    return null;
+  })) as T | null;
 }
 async function fetchText(url: string, ms = 8000): Promise<string | null> {
   const res = await fetchRemote(url, ms);
-  return res ? res.text().catch(() => null) : null;
+  if (!res) return null;
+  return res.text().catch((e: unknown) => {
+    contextLogger().warn({ url, err: e }, "Job aggregator response body could not be read as text");
+    return null;
+  });
 }
 
 interface RemotiveJob {

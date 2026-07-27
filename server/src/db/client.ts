@@ -3,6 +3,7 @@
 // default-експорт цього модуля або через хелпери з db/kv.ts.
 import { DatabaseSync } from "node:sqlite";
 import { env } from "../config/env.js";
+import { contextLogger } from "../core/logger.js";
 import { DEFAULT_PROFILE, SEED_VACANCIES } from "./seed-vacancies.js";
 
 const db = new DatabaseSync(env.dbPath);
@@ -73,7 +74,10 @@ export function pingDb(): boolean {
   try {
     db.prepare("SELECT 1").get();
     return true;
-  } catch {
+  } catch (e) {
+    // /api/health показує лише {ok:false} — без цього логу причина падіння БД (locked file,
+    // permission, disk full, corruption) лишилась би невідомою до ручного відтворення.
+    contextLogger().error({ err: e }, "Database health check failed");
     return false;
   }
 }

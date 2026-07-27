@@ -6,6 +6,22 @@ import { getRequestId } from "./request-context.js";
 
 const logger = pino({
   level: env.logLevel,
+  // Захист-за-замовчуванням від випадкового потрапляння секретів у логи (напр., якщо колись
+  // з'явиться auth і хтось необдумано залоге `req` цілком, або pino-http автологування request
+  // за замовчуванням серіалізує заголовки запиту). Застосовується глобально до ВСІХ логів
+  // (і pino-http access-логів, і contextLogger()) — узгоджено з правилом проєкту "ніколи не
+  // логувати secrets/tokens/passwords/auth headers".
+  redact: {
+    paths: [
+      "req.headers.authorization",
+      "req.headers.cookie",
+      'req.headers["x-api-key"]',
+      'res.headers["set-cookie"]',
+      "*.apiKey",
+      "*.password",
+    ],
+    censor: "[REDACTED]",
+  },
   transport: env.isProduction
     ? undefined
     : {

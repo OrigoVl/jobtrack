@@ -4,6 +4,7 @@ import { extractLevel } from "../../shared/tech-dict.js";
 import { extractSkills } from "../../shared/skill-extraction.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { HttpError, asyncHandler } from "../../core/http.js";
+import { contextLogger } from "../../core/logger.js";
 import { aiLimiter } from "../../core/rate-limit.js";
 import {
   parseVacancyInput,
@@ -166,6 +167,11 @@ r.post(
       }
       await new Promise((resolve) => setTimeout(resolve, 400)); // ввічлива пауза
     }
+    const failed = results.filter((r) => r.error).length;
+    // Юзер бачить помилки лише по кожній вакансії в results; агрегатний лог потрібен, щоб
+    // помітити систематичну проблему (напр. джерело почало блокувати парсинг масово),
+    // а не гадати за окремими рядками в UI.
+    if (failed > 0) contextLogger().warn({ processed: results.length, failed }, "Bulk vacancy re-parse: some URLs failed");
     res.json({ processed: results.length, results });
   }),
 );
@@ -315,6 +321,9 @@ r.post(
       } catch (e) {
         errors.push({ index, message: e instanceof HttpError ? e.message : "Невідома помилка" });
       }
+    }
+    if (errors.length > 0) {
+      contextLogger().warn({ total: items.length, added, updated, failed: errors.length }, "JSON vacancy import: some items failed");
     }
     res.json({ added, updated, skipped: errors.length, errors });
   }),

@@ -4,6 +4,7 @@ import { getProfile } from "../../db/index.js";
 import { extractLevel } from "../../shared/tech-dict.js";
 import { extractSkills } from "../../shared/skill-extraction.js";
 import { HttpError } from "../../core/http.js";
+import { contextLogger } from "../../core/logger.js";
 import { assertSafeVacancyUrl, type Fit } from "../../shared/validation.js";
 import { computeFit, stripHtml } from "./vacancy-text.js";
 
@@ -51,14 +52,23 @@ export async function tryAutoEnrichStack(url: string): Promise<QuickAnalysis | n
   if (!url) return null;
   try {
     assertSafeVacancyUrl(url);
-  } catch {
+  } catch (e) {
+    // "debug", не "warn": заблокований SSRF-хост — очікуваний, нормальний результат
+    // (юзер міг вставити внутрішнє/тестове посилання), не привід шуміти в логах помилками.
+    contextLogger().debug({ url, reason: (e as Error).message }, "Auto-enrich skipped: URL blocked by SSRF guard");
     return null;
   }
   try {
     const text = await fetchVacancyText(url);
-    if (text.length < 200) return null;
+    if (text.length < 200) {
+      // Найчастіша причина "стек не підтягнувся" з боку юзера: сторінка захищена від скрапінгу
+      // (JS-рендер, login wall, anti-bot) — без цього логу довелось би відгадувати причину.
+      contextLogger().warn({ url, textLength: text.length }, "Auto-enrich skipped: fetched page text too short/empty");
+      return null;
+    }
     return await quickAnalyze(text);
-  } catch {
+  } catch (e) {
+    contextLogger().warn({ url, err: e }, "Auto-enrich failed: could not fetch or analyze vacancy URL");
     return null;
   }
 }

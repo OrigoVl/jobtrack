@@ -11,7 +11,19 @@
 // зовнішнє сховище через опцію `store` (напр. `rate-limit-redis` + `ioredis`, чи будь-який
 // інший сумісний з express-rate-limit Store), синхронізоване з тим самим Redis/DB, куди
 // на той момент вже мігрує й персистентність (див. розділ "Міграція на Postgres" у README).
-import rateLimit from "express-rate-limit";
+import rateLimit, { type RateLimitExceededEventHandler } from "express-rate-limit";
+import { contextLogger } from "./logger.js";
+
+// Спільний handler замість default-поведінки express-rate-limit: той просто пише
+// res.status(...).json(message) без жодного логу. Без цього спрацьований лімiт (особливо
+// aiLimiter — ознака runaway-циклу у фронтенді чи спроби спалити платну LLM-квоту) був би
+// видимий ЛИШЕ клієнту (тост про помилку), а на сервері не лишалось би жодного слідy.
+function logAndReject(name: string): RateLimitExceededEventHandler {
+  return (req, res, _next, options) => {
+    contextLogger().warn({ path: req.path, ip: req.ip, limiter: name }, "Rate limit exceeded");
+    res.status(options.statusCode).json(options.message);
+  };
+}
 
 // Захист від runaway-циклів і зловживання платними LLM-викликами: щедрий ліміт для
 // живої людини за UI, але зупиняє нескінченні цикли/скрипти. Health не лічимо.
@@ -22,6 +34,7 @@ export const apiLimiter = rateLimit({
   legacyHeaders: false,
   skip: (req) => req.path === "/health",
   message: { error: "Забагато запитів. Спробуй ще раз за кілька хвилин." },
+  handler: logAndReject("api"),
 });
 
 // Окремий, суворіший ліміт саме для ендпоінтів, що викликають LLM (OpenAI/Anthropic).
@@ -34,4 +47,5 @@ export const aiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Забагато AI-запитів. Зачекай кілька хвилин і спробуй ще раз." },
+  handler: logAndReject("ai"),
 });
