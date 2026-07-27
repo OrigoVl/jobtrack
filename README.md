@@ -73,8 +73,22 @@ GitHub Actions (`.github/workflows/ci.yml`) на кожен push/PR у `main` г
 
 Сервер захищений `helmet()` (security-заголовки) і глобальним rate-limit на `/api` (600 запитів/15хв
 на IP, health виключено) — щоб баг у фронтенді чи зловживання платними LLM-викликами не поклали сервіс.
+Додатково AI-ендпоінти (LLM-виклики: рев'ю CV, cover letter, генерація drill/карток тощо) мають
+окремий, суворіший ліміт (30 запитів/15хв на IP) — саме вони коштують реальних грошей на
+OpenAI/Anthropic, тож їх варто обмежувати жорсткіше за дешеві CRUD-запити. Виклики до LLM-провайдерів
+мають timeout (30с) — щоб зависла відповідь провайдера не вішала запит користувача назавжди.
 CORS відкритий для всіх origin за замовчуванням (auth/cookies немає), або обмеж через `CORS_ORIGIN`
 у `.env` (список origin через кому).
+
+### Відомі, свідомо прийняті ризики
+
+- **`react-router` (7.18.1) має CVE** (CSRF bypass у RSC/data-mode, пофіксили лише в 8.3.0,
+  GHSA-qwww-vcr4-c8h2). Реального ризику це не несе: застосунок — звичайний client-side SPA
+  (`BrowserRouter`), RSC/server actions не використовує. Апгрейд до v8 відкладено свідомо: `react-router-dom`
+  не має релізу v8 (пакети злили в один `react-router`), і сам `react-router@8` вимагає **React ≥19.2.7**
+  (зараз React 18.3.1) — тобто це не point-фікс, а окрема мажорна міграція (React 18→19 + зміна імпортів
+  `react-router-dom` → `react-router`/`react-router/dom`), яку варто робити контрольованою окремою ітерацією,
+  а не приховано "заодно" з фіксом вразливості.
 
 ## Архітектура
 
@@ -112,18 +126,25 @@ jobtrack/
         ├── app/App.tsx              # роутинг (React Router), sidebar/shell, providers
         ├── shared/                  # наскрізні речі, спільні для всіх фіч:
         │   ├── api.ts               # єдиний типізований контракт з бекендом (усі HTTP-виклики)
-        │   ├── store.tsx            # глобальний стан (Context) + персистентний UI (useUi)
+        │   ├── queries/             # TanStack Query хуки по домену (кеш, інвалідація, оптимістичні мутації)
+        │   ├── toast.tsx            # ToastProvider/useToast (легкий, ізольований від даних контекст)
+        │   ├── ui-state.ts          # useUi — персистентний UI-стан вкладок (useSyncExternalStore, без Provider)
         │   ├── types.ts             # спільні DTO-типи (дзеркалять бекенд)
         │   ├── ui.tsx                # UI-кіт (Btn, Card, Chip, PageHeader, Skeleton…)
         │   └── view-kit.tsx         # дрібні хелпери, спільні для 2+ фіч (Field, fitTone/fitText)
         └── features/                # по одній теці на домен екрана (дзеркалить server/src/modules):
             ├── dashboard/, vacancies/, jobs/, analyzer/, companies/
-            ├── cv/                  # перегляд CV + Конструктор CV (cv.tsx, cv-builder.tsx)
+            ├── cv/                  # перегляд CV + Конструктор CV (cv.tsx, cv-builder/*)
             ├── knowledge/           # план навчання (learn.tsx)
             ├── roadmap/, plan21/, projects/, resources/, mock/
             ├── study/               # SRS + drills (study.tsx) + JS-пісочниця (runner.ts)
             └── analytics/           # Skill-radar + графіки (charts.tsx, code-split)
 ```
+
+Дані та мутації йдуть через **TanStack Query** (`shared/queries/*`) — кожен домен (вакансії, профіль,
+роудмапа тощо) має власний хук з типізованим ключем кешу; toggle-мутації (статус роудмапи, drill,
+чекбокси) роблять оптимістичне оновлення з відкатом при помилці мережі. Немає жодного глобального
+"god context" — сторінки підписуються лише на потрібні їм дані, тож зміна одного не перерендерює все.
 
 ## Що далі (ідеї для розвитку)
 
