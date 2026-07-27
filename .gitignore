@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+*/node_modules/
+.pnpm-store/
+
+# build artefacts / coverage
+coverage/
+*/coverage/
+*.tsbuildinfo
+
+# env / secrets
+.env
+*/.env
+.env.local
+*/.env.local
+
+# build output
+client/dist/
+server/dist/
+
+# SQLite database (генерується автоматично)
+*.db
+*.db-wal
+*.db-shm
+
+# logs & OS
+*.log
+npm-debug.log*
+.DS_Store
+
+# editor
+.vscode/
+.idea/

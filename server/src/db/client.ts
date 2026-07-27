@@ -1,0 +1,48 @@
+// Підключення до SQLite (вбудований node:sqlite) + схема + первинний сід порожньої БД.
+// Це єдине місце, де відбувається `new DatabaseSync(...)` — решта коду працює через
+// default-експорт цього модуля або через хелпери з db/kv.ts.
+import { DatabaseSync } from "node:sqlite";
+import { env } from "../config/env.js";
+import { DEFAULT_PROFILE, SEED_VACANCIES } from "./seed-vacancies.js";
+
+const db = new DatabaseSync(env.dbPath);
+db.exec("PRAGMA journal_mode = WAL");
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS vacancies (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  company TEXT, position TEXT, level TEXT, url TEXT,
+  status TEXT DEFAULT 'Хочу подати', fit TEXT DEFAULT 'med',
+  applied TEXT, next TEXT, notes TEXT, stack TEXT DEFAULT '[]',
+  created TEXT DEFAULT (date('now'))
+);
+CREATE TABLE IF NOT EXISTS companies (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT UNIQUE, notes TEXT DEFAULT '', questions TEXT DEFAULT '[]'
+);
+CREATE TABLE IF NOT EXISTS srs (
+  cardId TEXT PRIMARY KEY, ease REAL DEFAULT 2.5, interval INTEGER DEFAULT 0,
+  due TEXT DEFAULT (date('now')), reps INTEGER DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS kv ( k TEXT PRIMARY KEY, v TEXT );
+`);
+
+function seedProfileIfEmpty(): void {
+  if (!db.prepare("SELECT v FROM kv WHERE k='profile'").get()) {
+    db.prepare("INSERT INTO kv (k,v) VALUES ('profile', ?)").run(JSON.stringify(DEFAULT_PROFILE));
+  }
+}
+
+function seedVacanciesIfEmpty(): void {
+  const { c } = db.prepare("SELECT COUNT(*) c FROM vacancies").get() as { c: number };
+  if (Number(c) > 0) return;
+  const insert = db.prepare("INSERT INTO vacancies (company,position,level,url,status,fit,stack) VALUES (?,?,?,?,?,?,?)");
+  for (const [company, position, level, url, fit, stack] of SEED_VACANCIES) {
+    insert.run(company, position, level, url, "Відправив CV", fit, JSON.stringify(stack));
+  }
+}
+
+seedProfileIfEmpty();
+seedVacanciesIfEmpty();
+
+export default db;

@@ -1,0 +1,107 @@
+import {
+  Bar,
+  BarChart,
+  Cell,
+  Legend,
+  PolarAngleAxis,
+  PolarGrid,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Card, EmptyState, PageHeader } from "../../shared/ui";
+import { useStore } from "../../shared/store";
+
+const AXIS = "#64748b";
+const TOOLTIP = {
+  background: "#ffffff",
+  border: "1px solid #e2e8f0",
+  borderRadius: 12,
+  boxShadow: "0 8px 24px -12px rgba(16,24,40,0.25)",
+  color: "#0f172a",
+} as const;
+
+export function SkillRadar() {
+  const { analytics } = useStore();
+  const data = analytics?.radar ?? [];
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="Skill-radar"
+        subtitle="Твої навички проти реального попиту ринку (рахується зі стеку доданих вакансій). Де зелене менше за фіолетове — там прогалина."
+      />
+      <Card>
+        {data.length === 0 ? (
+          <EmptyState icon="🎯" title="Ще немає даних" hint="Додай вакансії або спарси їхній стек — і радар зʼявиться автоматично." />
+        ) : (
+          <div style={{ height: 400 }}>
+            <ResponsiveContainer>
+              <RadarChart data={data}>
+                <PolarGrid stroke="#e2e8f0" />
+                <PolarAngleAxis dataKey="tech" tick={{ fill: AXIS, fontSize: 12 }} />
+                <Radar name="Попит ринку" dataKey="demand" stroke="#6366f1" fill="#6366f1" fillOpacity={0.22} />
+                <Radar name="Ти" dataKey="you" stroke="#10b981" fill="#10b981" fillOpacity={0.4} />
+                <Legend />
+                <Tooltip contentStyle={TOOLTIP} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+export function Analytics() {
+  const { analytics } = useStore();
+  if (!analytics) return null;
+  const funnel = Object.entries(analytics.funnel).map(([name, value]) => ({ name, value }));
+  const demand = Object.entries(analytics.demand)
+    .map(([name, value]) => ({ name, value }))
+    .sort((x, y) => y.value - x.value)
+    .slice(0, 12);
+  const hasData = Object.values(analytics.demand).some(Boolean);
+  return (
+    <div className="space-y-4">
+      <PageHeader title="Аналітика" subtitle="Воронка твоїх подач і попит на технології — усе рахується з реальних даних." />
+      {!hasData && (
+        <Card>
+          <EmptyState icon="📊" title="Поки що порожньо" hint="Додай вакансії та їхній стек — графіки заповняться самі." />
+        </Card>
+      )}
+      <Card>
+        <div className="text-sm font-semibold mb-3 text-slate-700">Воронка подач</div>
+        <div style={{ height: 260 }}>
+          <ResponsiveContainer>
+            <BarChart data={funnel}>
+              <XAxis dataKey="name" tick={{ fill: AXIS, fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
+              <YAxis tick={{ fill: AXIS }} allowDecimals={false} />
+              <Tooltip cursor={{ fill: "rgba(99,102,241,0.06)" }} contentStyle={TOOLTIP} />
+              <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                {funnel.map((_, i) => (
+                  <Cell key={i} fill="#6366f1" />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+      <Card>
+        <div className="text-sm font-semibold mb-3 text-slate-700">Попит на технології (з доданих вакансій)</div>
+        <div style={{ height: 320 }}>
+          <ResponsiveContainer>
+            <BarChart data={demand} layout="vertical">
+              <XAxis type="number" tick={{ fill: AXIS }} allowDecimals={false} />
+              <YAxis type="category" dataKey="name" width={92} tick={{ fill: AXIS, fontSize: 11 }} />
+              <Tooltip cursor={{ fill: "rgba(16,185,129,0.06)" }} contentStyle={TOOLTIP} />
+              <Bar dataKey="value" radius={[0, 6, 6, 0]} fill="#10b981" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+    </div>
+  );
+}

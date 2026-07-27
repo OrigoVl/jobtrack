@@ -1,0 +1,35 @@
+# JobTrack — запуск однією командою: docker compose up --build
+# Застосунок буде доступний на http://localhost:3001
+services:
+  app:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      DB_PATH: /app/data/jobtrack.db
+      # LLM (опційно) — розкоментуй і встав ключ, щоб увімкнути AI-функції:
+      # OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    volumes:
+      - jobtrack-data:/app/data # персистентність БД між перезапусками
+    restart: unless-stopped
+
+  # --- Postgres: підготовлено для майбутньої міграції з node:sqlite ---
+  # Наразі застосунок працює на вбудованому node:sqlite. Сервіс нижче
+  # дає готову БД для наступного кроку (див. розділ «Міграція» у README).
+  # postgres:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: jobtrack
+  #     POSTGRES_PASSWORD: jobtrack
+  #     POSTGRES_DB: jobtrack
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - jobtrack-pg:/var/lib/postgresql/data
+  #   restart: unless-stopped
+
+volumes:
+  jobtrack-data:
+  # jobtrack-pg:

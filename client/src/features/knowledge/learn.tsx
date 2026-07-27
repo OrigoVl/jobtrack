@@ -1,0 +1,146 @@
+import { useEffect, useRef, useState } from "react";
+import { api } from "../../shared/api";
+import { useStore, useUi } from "../../shared/store";
+import { Btn, Card, Chip, PageHeader } from "../../shared/ui";
+import type { KnowledgeData, LearnGap } from "../../shared/types";
+
+/* ---------- Learn Plan ---------- */
+function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolean; defaultOpen: boolean }) {
+  const [dyn, setDyn] = useState<KnowledgeData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const loadedRef = useRef(false);
+  const load = () => {
+    if (loadedRef.current || !llm) return;
+    loadedRef.current = true;
+    setLoading(true);
+    api
+      .knowledge(gap.tech)
+      .then(setDyn)
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => {
+    if (defaultOpen) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const topics = dyn?.learn ?? gap.learn;
+  const resources = dyn?.resources ?? gap.resources;
+  return (
+    <details
+      onToggle={(e) => e.currentTarget.open && load()}
+      className="rounded-2xl bg-white border border-slate-200 shadow-card overflow-hidden"
+      open={defaultOpen}
+    >
+      <summary className="cursor-pointer px-4 py-3 flex items-center gap-2 select-none">
+        <span className="font-semibold text-slate-800">{gap.tech}</span>
+        <Chip tone="rose">{gap.count} вак.</Chip>
+        {dyn?.source === "ai" && <Chip tone="indigo">AI під тебе</Chip>}
+        <span className="ml-auto text-slate-400 text-sm">розгорнути</span>
+      </summary>
+      <div className="px-4 pb-4 border-t border-slate-100 space-y-3">
+        {loading && <div className="text-xs text-slate-400 mt-3">✨ Персоналізую теми під твій стек…</div>}
+        {dyn?.focus && (
+          <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-2.5 text-sm text-indigo-900 mt-3">
+            <span className="font-semibold">✨ Персональний фокус:</span> {dyn.focus}
+          </div>
+        )}
+        <div>
+          <div className="text-xs text-slate-500 mt-3 mb-1">Що вчити</div>
+          <ul className="list-disc pl-5 text-sm text-slate-700 space-y-1">
+            {topics.map((l, i) => (
+              <li key={i}>{l}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <div className="text-xs text-slate-500 mb-1">Ресурси</div>
+          <div className="flex flex-wrap gap-2">
+            {resources.map((r) => (
+              <a
+                key={r.u}
+                href={r.u}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 text-indigo-600 hover:bg-slate-200"
+              >
+                {r.t} ↗{r.ai ? " ✨" : ""}
+              </a>
+            ))}
+          </div>
+        </div>
+        {gap.drills.length > 0 && (
+          <div>
+            <div className="text-xs text-slate-500 mb-1">Практичні задачі (вкладка «Тренування»)</div>
+            <ul className="list-disc pl-5 text-sm text-slate-600 space-y-1">
+              {gap.drills.map((d, i) => (
+                <li key={i}>
+                  {d.q} <span className="text-[10px] text-slate-400">({d.lvl})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
+export function LearnPlan({ llm }: { llm: boolean }) {
+  const { learn } = useStore();
+  const [plan, setPlan] = useUi("learn.plan", "");
+  const [busy, setBusy] = useState(false);
+  const genPlan = async () => {
+    setBusy(true);
+    try {
+      const r = await api.learnPlan();
+      setPlan(
+        r.offline
+          ? "Персональний AI-план доступний лише з увімкненим LLM (впиши ключ у server/.env). Нижче — матеріали за пріоритетом попиту."
+          : r.plan || "",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!learn) return null;
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="План навчання"
+        subtitle={`Будується динамічно з ${learn.totalVacancies} доданих вакансій, порівняних із твоїм профілем. Закривай прогалини зверху вниз.`}
+        actions={
+          <Btn onClick={genPlan} disabled={busy || !llm}>
+            {busy ? "…" : "🤖 Персональний план (AI)"}
+          </Btn>
+        }
+      />
+      {learn.strengths.length > 0 && (
+        <Card>
+          <div className="text-xs text-slate-500 mb-1">✅ Твої сильні сторони під попит</div>
+          <div className="flex flex-wrap gap-1">
+            {learn.strengths.slice(0, 12).map((s) => (
+              <Chip key={s.tech} tone="emerald">
+                {s.tech} · {s.count}
+              </Chip>
+            ))}
+          </div>
+        </Card>
+      )}
+      {plan && (
+        <Card>
+          <div className="text-sm font-semibold mb-2 text-slate-700">🤖 Твій персональний план</div>
+          <div className="text-sm text-slate-700 whitespace-pre-wrap">{plan}</div>
+        </Card>
+      )}
+
+      <div className="text-sm text-slate-500">⚠️ Прогалини за пріоритетом ({learn.gaps.length}):</div>
+      {learn.gaps.length === 0 && (
+        <Card>
+          <div className="text-emerald-600 font-medium">🎉 Ти покриваєш увесь стек доданих вакансій!</div>
+        </Card>
+      )}
+      {learn.gaps.map((g, idx) => (
+        <LearnGapDetails key={g.tech} gap={g} llm={llm} defaultOpen={idx < 2} />
+      ))}
+    </div>
+  );
+}

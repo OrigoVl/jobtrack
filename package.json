@@ -1,0 +1,25 @@
+{
+  "name": "jobtrack",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.14.0",
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c green,cyan \"pnpm --filter jobtrack-server dev\" \"pnpm --filter jobtrack-client dev\"",
+    "dev:server": "pnpm --filter jobtrack-server dev",
+    "dev:client": "pnpm --filter jobtrack-client dev",
+    "build": "pnpm --filter jobtrack-client build && pnpm --filter jobtrack-server build",
+    "start": "pnpm run build && pnpm --filter jobtrack-server start",
+    "lint": "pnpm --filter jobtrack-client lint && pnpm --filter jobtrack-server lint",
+    "lint:fix": "pnpm --filter jobtrack-client lint:fix && pnpm --filter jobtrack-server lint:fix",
+    "format": "prettier --write .",
+    "typecheck": "pnpm --filter jobtrack-client typecheck && pnpm --filter jobtrack-server typecheck",
+    "test": "pnpm --filter jobtrack-client test && pnpm --filter jobtrack-server test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "prettier": "^3.3.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}
