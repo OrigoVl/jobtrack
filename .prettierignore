@@ -4,3 +4,4 @@ client/dist
 server/data
 **/*.md
 package-lock.json
+pnpm-lock.yaml

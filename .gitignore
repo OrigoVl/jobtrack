@@ -37,3 +37,6 @@ playwright-report/
 test-results/
 e2e/.tmp/*
 !e2e/.tmp/.gitkeep
+
+# husky internal shims — регенерується `pnpm install` (prepare-скрипт), не комітиться
+.husky/_
