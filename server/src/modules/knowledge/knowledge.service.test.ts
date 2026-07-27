@@ -13,12 +13,12 @@ vi.mock("../../db/index.js", () => ({
 }));
 vi.mock("../../llm/index.js", () => ({
   llmAvailable: vi.fn(() => false),
-  chat: vi.fn(),
+  chatJson: vi.fn(),
 }));
 
 import { getDynamicKnowledge } from "./knowledge.service.js";
 import { getKvJson } from "../../db/index.js";
-import { chat } from "../../llm/index.js";
+import { chatJson } from "../../llm/index.js";
 
 describe("getDynamicKnowledge() offline fallback", () => {
   beforeEach(() => {
@@ -35,6 +35,6 @@ describe("getDynamicKnowledge() offline fallback", () => {
     expect(result.focus).toBeNull();
     expect(result.learn.length).toBeGreaterThan(0);
     expect(getKvJson).not.toHaveBeenCalled();
-    expect(chat).not.toHaveBeenCalled();
+    expect(chatJson).not.toHaveBeenCalled();
   });
 });

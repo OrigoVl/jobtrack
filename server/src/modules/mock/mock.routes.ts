@@ -1,10 +1,19 @@
 import express from "express";
+import { z } from "zod";
 import { getProfile } from "../../db/index.js";
-import { chat, llmAvailable } from "../../llm/index.js";
+import { chatJson, llmAvailable } from "../../llm/index.js";
 import { HttpError, asyncHandler } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
 
 const r = express.Router();
+
+const MockEvalSchema = z.object({
+  score: z.number(),
+  verdict: z.string().catch(""),
+  good: z.array(z.string()).catch([]),
+  missed: z.array(z.string()).catch([]),
+  tip: z.string().catch(""),
+});
 
 // ---------- Мок-інтерв'ю: LLM-оцінка відповіді кандидата ----------
 r.post(
@@ -18,25 +27,27 @@ r.post(
     if (!llmAvailable())
       return res.json({ offline: true, score: null, verdict: "AI офлайн — увімкни ключ у server/.env для оцінки відповідей." });
     const role = getProfile().domain || "фахівець";
-    const out = await chat(
+    const out = await chatJson(
       `Ти доброзичливий, але вимогливий інтерв'юер для ролі «${role}». Оцінюєш відповідь кандидата чесно. Відповідай ЛИШЕ валідним JSON українською.`,
       `Питання: ${question}\n` +
         `Еталон-орієнтир: ${reference || "—"}\n` +
         `Відповідь кандидата: ${answer.slice(0, 2000)}\n\n` +
         `Оціни відповідь. Поверни JSON строго: {"score":<0-100>,"verdict":"1 речення підсумку","good":["що добре, 1-3"],"missed":["що пропущено/неточно, 1-3"],"tip":"1 конкретна порада"}`,
-      { json: true, maxTokens: 500, temperature: 0.3, cache: true, tier: "smart" },
+      MockEvalSchema,
+      { maxTokens: 500, temperature: 0.3, cache: true, tier: "smart" },
     );
-    if (!out || typeof out.score !== "number") {
-      // offline:true — LLM-виклик не дав валідної оцінки (помилка провайдера/таймаут/неправильний
-      // JSON), тож це такий самий "не справжній AI-результат" стан, як і llmAvailable()===false вище.
+    if (!out) {
+      // offline:true — LLM-виклик не дав валідної оцінки навіть після repair-retry в chatJson
+      // (помилка провайдера/таймаут/неправильний JSON), тож це такий самий "не справжній
+      // AI-результат" стан, як і llmAvailable()===false вище.
       return res.json({ offline: true, score: null, verdict: "Не вдалося оцінити — спробуй ще раз." });
     }
     res.json({
       score: Math.max(0, Math.min(100, Math.round(out.score))),
-      verdict: typeof out.verdict === "string" ? out.verdict : "",
-      good: Array.isArray(out.good) ? out.good.filter((x: unknown): x is string => typeof x === "string") : [],
-      missed: Array.isArray(out.missed) ? out.missed.filter((x: unknown): x is string => typeof x === "string") : [],
-      tip: typeof out.tip === "string" ? out.tip : "",
+      verdict: out.verdict,
+      good: out.good,
+      missed: out.missed,
+      tip: out.tip,
     });
   }),
 );

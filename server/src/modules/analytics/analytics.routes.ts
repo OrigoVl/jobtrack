@@ -1,10 +1,18 @@
 import express from "express";
+import { z } from "zod";
 import db, { getProfile, getSrsStateByCard, getReachedCounts, getFunnelConversion, getAvgDaysInStage } from "../../db/index.js";
-import { chat, llmAvailable } from "../../llm/index.js";
+import { chatJson, llmAvailable } from "../../llm/index.js";
 import { asyncHandler } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
 import { demandMap } from "../../shared/demand.js";
 import { allCards } from "../study/content-store.js";
+
+// `.catch("")` (не .optional()) на `why` — LLM іноді пропускає поле замість повертати "": схема
+// все одно приймає відповідь (не йде в repair-retry за це), просто нормалізує до порожнього рядка,
+// як і робила стара ручна typeof-перевірка нижче.
+const FocusActionsSchema = z.object({
+  actions: z.array(z.object({ title: z.string(), why: z.string().catch("") })).max(3),
+});
 
 const r = express.Router();
 
@@ -152,23 +160,20 @@ r.get(
     };
     if (!llmAvailable()) return res.json({ offline: true, actions: heuristicFocus(summary) });
     const role = profile.domain || "фахівець";
-    const out = await chat(
+    const out = await chatJson(
       `Ти кар'єрний ментор для кандидата (${role}) у пошуку роботи. Аналізуєш його стан і даєш 3 найважливіші конкретні дії на цей тиждень. Відповідай ЛИШЕ валідним JSON українською.`,
       `Стан пошуку (JSON): ${JSON.stringify(summary)}.\n` +
         `Дай рівно 3 пріоритетні дії з поясненням чому саме зараз. Формат строго: {"actions":[{"title":"коротка дія","why":"1 речення чому"}]}`,
+      FocusActionsSchema,
       // "fast": пріоритизація 3 дій зі структурованого стану воронки — легка задача,
       // не потребує "smart"-рівня; дешевше й швидше для картки, яку юзер бачить щодня.
-      { json: true, maxTokens: 500, temperature: 0.5, cache: true, tier: "fast" },
+      { maxTokens: 500, temperature: 0.5, cache: true, tier: "fast" },
     );
-    const actions: FocusAction[] = Array.isArray(out?.actions)
-      ? out.actions
-          .filter((a: unknown): a is { title: string; why?: unknown } => !!a && typeof (a as { title?: unknown }).title === "string")
-          .map((a: { title: string; why?: unknown }) => ({ title: a.title, why: typeof a.why === "string" ? a.why : "" }))
-          .slice(0, 3)
-      : [];
-    // offline:true, коли LLM не дав валідних дій (помилка провайдера/таймаут/поганий JSON) і ми
-    // показуємо той самий героустичний фолбек, що й при llmAvailable()===false вище — без цього
-    // прапорця клієнт (FocusWeekCard) не міг відрізнити персональний AI-аналіз від generic-порад.
+    const actions: FocusAction[] = out?.actions ?? [];
+    // offline:true, коли LLM не дав валідних дій (помилка провайдера/таймаут/поганий JSON навіть
+    // після repair-retry в chatJson) і ми показуємо той самий героустичний фолбек, що й при
+    // llmAvailable()===false вище — без цього прапорця клієнт (FocusWeekCard) не міг відрізнити
+    // персональний AI-аналіз від generic-порад.
     res.json(actions.length ? { actions } : { offline: true, actions: heuristicFocus(summary) });
   }),
 );

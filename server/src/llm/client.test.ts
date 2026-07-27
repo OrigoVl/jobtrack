@@ -159,3 +159,183 @@ describe("chat() surfaces provider failures instead of a silent null", () => {
     expect(result).toEqual({ score: 80, summary: "ok" });
   });
 });
+
+// Регресія/фіча: раніше client.ts мав жорстко один провайдер (env.LLM_PROVIDER) — короткочасний
+// outage/rate-limit цього ЄДИНОГО провайдера клав усі AI-фічі в офлайн, навіть якщо власник
+// випадково мав налаштований і ДРУГИЙ ключ. Тепер, якщо задано ОБИДВА ключі, primary-провайдер,
+// що повністю провалився (після власної спроби+retry), автоматично пробується через secondary.
+describe("callProvider() falls back to the secondary provider", () => {
+  beforeAll(async () => {
+    await import("dotenv/config");
+  });
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test-key");
+    vi.stubEnv("LLM_PROVIDER", "openai");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("tries anthropic after openai fails permanently (401), when both keys are configured", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (String(url).includes("openai.com")) {
+        return { ok: false, status: 401, text: async () => JSON.stringify({ error: { message: "Invalid API key" } }) } as Response;
+      }
+      return { ok: true, status: 200, json: async () => ({ content: [{ text: "answer from anthropic" }], stop_reason: "end_turn" }) } as Response;
+    });
+    const { chat } = await import("./client.js");
+    const result = await chat("system", "user");
+    expect(result).toBe("answer from anthropic");
+    // openai: 1 виклик (401 не retryable, без внутрішнього retry) + anthropic: 1 виклик = 2 всього.
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(String(fetchSpy.mock.calls[0]![0])).toContain("openai.com");
+    expect(String(fetchSpy.mock.calls[1]![0])).toContain("anthropic.com");
+  });
+
+  it("tries anthropic after openai exhausts its own retry on a transient 429", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (String(url).includes("openai.com")) {
+        return { ok: false, status: 429, text: async () => JSON.stringify({ error: { message: "Rate limit exceeded" } }) } as Response;
+      }
+      return { ok: true, status: 200, json: async () => ({ content: [{ text: "answer from anthropic" }], stop_reason: "end_turn" }) } as Response;
+    });
+    const { chat } = await import("./client.js");
+    const result = await chat("system", "user");
+    expect(result).toBe("answer from anthropic");
+    // openai: 2 виклики (оригінал + 1 retry на 429) + anthropic: 1 виклик = 3 всього.
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it("does NOT fall back when only one provider key is configured (default single-provider behavior unchanged)", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", undefined);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => JSON.stringify({ error: { message: "Invalid API key" } }),
+    } as Response);
+    const { chat } = await import("./client.js");
+    const result = await chat("system", "user");
+    expect(result).toBeNull();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns null when BOTH providers are fully unavailable", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => JSON.stringify({ error: { message: "Invalid API key" } }),
+    } as Response);
+    const { chat } = await import("./client.js");
+    const result = await chat("system", "user");
+    expect(result).toBeNull();
+    expect(fetchSpy).toHaveBeenCalledTimes(2); // одна спроба на кожного (обидва 401 — не retryable)
+  });
+});
+
+// Видимість вартості: нормалізація usage-полів провайдера (prompt_tokens/completion_tokens
+// для OpenAI, input_tokens/output_tokens для Anthropic) в ОДНУ форму для логів/агрегації.
+describe("normalizeUsage()", () => {
+  it("maps OpenAI's prompt_tokens/completion_tokens/total_tokens as-is", async () => {
+    const { normalizeUsage } = await import("./client.js");
+    const result = normalizeUsage("openai", "gpt-4o-mini", { prompt_tokens: 120, completion_tokens: 40, total_tokens: 160 });
+    expect(result).toEqual({ provider: "openai", model: "gpt-4o-mini", inputTokens: 120, outputTokens: 40, totalTokens: 160 });
+  });
+
+  it("maps Anthropic's input_tokens/output_tokens and derives totalTokens (no total field from Anthropic)", async () => {
+    const { normalizeUsage } = await import("./client.js");
+    const result = normalizeUsage("anthropic", "claude-haiku-4-5", { input_tokens: 200, output_tokens: 55 });
+    expect(result).toEqual({ provider: "anthropic", model: "claude-haiku-4-5", inputTokens: 200, outputTokens: 55, totalTokens: 255 });
+  });
+
+  it("returns null when the provider response had no usage field at all", async () => {
+    const { normalizeUsage } = await import("./client.js");
+    expect(normalizeUsage("openai", "gpt-4o-mini", undefined)).toBeNull();
+  });
+});
+
+// chatJson(): chat() у json-режимі + zod-валідація + один self-repair retry — заміняє ручний
+// typeof/Array.isArray-розбір, що раніше дублювався в ~11 місцях по всьому серверу.
+describe("chatJson()", () => {
+  beforeAll(async () => {
+    await import("dotenv/config");
+  });
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", undefined);
+    vi.stubEnv("LLM_PROVIDER", "openai");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("returns the parsed+typed data on the first attempt when it already matches the schema", async () => {
+    const { z } = await import("zod");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: '{"score":80}' }, finish_reason: "stop" }] }),
+    } as Response);
+    const { chatJson } = await import("./client.js");
+    const schema = z.object({ score: z.number() });
+    const result = await chatJson("system", "user", schema);
+    expect(result).toEqual({ score: 80 });
+  });
+
+  it("retries once with a repair prompt describing the validation errors when the first response fails schema validation", async () => {
+    const { z } = await import("zod");
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      // Перша спроба: "score" — рядок замість числа (типова помилка LLM-виводу).
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ choices: [{ message: { content: '{"score":"eighty"}' }, finish_reason: "stop" }] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ choices: [{ message: { content: '{"score":80}' }, finish_reason: "stop" }] }),
+      } as Response);
+    const { chatJson } = await import("./client.js");
+    const schema = z.object({ score: z.number() });
+    const result = await chatJson("system", "user", schema);
+    expect(result).toEqual({ score: 80 });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const repairBody = JSON.parse(String(fetchSpy.mock.calls[1]![1]?.body));
+    expect(repairBody.messages[1].content).toMatch(/відповідала потрібній структурі/);
+  });
+
+  it("returns null when the repair retry ALSO fails schema validation", async () => {
+    const { z } = await import("zod");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: '{"score":"eighty"}' }, finish_reason: "stop" }] }),
+    } as Response);
+    const { chatJson } = await import("./client.js");
+    const schema = z.object({ score: z.number() });
+    const result = await chatJson("system", "user", schema);
+    expect(result).toBeNull();
+  });
+
+  it("returns null without attempting a repair retry when the provider itself returns null (offline/error)", async () => {
+    const { z } = await import("zod");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => JSON.stringify({ error: { message: "Invalid API key" } }),
+    } as Response);
+    const { chatJson } = await import("./client.js");
+    const schema = z.object({ score: z.number() });
+    const result = await chatJson("system", "user", schema);
+    expect(result).toBeNull();
+    expect(fetchSpy).toHaveBeenCalledTimes(1); // жоден repair-виклик, коли базового результату взагалі немає
+  });
+});

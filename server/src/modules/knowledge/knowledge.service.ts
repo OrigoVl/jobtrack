@@ -1,7 +1,21 @@
+import { z } from "zod";
 import { kbFor, type Resource } from "./knowledge-base.js";
-import { chat, llmAvailable } from "../../llm/index.js";
+import { chatJson, llmAvailable } from "../../llm/index.js";
 import { getKvJson, setKvJson, type Profile } from "../../db/index.js";
 import { hashString } from "../../shared/hash.js";
+
+// focus.nullable().catch(null) (не .catch("")) — DynamicKnowledge.focus типізовано як
+// `string | null` нижче: null означає "модель нічого персонального не дала", на відміну
+// від порожнього рядка (мала що сказати, але сказала "нічого") — та сама різниця, що й
+// у старій ручній перевірці `typeof out?.focus === "string" ? out.focus : null`.
+const DynamicKnowledgeSchema = z.object({
+  focus: z.string().nullable().catch(null),
+  learn: z.array(z.string()),
+  resources: z
+    .array(z.object({ t: z.string(), u: z.string() }))
+    .catch([])
+    .default([]),
+});
 
 // Динамічна база знань: LLM генерує ПЕРСОНАЛЬНИЙ навчальний фокус під конкретного
 // кандидата (враховуючи його наявні навички з CV і попит вакансій). Кешується в БД.
@@ -39,17 +53,10 @@ async function isReachableUrl(rawUrl: string): Promise<boolean> {
   }
 }
 
-interface AiResource {
-  t?: unknown;
-  u?: unknown;
-}
-
 // Валідуємо AI-посилання паралельно й лишаємо тільки живі, дедуплікуючи з курованими.
-async function validateResources(curated: Resource[], aiResources: AiResource[]): Promise<Resource[]> {
+async function validateResources(curated: Resource[], aiResources: { t: string; u: string }[]): Promise<Resource[]> {
   const curatedUrls = new Set(curated.map((r) => r.u));
-  const candidates = aiResources
-    .filter((r): r is { t: string; u: string } => !!r && typeof r.u === "string" && typeof r.t === "string" && !curatedUrls.has(r.u))
-    .slice(0, 4);
+  const candidates = aiResources.filter((r) => !curatedUrls.has(r.u)).slice(0, 4);
   const checks = await Promise.all(candidates.map((r) => isReachableUrl(r.u)));
   const valid: Resource[] = candidates.filter((_, i) => checks[i]).map((r) => ({ t: r.t, u: r.u, ai: true }));
   return [...curated, ...valid];
@@ -99,7 +106,7 @@ export async function getDynamicKnowledge(tech: string, { profile, demand }: Dyn
   }
   const count = demand[tech] || 0;
   const role = profile.domain || "фахівець";
-  const out = await chat(
+  const out = await chatJson(
     `Ти ментор для ролі «${role}». Відповідай ЛИШЕ валідним JSON українською.`,
     `Кандидат уже знає: ${skills.join(", ") || "—"}.\n` +
       `Йому треба підтягнути «${tech}»${count ? ` (потрібно у ${count} вакансіях зі списку)` : ""}.\n` +
@@ -108,24 +115,14 @@ export async function getDynamicKnowledge(tech: string, { profile, demand }: Dyn
       `{"focus":"1-2 речення персональної поради саме для цього кандидата",` +
       `"learn":["5-7 конкретних тем від простого до складного, орієнтованих на співбесіду"],` +
       `"resources":[{"t":"назва","u":"https-URL офіційної документації або відомого туторіалу"}]}`,
-    { json: true, maxTokens: 650, temperature: 0.4, tier: "smart" },
+    DynamicKnowledgeSchema,
+    { maxTokens: 650, temperature: 0.4, tier: "smart" },
   );
-  if (!out || !Array.isArray(out.learn) || out.learn.length === 0) {
-    return {
-      ...shared,
-      focus: typeof out?.focus === "string" ? out.focus : null,
-      learn: base.learn,
-      resources: base.resources,
-      source: "static",
-    };
+  if (!out || out.learn.length === 0) {
+    return { ...shared, focus: out?.focus ?? null, learn: base.learn, resources: base.resources, source: "static" };
   }
-  const aiResources: AiResource[] = Array.isArray(out.resources) ? out.resources : [];
-  const resources = await validateResources(base.resources, aiResources);
-  const payload: CachedKnowledgePayload = {
-    focus: typeof out.focus === "string" ? out.focus : null,
-    learn: out.learn.filter((x: unknown): x is string => typeof x === "string"),
-    resources,
-  };
+  const resources = await validateResources(base.resources, out.resources);
+  const payload: CachedKnowledgePayload = { focus: out.focus, learn: out.learn, resources };
   setKvJson(cacheKey, payload);
   return { ...shared, focus: payload.focus, learn: payload.learn, resources: payload.resources, source: "ai" };
 }

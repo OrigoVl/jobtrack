@@ -1,12 +1,32 @@
 // Аналіз, глибоке рев'ю та порівняння CV з вакансією — бізнес-логіка, винесена
 // з контролерів, щоб роути /cv/* лишались тонкими (parse → delegate → respond).
+import { z } from "zod";
 import { getProfile } from "../../db/index.js";
 import { extractTechs } from "../../shared/tech-dict.js";
-import { chat, llmAvailable } from "../../llm/index.js";
+import { chat, chatJson, llmAvailable } from "../../llm/index.js";
 import { demandMap } from "../../shared/demand.js";
 
 export const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 export const strs = (v: unknown): string[] => arr(v).filter((x): x is string => typeof x === "string");
+
+// {title, fix} — та сама форма для issues (reviewCv) і suggestions (matchCv) нижче.
+const TitleFixSchema = z.object({ title: z.string(), fix: z.string().catch("") });
+const CvReviewSchema = z.object({
+  score: z.number(),
+  summary: z.string().catch(""),
+  strengths: z.array(z.string()).catch([]),
+  issues: z.array(TitleFixSchema).catch([]),
+  keywords: z.array(z.string()).catch([]),
+  rewrites: z.array(z.object({ before: z.string(), after: z.string() })).catch([]),
+});
+const CvMatchSchema = z.object({
+  score: z.number(),
+  verdict: z.string().catch(""),
+  matched: z.array(z.string()).catch([]),
+  missing: z.array(z.string()).catch([]),
+  suggestions: z.array(TitleFixSchema).catch([]),
+  tailoredSummary: z.string().catch(""),
+});
 
 // ---------- /cv/analyze ----------
 export interface CvAnalysis {
@@ -106,7 +126,7 @@ export async function reviewCv(cvText: string): Promise<CvReview & { offline: bo
   const role = profile.domain || "фахівець";
   const demand = demandMap();
   if (!llmAvailable()) return { offline: true, ...heuristicReview(cvText) };
-  const out = await chat(
+  const out = await chatJson(
     `Ти досвідчений технічний рекрутер і кар'єрний коуч для ролі «${role}». Даєш чесний, дієвий фідбек по резюме. Відповідай ЛИШЕ валідним JSON українською.`,
     `Резюме кандидата:\n${cvText}\n\n` +
       `Попит ринку (навички з вакансій): ${JSON.stringify(demand)}.\n` +
@@ -116,34 +136,20 @@ export async function reviewCv(cvText: string): Promise<CvReview & { offline: bo
       `"issues":[{"title":"проблема","fix":"як виправити конкретно"}],` +
       `"keywords":["6-12 ключових слів/навичок, які варто додати під попит і ATS"],` +
       `"rewrites":[{"before":"слабке формулювання з резюме","after":"переписане, з результатом і метрикою"}]}`,
+    CvReviewSchema,
     // maxTokens 2200 (не 1200) — рев'ю зі score+summary+3-5 strengths+кількома issues+6-12
     // keywords+кількома rewrites (кожен: повне "before" І "after" речення) охоче виходить довшим
     // за 1200 токенів; при обриві генерації по лімiту JSON лишається синтаксично невалідним і
     // безшумно (HTTP 200, тому й не ловилось перевіркою r.ok вище) падає в офлайн-евристику —
     // саме так виглядав репортований баг ("натискаю Поради — отримую generic-текст").
-    { json: true, maxTokens: 2200, temperature: 0.4, cache: true, tier: "smart" },
+    { maxTokens: 2200, temperature: 0.4, cache: true, tier: "smart" },
   );
   // offline:true (НЕ false) — далі йде та сама офлайн-евристика, що й при вимкненому LLM
   // (llmAvailable()===false вище). Хибне "offline:false" тут означало, що клієнт (і сам
   // користувач) не міг відрізнити справжній глибокий AI-рев'ю від дефолтного офлайн-фолбеку —
   // саме так виглядав звіт користувача "натискаю Поради — отримую generic-текст, offline:false".
-  if (!out || typeof out.score !== "number") return { offline: true, ...heuristicReview(cvText, "llm-failed") };
-  return {
-    offline: false,
-    score: Math.max(0, Math.min(100, Math.round(out.score))),
-    summary: typeof out.summary === "string" ? out.summary : "",
-    strengths: strs(out.strengths),
-    issues: arr(out.issues)
-      .filter((x): x is { title: string; fix?: unknown } => !!x && typeof (x as { title?: unknown }).title === "string")
-      .map((x) => ({ title: x.title, fix: typeof x.fix === "string" ? x.fix : "" })),
-    keywords: strs(out.keywords),
-    rewrites: arr(out.rewrites)
-      .filter(
-        (x): x is { before: string; after: string } =>
-          !!x && typeof (x as { before?: unknown }).before === "string" && typeof (x as { after?: unknown }).after === "string",
-      )
-      .map((x) => ({ before: x.before, after: x.after })),
-  };
+  if (!out) return { offline: true, ...heuristicReview(cvText, "llm-failed") };
+  return { offline: false, ...out, score: Math.max(0, Math.min(100, Math.round(out.score))) };
 }
 
 // ---------- /cv/match: порівняння CV з конкретною вакансією ----------
@@ -187,7 +193,7 @@ function heuristicMatch(cvText: string, jobText: string, reason: FallbackReason 
 export async function matchCv(cvText: string, jobTitle: string, jobText: string): Promise<CvMatch & { offline: boolean }> {
   const combined = `${jobTitle}\n${jobText}`;
   if (!llmAvailable()) return { offline: true, ...heuristicMatch(cvText, combined) };
-  const out = await chat(
+  const out = await chatJson(
     "Ти технічний рекрутер. Порівнюєш резюме кандидата з вимогами КОНКРЕТНОЇ вакансії й даєш точковий gap-аналіз. Відповідай ЛИШЕ валідним JSON українською. Не вигадуй досвід, якого немає в резюме.",
     `Вакансія: ${jobTitle}\nВимоги/опис/стек:\n${jobText}\n\nРезюме кандидата:\n${cvText}\n\n` +
       `Поверни JSON строго: {"score":<0-100 наскільки CV підходить під цю вакансію>,` +
@@ -196,20 +202,11 @@ export async function matchCv(cvText: string, jobTitle: string, jobText: string)
       `"missing":["чого бракує саме під цю вакансію (навички/ключові слова)"],` +
       `"suggestions":[{"title":"що зробити","fix":"конкретна дія під цю вакансію"}],` +
       `"tailoredSummary":"переписаний під цю вакансію summary 2-3 речення, лише на основі реального досвіду кандидата"}`,
+    CvMatchSchema,
     // maxTokens 1800 (не 1000) — той самий ризик обриву генерації, що й у reviewCv вище.
-    { json: true, maxTokens: 1800, temperature: 0.4, cache: true, tier: "smart" },
+    { maxTokens: 1800, temperature: 0.4, cache: true, tier: "smart" },
   );
   // Той самий фікс, що й у reviewCv вище: це офлайн-евристика, а не результат LLM.
-  if (!out || typeof out.score !== "number") return { offline: true, ...heuristicMatch(cvText, combined, "llm-failed") };
-  return {
-    offline: false,
-    score: Math.max(0, Math.min(100, Math.round(out.score))),
-    verdict: typeof out.verdict === "string" ? out.verdict : "",
-    matched: strs(out.matched),
-    missing: strs(out.missing),
-    suggestions: arr(out.suggestions)
-      .filter((x): x is { title: string; fix?: unknown } => !!x && typeof (x as { title?: unknown }).title === "string")
-      .map((x) => ({ title: x.title, fix: typeof x.fix === "string" ? x.fix : "" })),
-    tailoredSummary: typeof out.tailoredSummary === "string" ? out.tailoredSummary : "",
-  };
+  if (!out) return { offline: true, ...heuristicMatch(cvText, combined, "llm-failed") };
+  return { offline: false, ...out, score: Math.max(0, Math.min(100, Math.round(out.score))) };
 }
