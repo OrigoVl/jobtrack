@@ -12,7 +12,11 @@ export type CvSection = (typeof CV_SECTIONS)[number];
 // приймає мовчки відсутній ключ/undefined (кидає ZodError "expected nonoptional") — на
 // відміну від v3. Додаємо `.optional()` одразу після `.any()`, щоб .transform() все одно
 // відпрацював на undefined і повернув безпечний дефолт (семантика файлу не змінюється).
-const str = (max: number) => z.any().optional().transform((v) => (typeof v === "string" ? v.slice(0, max) : ""));
+const str = (max: number) =>
+  z
+    .any()
+    .optional()
+    .transform((v) => (typeof v === "string" ? v.slice(0, max) : ""));
 const strArr = (max: number, itemMax = 300) =>
   z
     .any()
