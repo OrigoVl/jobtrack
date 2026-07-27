@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../shared/api";
-import { useStore, useUi } from "../../shared/store";
+import { useUi } from "../../shared/ui-state";
+import { useHealth, useStudy } from "../../shared/queries";
 import { Btn, Card, Chip, EmptyState, PageHeader } from "../../shared/ui";
 import type { MockEvaluation } from "../../shared/types";
 
@@ -63,7 +64,9 @@ function MockEvalCard({ ev }: { ev: MockEvaluation }) {
   );
 }
 export function MockInterview() {
-  const { study, llm } = useStore();
+  const { data: study } = useStudy();
+  const { data: health } = useHealth();
+  const llm = health?.llm ?? false;
   const [session, setSession] = useUi<MockItem[] | null>("mock.session", null);
   const [idx, setIdx] = useUi("mock.idx", 0);
   const [revealed, setRevealed] = useUi("mock.revealed", false);

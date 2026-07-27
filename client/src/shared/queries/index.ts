@@ -1,0 +1,11 @@
+// Барель для зручного імпорту: import { useVacancies, useAddVacancy } from "../../shared/queries";
+export * from "./health";
+export * from "./vacancies";
+export * from "./profile";
+export * from "./analytics";
+export * from "./learn";
+export * from "./roadmap";
+export * from "./study";
+export * from "./projects";
+export * from "./plan21";
+export * from "./companies";

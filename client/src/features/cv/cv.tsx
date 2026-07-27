@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { api } from "../../shared/api";
-import { useStore, useUi } from "../../shared/store";
+import { useUi } from "../../shared/ui-state";
+import { useToast } from "../../shared/toast";
+import { useApplyCvUpload, useProfile, useSaveProfile } from "../../shared/queries";
 import { Btn, Card, Chip, PageHeader } from "../../shared/ui";
 import type { CvAnalysis, CvMatch, CvReview } from "../../shared/types";
 import { Field } from "../../shared/view-kit";
@@ -206,7 +208,10 @@ export function CvMatchPanel({
   );
 }
 export function CVView({ llm }: { llm: boolean }) {
-  const { profile, saveProfile, applyCvUpload, toast } = useStore();
+  const { data: profile } = useProfile();
+  const saveProfileMutation = useSaveProfile();
+  const applyCvUpload = useApplyCvUpload();
+  const { toast } = useToast();
   const [draft, setDraft] = useUi<{ cvText: string; skills: string[]; domain?: string } | null>("cv.draft", null);
   const [analysis, setAnalysis] = useUi<CvAnalysis | null>("cv.analysis", null);
   const [review, setReview] = useUi<CvReview | null>("cv.review", null);
@@ -284,7 +289,7 @@ export function CVView({ llm }: { llm: boolean }) {
             <Btn variant="ghost" onClick={() => exportPdf("CV", cvText)} disabled={!cvText.trim()}>
               ⬇️ CV у PDF
             </Btn>
-            <Btn onClick={() => saveProfile({ skills, cvText, domain })}>💾 Зберегти</Btn>
+            <Btn onClick={() => saveProfileMutation.mutate({ skills, cvText, domain })}>💾 Зберегти</Btn>
           </>
         }
       />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../../shared/api";
-import { useUi } from "../../shared/store";
+import { useUi } from "../../shared/ui-state";
 import { Btn, Card, PageHeader } from "../../shared/ui";
 import type { ResourcesData } from "../../shared/types";
 

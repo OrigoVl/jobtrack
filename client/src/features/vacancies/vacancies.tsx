@@ -1,19 +1,21 @@
 import { useState } from "react";
-import { useStore, useUi } from "../../shared/store";
-import { Btn, Card, Chip, EmptyState, PageHeader } from "../../shared/ui";
+import { useUi } from "../../shared/ui-state";
+import { useAddVacancy, useDeleteVacancy, useImportVacancies, useUpdateVacancy, useVacancies } from "../../shared/queries";
+import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader } from "../../shared/ui";
 import { STATUSES, type Fit } from "../../shared/types";
 import { fitTone, fitText } from "../../shared/view-kit";
 
 /* ---------- Vacancies board (drag-and-drop) ---------- */
 function VacancyBoard() {
-  const { vacancies, updateVacancy } = useStore();
+  const { data: vacancies = [] } = useVacancies();
+  const updateVacancyMutation = useUpdateVacancy();
   const [over, setOver] = useState<string | null>(null);
   const onDrop = (status: string) => (e: React.DragEvent) => {
     e.preventDefault();
     setOver(null);
     const id = Number(e.dataTransfer.getData("text/plain"));
     const v = vacancies.find((x) => x.id === id);
-    if (v && v.status !== status) updateVacancy(id, { status });
+    if (v && v.status !== status) updateVacancyMutation.mutate({ id, patch: { status } });
   };
   return (
     <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
@@ -68,13 +70,18 @@ function VacancyBoard() {
 
 /* ---------- Vacancies ---------- */
 export function Vacancies() {
-  const { vacancies, addVacancy, updateVacancy, deleteVacancy, importVacancies } = useStore();
+  const { data: vacancies = [], isLoading } = useVacancies();
+  const addVacancyMutation = useAddVacancy();
+  const updateVacancyMutation = useUpdateVacancy();
+  const deleteVacancyMutation = useDeleteVacancy();
+  const importVacanciesMutation = useImportVacancies();
   const [imp, setImp] = useUi("vacancies.import", "");
   const [view, setView] = useUi<"table" | "board">("vacancies.view", "table");
   const doImport = async () => {
-    await importVacancies(imp);
+    await importVacanciesMutation.mutateAsync(imp);
     setImp("");
   };
+  if (isLoading) return <CardsSkeleton count={3} />;
   return (
     <div className="space-y-4">
       <PageHeader
@@ -90,7 +97,7 @@ export function Vacancies() {
                 🗂 Канбан
               </Btn>
             </div>
-            <Btn onClick={() => addVacancy({ company: "Нова компанія", position: "Позиція" })}>+ Додати вакансію</Btn>
+            <Btn onClick={() => addVacancyMutation.mutate({ company: "Нова компанія", position: "Позиція" })}>+ Додати вакансію</Btn>
           </div>
         }
       />
@@ -114,7 +121,7 @@ export function Vacancies() {
             icon="📋"
             title="Ще немає вакансій"
             hint="Додай першу вакансію вручну або імпортуй список із DOU — далі застосунок сам збудує аналітику й роудмапу."
-            action={<Btn onClick={() => addVacancy({ company: "Нова компанія", position: "Позиція" })}>+ Додати першу</Btn>}
+            action={<Btn onClick={() => addVacancyMutation.mutate({ company: "Нова компанія", position: "Позиція" })}>+ Додати першу</Btn>}
           />
         </Card>
       ) : view === "board" ? (
@@ -139,12 +146,12 @@ export function Vacancies() {
                     <td className="p-3">
                       <input
                         defaultValue={row.company}
-                        onBlur={(e) => updateVacancy(row.id, { company: e.target.value })}
+                        onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { company: e.target.value } })}
                         className="bg-transparent font-semibold w-full outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
                       />
                       <input
                         defaultValue={row.position}
-                        onBlur={(e) => updateVacancy(row.id, { position: e.target.value })}
+                        onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { position: e.target.value } })}
                         className="bg-transparent text-slate-500 text-xs w-full outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
                       />
                       {row.url && (
@@ -169,7 +176,7 @@ export function Vacancies() {
                     <td className="p-3">
                       <select
                         defaultValue={row.fit}
-                        onChange={(e) => updateVacancy(row.id, { fit: e.target.value as Fit })}
+                        onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { fit: e.target.value as Fit } })}
                         className={`bg-slate-100 border border-slate-200 rounded px-1.5 py-1 text-xs font-medium ${fitText[row.fit]}`}
                       >
                         <option value="high">High</option>
@@ -180,7 +187,7 @@ export function Vacancies() {
                     <td className="p-3">
                       <select
                         defaultValue={row.status}
-                        onChange={(e) => updateVacancy(row.id, { status: e.target.value })}
+                        onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { status: e.target.value } })}
                         className="bg-slate-100 border border-slate-200 rounded px-1.5 py-1 text-xs"
                       >
                         {STATUSES.map((s) => (
@@ -191,13 +198,17 @@ export function Vacancies() {
                     <td className="p-3">
                       <input
                         defaultValue={row.next}
-                        onBlur={(e) => updateVacancy(row.id, { next: e.target.value })}
+                        onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { next: e.target.value } })}
                         placeholder="—"
                         className="bg-transparent w-28 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
                       />
                     </td>
                     <td className="p-3 text-right">
-                      <button onClick={() => deleteVacancy(row.id)} className="text-slate-400 hover:text-rose-500" title="Видалити">
+                      <button
+                        onClick={() => deleteVacancyMutation.mutate(row.id)}
+                        className="text-slate-400 hover:text-rose-500"
+                        title="Видалити"
+                      >
                         ✕
                       </button>
                     </td>

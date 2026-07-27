@@ -1,15 +1,18 @@
-import { useStore, useUi } from "../../shared/store";
-import { Btn, Card, EmptyState, PageHeader } from "../../shared/ui";
+import { useUi } from "../../shared/ui-state";
+import { useCompanies, useSaveCompany } from "../../shared/queries";
+import { Btn, Card, CardsSkeleton, EmptyState, PageHeader } from "../../shared/ui";
 
 /* ---------- Companies ---------- */
 export function Companies() {
-  const { companies, saveCompany } = useStore();
+  const { data: companies = [], isLoading } = useCompanies();
+  const saveCompanyMutation = useSaveCompany();
   const [name, setName] = useUi("companies.name", "");
   const add = () => {
     if (!name) return;
-    saveCompany({ name, notes: "", questions: [] });
+    saveCompanyMutation.mutate({ name, notes: "", questions: [] });
     setName("");
   };
+  if (isLoading) return <CardsSkeleton count={2} />;
   return (
     <div className="space-y-4">
       <PageHeader
@@ -38,13 +41,13 @@ export function Companies() {
               <div className="font-semibold mb-2 text-slate-800">{c.name}</div>
               <textarea
                 defaultValue={c.notes}
-                onBlur={(e) => saveCompany({ ...c, notes: e.target.value })}
+                onBlur={(e) => saveCompanyMutation.mutate({ ...c, notes: e.target.value })}
                 placeholder="Нотатки (стек, люди, зарплата, враження)…"
                 className="w-full h-20 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
               <textarea
                 defaultValue={c.questions.join("\n")}
-                onBlur={(e) => saveCompany({ ...c, questions: e.target.value.split("\n").filter(Boolean) })}
+                onBlur={(e) => saveCompanyMutation.mutate({ ...c, questions: e.target.value.split("\n").filter(Boolean) })}
                 placeholder="Питання, що ставили (по одному на рядок)…"
                 className="w-full h-20 mt-2 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />

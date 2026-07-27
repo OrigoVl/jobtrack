@@ -1,10 +1,11 @@
-import { useStore } from "../../shared/store";
+import { usePlan21, useSetPlanDay } from "../../shared/queries";
 import { Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
 
 /* ---------- Fast-track план 21 день ---------- */
 export function Plan21() {
-  const { plan21, setPlanDay } = useStore();
-  if (!plan21) return <CardsSkeleton count={3} />;
+  const { data: plan21, isLoading } = usePlan21();
+  const setPlanDayMutation = useSetPlanDay();
+  if (isLoading || !plan21) return <CardsSkeleton count={3} />;
   const allDays = plan21.phases.flatMap((p) => p.days);
   const done = allDays.filter((d) => plan21.progress[d.id]).length;
   return (
@@ -40,7 +41,7 @@ export function Plan21() {
                   type="checkbox"
                   className="mt-1"
                   checked={!!plan21.progress[d.id]}
-                  onChange={(e) => setPlanDay(d.id, e.target.checked)}
+                  onChange={(e) => setPlanDayMutation.mutate({ dayId: d.id, done: e.target.checked })}
                 />
                 <div className="min-w-0">
                   <div className="font-semibold text-slate-800 text-sm">День {d.day}</div>

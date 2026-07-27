@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../shared/api";
-import { useStore, useUi } from "../../shared/store";
-import { Btn, Card, Chip, PageHeader } from "../../shared/ui";
+import { useUi } from "../../shared/ui-state";
+import { useLearn } from "../../shared/queries";
+import { Btn, Card, CardsSkeleton, Chip, PageHeader } from "../../shared/ui";
 import type { KnowledgeData, LearnGap } from "../../shared/types";
 
 /* ---------- Learn Plan ---------- */
@@ -85,7 +86,7 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
   );
 }
 export function LearnPlan({ llm }: { llm: boolean }) {
-  const { learn } = useStore();
+  const { data: learn, isLoading } = useLearn();
   const [plan, setPlan] = useUi("learn.plan", "");
   const [busy, setBusy] = useState(false);
   const genPlan = async () => {
@@ -101,6 +102,7 @@ export function LearnPlan({ llm }: { llm: boolean }) {
       setBusy(false);
     }
   };
+  if (isLoading) return <CardsSkeleton count={3} />;
   if (!learn) return null;
   return (
     <div className="space-y-4">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../shared/api";
-import { useStore } from "../../shared/store";
-import { Btn, Card, Chip, PageHeader, ProgressBar } from "../../shared/ui";
+import { useHealth, useLearn, useProfile, useRoadmap, useStudy, useVacancies } from "../../shared/queries";
+import { Btn, Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
 import type { FocusWeek } from "../../shared/types";
 
 function FocusWeekCard({ llm }: { llm: boolean }) {
@@ -49,7 +49,14 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
   );
 }
 export function Dashboard({ go }: { go: (t: string) => void }) {
-  const { vacancies, study, roadmap, learn, llm, profile } = useStore();
+  const { data: vacancies = [], isLoading: loadingVacancies } = useVacancies();
+  const { data: study } = useStudy();
+  const { data: roadmap } = useRoadmap();
+  const { data: learn } = useLearn();
+  const { data: health } = useHealth();
+  const { data: profile } = useProfile();
+  const llm = health?.llm ?? false;
+  if (loadingVacancies) return <CardsSkeleton count={4} />;
   const active = vacancies.filter((x) => !["Відмова", "Пауза", "Хочу подати"].includes(x.status)).length;
   const iv = vacancies.filter((x) => ["Тех.співбесіда", "Тестове завдання", "Фінал"].includes(x.status)).length;
   const upcoming = vacancies

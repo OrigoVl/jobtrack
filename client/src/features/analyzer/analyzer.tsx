@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { api } from "../../shared/api";
-import { useStore, useUi } from "../../shared/store";
+import { useUi } from "../../shared/ui-state";
+import { useAddVacancy, useFetchAllVacancies } from "../../shared/queries";
 import { Btn, Card, Chip, PageHeader } from "../../shared/ui";
 import type { AnalyzeResult, Fit, FetchAllResult } from "../../shared/types";
 import { fitText } from "../../shared/view-kit";
 
 /* ---------- Analyzer ---------- */
 export function Analyzer() {
-  const { addVacancy, fetchAllVacancies } = useStore();
+  const addVacancyMutation = useAddVacancy();
+  const fetchAllVacanciesMutation = useFetchAllVacancies();
   const [text, setText] = useUi("analyzer.text", "");
   const [res, setRes] = useUi<AnalyzeResult | null>("analyzer.res", null);
   const [batch, setBatch] = useUi<FetchAllResult | null>("analyzer.batch", null);
@@ -27,7 +29,7 @@ export function Analyzer() {
     setBatchBusy(true);
     setBatch(null);
     try {
-      setBatch(await fetchAllVacancies());
+      setBatch(await fetchAllVacanciesMutation.mutateAsync());
     } finally {
       setBatchBusy(false);
     }
@@ -121,7 +123,9 @@ export function Analyzer() {
           {res.summary && <div className="text-sm text-slate-700 whitespace-pre-wrap border-t border-slate-100 pt-3">🤖 {res.summary}</div>}
           <Btn
             variant="ghost"
-            onClick={() => addVacancy({ company: "З аналізу", position: "", stack: res.techs, fit: res.fit, level: res.level })}
+            onClick={() =>
+              addVacancyMutation.mutate({ company: "З аналізу", position: "", stack: res.techs, fit: res.fit, level: res.level })
+            }
           >
             + Додати цю вакансію у трекер
           </Btn>

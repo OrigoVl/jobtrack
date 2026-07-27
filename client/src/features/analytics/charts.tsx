@@ -12,8 +12,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Card, EmptyState, PageHeader } from "../../shared/ui";
-import { useStore } from "../../shared/store";
+import { Card, CardsSkeleton, EmptyState, PageHeader } from "../../shared/ui";
+import { useAnalytics } from "../../shared/queries";
 
 const AXIS = "#64748b";
 const TOOLTIP = {
@@ -25,8 +25,9 @@ const TOOLTIP = {
 } as const;
 
 export function SkillRadar() {
-  const { analytics } = useStore();
+  const { data: analytics, isLoading } = useAnalytics();
   const data = analytics?.radar ?? [];
+  if (isLoading) return <CardsSkeleton count={1} />;
   return (
     <div className="space-y-4">
       <PageHeader
@@ -56,7 +57,8 @@ export function SkillRadar() {
 }
 
 export function Analytics() {
-  const { analytics } = useStore();
+  const { data: analytics, isLoading } = useAnalytics();
+  if (isLoading) return <CardsSkeleton count={2} />;
   if (!analytics) return null;
   const funnel = Object.entries(analytics.funnel).map(([name, value]) => ({ name, value }));
   const demand = Object.entries(analytics.demand)

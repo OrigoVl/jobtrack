@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../shared/api";
-import { useStore, useUi } from "../../shared/store";
+import { useUi } from "../../shared/ui-state";
+import {
+  useGenerateCards,
+  useGenerateDrills,
+  useGradeCard,
+  useHealth,
+  useLearn,
+  useProfile,
+  useSetDrillStatus,
+  useStudy,
+} from "../../shared/queries";
 import { runJs } from "./runner";
 import { Btn, Card, Chip, EmptyState, PageHeader } from "../../shared/ui";
 import type { Drill } from "../../shared/types";
@@ -67,7 +77,15 @@ function DrillSandbox({ drill }: { drill: Drill }) {
   );
 }
 export function Study() {
-  const { study, gradeCard, setDrillStatus, generateDrills, generateCards, learn, llm, profile } = useStore();
+  const { data: study } = useStudy();
+  const { data: learn } = useLearn();
+  const { data: health } = useHealth();
+  const { data: profile } = useProfile();
+  const llm = health?.llm ?? false;
+  const gradeCardMutation = useGradeCard();
+  const setDrillStatusMutation = useSetDrillStatus();
+  const generateDrillsMutation = useGenerateDrills();
+  const generateCardsMutation = useGenerateCards();
   const [mode, setMode] = useUi<"srs" | "drill">("study.mode", "srs");
   const [i, setI] = useUi("study.index", 0);
   const [show, setShow] = useUi("study.show", false);
@@ -108,7 +126,7 @@ export function Study() {
   const genTech = drillCat !== "all" ? drillCat : learn?.gaps?.[0]?.tech;
   const grade = async (g: number) => {
     if (!card) return;
-    await gradeCard(card.id, g);
+    await gradeCardMutation.mutateAsync({ cardId: card.id, grade: g });
     setShow(false);
     setI(0);
   };
@@ -131,7 +149,7 @@ export function Study() {
     if (!genTech) return;
     setGenerating(true);
     try {
-      await generateDrills(genTech);
+      await generateDrillsMutation.mutateAsync(genTech);
     } finally {
       setGenerating(false);
     }
@@ -141,7 +159,7 @@ export function Study() {
     if (!cardTopic) return;
     setGeneratingCards(true);
     try {
-      await generateCards(cardTopic);
+      await generateCardsMutation.mutateAsync(cardTopic);
     } finally {
       setGeneratingCards(false);
     }
@@ -337,14 +355,14 @@ export function Study() {
                   </Btn>
                 )}
                 {drillProgress[drill.id] === "solved" ? (
-                  <Btn variant="ghost" onClick={() => setDrillStatus(drill.id, "todo")}>
+                  <Btn variant="ghost" onClick={() => setDrillStatusMutation.mutate({ id: drill.id, status: "todo" })}>
                     ↩︎ Скинути
                   </Btn>
                 ) : (
                   <Btn
                     variant="ghost"
                     className="!bg-emerald-50 !text-emerald-700 !border-emerald-200"
-                    onClick={() => setDrillStatus(drill.id, "solved")}
+                    onClick={() => setDrillStatusMutation.mutate({ id: drill.id, status: "solved" })}
                   >
                     ✅ Зроблено
                   </Btn>

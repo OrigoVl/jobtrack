@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../../shared/api";
-import { Btn, Card, Chip, PageHeader, ProgressBar } from "../../shared/ui";
-import { useStore, useUi } from "../../shared/store";
+import { Btn, Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
+import { useUi } from "../../shared/ui-state";
+import { useHealth, useRoadmap, useSetRoadmapStatus } from "../../shared/queries";
 import type { KnowledgeData, RoadmapNode, RoadmapStatus } from "../../shared/types";
 
 const STATUS_META: Record<RoadmapStatus, { label: string; text: string; badge: string; icon: string }> = {
@@ -12,7 +13,9 @@ const STATUS_META: Record<RoadmapStatus, { label: string; text: string; badge: s
 const NEXT: Record<RoadmapStatus, RoadmapStatus> = { todo: "learning", learning: "done", done: "todo" };
 
 function Node({ node }: { node: RoadmapNode }) {
-  const { setRoadmapStatus, llm } = useStore();
+  const { data: health } = useHealth();
+  const llm = health?.llm ?? false;
+  const setRoadmapStatusMutation = useSetRoadmapStatus();
   const [open, setOpen] = useState(false);
   const [dyn, setDyn] = useState<KnowledgeData | null>(null);
   const [loadingDyn, setLoadingDyn] = useState(false);
@@ -32,7 +35,7 @@ function Node({ node }: { node: RoadmapNode }) {
   return (
     <div className="relative pl-8">
       <button
-        onClick={() => setRoadmapStatus(node.tech, NEXT[node.status])}
+        onClick={() => setRoadmapStatusMutation.mutate({ tech: node.tech, status: NEXT[node.status] })}
         title="Клік — змінити статус (не почато → вчу → знаю)"
         className={`absolute left-0 top-2 z-10 w-6 h-6 rounded-full border-2 ${border} ${meta.badge} flex items-center justify-center text-xs font-bold transition-colors`}
       >
@@ -105,9 +108,10 @@ function Node({ node }: { node: RoadmapNode }) {
 }
 
 export function Roadmap() {
-  const { roadmap } = useStore();
+  const { data: roadmap, isLoading } = useRoadmap();
   const [onlyGaps, setOnlyGaps] = useUi("roadmap.onlyGaps", false);
   const [group, setGroup] = useUi<string>("roadmap.group", "all");
+  if (isLoading) return <CardsSkeleton count={3} />;
   if (!roadmap) return null;
   const { done, learning, total } = roadmap.progress;
   const groups = roadmap.groups

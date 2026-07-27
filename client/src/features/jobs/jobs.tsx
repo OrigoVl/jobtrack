@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../shared/api";
-import { useStore, useUi } from "../../shared/store";
+import { useUi } from "../../shared/ui-state";
+import { useAddVacancy, useProfile } from "../../shared/queries";
 import { Btn, Card, Chip, EmptyState, PageHeader, Segmented } from "../../shared/ui";
 import type { JobResult, JobSearchResult } from "../../shared/types";
 
@@ -31,7 +32,8 @@ function externalLinks(q: string, country: { geoId?: string; wt?: string }): { l
   ];
 }
 export function Jobs() {
-  const { profile, addVacancy } = useStore();
+  const { data: profile } = useProfile();
+  const addVacancyMutation = useAddVacancy();
   const [q, setQ] = useUi("jobs.q", "");
   const [added, setAdded] = useState<Record<string, boolean>>({});
   const [country, setCountry] = useUi("jobs.country", "remote");
@@ -61,7 +63,13 @@ export function Jobs() {
     setPage(1);
   };
   const addJob = async (job: JobResult) => {
-    await addVacancy({ company: job.company, position: job.position, url: job.url, stack: job.tags, status: "Хочу подати" });
+    await addVacancyMutation.mutateAsync({
+      company: job.company,
+      position: job.position,
+      url: job.url,
+      stack: job.tags,
+      status: "Хочу подати",
+    });
     setAdded((a) => ({ ...a, [job.url]: true }));
   };
   return (

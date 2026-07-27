@@ -1,7 +1,8 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { StoreProvider, useStore } from "../shared/store";
+import { ToastProvider, useToast } from "../shared/toast";
+import { useHealth, useRoadmap } from "../shared/queries";
 import { CardsSkeleton, ProgressBar } from "../shared/ui";
 import { ErrorBoundary } from "../shared/error-boundary";
 import { Dashboard } from "../features/dashboard/dashboard";
@@ -61,7 +62,7 @@ const DEFAULT_PATH = "/dashboard";
 const KNOWN_PATHS = new Set(ALL_ITEMS.map((it) => it.path));
 
 function ToastHost() {
-  const { toasts, dismissToast } = useStore();
+  const { toasts, dismissToast } = useToast();
   const tone: Record<string, string> = {
     success: "bg-emerald-600",
     error: "bg-rose-600",
@@ -83,7 +84,8 @@ function ToastHost() {
 }
 
 function AiBadge() {
-  const { llm } = useStore();
+  const { data } = useHealth();
+  const llm = data?.llm ?? false;
   return (
     <span
       className={`text-xs font-medium px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 ${
@@ -105,7 +107,7 @@ function Brand() {
 }
 
 function SidebarProgress() {
-  const { roadmap } = useStore();
+  const { data: roadmap } = useRoadmap();
   if (!roadmap) return null;
   return (
     <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
@@ -151,11 +153,19 @@ function RootRedirect() {
 }
 
 function Shell() {
-  const { loading } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
+  const { isError: connectionError } = useHealth();
   useRememberLastPath();
   const go = (t: string) => navigate(`/${t}`);
+
+  // Кожна сторінка тепер сама тримає свій loading/empty-стан через власні query-хуки
+  // (замість одного глобального "чекаємо на все"), тож тут лишається лише сповіщення
+  // про повну відсутність звʼязку із сервером.
+  useEffect(() => {
+    if (connectionError) toast("Не вдалося зʼєднатися з сервером", "error");
+  }, [connectionError, toast]);
 
   return (
     <div className="min-h-screen lg:flex">
@@ -189,34 +199,30 @@ function Shell() {
         </header>
 
         <main className="max-w-5xl mx-auto px-4 py-6">
-          {loading ? (
-            <CardsSkeleton count={4} />
-          ) : (
-            <ErrorBoundary key={location.pathname}>
-              <Suspense fallback={<CardsSkeleton count={2} />}>
-                <Routes>
-                  <Route path="/" element={<RootRedirect />} />
-                  <Route path="/dashboard" element={<Dashboard go={go} />} />
-                  <Route path="/vacancies" element={<Vacancies />} />
-                  <Route path="/jobs" element={<Jobs />} />
-                  <Route path="/analyzer" element={<Analyzer />} />
-                  <Route path="/companies" element={<Companies />} />
-                  <Route path="/analytics" element={<Analytics />} />
-                  <Route path="/roadmap" element={<Roadmap />} />
-                  <Route path="/plan21" element={<Plan21 />} />
-                  <Route path="/learn" element={<LearnPlanWrapper />} />
-                  <Route path="/study" element={<Study />} />
-                  <Route path="/mock" element={<MockInterview />} />
-                  <Route path="/projects" element={<Projects />} />
-                  <Route path="/radar" element={<SkillRadar />} />
-                  <Route path="/resources" element={<Resources />} />
-                  <Route path="/cv" element={<CVWrapper />} />
-                  <Route path="/cvbuilder" element={<CvBuilderWrapper />} />
-                  <Route path="*" element={<Navigate to={DEFAULT_PATH} replace />} />
-                </Routes>
-              </Suspense>
-            </ErrorBoundary>
-          )}
+          <ErrorBoundary key={location.pathname}>
+            <Suspense fallback={<CardsSkeleton count={2} />}>
+              <Routes>
+                <Route path="/" element={<RootRedirect />} />
+                <Route path="/dashboard" element={<Dashboard go={go} />} />
+                <Route path="/vacancies" element={<Vacancies />} />
+                <Route path="/jobs" element={<Jobs />} />
+                <Route path="/analyzer" element={<Analyzer />} />
+                <Route path="/companies" element={<Companies />} />
+                <Route path="/analytics" element={<Analytics />} />
+                <Route path="/roadmap" element={<Roadmap />} />
+                <Route path="/plan21" element={<Plan21 />} />
+                <Route path="/learn" element={<LearnPlanWrapper />} />
+                <Route path="/study" element={<Study />} />
+                <Route path="/mock" element={<MockInterview />} />
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/radar" element={<SkillRadar />} />
+                <Route path="/resources" element={<Resources />} />
+                <Route path="/cv" element={<CVWrapper />} />
+                <Route path="/cvbuilder" element={<CvBuilderWrapper />} />
+                <Route path="*" element={<Navigate to={DEFAULT_PATH} replace />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
 
@@ -226,16 +232,16 @@ function Shell() {
 }
 
 function LearnPlanWrapper() {
-  const { llm } = useStore();
-  return <LearnPlan llm={llm} />;
+  const { data } = useHealth();
+  return <LearnPlan llm={data?.llm ?? false} />;
 }
 function CVWrapper() {
-  const { llm } = useStore();
-  return <CVView llm={llm} />;
+  const { data } = useHealth();
+  return <CVView llm={data?.llm ?? false} />;
 }
 function CvBuilderWrapper() {
-  const { llm } = useStore();
-  return <CvBuilder llm={llm} />;
+  const { data } = useHealth();
+  return <CvBuilder llm={data?.llm ?? false} />;
 }
 
 export default function App() {
@@ -253,11 +259,11 @@ export default function App() {
   );
   return (
     <QueryClientProvider client={queryClient}>
-      <StoreProvider>
+      <ToastProvider>
         <BrowserRouter>
           <Shell />
         </BrowserRouter>
-      </StoreProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }

@@ -1,10 +1,11 @@
-import { useStore } from "../../shared/store";
+import { useProjects, useSetProjectItem } from "../../shared/queries";
 import { Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
 
 /* ---------- Pet-проєкти ---------- */
 export function Projects() {
-  const { projects, setProjectItem } = useStore();
-  if (!projects) return <CardsSkeleton count={3} />;
+  const { data: projects, isLoading } = useProjects();
+  const setProjectItemMutation = useSetProjectItem();
+  if (isLoading || !projects) return <CardsSkeleton count={3} />;
   const totalItems = projects.projects.reduce((a, p) => a + p.dod.length, 0);
   const doneItems = Object.values(projects.progress).filter(Boolean).length;
   return (
@@ -53,7 +54,7 @@ export function Projects() {
                         type="checkbox"
                         className="mt-0.5"
                         checked={!!projects.progress[d.id]}
-                        onChange={(e) => setProjectItem(d.id, e.target.checked)}
+                        onChange={(e) => setProjectItemMutation.mutate({ itemId: d.id, done: e.target.checked })}
                       />
                       <span className={projects.progress[d.id] ? "line-through text-slate-400" : "text-slate-700"}>{d.text}</span>
                     </label>
