@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate, useLocati
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StoreProvider, useStore } from "../shared/store";
 import { CardsSkeleton, ProgressBar } from "../shared/ui";
+import { ErrorBoundary } from "../shared/error-boundary";
 import { Dashboard } from "../features/dashboard/dashboard";
 import { Vacancies } from "../features/vacancies/vacancies";
 import { Analyzer } from "../features/analyzer/analyzer";
@@ -152,6 +153,7 @@ function RootRedirect() {
 function Shell() {
   const { loading } = useStore();
   const navigate = useNavigate();
+  const location = useLocation();
   useRememberLastPath();
   const go = (t: string) => navigate(`/${t}`);
 
@@ -190,28 +192,30 @@ function Shell() {
           {loading ? (
             <CardsSkeleton count={4} />
           ) : (
-            <Suspense fallback={<CardsSkeleton count={2} />}>
-              <Routes>
-                <Route path="/" element={<RootRedirect />} />
-                <Route path="/dashboard" element={<Dashboard go={go} />} />
-                <Route path="/vacancies" element={<Vacancies />} />
-                <Route path="/jobs" element={<Jobs />} />
-                <Route path="/analyzer" element={<Analyzer />} />
-                <Route path="/companies" element={<Companies />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/roadmap" element={<Roadmap />} />
-                <Route path="/plan21" element={<Plan21 />} />
-                <Route path="/learn" element={<LearnPlanWrapper />} />
-                <Route path="/study" element={<Study />} />
-                <Route path="/mock" element={<MockInterview />} />
-                <Route path="/projects" element={<Projects />} />
-                <Route path="/radar" element={<SkillRadar />} />
-                <Route path="/resources" element={<Resources />} />
-                <Route path="/cv" element={<CVWrapper />} />
-                <Route path="/cvbuilder" element={<CvBuilderWrapper />} />
-                <Route path="*" element={<Navigate to={DEFAULT_PATH} replace />} />
-              </Routes>
-            </Suspense>
+            <ErrorBoundary key={location.pathname}>
+              <Suspense fallback={<CardsSkeleton count={2} />}>
+                <Routes>
+                  <Route path="/" element={<RootRedirect />} />
+                  <Route path="/dashboard" element={<Dashboard go={go} />} />
+                  <Route path="/vacancies" element={<Vacancies />} />
+                  <Route path="/jobs" element={<Jobs />} />
+                  <Route path="/analyzer" element={<Analyzer />} />
+                  <Route path="/companies" element={<Companies />} />
+                  <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/roadmap" element={<Roadmap />} />
+                  <Route path="/plan21" element={<Plan21 />} />
+                  <Route path="/learn" element={<LearnPlanWrapper />} />
+                  <Route path="/study" element={<Study />} />
+                  <Route path="/mock" element={<MockInterview />} />
+                  <Route path="/projects" element={<Projects />} />
+                  <Route path="/radar" element={<SkillRadar />} />
+                  <Route path="/resources" element={<Resources />} />
+                  <Route path="/cv" element={<CVWrapper />} />
+                  <Route path="/cvbuilder" element={<CvBuilderWrapper />} />
+                  <Route path="*" element={<Navigate to={DEFAULT_PATH} replace />} />
+                </Routes>
+              </Suspense>
+            </ErrorBoundary>
           )}
         </main>
       </div>

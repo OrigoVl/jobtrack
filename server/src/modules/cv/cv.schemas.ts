@@ -69,14 +69,13 @@ export interface CvLanguage {
   level: string;
 }
 
-export const CvLanguagesSchema = z.any().transform(
-  (v): CvLanguage[] =>
-    Array.isArray(v)
-      ? v
-          .filter((x) => x && typeof x.name === "string" && x.name.trim())
-          .slice(0, 12)
-          .map((x) => ({ name: x.name.trim().slice(0, 60), level: typeof x.level === "string" ? x.level.trim().slice(0, 40) : "" }))
-      : [],
+export const CvLanguagesSchema = z.any().transform((v): CvLanguage[] =>
+  Array.isArray(v)
+    ? v
+        .filter((x) => x && typeof x.name === "string" && x.name.trim())
+        .slice(0, 12)
+        .map((x) => ({ name: x.name.trim().slice(0, 60), level: typeof x.level === "string" ? x.level.trim().slice(0, 40) : "" }))
+    : [],
 );
 
 export interface CvExperienceItem {
@@ -86,14 +85,12 @@ export interface CvExperienceItem {
   bullets: string[];
 }
 
-const CvExperienceItemSchema = z.any().transform(
-  (e): CvExperienceItem => ({
-    role: typeof e?.role === "string" ? e.role.slice(0, 160) : "",
-    company: typeof e?.company === "string" ? e.company.slice(0, 160) : "",
-    period: typeof e?.period === "string" ? e.period.slice(0, 60) : "",
-    bullets: strArr(12).parse(e?.bullets),
-  }),
-);
+const CvExperienceItemSchema = z.any().transform((e): CvExperienceItem => ({
+  role: typeof e?.role === "string" ? e.role.slice(0, 160) : "",
+  company: typeof e?.company === "string" ? e.company.slice(0, 160) : "",
+  period: typeof e?.period === "string" ? e.period.slice(0, 60) : "",
+  bullets: strArr(12).parse(e?.bullets),
+}));
 
 export const CvExperienceSchema = z
   .any()

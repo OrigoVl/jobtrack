@@ -142,7 +142,8 @@ r.post(
   "/cv/doc/generate",
   asyncHandler(async (req, res) => {
     const cvText = String(req.body?.cvText || getProfile().cvText || "").slice(0, 8000);
-    if (!llmAvailable() || cvText.trim().length < 30) return res.json({ offline: !llmAvailable(), doc: getKvJson("cvDoc") || emptyCvDoc() });
+    if (!llmAvailable() || cvText.trim().length < 30)
+      return res.json({ offline: !llmAvailable(), doc: getKvJson("cvDoc") || emptyCvDoc() });
     const doc = await parseCvDocFromText(cvText);
     setKvJson("cvDoc", doc);
     res.json({ doc });

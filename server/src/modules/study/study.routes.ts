@@ -33,7 +33,9 @@ r.post(
         `Дай 3 підказки від найтоншої до найсильнішої (напрям думки → підхід/структура → майже розв'язок, але без готового коду). Формат: {"hints":["...","...","..."]}`,
       { json: true, maxTokens: 400, temperature: 0.3, cache: true },
     );
-    const hints: string[] = Array.isArray(out?.hints) ? out.hints.filter((x: unknown): x is string => typeof x === "string").slice(0, 3) : [];
+    const hints: string[] = Array.isArray(out?.hints)
+      ? out.hints.filter((x: unknown): x is string => typeof x === "string").slice(0, 3)
+      : [];
     res.json({ hints });
   }),
 );
@@ -140,7 +142,8 @@ r.post("/study/grade", (req, res) => {
   if (typeof cardId !== "string" || !allCards().some((c) => c.id === cardId)) throw new HttpError(400, "Невідома картка");
   if (grade !== 0 && grade !== 1) throw new HttpError(400, "grade має бути 0 або 1");
   const today = new Date();
-  const existing = db.prepare("SELECT * FROM srs WHERE cardId=?").get(cardId) as { ease: number; interval: number; reps: number } | undefined;
+  const existing = db.prepare("SELECT * FROM srs WHERE cardId=?").get(cardId) as
+    { ease: number; interval: number; reps: number } | undefined;
   const s = existing || { ease: 2.5, interval: 0, reps: 0 };
   if (grade === 0) {
     s.interval = 0;

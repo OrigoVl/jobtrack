@@ -7,7 +7,10 @@ const r = express.Router();
 // ---------- companies ----------
 r.get("/companies", (_q, res) =>
   res.json(
-    (db.prepare("SELECT * FROM companies ORDER BY name").all() as unknown as CompanyRow[]).map((c) => ({ ...c, questions: j(c.questions) })),
+    (db.prepare("SELECT * FROM companies ORDER BY name").all() as unknown as CompanyRow[]).map((c) => ({
+      ...c,
+      questions: j(c.questions),
+    })),
   ),
 );
 r.post("/companies", (req, res) => {

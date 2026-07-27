@@ -62,6 +62,18 @@ OPENAI_API_KEY=sk-...
 
 Підтримується і Anthropic (`LLM_PROVIDER=anthropic`, `ANTHROPIC_API_KEY=...`).
 
+`server/src/config/env.ts` валідує `.env` через Zod одразу при старті (fail-fast): некоректний
+`LLM_PROVIDER` чи інша змінна — застосунок впаде з чітким повідомленням, а не мовчки піде в офлайн.
+
+## CI та якість коду
+
+GitHub Actions (`.github/workflows/ci.yml`) на кожен push/PR у `main` ганяє: `lint` → `typecheck` →
+`test` → `build` для client і server (pnpm workspace, кеш store). Dependabot (`.github/dependabot.yml`)
+щотижня пропонує оновлення npm-залежностей, Docker-базового образу й GitHub Actions.
+
+Сервер захищений `helmet()` (security-заголовки) і глобальним rate-limit на `/api` (600 запитів/15хв
+на IP, health виключено) — щоб баг у фронтенді чи зловживання платними LLM-викликами не поклали сервіс.
+
 ## Архітектура
 
 Бекенд структурований **по доменних модулях** (feature-based, у стилі layered-архітектури

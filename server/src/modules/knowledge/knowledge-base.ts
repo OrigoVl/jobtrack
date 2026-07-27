@@ -264,7 +264,11 @@ export const KB: Record<string, KbEntry> = {
   },
 };
 
-const GENERIC: KbEntry = { cat: null, learn: ["Основи та практика на реальних задачах"], resources: [R("roadmap.sh", "https://roadmap.sh/")] };
+const GENERIC: KbEntry = {
+  cat: null,
+  learn: ["Основи та практика на реальних задачах"],
+  resources: [R("roadmap.sh", "https://roadmap.sh/")],
+};
 
 export function catFor(tech: string): string | null {
   return (KB[tech] || GENERIC).cat;

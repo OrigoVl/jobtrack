@@ -16,7 +16,14 @@ describe("CvThemeSchema", () => {
   });
 
   it("keeps valid values untouched", () => {
-    const out = CvThemeSchema.parse({ template: "twocol", accent: "#00FF00", font: "serif", scale: 1.2, photoShape: "square", photoPos: "right" });
+    const out = CvThemeSchema.parse({
+      template: "twocol",
+      accent: "#00FF00",
+      font: "serif",
+      scale: 1.2,
+      photoShape: "square",
+      photoPos: "right",
+    });
     expect(out.template).toBe("twocol");
     expect(out.accent).toBe("#00FF00");
     expect(out.font).toBe("serif");
@@ -56,7 +63,18 @@ describe("CvThemeSchema", () => {
 describe("CvDocSchema", () => {
   it("produces an empty-but-safe doc from an empty object", () => {
     const doc = CvDocSchema.parse({});
-    expect(doc).toMatchObject({ name: "", title: "", contact: "", summary: "", photo: "", skills: [], experience: [], education: [], projects: [], languages: [] });
+    expect(doc).toMatchObject({
+      name: "",
+      title: "",
+      contact: "",
+      summary: "",
+      photo: "",
+      skills: [],
+      experience: [],
+      education: [],
+      projects: [],
+      languages: [],
+    });
   });
 
   it("truncates long strings and caps array sizes", () => {
@@ -66,7 +84,12 @@ describe("CvDocSchema", () => {
   });
 
   it("caps experience entries at 20 and sanitizes nested fields", () => {
-    const experience = Array.from({ length: 25 }, (_, i) => ({ role: `role${i}`, company: `co${i}`, period: "2020", bullets: [1, "ok", null] }));
+    const experience = Array.from({ length: 25 }, (_, i) => ({
+      role: `role${i}`,
+      company: `co${i}`,
+      period: "2020",
+      bullets: [1, "ok", null],
+    }));
     const doc = CvDocSchema.parse({ experience });
     expect(doc.experience).toHaveLength(20);
     expect(doc.experience[0].bullets).toEqual(["ok"]);
@@ -79,7 +102,10 @@ describe("CvDocSchema", () => {
   });
 
   it("sanitizes languages: trims, requires a name, caps at 12", () => {
-    const languages: Array<{ name?: string; level: string }> = Array.from({ length: 15 }, (_, i) => ({ name: `  Lang${i}  `, level: "B2" }));
+    const languages: Array<{ name?: string; level: string }> = Array.from({ length: 15 }, (_, i) => ({
+      name: `  Lang${i}  `,
+      level: "B2",
+    }));
     languages.push({ level: "C1" }); // no name -> dropped
     const doc = CvDocSchema.parse({ languages });
     expect(doc.languages).toHaveLength(12);

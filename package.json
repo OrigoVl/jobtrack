@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.14.0",
+  "engines": {
+    "node": ">=22.5"
+  },
   "scripts": {
     "dev": "concurrently -k -n server,client -c green,cyan \"pnpm --filter jobtrack-server dev\" \"pnpm --filter jobtrack-client dev\"",
     "dev:server": "pnpm --filter jobtrack-server dev",
@@ -20,6 +23,8 @@
     "prettier": "^3.3.3"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

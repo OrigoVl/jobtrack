@@ -13,7 +13,8 @@ r.post(
     const answer = String(req.body?.answer || "").trim();
     const reference = String(req.body?.reference || "").slice(0, 2000);
     if (answer.length < 2) throw new HttpError(400, "Порожня відповідь");
-    if (!llmAvailable()) return res.json({ offline: true, score: null, verdict: "AI офлайн — увімкни ключ у server/.env для оцінки відповідей." });
+    if (!llmAvailable())
+      return res.json({ offline: true, score: null, verdict: "AI офлайн — увімкни ключ у server/.env для оцінки відповідей." });
     const role = getProfile().domain || "фахівець";
     const out = await chat(
       `Ти доброзичливий, але вимогливий інтерв'юер для ролі «${role}». Оцінюєш відповідь кандидата чесно. Відповідай ЛИШЕ валідним JSON українською.`,

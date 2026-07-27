@@ -24,7 +24,7 @@ async function fetchRemote(url: string, ms = 8000): Promise<Response | null> {
 }
 async function fetchJson<T = unknown>(url: string, ms = 8000): Promise<T | null> {
   const res = await fetchRemote(url, ms);
-  return res ? ((res.json().catch(() => null)) as Promise<T | null>) : null;
+  return res ? (res.json().catch(() => null) as Promise<T | null>) : null;
 }
 async function fetchText(url: string, ms = 8000): Promise<string | null> {
   const res = await fetchRemote(url, ms);
@@ -68,7 +68,9 @@ interface ArbeitnowResponse {
 }
 
 export async function fetchArbeitnow(query: string): Promise<RawJob[]> {
-  const pages = await Promise.all([1, 2, 3].map((p) => fetchJson<ArbeitnowResponse>(`https://www.arbeitnow.com/api/job-board-api?page=${p}`)));
+  const pages = await Promise.all(
+    [1, 2, 3].map((p) => fetchJson<ArbeitnowResponse>(`https://www.arbeitnow.com/api/job-board-api?page=${p}`)),
+  );
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   return pages
     .flatMap((d) => d?.data || [])
@@ -82,7 +84,8 @@ export async function fetchArbeitnow(query: string): Promise<RawJob[]> {
     }))
     .filter(
       (j) =>
-        !terms.length || terms.some((t) => j.position.toLowerCase().includes(t) || j.tags.some((tag) => String(tag).toLowerCase().includes(t))),
+        !terms.length ||
+        terms.some((t) => j.position.toLowerCase().includes(t) || j.tags.some((tag) => String(tag).toLowerCase().includes(t))),
     )
     .slice(0, 60);
 }
