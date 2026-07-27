@@ -10,7 +10,7 @@ import {
 } from "../../shared/queries";
 import { api } from "../../shared/api";
 import { useToast } from "../../shared/use-toast";
-import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Spinner } from "../../shared/ui";
 import { STATUSES, type Fit, type Vacancy, type VacancyStatus } from "../../shared/types";
 import { fitTone, fitText } from "../../shared/fit-tone";
 import {
@@ -104,6 +104,10 @@ function VacancyBoard() {
             <div className="space-y-2 min-h-[40px]">
               {items.map((v) => {
                 const idx = STATUSES.indexOf(status);
+                // Позначаємо саме ту картку, чий статус зараз зберігається (drag-and-drop або
+                // клавіатурне переміщення) — updateVacancyMutation одна на всю дошку, тож
+                // scope'имо за variables.id, аби спінер не блимав на всіх картках одразу.
+                const isSaving = updateVacancyMutation.isPending && updateVacancyMutation.variables?.id === v.id;
                 return (
                   <div
                     key={v.id}
@@ -126,8 +130,13 @@ function VacancyBoard() {
                         moveByKeyboard(v, -1);
                       }
                     }}
-                    className={`bg-white border border-slate-200 border-l-4 ${STATUS_BORDER_L_CLASS[status] ?? DEFAULT_STATUS_BORDER_L_CLASS} rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-card focus:outline-none focus:ring-2 focus:ring-indigo-400`}
+                    className={`relative bg-white border border-slate-200 border-l-4 ${STATUS_BORDER_L_CLASS[status] ?? DEFAULT_STATUS_BORDER_L_CLASS} rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-card focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-opacity ${isSaving ? "opacity-60" : ""}`}
                   >
+                    {isSaving && (
+                      <span className="absolute top-1.5 right-1.5 text-indigo-500" aria-label="Зберігаю…">
+                        <Spinner className="h-3 w-3" />
+                      </span>
+                    )}
                     <div className="font-semibold text-sm text-slate-800 truncate">{v.company}</div>
                     <div className="text-xs text-slate-500 truncate">{v.position}</div>
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
@@ -204,7 +213,12 @@ export function Vacancies() {
                 🗂 Канбан
               </Btn>
             </div>
-            <Btn onClick={() => addVacancyMutation.mutate({ company: "Нова компанія", position: "Позиція" })}>+ Додати вакансію</Btn>
+            <Btn
+              loading={addVacancyMutation.isPending}
+              onClick={() => addVacancyMutation.mutate({ company: "Нова компанія", position: "Позиція" })}
+            >
+              + Додати вакансію
+            </Btn>
           </div>
         }
       />
@@ -218,8 +232,8 @@ export function Vacancies() {
           placeholder="Встав HTML або текст зі збереженої таблиці вакансій DOU — витягнемо всі посилання…"
           className="w-full h-20 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
         />
-        <Btn className="mt-2" variant="ghost" onClick={doImport} disabled={!imp}>
-          Імпортувати посилання
+        <Btn className="mt-2" variant="ghost" onClick={doImport} disabled={!imp} loading={importVacanciesMutation.isPending}>
+          {importVacanciesMutation.isPending ? "Імпортую й аналізую…" : "Імпортувати посилання"}
         </Btn>
       </Card>
 
@@ -239,7 +253,7 @@ export function Vacancies() {
             className="hidden"
             aria-label="Файл job-tracker.json для імпорту"
           />
-          <Btn variant="ghost" onClick={() => jsonFileInputRef.current?.click()} disabled={importJsonMutation.isPending}>
+          <Btn variant="ghost" onClick={() => jsonFileInputRef.current?.click()} loading={importJsonMutation.isPending}>
             {importJsonMutation.isPending ? "Імпортую…" : "⬆ Імпортувати з файлу"}
           </Btn>
           <Btn variant="ghost" onClick={onExportJson} disabled={vacancies.length === 0}>
@@ -254,7 +268,14 @@ export function Vacancies() {
             icon="📋"
             title="Ще немає вакансій"
             hint="Додай першу вакансію вручну або імпортуй список із DOU — далі застосунок сам збудує аналітику й роудмапу."
-            action={<Btn onClick={() => addVacancyMutation.mutate({ company: "Нова компанія", position: "Позиція" })}>+ Додати першу</Btn>}
+            action={
+              <Btn
+                loading={addVacancyMutation.isPending}
+                onClick={() => addVacancyMutation.mutate({ company: "Нова компанія", position: "Позиція" })}
+              >
+                + Додати першу
+              </Btn>
+            }
           />
         </Card>
       ) : view === "board" ? (
@@ -275,121 +296,137 @@ export function Vacancies() {
                 </tr>
               </thead>
               <tbody>
-                {vacancies.map((row) => (
-                  <tr key={row.id} className="border-t border-slate-100 align-top hover:bg-slate-50/60">
-                    <td className="p-3">
-                      <input
-                        defaultValue={row.company}
-                        onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { company: e.target.value } })}
-                        className="bg-transparent font-semibold w-full outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
-                      />
-                      <input
-                        defaultValue={row.position}
-                        onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { position: e.target.value } })}
-                        className="bg-transparent text-slate-500 text-xs w-full outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
-                      />
-                      <div className="flex items-center gap-1 mt-0.5">
+                {vacancies.map((row) => {
+                  // updateVacancyMutation — один хук на всю таблицю, тож scope'имо "зберігаю" саме
+                  // до рядка, чий id збігається з variables останнього виклику (React Query тримає
+                  // variables, доки isPending) — інакше спінер блимав би одразу в усіх рядках.
+                  const isSavingRow = updateVacancyMutation.isPending && updateVacancyMutation.variables?.id === row.id;
+                  const isDeletingRow = deleteVacancyMutation.isPending && deleteVacancyMutation.variables === row.id;
+                  return (
+                    <tr key={row.id} className="border-t border-slate-100 align-top hover:bg-slate-50/60">
+                      <td className="p-3">
                         <input
-                          type="url"
-                          defaultValue={row.url}
-                          onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { url: e.target.value } })}
-                          placeholder="Посилання (jobs.dou.ua → стек підтягнеться сам)…"
-                          aria-label={`Посилання на вакансію — ${row.company}`}
-                          className="bg-transparent text-indigo-600 text-[11px] flex-1 min-w-0 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
+                          defaultValue={row.company}
+                          onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { company: e.target.value } })}
+                          className="bg-transparent font-semibold w-full outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
                         />
-                        {row.url && (
-                          <a
-                            href={row.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            title="Відкрити вакансію"
-                            className="text-indigo-600 text-xs shrink-0"
-                          >
-                            ↗
-                          </a>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-3 max-w-[220px]">
-                      <div className="flex flex-wrap gap-1">
-                        {row.stack.length === 0 ? (
-                          <span className="text-xs text-slate-400">—</span>
-                        ) : (
-                          row.stack.map((s) => (
-                            <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                              {s}
-                            </span>
-                          ))
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <select
-                        defaultValue={row.fit}
-                        onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { fit: e.target.value as Fit } })}
-                        className={`bg-slate-100 border border-slate-200 rounded px-1.5 py-1 text-xs font-medium ${fitText[row.fit]}`}
-                      >
-                        <option value="high">High</option>
-                        <option value="med">Med</option>
-                        <option value="low">Low</option>
-                      </select>
-                    </td>
-                    <td className="p-3">
-                      <select
-                        defaultValue={row.status}
-                        onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { status: e.target.value } })}
-                        className={`border rounded px-1.5 py-1 text-xs font-medium ${
-                          STATUS_SELECT_CLASS[row.status as VacancyStatus] ?? DEFAULT_STATUS_SELECT_CLASS
-                        }`}
-                      >
-                        {STATUSES.map((s) => (
-                          <option key={s}>{s}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="p-3">
-                      <input
-                        type="date"
-                        defaultValue={row.applied}
-                        onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { applied: e.target.value } })}
-                        aria-label={`Дата подачі заявки — ${row.company}`}
-                        className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
-                      />
-                      {daysSinceApplied(row.applied) != null && (
-                        <div
-                          className={`text-[11px] mt-0.5 ${
-                            isStaleApplication(row.status, daysSinceApplied(row.applied)) ? "text-rose-600 font-medium" : "text-slate-400"
-                          }`}
-                          title={
-                            isStaleApplication(row.status, daysSinceApplied(row.applied))
-                              ? `Понад ${STALE_APPLICATION_DAYS} днів без відповіді — варто поштовхнути рекрутера`
-                              : undefined
-                          }
-                        >
-                          {daysSinceApplied(row.applied)} дн. очікування
+                        <input
+                          defaultValue={row.position}
+                          onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { position: e.target.value } })}
+                          className="bg-transparent text-slate-500 text-xs w-full outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
+                        />
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <input
+                            type="url"
+                            defaultValue={row.url}
+                            onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { url: e.target.value } })}
+                            placeholder="Посилання (jobs.dou.ua → стек підтягнеться сам)…"
+                            aria-label={`Посилання на вакансію — ${row.company}`}
+                            className="bg-transparent text-indigo-600 text-[11px] flex-1 min-w-0 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
+                          />
+                          {row.url && (
+                            <a
+                              href={row.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Відкрити вакансію"
+                              className="text-indigo-600 text-xs shrink-0"
+                            >
+                              ↗
+                            </a>
+                          )}
                         </div>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <input
-                        type="date"
-                        defaultValue={row.next}
-                        onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { next: e.target.value } })}
-                        aria-label={`Дата наступного кроку — ${row.company}`}
-                        className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
-                      />
-                    </td>
-                    <td className="p-3 text-right">
-                      <button
-                        onClick={() => deleteVacancyMutation.mutate(row.id)}
-                        className="text-slate-400 hover:text-rose-500"
-                        title="Видалити"
-                      >
-                        ✕
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                        {isSavingRow && (
+                          <div className="flex items-center gap-1 text-[11px] text-indigo-500 mt-0.5">
+                            <Spinner className="h-3 w-3" /> Зберігаю…
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-3 max-w-[220px]">
+                        <div className="flex flex-wrap gap-1">
+                          {row.stack.length === 0 ? (
+                            <span className="text-xs text-slate-400">—</span>
+                          ) : (
+                            row.stack.map((s) => (
+                              <span
+                                key={s}
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200"
+                              >
+                                {s}
+                              </span>
+                            ))
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <select
+                          defaultValue={row.fit}
+                          onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { fit: e.target.value as Fit } })}
+                          className={`bg-slate-100 border border-slate-200 rounded px-1.5 py-1 text-xs font-medium ${fitText[row.fit]}`}
+                        >
+                          <option value="high">High</option>
+                          <option value="med">Med</option>
+                          <option value="low">Low</option>
+                        </select>
+                      </td>
+                      <td className="p-3">
+                        <select
+                          defaultValue={row.status}
+                          onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { status: e.target.value } })}
+                          className={`border rounded px-1.5 py-1 text-xs font-medium ${
+                            STATUS_SELECT_CLASS[row.status as VacancyStatus] ?? DEFAULT_STATUS_SELECT_CLASS
+                          }`}
+                        >
+                          {STATUSES.map((s) => (
+                            <option key={s}>{s}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="p-3">
+                        <input
+                          type="date"
+                          defaultValue={row.applied}
+                          onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { applied: e.target.value } })}
+                          aria-label={`Дата подачі заявки — ${row.company}`}
+                          className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
+                        />
+                        {daysSinceApplied(row.applied) != null && (
+                          <div
+                            className={`text-[11px] mt-0.5 ${
+                              isStaleApplication(row.status, daysSinceApplied(row.applied)) ? "text-rose-600 font-medium" : "text-slate-400"
+                            }`}
+                            title={
+                              isStaleApplication(row.status, daysSinceApplied(row.applied))
+                                ? `Понад ${STALE_APPLICATION_DAYS} днів без відповіді — варто поштовхнути рекрутера`
+                                : undefined
+                            }
+                          >
+                            {daysSinceApplied(row.applied)} дн. очікування
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        <input
+                          type="date"
+                          defaultValue={row.next}
+                          onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { next: e.target.value } })}
+                          aria-label={`Дата наступного кроку — ${row.company}`}
+                          className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
+                        />
+                      </td>
+                      <td className="p-3 text-right">
+                        <button
+                          onClick={() => deleteVacancyMutation.mutate(row.id)}
+                          disabled={isDeletingRow}
+                          className="text-slate-400 hover:text-rose-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Видалити"
+                        >
+                          {isDeletingRow ? <Spinner className="h-3.5 w-3.5" /> : "✕"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

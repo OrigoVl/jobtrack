@@ -15,6 +15,20 @@ describe("Btn", () => {
     render(<Btn disabled>Недоступно</Btn>);
     expect(screen.getByRole("button", { name: "Недоступно" })).toBeDisabled();
   });
+
+  it("shows a spinner and disables the button while loading", () => {
+    const onClick = vi.fn();
+    render(
+      <Btn loading onClick={onClick}>
+        Зберегти
+      </Btn>,
+    );
+    const btn = screen.getByRole("button", { name: "Зберегти" });
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute("aria-busy", "true");
+    fireEvent.click(btn);
+    expect(onClick).not.toHaveBeenCalled();
+  });
 });
 
 describe("Card", () => {
