@@ -9,7 +9,7 @@ import { test, expect } from "@playwright/test";
 test("generates an offline cover letter on the CV page", async ({ page }) => {
   await page.goto("/cv");
 
-  await page.getByPlaceholder("Текст вакансії…").fill("Шукаємо Full Stack розробника з досвідом Node.js та React.");
+  await page.getByPlaceholder("…або встав текст вакансії вручну").fill("Шукаємо Full Stack розробника з досвідом Node.js та React.");
   await page.getByRole("button", { name: "Згенерувати лист" }).click();
 
   await expect(page.getByText(/Доброго дня!/)).toBeVisible({ timeout: 15_000 });

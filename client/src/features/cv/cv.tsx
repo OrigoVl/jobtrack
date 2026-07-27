@@ -2,10 +2,23 @@ import { useState } from "react";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useToast } from "../../shared/use-toast";
-import { useApplyCvUpload, useProfile, useSaveProfile } from "../../shared/queries";
+import { useApplyCvUpload, useProfile, useSaveProfile, useVacancies } from "../../shared/queries";
 import { Btn, Card, Chip, PageHeader, Spinner } from "../../shared/ui";
-import type { CvAnalysis, CvMatch, CvReview } from "../../shared/types";
+import type { CvAnalysis, CvMatch, CvReview, Vacancy } from "../../shared/types";
 import { Field } from "../../shared/view-kit";
+
+/** Компонує текст вакансії з уже збереженних у трекері полів (позиція/компанія/рівень/стек/нотатки) —
+ * той самий набір даних, що вже показує таблиця вакансій, зібраний в один блок для LLM-промпту. */
+function vacancyToText(v: Vacancy): string {
+  return [
+    `${v.position || "Вакансія"}${v.company ? ` — ${v.company}` : ""}`,
+    v.level ? `Рівень: ${v.level}` : "",
+    v.stack.length ? `Стек: ${v.stack.join(", ")}` : "",
+    v.notes,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
 
 /** Експорт тексту у PDF через діалог друку браузера (Зберегти як PDF). */
 function exportPdf(title: string, body: string): void {
@@ -211,6 +224,7 @@ export function CvMatchPanel({
 }
 export function CVView({ llm }: { llm: boolean }) {
   const { data: profile } = useProfile();
+  const { data: vacancies = [] } = useVacancies();
   const saveProfileMutation = useSaveProfile();
   const applyCvUpload = useApplyCvUpload();
   const { toast } = useToast();
@@ -220,7 +234,28 @@ export function CVView({ llm }: { llm: boolean }) {
   const [skillsOut, setSkillsOut] = useUi("cv.skillsOut", "");
   const [cover, setCover] = useUi("cv.cover", "");
   const [vacText, setVacText] = useUi("cv.vacText", "");
+  const [coverVacId, setCoverVacId] = useUi<number>("cv.coverVacId", 0);
+  const [coverUrl, setCoverUrl] = useUi("cv.coverUrl", "");
   const [busy, setBusy] = useState("");
+  const coverCompany = vacancies.find((v) => v.id === coverVacId)?.company || "";
+  const pickCoverVacancy = (id: number) => {
+    setCoverVacId(id);
+    const vac = vacancies.find((v) => v.id === id);
+    if (vac) setVacText(vacancyToText(vac));
+  };
+  const fetchCoverUrl = async () => {
+    if (!coverUrl.trim()) return;
+    setBusy("cover-url");
+    try {
+      setCoverVacId(0);
+      setVacText((await api.fetchVacancyUrl(coverUrl.trim())).text);
+      toast("Текст вакансії завантажено", "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Не вдалося завантажити сторінку", "error");
+    } finally {
+      setBusy("");
+    }
+  };
   const cvText = draft?.cvText ?? profile?.cvText ?? "";
   const skills = draft?.skills ?? profile?.skills ?? [];
   const domain = draft?.domain ?? profile?.domain ?? "";
@@ -252,7 +287,7 @@ export function CVView({ llm }: { llm: boolean }) {
   const genCover = async () => {
     setBusy("cover");
     try {
-      setCover((await api.coverLetter(vacText, "")).text);
+      setCover((await api.coverLetter(vacText, coverCompany)).text);
     } finally {
       setBusy("");
     }
@@ -383,15 +418,47 @@ export function CVView({ llm }: { llm: boolean }) {
         </Card>
         <Card className="space-y-2">
           <div className="text-sm font-semibold text-slate-700">✉️ Cover letter під вакансію</div>
+          {vacancies.length > 0 && (
+            <select
+              value={coverVacId}
+              onChange={(e) => pickCoverVacancy(Number(e.target.value))}
+              aria-label="Обрати вакансію з трекера для cover letter"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            >
+              <option value={0}>— обрати вакансію з трекера —</option>
+              {vacancies.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.position}
+                  {v.company ? ` — ${v.company}` : ""}
+                </option>
+              ))}
+            </select>
+          )}
+          <div className="flex gap-1.5">
+            <input
+              value={coverUrl}
+              onChange={(e) => setCoverUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && fetchCoverUrl()}
+              aria-label="Посилання на вакансію для cover letter"
+              placeholder="…або встав посилання на вакансію"
+              className="flex-1 min-w-0 bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            />
+            <Btn size="sm" variant="subtle" onClick={fetchCoverUrl} loading={busy === "cover-url"} disabled={!coverUrl.trim()}>
+              Завантажити
+            </Btn>
+          </div>
           <textarea
             value={vacText}
-            onChange={(e) => setVacText(e.target.value)}
+            onChange={(e) => {
+              setVacText(e.target.value);
+              setCoverVacId(0);
+            }}
             aria-label="Текст вакансії для cover letter"
-            placeholder="Текст вакансії…"
+            placeholder="…або встав текст вакансії вручну"
             className="w-full h-16 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
           <div className="flex gap-2 flex-wrap">
-            <Btn size="sm" variant="ghost" onClick={genCover} loading={busy === "cover"}>
+            <Btn size="sm" variant="ghost" onClick={genCover} loading={busy === "cover"} disabled={!vacText.trim()}>
               Згенерувати лист
             </Btn>
             {cover && (

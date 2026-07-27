@@ -128,6 +128,22 @@ r.post(
   }),
 );
 
+// стягнути "сирий" текст сторінки вакансії за будь-яким посиланням, без прив'язки до збереженої
+// вакансії (для форм, де хочеться просто вставити URL і отримати текст — напр. cover letter).
+// На відміну від tryAutoEnrichStack (best-effort, ніколи не кидає), тут кидаємо реальну помилку:
+// користувач явно чекає на результат конкретної дії, тож "тихий null" лише сплутав би.
+r.post(
+  "/vacancies/fetch-url",
+  aiLimiter,
+  asyncHandler(async (req, res) => {
+    const url = parseText(req.body, "url", { min: 5, max: 2000 });
+    const text = await fetchVacancyText(url);
+    if (text.length < 50)
+      throw new HttpError(422, "Не вдалося витягти текст зі сторінки (можливо, вона порожня або захищена від парсингу).");
+    res.json({ text: text.slice(0, 8000) });
+  }),
+);
+
 // спарсити ВСІ вакансії з посиланнями
 r.post(
   "/vacancies/fetch-all",

@@ -53,6 +53,7 @@ export const api = {
       body: JSON.stringify({ html }),
     }),
   fetchAllVacancies: () => req<FetchAllResult>("/vacancies/fetch-all", { method: "POST", body: "{}" }),
+  fetchVacancyUrl: (url: string) => req<{ text: string }>("/vacancies/fetch-url", { method: "POST", body: JSON.stringify({ url }) }),
   importVacanciesJson: (items: unknown[]) =>
     req<JsonVacancyImportResult>("/vacancies/import-json", { method: "POST", body: JSON.stringify(items) }),
   exportVacancies: () => req<Record<string, string>[]>("/vacancies/export"),
