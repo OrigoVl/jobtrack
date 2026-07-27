@@ -9,7 +9,11 @@ import { contextLogger } from "../../core/logger.js";
 import { assertSafeVacancyUrl, type Fit } from "../../shared/validation.js";
 import { computeFit, stripHtml } from "./vacancy-text.js";
 
-export { computeFit, stripHtml };
+// Реекспортуємо лише computeFit — vacancies.routes.ts свідомо імпортує його звідси (а не напряму
+// з vacancy-text.js), щоб не тягнути ще один шлях імпорту в роутах. stripHtml використовується
+// лише всередині цього файлу (fetchVacancyText нижче) — інші місця імпортують його напряму з
+// vacancy-text.js (див. vacancy-text.test.ts), тож реекспорт тут був зайвим.
+export { computeFit };
 
 export async function fetchVacancyText(url: string): Promise<string> {
   const safeUrl = assertSafeVacancyUrl(url);

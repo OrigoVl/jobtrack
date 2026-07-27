@@ -83,8 +83,32 @@ export const env = {
     anthropicModelSmart: raw.ANTHROPIC_MODEL_SMART,
     timeoutMs: raw.LLM_TIMEOUT_MS,
     timeoutMsFast: raw.LLM_TIMEOUT_MS_FAST,
+    // Свідомо прив'язано САМЕ до вибраного `provider`, а не "чи є БУДЬ-ЯКИЙ ключ" — інакше
+    // LLM_PROVIDER=openai (дефолт) із лише ANTHROPIC_API_KEY у .env (типова помилка: користувач
+    // задав ключ, забув переключити провайдера) робив isAvailable true, а llm/client.ts все одно
+    // йшов у гілку OpenAI з `Bearer undefined` — КОЖЕН запит тихо провалювався з незрозумілою
+    // 401-помилкою в логах, хоча UI показував "AI: увімкнено". Тепер у такому разі isAvailable
+    // коректно false — застосунок офлайн-фолбекає скрізь так само чисто, як без жодного ключа
+    // (а не "напів-увімкнено й завжди ламається"), і попередження нижче підказує причину.
     get isAvailable(): boolean {
-      return !!(env.llm.openaiApiKey || env.llm.anthropicApiKey);
+      return env.llm.provider === "anthropic" ? !!env.llm.anthropicApiKey : !!env.llm.openaiApiKey;
     },
   },
 } as const;
+
+// Найчастіша помилка конфігурації LLM: ключ для НЕ вибраного провайдера заданий, а для
+// вибраного — ні (напр. лишили LLM_PROVIDER на дефолтному "openai", але задали лише
+// ANTHROPIC_API_KEY). Сам ключ на диску є — тож легко пропустити при швидкому погляді на .env,
+// чому AI все одно не працює. Одне попередження при старті замість мовчазного "просто офлайн".
+if (!env.llm.isAvailable) {
+  const wrongKeySet = env.llm.provider === "anthropic" ? env.llm.openaiApiKey : env.llm.anthropicApiKey;
+  if (wrongKeySet) {
+    const missing = env.llm.provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
+    const other = env.llm.provider === "anthropic" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY";
+    // eslint-disable-next-line no-console -- логер (core/logger.ts) сам залежить від env.ts (import order), тут ще недоступний
+    console.warn(
+      `⚠️  LLM_PROVIDER=${env.llm.provider}, але ${missing} не задано (є лише ${other}) — AI-фічі працюватимуть в офлайн-режимі. ` +
+        `Задай ${missing} або зміни LLM_PROVIDER у server/.env.`,
+    );
+  }
+}

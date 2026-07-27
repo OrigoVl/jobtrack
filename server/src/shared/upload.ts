@@ -18,7 +18,8 @@ function isAllowedFile(originalname: string, mimetype: string): boolean {
   return ALLOWED_MIME_PATTERNS.some((re) => re.test(mt));
 }
 
-export const upload = multer({
+// Не export — усі роути йдуть через uploadSingle() нижче, "сирий" multer-інстанс нікому назовні не потрібен.
+const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024 },
   // Рання відмова невідповідного типу файлу — чіткий 400 замість того, щоб пропустити

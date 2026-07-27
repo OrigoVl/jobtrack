@@ -3,7 +3,13 @@ import { api } from "../../shared/api";
 import { useHealth, useLearn, useProfile, useRoadmap, useStudy, useVacancies } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
 import { useToast } from "../../shared/use-toast";
-import { enableNotifications, notificationsEnabled, notificationsSupported, maybeNotifyFollowUps } from "../../shared/notifications";
+import {
+  enableNotifications,
+  disableNotifications,
+  notificationsEnabled,
+  notificationsSupported,
+  maybeNotifyFollowUps,
+} from "../../shared/notifications";
 import type { FocusWeek } from "../../shared/types";
 
 function FocusWeekCard({ llm }: { llm: boolean }) {
@@ -74,6 +80,11 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
       ok ? "Нагадування увімкнено — перевіримо прострочені кроки при наступному відкритті" : "Дозвіл на сповіщення не надано",
       ok ? "success" : "error",
     );
+  };
+  const onDisableNotifications = () => {
+    disableNotifications();
+    setNotifOn(false);
+    toast("Нагадування вимкнено", "success");
   };
   if (loadingVacancies) return <CardsSkeleton count={4} />;
   const active = vacancies.filter((x) => !["Відмова", "Пауза", "Хочу подати"].includes(x.status)).length;
@@ -151,7 +162,13 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
             <div className="font-semibold text-slate-800">📅 Найближчі кроки</div>
             {notificationsSupported() &&
               (notifOn ? (
-                <span className="text-[11px] text-emerald-600">🔔 Нагадування увімкнено</span>
+                <button
+                  onClick={onDisableNotifications}
+                  title="Вимкнути нагадування"
+                  className="text-[11px] text-emerald-600 hover:text-rose-600 hover:underline"
+                >
+                  🔔 Нагадування увімкнено (вимкнути)
+                </button>
               ) : (
                 <button onClick={onEnableNotifications} className="text-[11px] text-indigo-600 hover:underline">
                   🔔 Увімкнути нагадування
