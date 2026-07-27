@@ -39,7 +39,7 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  health: () => req<{ ok: boolean; llm: boolean }>("/health"),
+  health: () => req<{ ok: boolean; db: boolean; llm: boolean }>("/health"),
 
   vacancies: () => req<Vacancy[]>("/vacancies"),
   addVacancy: (v: Partial<Vacancy>) => req<Vacancy>("/vacancies", { method: "POST", body: JSON.stringify(v) }),

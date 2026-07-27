@@ -77,6 +77,7 @@ export function Analyzer() {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
+          aria-label="Текст вакансії для аналізу"
           placeholder="Встав текст вакансії…"
           className="w-full h-40 bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
         />

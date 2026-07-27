@@ -143,6 +143,7 @@ export function Vacancies() {
         <textarea
           value={imp}
           onChange={(e) => setImp(e.target.value)}
+          aria-label="HTML або текст для імпорту з DOU"
           placeholder="Встав HTML або текст зі збереженої таблиці вакансій DOU — витягнемо всі посилання…"
           className="w-full h-20 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
         />

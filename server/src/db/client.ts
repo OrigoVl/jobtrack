@@ -45,4 +45,19 @@ function seedVacanciesIfEmpty(): void {
 seedProfileIfEmpty();
 seedVacanciesIfEmpty();
 
+/** Легка перевірка, що з'єднання з БД живе й може виконати запит (для /api/health). */
+export function pingDb(): boolean {
+  try {
+    db.prepare("SELECT 1").get();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Закриває з'єднання з SQLite (WAL checkpoint + звільнення файлу) — викликається при graceful shutdown. */
+export function closeDb(): void {
+  db.close();
+}
+
 export default db;

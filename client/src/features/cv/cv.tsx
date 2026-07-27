@@ -376,6 +376,7 @@ export function CVView({ llm }: { llm: boolean }) {
           <textarea
             value={vacText}
             onChange={(e) => setVacText(e.target.value)}
+            aria-label="Текст вакансії для cover letter"
             placeholder="Текст вакансії…"
             className="w-full h-16 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />

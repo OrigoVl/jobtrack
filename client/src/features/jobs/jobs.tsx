@@ -84,6 +84,7 @@ export function Jobs() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && search()}
+            aria-label="Ключові слова для пошуку вакансій"
             placeholder={profile?.skills.slice(0, 3).join(" ") || "напр. react node typescript"}
             className="flex-1 min-w-[220px] bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />

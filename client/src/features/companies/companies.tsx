@@ -23,6 +23,7 @@ export function Companies() {
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
+              aria-label="Назва компанії"
               placeholder="Назва компанії"
               className="bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
@@ -42,12 +43,14 @@ export function Companies() {
               <textarea
                 defaultValue={c.notes}
                 onBlur={(e) => saveCompanyMutation.mutate({ ...c, notes: e.target.value })}
+                aria-label={`Нотатки про ${c.name}`}
                 placeholder="Нотатки (стек, люди, зарплата, враження)…"
                 className="w-full h-20 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
               <textarea
                 defaultValue={c.questions.join("\n")}
                 onBlur={(e) => saveCompanyMutation.mutate({ ...c, questions: e.target.value.split("\n").filter(Boolean) })}
+                aria-label={`Питання, що ставили в ${c.name}`}
                 placeholder="Питання, що ставили (по одному на рядок)…"
                 className="w-full h-20 mt-2 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />

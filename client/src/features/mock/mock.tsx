@@ -184,6 +184,7 @@ export function MockInterview() {
           <textarea
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
+            aria-label="Твоя відповідь на питання"
             placeholder="Напиши свою відповідь — AI її оцінить і дасть фідбек…"
             className="w-full h-24 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
