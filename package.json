@@ -19,7 +19,7 @@
     "test": "pnpm --filter jobtrack-client test && pnpm --filter jobtrack-server test"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0",
+    "concurrently": "^10.0.4",
     "prettier": "^3.3.3"
   },
   "pnpm": {
