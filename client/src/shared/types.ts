@@ -58,6 +58,20 @@ export interface RadarPoint {
   you: number;
 }
 
+export interface StageConversion {
+  from: string;
+  to: string;
+  /** % вакансій, що досягли `from`, які потім досягли й `to`. null — жодна ще не досягала `from`. */
+  rate: number | null;
+}
+
+export interface StageDuration {
+  status: string;
+  /** Середня к-сть днів між входом у цей статус і наступною зміною статусу. */
+  avgDays: number;
+  count: number;
+}
+
 export interface Analytics {
   /** Поточний розподіл вакансій за статусом (знімок "де зараз"). */
   funnel: Record<string, number>;
@@ -66,6 +80,10 @@ export interface Analytics {
   byDate: Record<string, number>;
   demand: Record<string, number>;
   radar: RadarPoint[];
+  /** Конверсія між сусідніми етапами воронки (яка частка застрягає саме тут). */
+  conversion: StageConversion[];
+  /** Середній час "очікування" в кожному статусі, від найдовшого — де реально застрягають кроки. */
+  stageDurations: StageDuration[];
 }
 
 export interface JsonVacancyImportResult {

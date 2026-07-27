@@ -4,7 +4,6 @@ import { getProfile } from "../../db/index.js";
 import { extractLevel } from "../../shared/tech-dict.js";
 import { extractSkills } from "../../shared/skill-extraction.js";
 import { demandMap } from "../../shared/demand.js";
-import { semanticSimilarity, embeddingsAvailable } from "../../llm/embeddings.js";
 import { HttpError } from "../../core/http.js";
 import { contextLogger } from "../../core/logger.js";
 import { assertSafeVacancyUrl, type Fit } from "../../shared/validation.js";
@@ -31,28 +30,24 @@ export interface QuickAnalysis {
   match: string[];
   gap: string[];
   fit: Fit;
-  /**
-   * Косинусна схожість embeddings CV↔текст вакансії, [0,1] — семантичний сигнал ПОВЕРХ
-   * tech-словника: ловить смислову близькість навіть без спільних tech-термінів (див.
-   * llm/embeddings.ts). null — embeddings недоступні (не-OpenAI провайдер/немає ключа/CV
-   * порожній) або запит до API не вдався; НЕ впливає на детермінований `fit` вище (той
-   * лишається offline-тестованим і не залежить від мережі) — лише додатковий орієнтир.
-   */
-  semanticFit: number | null;
 }
 
+// НЕ рахує semanticFit (embeddings-схожість CV↔вакансія, див. llm/embeddings.ts) — quickAnalyze()
+// викликається з tryAutoEnrichStack() нижче для BACKGROUND-автозбагачення (створення/редагування
+// вакансії з URL, single/bulk re-parse, DOU/JSON імпорт), де використовуються лише techs/level/fit
+// (semanticFit там ніде не читається й не зберігається в БД — рахувати його тут означало б платити
+// за embeddings-виклик на КОЖНЕ автозбагачення заради значення, яке одразу відкидається).
+// semanticFit рахується ОКРЕМО, лише в інтерактивному POST /vacancies/analyze (vacancies.routes.ts),
+// де результат одразу показується користувачу в аналайзері (client/src/features/analyzer).
 export async function quickAnalyze(text: string): Promise<QuickAnalysis> {
   const profile = getProfile();
-  const [techs, semanticFit] = await Promise.all([
-    extractSkills(text),
-    embeddingsAvailable() && profile.cvText ? semanticSimilarity(text, profile.cvText) : Promise.resolve(null),
-  ]);
+  const techs = await extractSkills(text);
   const level = extractLevel(text);
   const match = techs.filter((t) => profile.skills.includes(t));
   const gap = techs.filter((t) => !profile.skills.includes(t));
   // Мапа попиту (частота навички серед уже доданих вакансій) зважує fit: пропустити типову,
   // часто-запитувану навичку гірше за пропуск нішевої — див. computeFit() у vacancy-text.ts.
-  return { techs, level, match, gap, fit: computeFit(match, gap, demandMap()), semanticFit };
+  return { techs, level, match, gap, fit: computeFit(match, gap, demandMap()) };
 }
 
 /**

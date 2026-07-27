@@ -1,5 +1,5 @@
 import express from "express";
-import db, { getProfile, getSrsStateByCard, getReachedCounts } from "../../db/index.js";
+import db, { getProfile, getSrsStateByCard, getReachedCounts, getFunnelConversion, getAvgDaysInStage } from "../../db/index.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { asyncHandler } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
@@ -33,9 +33,15 @@ function isStaleApplication(v: VacancyStatusNextRow, nowMs: number): boolean {
 }
 
 // ---------- analytics ----------
+// "Відмова" свідомо НЕ входить у funnelOrder нижче для конверсії/тривалості: це термінальний
+// "вихід" з майже будь-якого етапу, а не наступний КРОК воронки — включення дало б хибний
+// сигнал типу "конверсія Фінал→Відмова 40%", хоча Відмова могла статись і з попередніх етапів.
+const FUNNEL_ORDER = ["Хочу подати", "Відправив CV", "Скринінг", "Тех.співбесіда", "Тестове завдання", "Фінал", "Оффер", "Відмова"];
+const FUNNEL_PROGRESSION_ORDER = FUNNEL_ORDER.filter((s) => s !== "Відмова");
+
 r.get("/analytics", (_q, res) => {
   const rows = db.prepare("SELECT status, created, applied FROM vacancies").all() as unknown as VacancyStatusRow[];
-  const funnelOrder = ["Хочу подати", "Відправив CV", "Скринінг", "Тех.співбесіда", "Тестове завдання", "Фінал", "Оффер", "Відмова"];
+  const funnelOrder = FUNNEL_ORDER;
   const funnel: Record<string, number> = {};
   funnelOrder.forEach((s) => (funnel[s] = 0));
   const byDate: Record<string, number> = {};
@@ -61,7 +67,9 @@ r.get("/analytics", (_q, res) => {
       demand: cnt,
       you: profile.skills.includes(tech) ? cnt : 0,
     }));
-  res.json({ funnel, funnelReached, byDate, demand, radar });
+  const conversion = getFunnelConversion(FUNNEL_PROGRESSION_ORDER);
+  const stageDurations = getAvgDaysInStage().filter((d) => d.count >= 2); // count===1 — статистично незначуще, лише шум в UI
+  res.json({ funnel, funnelReached, byDate, demand, radar, conversion, stageDurations });
 });
 
 interface FocusSummary {
