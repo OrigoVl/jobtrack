@@ -10,6 +10,7 @@ import { parseProfileInput } from "../../shared/validation.js";
 import { uploadSingle } from "../../shared/upload.js";
 import { CvDocSchema, CvPresetsSchema } from "./cv.schemas.js";
 import { cvAnalysis, reviewCv, matchCv, strs } from "./cv-analysis.service.js";
+import { tailorCv } from "./cv-tailor.service.js";
 import { emptyCvDoc, parseCvDocFromText } from "./cv-document.service.js";
 
 const r = express.Router();
@@ -111,6 +112,20 @@ r.post(
     if (cvText.trim().length < 30) throw new HttpError(400, "Not enough CV text to compare");
     if (!jobTitle.trim() && !jobText.trim()) throw new HttpError(400, "No vacancy data to compare against");
     res.json(await matchCv(userId, cvText, jobTitle, jobText));
+  }),
+);
+
+// ---------- adapting the structured CV Builder doc to one specific vacancy ----------
+r.post(
+  "/cv/tailor",
+  aiLimiter,
+  authed(async (userId, req, res) => {
+    const doc = CvDocSchema.parse(req.body?.doc);
+    const jobTitle = String(req.body?.jobTitle || "").slice(0, 200);
+    const jobText = String(req.body?.jobText || "").slice(0, 4000);
+    if (!jobTitle.trim() && !jobText.trim()) throw new HttpError(400, "No vacancy data to tailor for");
+    if (!doc.skills.length && !doc.experience.length && !doc.summary.trim()) throw new HttpError(400, "Fill in the CV first");
+    res.json(await tailorCv(userId, doc, jobTitle, jobText));
   }),
 );
 

@@ -4,9 +4,9 @@ import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useToast } from "../../shared/use-toast";
 import { useApplyCvUpload, useProfile, useVacancies } from "../../shared/queries";
-import { Btn, Card, CardsSkeleton, Dropdown, PageHeader, Section, Segmented, Spinner } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Chip, Dropdown, PageHeader, Section, Segmented, Spinner } from "../../shared/ui";
 import { SkillsInput } from "../../shared/view-kit";
-import type { CvDoc, CvExperience, CvMatch, CvPreset, CvReview, CvTheme } from "../../shared/types";
+import type { CvDoc, CvExperience, CvMatch, CvPreset, CvReview, CvTailorResult, CvTheme, Vacancy } from "../../shared/types";
 import { CvMatchPanel, CvReviewPanel } from "./cv";
 import { DEFAULT_ORDER, cvDocToText, exportCvDoc, themeOf } from "./builder/cv-doc-utils";
 import { GeneralSection } from "./builder/basic-info-card";
@@ -19,6 +19,15 @@ import { CvPreviewPanel } from "./builder/cv-preview-panel";
 import { ResumeCompleteness } from "./builder/resume-completeness";
 
 type SectionKey = "general" | "experience" | "skills" | "projects" | "education" | "languages" | "design";
+
+// Shared by "Compare" and "Tailor" (both need the same vacancy → plain-text job description) —
+// same fields already shown in the tracker table (stack/notes), assembled into one block.
+function vacancyJobText(vac: Vacancy): string {
+  return [vac.stack.length ? `Stack: ${vac.stack.join(", ")}` : "", vac.notes].filter(Boolean).join("\n") || vac.position;
+}
+function vacancyLabel(vac: Vacancy): string {
+  return `${vac.position}${vac.company ? ` @ ${vac.company}` : ""}`;
+}
 
 /* ---------- CV Builder ---------- */
 export function CvBuilder({ llm }: { llm: boolean }) {
@@ -40,7 +49,14 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   // looked like it "closed" when both were rendered as separate, independently-ordered blocks).
   const [busyReview, setBusyReview] = useState(false);
   const [busyMatch, setBusyMatch] = useState(false);
-  const [activeReport, setActiveReport] = useUi<"review" | "match">("cvbuilder.activeReport", "review");
+  const [busyTailor, setBusyTailor] = useState(false);
+  // Result of "🎯 Tailor CV" (POST /cv/tailor): the candidate's own skills/bullets reordered by
+  // relevance to the selected vacancy + a rewritten summary when the LLM produced one. Kept
+  // separate from `doc` on purpose — tailoring never touches the live builder doc until the
+  // user explicitly clicks "Apply to CV" in the tailor tab below, so switching vacancies to
+  // compare/tailor for never risks silently overwriting what's being edited.
+  const [tailored, setTailored] = useUi<CvTailorResult | null>("cvbuilder.tailored", null);
+  const [activeReport, setActiveReport] = useUi<"review" | "match" | "tailor">("cvbuilder.activeReport", "review");
   const [dismissedSuggest, setDismissedSuggest] = useState(false);
   // Single exclusive accordion instead of the old "Content / Design" tab split with every card
   // stacked underneath — one section open at a time, so there's never more scrolling than one
@@ -137,10 +153,9 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       toast("Select a vacancy from the list", "error");
       return;
     }
-    const jobText = [vac.stack.length ? `Stack: ${vac.stack.join(", ")}` : "", vac.notes].filter(Boolean).join("\n") || vac.position;
     setBusyMatch(true);
     try {
-      const r = await api.matchVacancy(cvDocToText(doc), `${vac.position}${vac.company ? ` @ ${vac.company}` : ""}`, jobText);
+      const r = await api.matchVacancy(cvDocToText(doc), vacancyLabel(vac), vacancyJobText(vac));
       setMatch(r);
       setActiveReport("match");
       toast(r.offline ? "Basic comparison (enable LLM for accurate results)" : "Comparison ready", r.offline ? "info" : "success");
@@ -149,6 +164,38 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     } finally {
       setBusyMatch(false);
     }
+  };
+  // Adapts the CV to the selected vacancy: reorders the candidate's own skills/experience
+  // bullets by relevance (a deterministic algorithm, works offline too) and — only when the LLM
+  // produced one — swaps in a tailored summary. Doesn't touch `doc` directly; the result is
+  // shown in its own report tab with an explicit "Apply to CV" action (applyTailored below).
+  const doTailor = async () => {
+    const vac = vacancies.find((v) => v.id === matchVacId);
+    if (!vac) {
+      toast("Select a vacancy from the list", "error");
+      return;
+    }
+    setBusyTailor(true);
+    try {
+      const r = await api.tailorCv(doc, vacancyLabel(vac), vacancyJobText(vac));
+      setTailored(r);
+      setActiveReport("tailor");
+      toast(
+        r.match.offline
+          ? "Tailored offline — skills/bullets reordered (enable LLM for a rewritten summary too)"
+          : "CV tailored for this vacancy",
+        r.match.offline ? "info" : "success",
+      );
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Tailoring error", "error");
+    } finally {
+      setBusyTailor(false);
+    }
+  };
+  const applyTailored = () => {
+    if (!tailored) return;
+    setDoc(tailored.doc);
+    toast("Tailored version applied to the builder — remember to Save", "success");
   };
   const doReview = async () => {
     const text = cvDocToText(doc);
@@ -379,6 +426,16 @@ export function CvBuilder({ llm }: { llm: boolean }) {
         <Btn size="sm" variant="ghost" onClick={doMatch} loading={busyMatch} disabled={!matchVacId}>
           🎯 Compare
         </Btn>
+        <Btn
+          size="sm"
+          variant="ghost"
+          onClick={doTailor}
+          loading={busyTailor}
+          disabled={!matchVacId}
+          title="Reorder skills/bullets and rewrite the summary for the selected vacancy"
+        >
+          ✨ Tailor CV
+        </Btn>
         <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />
         <Btn size="sm" variant="ghost" onClick={doReview} loading={busyReview}>
           🤖 AI Assistant
@@ -398,36 +455,69 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           </Btn>
         </Card>
       )}
-      {(review || match) &&
+      {(review || match || tailored) &&
         (() => {
           // Which reports actually exist — falls back to whichever is available if the
           // remembered tab was hidden/cleared, so the dismiss (✕) button always acts on what's
-          // actually on screen. Because both live in one fixed-position card with a tab
-          // switcher instead of two independently-ordered blocks, running "Compare" after
-          // "Tips" never pushes the review result out of view — it's one click away, not gone.
-          const available: ("review" | "match")[] = [...(review ? (["review"] as const) : []), ...(match ? (["match"] as const) : [])];
+          // actually on screen. Because all three live in one fixed-position card with a tab
+          // switcher instead of independently-ordered blocks, running "Compare"/"Tailor" after
+          // "Tips" never pushes an earlier result out of view — it's one click away, not gone.
+          const available: ("review" | "match" | "tailor")[] = [
+            ...(review ? (["review"] as const) : []),
+            ...(match ? (["match"] as const) : []),
+            ...(tailored ? (["tailor"] as const) : []),
+          ];
           const current = available.includes(activeReport) ? activeReport : available[0];
+          const hide = () => (current === "review" ? setReview(null) : current === "match" ? setMatch(null) : setTailored(null));
+          const tailorVac = tailored && vacancies.find((v) => v.id === matchVacId);
+          const tailorChanged =
+            !!tailored && (tailored.reordered.skills > 0 || tailored.reordered.bullets > 0 || !!tailored.match.tailoredSummary);
           return (
             <div className="space-y-2">
               {available.length > 1 && (
                 <Segmented
                   value={current}
                   onChange={setActiveReport}
-                  options={[
-                    { value: "review", label: "🔎 Tips" },
-                    { value: "match", label: "🎯 Vacancy match" },
-                  ]}
+                  options={(
+                    [
+                      { value: "review", label: "🔎 Tips" },
+                      { value: "match", label: "🎯 Vacancy match" },
+                      { value: "tailor", label: "✨ Tailored CV" },
+                    ] as const
+                  ).filter((o) => available.includes(o.value))}
                 />
               )}
               <div className="relative">
-                <button
-                  onClick={() => (current === "review" ? setReview(null) : setMatch(null))}
-                  title="Hide"
-                  className="absolute right-3 top-3 z-10 text-slate-400 hover:text-slate-600 text-sm"
-                >
+                <button onClick={hide} title="Hide" className="absolute right-3 top-3 z-10 text-slate-400 hover:text-slate-600 text-sm">
                   ✕
                 </button>
-                {current === "match" && match ? (
+                {current === "tailor" && tailored ? (
+                  <div className="space-y-2">
+                    <Card className="!py-3.5 bg-indigo-50 border-indigo-200 space-y-2.5">
+                      <div className="flex items-center gap-2 flex-wrap pr-6">
+                        <span className="font-semibold text-slate-800">
+                          ✨ Tailored{tailorVac ? ` for "${vacancyLabel(tailorVac)}"` : ""}
+                        </span>
+                        {tailored.match.offline && <Chip>offline</Chip>}
+                      </div>
+                      <p className="text-sm text-slate-700">
+                        {tailorChanged
+                          ? `Reordered ${tailored.reordered.skills} skill${tailored.reordered.skills === 1 ? "" : "s"} and ${tailored.reordered.bullets} bullet${tailored.reordered.bullets === 1 ? "" : "s"} to lead with what this vacancy asks for` +
+                            (tailored.match.tailoredSummary ? ", and rewrote the summary." : ".")
+                          : "Your CV already leads with what this vacancy asks for — nothing needed reordering."}
+                      </p>
+                      <div className="flex gap-2 flex-wrap">
+                        <Btn size="sm" onClick={applyTailored}>
+                          ✅ Apply to CV
+                        </Btn>
+                        <Btn size="sm" variant="ghost" onClick={() => exportCvDoc(tailored.doc)}>
+                          ⬇️ Export tailored PDF
+                        </Btn>
+                      </div>
+                    </Card>
+                    <CvMatchPanel match={tailored.match} onAddKeyword={addSkill} />
+                  </div>
+                ) : current === "match" && match ? (
                   <CvMatchPanel
                     match={match}
                     onAddKeyword={addSkill}

@@ -323,6 +323,15 @@ export interface CvDoc {
   theme?: CvTheme;
 }
 
+/** Result of adapting the CV Builder doc to one specific vacancy (POST /cv/tailor) — the
+ * candidate's own skills/bullets reordered by relevance (nothing invented/dropped) plus the
+ * existing LLM gap analysis (`match`, same shape as CvMatch) for the report tab. */
+export interface CvTailorResult {
+  doc: CvDoc;
+  match: CvMatch;
+  reordered: { skills: number; bullets: number };
+}
+
 export interface JobResult {
   company: string;
   position: string;

@@ -7,6 +7,7 @@ import type {
   CvMatch,
   CvPreset,
   CvReview,
+  CvTailorResult,
   Drill,
   FetchAllResult,
   FocusWeek,
@@ -66,6 +67,8 @@ export const api = {
   saveCvDoc: (doc: CvDoc) => req<CvDoc>("/cv/doc", { method: "PUT", body: JSON.stringify(doc) }),
   matchVacancy: (cvText: string, jobTitle: string, jobText: string) =>
     req<CvMatch>("/cv/match", { method: "POST", body: JSON.stringify({ cvText, jobTitle, jobText }) }),
+  tailorCv: (doc: CvDoc, jobTitle: string, jobText: string) =>
+    req<CvTailorResult>("/cv/tailor", { method: "POST", body: JSON.stringify({ doc, jobTitle, jobText }) }),
   cvPresets: () => req<{ presets: CvPreset[] }>("/cv/presets"),
   saveCvPresets: (presets: CvPreset[]) => req<{ presets: CvPreset[] }>("/cv/presets", { method: "PUT", body: JSON.stringify({ presets }) }),
   generateCvDoc: (cvText: string) =>
