@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 
 type Variant = "primary" | "ghost" | "danger" | "subtle";
@@ -128,6 +128,69 @@ export function Segmented<T extends string | number>({
   );
 }
 
+/** Animates open/close of arbitrary content by transitioning a measured pixel `height` (not
+ * `grid-template-rows`'s "0fr ⇄ 1fr" trick — animating between `fr` track sizes turned out to
+ * not actually interpolate in every Chromium build we test against; it silently freezes at the
+ * old value instead of collapsing). Content stays mounted while closed (clipped by
+ * `overflow-hidden` + `height: 0`) so the CLOSING transition is visible too, not just an instant
+ * unmount; `aria-hidden` + `pointer-events-none` keep it out of screen readers/clicks while
+ * collapsed. Once fully open, height is released to `"auto"` so content that grows afterward
+ * (e.g. typing a longer bullet into a still-open Experience entry) isn't clipped at the
+ * originally-measured height. Shared by `Section` below and any other custom-styled toggle that
+ * wants the same effect (e.g. one experience entry expanding in `ExperienceCard`). */
+export function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | "auto">(open ? "auto" : 0);
+  // Skip animating the very first render — `height` above already matches `open` at mount, so
+  // there's nothing to transition. Deliberately NOT a "have we mounted yet" boolean reset in a
+  // cleanup function: React calls a layout effect's cleanup before every re-run, not just on a
+  // true unmount, so a boolean flip back to `false` there would also swallow the very next
+  // *real* toggle (it'd look identical to "still mid-mount" and skip re-measuring the height).
+  // Comparing against the last `open` value this effect actually reacted to sidesteps that: React
+  // 18 StrictMode's dev-only synthetic mount→unmount→mount replay re-invokes this effect with the
+  // exact same `open` it started with (not a real prop change), so the comparison still reads
+  // "unchanged" on that second call and skips correctly either way.
+  const lastOpenRef = useRef(open);
+
+  useLayoutEffect(() => {
+    if (lastOpenRef.current === open) return;
+    lastOpenRef.current = open;
+    const el = ref.current;
+    if (!el) return;
+    if (open) {
+      setHeight(el.scrollHeight);
+    } else {
+      // Can't transition FROM "auto" — snap to the equivalent concrete pixel height first, then
+      // collapse to 0. The snap has to land in an already-painted frame *before* the 0 for the
+      // browser to have a real start point to animate from — done here via a direct (bypassing
+      // React state) write + a forced synchronous reflow (`offsetHeight` read), not a
+      // requestAnimationFrame callback deferring the second step to "next paint": some embedded/
+      // backgrounded browser views (e.g. an inactive devtools-hosted tab) never actually schedule
+      // a paint for such a callback to fire on, which would leave this stuck at the snapped
+      // height forever instead of collapsing.
+      el.style.height = `${el.scrollHeight}px`;
+      void el.offsetHeight;
+      setHeight(0);
+    }
+  }, [open]);
+
+  return (
+    <div
+      ref={ref}
+      aria-hidden={!open}
+      style={{ height: typeof height === "number" ? `${height}px` : height }}
+      className={`overflow-hidden transition-[height] duration-300 ease-in-out ${open ? "" : "pointer-events-none"}`}
+      onTransitionEnd={(e) => {
+        // Only release to "auto" once OUR height transition (not a descendant's, e.g. a
+        // spinner icon) finishes opening — otherwise later growth would stay clipped forever.
+        if (e.target === ref.current && e.propertyName === "height" && open) setHeight("auto");
+      }}
+    >
+      <div className={`transition-opacity ${open ? "opacity-100 duration-300 delay-100" : "opacity-0 duration-150"}`}>{children}</div>
+    </div>
+  );
+}
+
 export function Section({
   title,
   icon,
@@ -169,7 +232,9 @@ export function Section({
           ›
         </span>
       </button>
-      {open && <div className={`space-y-3 ${bare ? "pb-3 pt-1" : "px-3.5 pb-3.5 pt-1 border-t border-slate-100"}`}>{children}</div>}
+      <Collapse open={open}>
+        <div className={`space-y-3 ${bare ? "pb-3 pt-1" : "px-3.5 pb-3.5 pt-1 border-t border-slate-100"}`}>{children}</div>
+      </Collapse>
     </div>
   );
 }

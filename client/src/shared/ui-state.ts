@@ -20,6 +20,14 @@ class UiStore {
     return this.state[key] as T | undefined;
   }
 
+  /** Whether `key` has ever been written via `set()` — distinct from `get()` returning
+   * undefined, which is also what an explicit `set(key, undefined)` looks like. Needed so
+   * `useUi` can tell "never touched, use the caller's initial value" apart from "explicitly
+   * set to null/undefined/false/0/''" (see useUi below — `??` alone can't make that call). */
+  has(key: string): boolean {
+    return key in this.state;
+  }
+
   set(key: string, value: unknown): void {
     this.state[key] = value;
     this.listeners.get(key)?.forEach((l) => l());
@@ -41,7 +49,10 @@ const uiStore = new UiStore();
 export function useUi<T>(key: string, initial: T): [T, (v: T) => void] {
   const value = useSyncExternalStore(
     (onChange) => uiStore.subscribe(key, onChange),
-    () => uiStore.get<T>(key) ?? initial,
+    // Not `uiStore.get<T>(key) ?? initial` — that would snap any explicitly-set falsy value
+    // (null, in particular — e.g. an exclusive accordion's "nothing is open" state) straight
+    // back to `initial` on every read, making it impossible to ever store such a value.
+    () => (uiStore.has(key) ? (uiStore.get<T>(key) as T) : initial),
   );
   const set = useCallback((v: T) => uiStore.set(key, v), [key]);
   return [value, set];

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { Btn, Card, PageHeader, Segmented } from "./ui";
+import { Btn, Card, PageHeader, Section, Segmented } from "./ui";
 
 describe("Btn", () => {
   it("renders children and handles click", () => {
@@ -44,6 +44,46 @@ describe("PageHeader", () => {
     expect(screen.getByRole("heading", { name: "Title" })).toBeInTheDocument();
     expect(screen.getByText("Subtitle")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Action" })).toBeInTheDocument();
+  });
+});
+
+describe("Section", () => {
+  it("toggles open/closed on repeated header clicks, keeping content mounted (not unmounted) so a close animation is possible", () => {
+    render(
+      <Section title="General" defaultOpen={false}>
+        <div>secret content</div>
+      </Section>,
+    );
+    const header = screen.getByRole("button", { name: "General" });
+    expect(header).toHaveAttribute("aria-expanded", "false");
+    // Content stays in the DOM even while collapsed — hidden via aria-hidden/zero-height on an
+    // ancestor (Collapse), not an instant unmount, which is what makes the CLOSE transition
+    // visible instead of the old "and it's just... gone" behavior.
+    expect(screen.getByText("secret content")).toBeInTheDocument();
+
+    fireEvent.click(header);
+    expect(header).toHaveAttribute("aria-expanded", "true");
+
+    // Clicking the header again while already open closes it — it used to be a no-op in the
+    // CV Builder's exclusive accordion (clicking an open section's own header just re-set the
+    // "active" key to itself).
+    fireEvent.click(header);
+    expect(header).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("in controlled mode, defers to onToggle's next-open boolean instead of managing its own state", () => {
+    const onToggle = vi.fn();
+    render(
+      <Section title="Skills" open={true} onToggle={onToggle}>
+        <div>skills body</div>
+      </Section>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Skills" }));
+    // The parent owns `open` — clicking only reports the user's intent (close); Section itself
+    // stays open here because the test doesn't feed the new value back in as a prop.
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(onToggle).toHaveBeenCalledWith(false);
+    expect(screen.getByRole("button", { name: "Skills" })).toHaveAttribute("aria-expanded", "true");
   });
 });
 

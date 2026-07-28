@@ -45,7 +45,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   // Single exclusive accordion instead of the old "Content / Design" tab split with every card
   // stacked underneath — one section open at a time, so there's never more scrolling than one
   // section's worth of fields. "design" folds in the old Appearance + Layout/Presets panels.
-  const [activeSection, setActiveSection] = useUi<SectionKey>("cvbuilder.activeSection", "general");
+  const [activeSection, setActiveSection] = useUi<SectionKey | null>("cvbuilder.activeSection", "general");
   // Which experience entry the live preview asked to focus (click sync) — applied once by
   // ExperienceCard, not held/forced every render (see its own render-time reset guard).
   const [expFocusIndex, setExpFocusIndex] = useState<number | null>(null);
@@ -269,7 +269,16 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     }
   };
   const accordion = (key: SectionKey, icon: string, title: string, hint: string | undefined, body: ReactNode) => (
-    <Section key={key} icon={icon} title={title} hint={hint} open={activeSection === key} onToggle={() => setActiveSection(key)}>
+    <Section
+      key={key}
+      icon={icon}
+      title={title}
+      hint={hint}
+      open={activeSection === key}
+      // Clicking the header of the currently-open section closes it (nothing open) instead of
+      // being a no-op — `onToggle` already computes the next boolean state for us.
+      onToggle={(nextOpen) => setActiveSection(nextOpen ? key : null)}
+    >
       {body}
     </Section>
   );

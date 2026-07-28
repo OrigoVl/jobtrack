@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Btn } from "../../../shared/ui";
+import { Btn, Collapse } from "../../../shared/ui";
 import { Field } from "../../../shared/view-kit";
 import type { CvExperience } from "../../../shared/types";
 
@@ -101,7 +101,7 @@ export function ExperienceCard({
                 ›
               </span>
             </button>
-            {isOpen && (
+            <Collapse open={isOpen}>
               <div className="px-2.5 pb-2.5 pt-1 space-y-2 border-t border-slate-100">
                 <div className="flex gap-1 justify-end">
                   <Btn size="sm" variant="subtle" onClick={() => onMove(i, i - 1)} disabled={i === 0}>
@@ -154,7 +154,7 @@ export function ExperienceCard({
                   </Btn>
                 </div>
               </div>
-            )}
+            </Collapse>
           </div>
         );
       })}
