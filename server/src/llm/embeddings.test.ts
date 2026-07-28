@@ -5,9 +5,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { BOOTSTRAP_USER_ID } from "../db/user-id.js";
 
-vi.mock("../db/index.js", () => ({
-  getKvJson: vi.fn(() => null),
-  setKvJson: vi.fn(),
+vi.mock("../db/llm-cache.js", () => ({
+  getLlmCache: vi.fn(() => null),
+  setLlmCache: vi.fn(),
 }));
 
 describe("embeddingsAvailable() / embed() — offline / non-openai fallback", () => {

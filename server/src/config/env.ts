@@ -18,7 +18,6 @@ const RawEnvSchema = z
   .object({
     NODE_ENV: z.string().default("development"),
     PORT: z.coerce.number().int().positive().max(65535).default(3001),
-    DB_PATH: z.string().trim().min(1).optional(),
     // Postgres connection string (Drizzle). Optional here — required only in production, enforced
     // below via superRefine — so `env.test.ts` and every dev machine that hasn't migrated to
     // Postgres yet don't fail validation just by importing this module. Defaults to the same
@@ -78,7 +77,6 @@ export const env = {
   nodeEnv: raw.NODE_ENV,
   isProduction,
   port: raw.PORT,
-  dbPath: raw.DB_PATH || path.join(serverRoot, "jobtrack.db"),
   // undefined → cors() with no restrictions (allows any origin); array → only the listed ones.
   corsOrigins: raw.CORS_ORIGIN
     ? raw.CORS_ORIGIN.split(",")

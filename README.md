@@ -1,8 +1,8 @@
-# JobTrack — a dynamic job-search tracker (React + Node + SQLite + AI)
+# JobTrack — a dynamic job-search tracker (React + Node + Postgres + AI)
 
-A full-featured, lightweight full-stack app: **analyzes job postings and CVs, surfaces skill gaps and market demand, drills you for interviews, and helps with your resume/cover letters.** Stack: **React + TypeScript + Node.js + SQLite (+ optional LLM)**.
+A full-featured, lightweight full-stack app: **analyzes job postings and CVs, surfaces skill gaps and market demand, drills you for interviews, and helps with your resume/cover letters.** Stack: **React + TypeScript + Node.js + Postgres/Drizzle (+ optional LLM)**.
 
-> **Requirement:** Node.js **≥ 22.5** (24 LTS recommended) — the backend uses the built-in `node:sqlite` module, so no separate DB dependency is needed.
+> **Requirement:** Node.js **24 LTS recommended**. **Postgres** for the database — `docker compose up -d postgres` is the fastest way to get one locally (see "Docker" below), or point `DATABASE_URL` at any Postgres instance.
 > **Package manager:** [pnpm](https://pnpm.io) (workspace monorepo `client` + `server`). Install with: `corepack enable` or `npm i -g pnpm`.
 
 ## What it does
@@ -26,13 +26,14 @@ A full-featured, lightweight full-stack app: **analyzes job postings and CVs, su
 ```bash
 # from the repo root — installs both client and server at once (pnpm workspace)
 pnpm install
-cp server/.env.example server/.env   # (optional) fill in OPENAI_API_KEY to enable AI
+docker compose up -d postgres         # starts a local Postgres on :5432
+cp server/.env.example server/.env    # (optional) fill in OPENAI_API_KEY to enable AI
 
 # starts the backend (:3001) and frontend (:5173) together
 pnpm dev
 ```
 
-Open **http://localhost:5173**. The SQLite database is created automatically.
+Open **http://localhost:5173**. The schema is created automatically (migrate-on-boot) and a default profile + sample vacancies are seeded on first run.
 
 Other useful commands from the root: `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format`,
 `pnpm test:coverage`, `pnpm test:e2e` (Playwright, requires `pnpm build`).
@@ -47,10 +48,10 @@ pnpm --filter jobtrack-server start   # the server serves the frontend itself at
 ### Docker (one command)
 
 ```bash
-docker compose up --build      # app available at http://localhost:3001
+docker compose up --build      # app + Postgres available at http://localhost:3001
 ```
 
-A multi-stage image builds the frontend and runs the API, which serves the static assets. The SQLite database is stored in the `jobtrack-data` Docker volume (path — `DB_PATH`). LLM keys are passed via environment variables in `docker-compose.yml`.
+A multi-stage image builds the frontend and runs the API; a `postgres` service runs alongside it, with data persisted in the `jobtrack-pg` Docker volume. LLM keys are passed via environment variables in `docker-compose.yml`.
 
 ## AI mode (optional)
 
@@ -113,7 +114,7 @@ Dependabot (`.github/dependabot.yml`) proposes npm/Docker/Actions updates weekly
 - The JS sandbox for drill practice (`study/runner.ts`) runs in an isolated Web Worker with a hard timeout — not on the main thread.
 - The Docker image runs the process as an unprivileged user.
 
-**⚠️ No authentication.** The app is intentionally single-user (see "Migrating to Postgres + auth" below) — anyone with network access to port 3001 can see and edit all the data without logging in. That's fine for `localhost`/a home network, but **don't expose the port directly to the public internet** without a reverse proxy with Basic Auth/OAuth (Caddy/nginx/Cloudflare Tunnel) or a VPN.
+**⚠️ No authentication yet.** The data layer is already multi-tenant-shaped (every table is scoped by `user_id`), but there's still only one user — a bootstrap constant, not a real login (see "Multi-tenancy migration" below). Anyone with network access to port 3001 can see and edit all the data without logging in. That's fine for `localhost`/a home network, but **don't expose the port directly to the public internet** without a reverse proxy with Basic Auth/OAuth (Caddy/nginx/Cloudflare Tunnel) or a VPN.
 
 ## Architecture
 
@@ -122,14 +123,14 @@ The backend is structured **around domain modules** (feature-based, layered styl
 ```
 jobtrack/
 ├── Dockerfile, docker-compose.yml   # containerization (multi-stage)
-├── server/                  # Node (ESM) + TypeScript + Express + node:sqlite
+├── server/                  # Node (ESM) + TypeScript + Express + Postgres/Drizzle
 │   └── src/
-│       ├── index.ts         # entrypoint: app.listen()
+│       ├── index.ts         # entrypoint: bootstraps the default user, then app.listen()
 │       ├── app.ts           # assembles the Express app (middleware → /api → static → errorHandler)
 │       ├── routes.ts        # aggregates all modules/*/*.routes.ts into a single Router
 │       ├── config/env.ts    # single typed access point for process.env
-│       ├── core/            # http (HttpError/asyncHandler), logger (pino), error-handler
-│       ├── db/               # client (connection+schema+seed), types, kv, helpers
+│       ├── core/            # http (HttpError/asyncHandler/authed), logger (pino), error-handler
+│       ├── db/               # Postgres client (migrate-on-boot), schema/ (Drizzle), kv, bootstrap, llm-cache
 │       ├── llm/              # OpenAI/Anthropic client with graceful fallback + response cache
 │       ├── shared/           # tech-dict, skill-extraction, validation (DTO+SSRF), demand, hash, slug, upload
 │       └── modules/         # one folder per API domain:
@@ -170,6 +171,6 @@ Data and mutations flow through **TanStack Query** (`shared/queries/*`) — each
 - Store an embedding for every added job posting and build semantic search/recommendations across the whole DB (worth considering `sqlite-vec` instead of a brute-force cosine similarity in JS).
 - The offline fallback for `POST /cv/match` still doesn't use `semanticFit` — only token overlap.
 
-### Migrating to Postgres + auth (planned step)
+### Multi-tenancy migration (in progress)
 
-Persistence currently runs on `node:sqlite` (synchronous API, zero dependencies). Supporting multiple users requires: (1) extracting DB access behind an async repository, (2) wiring up `pg`/Prisma to the `postgres` service (already described in `docker-compose.yml`), (3) adding JWT auth (login + a guard on `/api`) and scoping data to `user_id`. This is deliberately kept as a separate step so it doesn't break the existing working layer.
+The data layer already runs on Postgres/Drizzle and every table/repository function is scoped by an explicit `userId` parameter (see `db/schema/`, `db/user-id.ts`, `core/http.ts#authed`) — but there's still exactly one user, a bootstrap constant, since real auth doesn't exist yet. Remaining steps: (1) real auth (better-auth) providing a session-backed `userId` instead of the bootstrap constant — the only place that changes is `authed()`, no route or repository signature needs to change; (2) closing the LLM/embeddings/skill-extraction response caches, which are still deliberately global (see `db/llm-cache.ts`) since they're keyed on a hash of the full input text, not a per-user attribute; (3) an automated cross-tenant-leak test once a second real user exists.

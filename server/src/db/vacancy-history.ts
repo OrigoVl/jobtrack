@@ -3,24 +3,28 @@
 // count "how many vacancies ever reached stage X" (the real funnel), only "how many are
 // currently at stage X" (analytics.routes.ts funnel) — a vacancy rejected at "Tech interview"
 // disappears from that stage in the current snapshot, even though it really did pass through it.
+//
+// Deletion has no explicit "delete history for this vacancy" function: vacancy_status_history
+// has a real composite FK to vacancies (user_id, vacancy_id) with ON DELETE CASCADE (see
+// db/schema/app.ts), so deleting a vacancy row (vacancies.repo.ts#deleteVacancy) already removes
+// its history rows — the old SQLite version had to do this by hand because it never had FKs enabled.
+import { asc, countDistinct, eq } from "drizzle-orm";
 import db from "./client.js";
+import { vacancyStatusHistory } from "./schema/index.js";
 import type { UserId } from "./user-id.js";
 
-export async function recordStatusChange(_userId: UserId, vacancyId: number, status: string): Promise<void> {
-  db.prepare("INSERT INTO vacancy_status_history (vacancy_id, status) VALUES (?, ?)").run(vacancyId, status);
+export async function recordStatusChange(userId: UserId, vacancyId: number, status: string): Promise<void> {
+  await db.insert(vacancyStatusHistory).values({ userId, vacancyId, status });
 }
 
 /** Count of UNIQUE vacancies that ever had each status (regardless of their current one). */
-export async function getReachedCounts(_userId: UserId): Promise<Record<string, number>> {
-  const rows = db.prepare("SELECT status, COUNT(DISTINCT vacancy_id) c FROM vacancy_status_history GROUP BY status").all() as {
-    status: string;
-    c: number;
-  }[];
+export async function getReachedCounts(userId: UserId): Promise<Record<string, number>> {
+  const rows = await db
+    .select({ status: vacancyStatusHistory.status, c: countDistinct(vacancyStatusHistory.vacancyId) })
+    .from(vacancyStatusHistory)
+    .where(eq(vacancyStatusHistory.userId, userId))
+    .groupBy(vacancyStatusHistory.status);
   return Object.fromEntries(rows.map((r) => [r.status, Number(r.c)]));
-}
-
-export async function deleteHistoryForVacancy(_userId: UserId, vacancyId: number): Promise<void> {
-  db.prepare("DELETE FROM vacancy_status_history WHERE vacancy_id = ?").run(vacancyId);
 }
 
 export interface StageConversion {
@@ -74,9 +78,7 @@ export interface StageDuration {
  * (only "how many", not "how long").
  *
  * Pure and DB-free on purpose — takes rows already ordered by (vacancy_id, changed_at) rather
- * than querying itself, so it's unit-testable with plain arrays. `changed_at` takes a `Date`
- * (not a string) because the Postgres schema stores this column as `timestamptz`, unlike the
- * old SQLite `datetime('now')` text.
+ * than querying itself, so it's unit-testable with plain arrays.
  */
 export function avgDaysFromHistoryRows(rows: { vacancy_id: number; status: string; changed_at: Date }[]): StageDuration[] {
   const sums = new Map<string, { total: number; count: number }>();
@@ -97,11 +99,11 @@ export function avgDaysFromHistoryRows(rows: { vacancy_id: number; status: strin
 }
 
 /** Convenience wrapper: reads ordered history rows from the DB and delegates to avgDaysFromHistoryRows(). */
-export async function getAvgDaysInStage(_userId: UserId): Promise<StageDuration[]> {
-  const rows = db.prepare("SELECT vacancy_id, status, changed_at FROM vacancy_status_history ORDER BY vacancy_id, changed_at").all() as {
-    vacancy_id: number;
-    status: string;
-    changed_at: string;
-  }[];
-  return avgDaysFromHistoryRows(rows.map((r) => ({ ...r, changed_at: new Date(r.changed_at) })));
+export async function getAvgDaysInStage(userId: UserId): Promise<StageDuration[]> {
+  const rows = await db
+    .select({ vacancyId: vacancyStatusHistory.vacancyId, status: vacancyStatusHistory.status, changedAt: vacancyStatusHistory.changedAt })
+    .from(vacancyStatusHistory)
+    .where(eq(vacancyStatusHistory.userId, userId))
+    .orderBy(asc(vacancyStatusHistory.vacancyId), asc(vacancyStatusHistory.changedAt));
+  return avgDaysFromHistoryRows(rows.map((r) => ({ vacancy_id: r.vacancyId, status: r.status, changed_at: r.changedAt })));
 }

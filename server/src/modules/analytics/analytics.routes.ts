@@ -1,11 +1,12 @@
 import express from "express";
 import { z } from "zod";
-import db, { getProfile, getSrsStateByCard, getReachedCounts, getFunnelConversion, getAvgDaysInStage } from "../../db/index.js";
+import { getProfile, getSrsStateByCard, getReachedCounts, getFunnelConversion, getAvgDaysInStage } from "../../db/index.js";
 import { chatJson, llmAvailable } from "../../llm/index.js";
 import { authed } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
 import { demandMap } from "../../shared/demand.js";
 import { allCards } from "../study/content-store.js";
+import { listVacancyStatusRows, listVacancyStatusNextRows } from "../vacancies/vacancies.repo.js";
 
 // `.catch("")` (not .optional()) on `why` — the LLM sometimes omits the field instead of
 // returning "": the schema still accepts the response (no repair-retry over this), just
@@ -16,11 +17,6 @@ const FocusActionsSchema = z.object({
 
 const r = express.Router();
 
-interface VacancyStatusRow {
-  status: string;
-  created: string;
-  applied: string;
-}
 interface VacancyStatusNextRow {
   status: string;
   next: string;
@@ -52,7 +48,7 @@ const FUNNEL_PROGRESSION_ORDER = FUNNEL_ORDER.filter((s) => s !== "Rejected");
 r.get(
   "/analytics",
   authed(async (userId, _req, res) => {
-    const rows = db.prepare("SELECT status, created, applied FROM vacancies").all() as unknown as VacancyStatusRow[];
+    const rows = await listVacancyStatusRows(userId);
     const funnelOrder = FUNNEL_ORDER;
     const funnel: Record<string, number> = {};
     funnelOrder.forEach((s) => (funnel[s] = 0));
@@ -141,7 +137,7 @@ r.get(
   authed(async (userId, _req, res) => {
     const profile = await getProfile(userId);
     const demand = await demandMap(userId);
-    const rows = db.prepare("SELECT status, next, applied FROM vacancies").all() as unknown as VacancyStatusNextRow[];
+    const rows = await listVacancyStatusNextRows(userId);
     const skills = new Set(profile.skills);
     const gaps = Object.entries(demand)
       .filter(([t]) => !skills.has(t))

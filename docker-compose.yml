@@ -7,16 +7,12 @@ services:
       - "3001:3001"
     environment:
       PORT: 3001
-      DB_PATH: /app/data/jobtrack.db
-      # Not yet read by the running app (server/src/db/client.ts still talks to node:sqlite) —
-      # wired up later in the Postgres migration. Points at the `postgres` service below, not
-      # localhost, since containers reach each other by service name on the compose network.
+      # Points at the `postgres` service below, not localhost, since containers reach each
+      # other by service name on the compose network.
       DATABASE_URL: postgres://jobtrack:jobtrack@postgres:5432/jobtrack
       # LLM (optional) — uncomment and add a key to enable AI features:
       # OPENAI_API_KEY: ${OPENAI_API_KEY}
       # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-    volumes:
-      - jobtrack-data:/app/data # DB persistence across restarts
     restart: unless-stopped
     depends_on:
       postgres:
@@ -40,5 +36,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  jobtrack-data:
   jobtrack-pg:

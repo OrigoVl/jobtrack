@@ -13,7 +13,7 @@
 // app. If the provider is anthropic or there's no key, embeddingsAvailable() === false and
 // semanticSimilarity/embed quietly return null (graceful — the same approach as chat()'s
 // llmAvailable()) — the caller (quickAnalyze) treats null as "no signal", not as "0%".
-import { getKvJson, setKvJson } from "../db/index.js";
+import { getLlmCache, setLlmCache } from "../db/llm-cache.js";
 import type { UserId } from "../db/user-id.js";
 import { contextLogger } from "../core/logger.js";
 import { hashString } from "../shared/hash.js";
@@ -36,14 +36,15 @@ export function embeddingsAvailable(): boolean {
  * NEVER throws (graceful, like chat()). Cached by a hash of text+model in the kv store:
  * the same CV/vacancy doesn't pay for an API call again.
  */
-export async function embed(userId: UserId, text: string): Promise<number[] | null> {
+// `_userId` isn't read below — the cache is content-hash-keyed and deliberately global (see
+// db/llm-cache.ts). Kept as a required parameter for the same forward-compat reason as
+// llm/client.ts's chat(): phase 5's usage telemetry attributes this call to a user.
+export async function embed(_userId: UserId, text: string): Promise<number[] | null> {
   if (!embeddingsAvailable()) return null;
   const input = text.slice(0, MAX_INPUT_CHARS).trim();
   if (!input) return null;
-  // Deliberately NOT scoped by userId yet — see the same note on the cache key in llm/client.ts's
-  // chat(): one of the 5 known cross-tenant-leak-risk caches, fixed in phase 4.
   const cacheKey = "embedding:" + hashString([EMBEDDING_MODEL, input].join("|"));
-  const cached = await getKvJson<{ vector: number[] }>(userId, cacheKey);
+  const cached = await getLlmCache<{ vector: number[] }>(cacheKey);
   if (cached) return cached.vector;
   const signal = AbortSignal.timeout(TIMEOUT_MS);
   try {
@@ -61,7 +62,7 @@ export async function embed(userId: UserId, text: string): Promise<number[] | nu
     const d = (await r.json()) as { data?: { embedding?: number[] }[] };
     const vector = d?.data?.[0]?.embedding;
     if (!Array.isArray(vector) || !vector.length) return null;
-    await setKvJson(userId, cacheKey, { vector });
+    await setLlmCache(cacheKey, { vector });
     return vector;
   } catch (e) {
     const timedOut = e instanceof Error && e.name === "TimeoutError";

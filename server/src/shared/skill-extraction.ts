@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { extractTechs } from "./tech-dict.js";
 import { chatJson, llmAvailable } from "../llm/index.js";
-import { getKvJson, setKvJson } from "../db/index.js";
+import { getLlmCache, setLlmCache } from "../db/llm-cache.js";
 import type { UserId } from "../db/user-id.js";
 import { hashString } from "./hash.js";
 
@@ -26,10 +26,8 @@ function dedupe(values: string[]): string[] {
 export async function extractSkills(userId: UserId, text: string): Promise<string[]> {
   const regex = extractTechs(text).map((t) => t.name);
   if (!llmAvailable() || !text || text.trim().length < 30) return regex;
-  // Deliberately NOT scoped by userId yet — see the same note in llm/client.ts's chat(): one of
-  // the 5 known cross-tenant-leak-risk caches, fixed in phase 4.
   const cacheKey = `skx:${hashString(text)}`;
-  const cached = await getKvJson<{ skills: string[] }>(userId, cacheKey);
+  const cached = await getLlmCache<{ skills: string[] }>(cacheKey);
   if (cached) return cached.skills;
   const out = await chatJson(
     userId,
@@ -42,16 +40,15 @@ export async function extractSkills(userId: UserId, text: string): Promise<strin
   const ai: string[] = (out?.skills ?? []).map((s) => s.trim()).filter(Boolean);
   if (!ai.length) return regex;
   const skills = dedupe([...regex, ...ai]).slice(0, 25);
-  await setKvJson(userId, cacheKey, { skills });
+  await setLlmCache(cacheKey, { skills });
   return skills;
 }
 
 /** Determines the candidate's profession/role from their CV (for personalizing prompts). */
 export async function detectDomain(userId: UserId, cvText: string): Promise<string> {
   if (!llmAvailable() || !cvText || cvText.trim().length < 30) return "";
-  // Deliberately NOT scoped by userId yet — same note as extractSkills() above.
   const cacheKey = `domain:${hashString(cvText)}`;
-  const cached = await getKvJson<{ domain: string }>(userId, cacheKey);
+  const cached = await getLlmCache<{ domain: string }>(cacheKey);
   if (cached) return cached.domain;
   const out = await chatJson(
     userId,
@@ -62,6 +59,6 @@ export async function detectDomain(userId: UserId, cvText: string): Promise<stri
     { maxTokens: 60, temperature: 0.2 },
   );
   const domain = (out?.domain ?? "").trim().slice(0, 80);
-  if (domain) await setKvJson(userId, cacheKey, { domain });
+  if (domain) await setLlmCache(cacheKey, { domain });
   return domain;
 }

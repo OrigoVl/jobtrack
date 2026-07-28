@@ -1,33 +1,46 @@
-// Async repository wrapping the `vacancies` table — extracted from vacancies.routes.ts (was 18
+// Repository wrapping the `vacancies` table — extracted from vacancies.routes.ts (was 18
 // separate db.prepare() call sites) so the route file stays thin and this data-access logic is
-// unit-testable without an Express request/response.
-//
-// Every function takes `userId` as its first argument (see server/src/db/user-id.ts), but the
-// CURRENT SQLite-backed query bodies don't actually filter by it — same interim state as
-// companies.repo.ts and db/kv.ts: real per-tenant filtering starts working once this file's
-// implementation is swapped to the Postgres schema (server/src/db/schema/app.ts).
-import db from "../../db/index.js";
+// unit-testable without an Express request/response. Every function is scoped by `userId` (see
+// server/src/db/user-id.ts).
+import { and, count, desc, eq, isNotNull, ne, sql } from "drizzle-orm";
+import db from "../../db/client.js";
+import { vacancies } from "../../db/schema/index.js";
 import type { UserId } from "../../db/user-id.js";
 import type { VacancyRow } from "../../db/types.js";
 
-export async function listVacancies(_userId: UserId, page?: { limit: number; offset: number }): Promise<VacancyRow[]> {
-  return (page
-    ? db.prepare("SELECT * FROM vacancies ORDER BY id DESC LIMIT ? OFFSET ?").all(page.limit, page.offset)
-    : db.prepare("SELECT * FROM vacancies ORDER BY id DESC").all()) as unknown as VacancyRow[];
+export async function listVacancies(userId: UserId, page?: { limit: number; offset: number }): Promise<VacancyRow[]> {
+  const q = db.select().from(vacancies).where(eq(vacancies.userId, userId)).orderBy(desc(vacancies.id));
+  return page ? q.limit(page.limit).offset(page.offset) : q;
 }
 
-export async function getVacancy(_userId: UserId, id: number | string): Promise<VacancyRow | undefined> {
-  return db.prepare("SELECT * FROM vacancies WHERE id=?").get(id) as unknown as VacancyRow | undefined;
+export async function getVacancy(userId: UserId, id: number | string): Promise<VacancyRow | undefined> {
+  const [row] = await db
+    .select()
+    .from(vacancies)
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, Number(id))));
+  return row;
 }
 
-export async function findVacancyByUrl(_userId: UserId, url: string): Promise<VacancyRow | undefined> {
-  return db.prepare("SELECT * FROM vacancies WHERE url=?").get(url) as unknown as VacancyRow | undefined;
+export async function findVacancyByUrl(userId: UserId, url: string): Promise<VacancyRow | undefined> {
+  const [row] = await db
+    .select()
+    .from(vacancies)
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.url, url)));
+  return row;
 }
 
-export async function findVacancyByCompanyPosition(_userId: UserId, company: string, position: string): Promise<VacancyRow | undefined> {
-  return db
-    .prepare("SELECT * FROM vacancies WHERE lower(company)=lower(?) AND lower(position)=lower(?)")
-    .get(company, position) as unknown as VacancyRow | undefined;
+export async function findVacancyByCompanyPosition(userId: UserId, company: string, position: string): Promise<VacancyRow | undefined> {
+  const [row] = await db
+    .select()
+    .from(vacancies)
+    .where(
+      and(
+        eq(vacancies.userId, userId),
+        eq(sql`lower(${vacancies.company})`, company.toLowerCase()),
+        eq(sql`lower(${vacancies.position})`, position.toLowerCase()),
+      ),
+    );
+  return row;
 }
 
 export interface NewVacancy {
@@ -43,22 +56,24 @@ export interface NewVacancy {
   stack: string[];
 }
 
-export async function createVacancy(_userId: UserId, b: NewVacancy): Promise<number> {
-  const info = db
-    .prepare("INSERT INTO vacancies (company,position,level,url,status,fit,applied,next,notes,stack) VALUES (?,?,?,?,?,?,?,?,?,?)")
-    .run(b.company, b.position, b.level, b.url, b.status, b.fit, b.applied, b.next, b.notes, JSON.stringify(b.stack));
-  return Number(info.lastInsertRowid);
+export async function createVacancy(userId: UserId, b: NewVacancy): Promise<number> {
+  const [row] = await db
+    .insert(vacancies)
+    .values({ userId, ...b })
+    .returning({ id: vacancies.id });
+  return row!.id;
 }
 
 /** Minimal insert for DOU import — mirrors the historical `(company,position,url,status)`-only column set. */
 export async function createVacancyMinimal(
-  _userId: UserId,
+  userId: UserId,
   b: { company: string; position: string; url: string; status: string },
 ): Promise<number> {
-  const info = db
-    .prepare("INSERT INTO vacancies (company,position,url,status) VALUES (?,?,?,?)")
-    .run(b.company, b.position, b.url, b.status);
-  return Number(info.lastInsertRowid);
+  const [row] = await db
+    .insert(vacancies)
+    .values({ userId, ...b })
+    .returning({ id: vacancies.id });
+  return row!.id;
 }
 
 export interface JsonVacancyInsert {
@@ -73,11 +88,12 @@ export interface JsonVacancyInsert {
   notes: string;
 }
 
-export async function createVacancyFromJson(_userId: UserId, item: JsonVacancyInsert): Promise<number> {
-  const info = db
-    .prepare("INSERT INTO vacancies (company,position,level,url,status,fit,applied,next,notes,stack) VALUES (?,?,?,?,?,?,?,?,?,'[]')")
-    .run(item.company, item.position, item.level, item.url, item.status, item.fit, item.applied, item.next, item.notes);
-  return Number(info.lastInsertRowid);
+export async function createVacancyFromJson(userId: UserId, item: JsonVacancyInsert): Promise<number> {
+  const [row] = await db
+    .insert(vacancies)
+    .values({ userId, ...item })
+    .returning({ id: vacancies.id });
+  return row!.id;
 }
 
 export interface VacancyUpdate {
@@ -93,50 +109,63 @@ export interface VacancyUpdate {
   stack: string[];
 }
 
-export async function updateVacancy(_userId: UserId, id: number | string, m: VacancyUpdate): Promise<void> {
-  db.prepare("UPDATE vacancies SET company=?,position=?,level=?,url=?,status=?,fit=?,applied=?,next=?,notes=?,stack=? WHERE id=?").run(
-    m.company,
-    m.position,
-    m.level,
-    m.url,
-    m.status,
-    m.fit,
-    m.applied,
-    m.next,
-    m.notes,
-    JSON.stringify(m.stack),
-    id,
-  );
+export async function updateVacancy(userId: UserId, id: number | string, m: VacancyUpdate): Promise<void> {
+  await db
+    .update(vacancies)
+    .set(m)
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, Number(id))));
 }
 
-export async function updateVacancyFromJson(_userId: UserId, id: number, item: JsonVacancyInsert): Promise<void> {
-  db.prepare("UPDATE vacancies SET company=?,position=?,level=?,url=?,status=?,fit=?,applied=?,next=?,notes=? WHERE id=?").run(
-    item.company,
-    item.position,
-    item.level,
-    item.url,
-    item.status,
-    item.fit,
-    item.applied,
-    item.next,
-    item.notes,
-    id,
-  );
+export async function updateVacancyFromJson(userId: UserId, id: number, item: JsonVacancyInsert): Promise<void> {
+  await db
+    .update(vacancies)
+    .set(item)
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, id)));
 }
 
 export async function updateVacancyEnrichment(
-  _userId: UserId,
+  userId: UserId,
   id: number | string,
   e: { stack: string[]; level: string; fit: string },
 ): Promise<void> {
-  db.prepare("UPDATE vacancies SET stack=?,level=?,fit=? WHERE id=?").run(JSON.stringify(e.stack), e.level, e.fit, id);
+  await db
+    .update(vacancies)
+    .set(e)
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, Number(id))));
 }
 
-export async function deleteVacancy(_userId: UserId, id: number | string): Promise<number> {
-  const info = db.prepare("DELETE FROM vacancies WHERE id=?").run(id);
-  return Number(info.changes);
+export async function deleteVacancy(userId: UserId, id: number | string): Promise<number> {
+  const deleted = await db
+    .delete(vacancies)
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, Number(id))))
+    .returning({ id: vacancies.id });
+  return deleted.length;
 }
 
-export async function listVacanciesWithUrl(_userId: UserId): Promise<VacancyRow[]> {
-  return db.prepare("SELECT * FROM vacancies WHERE url IS NOT NULL AND url<>''").all() as unknown as VacancyRow[];
+export async function listVacanciesWithUrl(userId: UserId): Promise<VacancyRow[]> {
+  return db
+    .select()
+    .from(vacancies)
+    .where(and(eq(vacancies.userId, userId), isNotNull(vacancies.url), ne(vacancies.url, "")));
+}
+
+export async function countVacancies(userId: UserId): Promise<number> {
+  const [row] = await db.select({ c: count() }).from(vacancies).where(eq(vacancies.userId, userId));
+  return row!.c;
+}
+
+/** Narrow projection for the analytics funnel/byDate breakdown — see analytics.routes.ts. */
+export async function listVacancyStatusRows(userId: UserId): Promise<{ status: string; created: string; applied: string }[]> {
+  return db
+    .select({ status: vacancies.status, created: vacancies.created, applied: vacancies.applied })
+    .from(vacancies)
+    .where(eq(vacancies.userId, userId));
+}
+
+/** Narrow projection for the "focus of the week" summary — see analytics.routes.ts. */
+export async function listVacancyStatusNextRows(userId: UserId): Promise<{ status: string; next: string; applied: string }[]> {
+  return db
+    .select({ status: vacancies.status, next: vacancies.next, applied: vacancies.applied })
+    .from(vacancies)
+    .where(eq(vacancies.userId, userId));
 }

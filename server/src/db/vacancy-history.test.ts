@@ -2,11 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 // computeFunnelConversion()/avgDaysFromHistoryRows() are pure and never touch the DB, but this
 // file still has a top-level `import db from "./client.js"` for the getFunnelConversion()/
-// getAvgDaysInStage() wrappers (untested here) — and that import chain currently resolves to
-// node:sqlite, which vitest can't transform. This mock only exists to satisfy module
-// resolution; it's never exercised by the tests below. It goes away once db/client.ts moves
-// off node:sqlite onto Postgres/Drizzle (a plain npm package).
-vi.mock("./client.js", () => ({ default: { prepare: () => ({ all: () => [], run: vi.fn() }) } }));
+// getAvgDaysInStage() wrappers (untested here) — and that import chain resolves to a real pg
+// Pool, which we don't want to open in a unit test. This mock only exists to satisfy module
+// resolution; it's never exercised by the tests below.
+vi.mock("./client.js", () => ({
+  default: { select: () => ({ from: () => ({ where: () => ({ groupBy: () => [], orderBy: () => [] }) }) }) },
+}));
 
 import { computeFunnelConversion, avgDaysFromHistoryRows } from "./vacancy-history.js";
 

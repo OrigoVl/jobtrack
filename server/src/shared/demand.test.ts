@@ -1,13 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 // computeDemand()/recencyWeight() are pure and never touch the DB, but this file still has a
-// top-level `import db from "../db/index.js"` for the demandMap() wrapper (untested here) —
-// and that import chain currently resolves to node:sqlite, which vitest can't transform. This
-// mock only exists to satisfy module resolution; it's never exercised by the tests below. It
-// goes away once db/client.ts moves off node:sqlite onto Postgres/Drizzle (a plain npm package).
-vi.mock("../db/index.js", () => ({
-  default: { prepare: () => ({ all: () => [] }) },
-  j: (s: string | null | undefined) => JSON.parse(s || "[]"),
+// top-level `import db from "../db/client.js"` for the demandMap() wrapper (untested here) — and
+// that import chain resolves to a real pg Pool, which we don't want to open in a unit test. This
+// mock only exists to satisfy module resolution; it's never exercised by the tests below.
+vi.mock("../db/client.js", () => ({
+  default: { select: () => ({ from: () => ({ where: () => Promise.resolve([]) }) }) },
 }));
 
 import { computeDemand, recencyWeight } from "./demand.js";
@@ -45,7 +43,7 @@ describe("computeDemand()", () => {
   const now = new Date("2026-01-01T00:00:00Z");
 
   it("counts a skill from a freshly-added vacancy at (close to) full weight", () => {
-    const rows = [{ stack: JSON.stringify(["React"]), created: "2026-01-01" }];
+    const rows = [{ stack: ["React"], created: "2026-01-01" }];
     expect(computeDemand(rows, now)).toEqual({ React: 1 });
   });
 
@@ -54,8 +52,8 @@ describe("computeDemand()", () => {
       "sources still nets out higher than an old-only mention",
     () => {
       const rows = [
-        { stack: JSON.stringify(["React"]), created: "2026-01-01" }, // today, weight ~1
-        { stack: JSON.stringify(["COBOL"]), created: "2024-01-01" }, // ~2 years ago, weight ~0
+        { stack: ["React"], created: "2026-01-01" }, // today, weight ~1
+        { stack: ["COBOL"], created: "2024-01-01" }, // ~2 years ago, weight ~0
       ];
       const demand = computeDemand(rows, now);
       expect(demand.React).toBeGreaterThan(demand.COBOL ?? 0);
@@ -66,7 +64,7 @@ describe("computeDemand()", () => {
     "still lists a skill mentioned only in a very old vacancy, even if its rounded weight is 0 — " +
       "keeps it visible in the roadmap 'universe' just deprioritized, not erased",
     () => {
-      const rows = [{ stack: JSON.stringify(["COBOL"]), created: "2020-01-01" }];
+      const rows = [{ stack: ["COBOL"], created: "2020-01-01" }];
       const demand = computeDemand(rows, now);
       expect(Object.keys(demand)).toContain("COBOL");
     },

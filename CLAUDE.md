@@ -6,9 +6,10 @@ file is only about *how to work* in this codebase.
 
 ## Stack
 
-React + TypeScript (Vite) client, Node.js + Express + TypeScript server, SQLite (`node:sqlite`,
-no ORM), optional LLM (OpenAI/Anthropic) with graceful offline fallback everywhere. pnpm
-workspace monorepo: `client/`, `server/`. Node **≥ 22.5** required.
+React + TypeScript (Vite) client, Node.js + Express + TypeScript server, Postgres via Drizzle ORM
+(`server/src/db/schema/`, `drizzle-kit` migrations committed under `server/drizzle/`), optional
+LLM (OpenAI/Anthropic) with graceful offline fallback everywhere. pnpm workspace monorepo:
+`client/`, `server/`. Requires a reachable Postgres (`docker compose up -d postgres` locally).
 
 ## Commands (run from repo root)
 
@@ -57,12 +58,20 @@ Don't declare a task finished on the basis of "it should work" — actually run 
   one self-repair retry on mismatch, don't hand-roll `typeof`/`Array.isArray` narrowing for new
   LLM JSON call sites. Always gate LLM calls behind `llmAvailable()` with a deterministic offline
   fallback — every AI feature in this app must work without a key.
-- **Validation**: Zod for external input (env vars, DTOs). SQLite queries are always parameterized.
+- **Validation**: Zod for external input (env vars, DTOs). All queries go through Drizzle's query
+  builder (parameterized by construction) — no raw SQL string concatenation.
+- **Multi-tenancy**: every table and repository function takes an explicit `userId: UserId`
+  (branded type, `server/src/db/user-id.ts`) as its first argument — produced only by
+  `authed()` (`core/http.ts`), never read from a route/service directly. There's no real login
+  yet (see below), so `authed()` currently always resolves to one bootstrap user, but every
+  call site is already shaped for real per-user scoping. New repository functions must follow
+  this pattern, not add a parameterless "global" query.
 - **Every mutation that does a network call needs a loading indicator** — use `Btn`'s `loading`
   prop (`client/src/shared/ui.tsx`), scoped to the specific row/card via
   `mutation.isPending && mutation.variables === …` when one hook serves many list items.
-- **No authentication** in this app (single-user, intentional — see README "Security"). Don't add
-  auth speculatively; it's a planned separate migration (Postgres + JWT), not a small patch.
+- **No real authentication yet** (still one bootstrap user — see README "Security" and "Multi-
+  tenancy migration"). The data layer is already multi-tenant-shaped (see above); real auth
+  (better-auth) is a planned separate migration, not a small patch — don't hand-roll a login.
 
 ## Testing philosophy
 
@@ -73,6 +82,11 @@ Don't declare a task finished on the basis of "it should work" — actually run 
   speed — don't write e2e tests that require a real LLM response.
 - New algorithmic/business logic → add a `.test.ts` next to it. New critical user flow → consider
   an e2e spec.
+- Repository functions that do real Drizzle queries (not pure logic) → an integration test against
+  `server/src/db/test-db.ts`'s `createTestDb()` (PGlite — real Postgres semantics, in-process, no
+  Docker), with `vi.doMock(".../client.js", () => ({ default: testDb }))` before a dynamic
+  `import()` of the module under test. See `companies.repo.test.ts`/`vacancies.repo.test.ts` for
+  the pattern — prove multi-tenant scoping actually holds at the SQL level, don't just mock it away.
 
 ## Style
 

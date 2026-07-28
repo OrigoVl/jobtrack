@@ -1,5 +1,5 @@
 import express from "express";
-import { getProfile, recordStatusChange, deleteHistoryForVacancy, j, withStack } from "../../db/index.js";
+import { getProfile, recordStatusChange } from "../../db/index.js";
 import { extractLevel } from "../../shared/tech-dict.js";
 import { extractSkills } from "../../shared/skill-extraction.js";
 import { demandMap } from "../../shared/demand.js";
@@ -43,7 +43,7 @@ r.get(
   authed(async (userId, req, res) => {
     const { limit, offset } = parsePagination(req.query);
     const rows = await listVacancies(userId, limit != null ? { limit, offset } : undefined);
-    res.json(rows.map(withStack));
+    res.json(rows);
   }),
 );
 r.post(
@@ -73,7 +73,7 @@ r.post(
       }
     }
     const row = await getVacancy(userId, id);
-    res.status(201).json(withStack(row!));
+    res.status(201).json(row!);
   }),
 );
 r.put(
@@ -95,7 +95,7 @@ r.put(
       applied: patch.applied ?? cur.applied,
       next: patch.next ?? cur.next,
       notes: patch.notes ?? cur.notes,
-      stack: patch.stack ?? j(cur.stack),
+      stack: patch.stack ?? cur.stack,
     };
     // Auto-enrichment: the URL just appeared/changed and this same request didn't manually
     // edit the stack — pull a fresh stack/level/fit from the link (best-effort, any public
@@ -112,15 +112,16 @@ r.put(
     // Status history — we only log an actual change (not every PUT: most updates
     // edit other fields, e.g. notes or the next-step date, without changing the status).
     if (m.status !== cur.status) await recordStatusChange(userId, Number(id), m.status);
-    res.json(withStack((await getVacancy(userId, id))!));
+    res.json((await getVacancy(userId, id))!);
   }),
 );
 r.delete(
   "/vacancies/:id",
   authed(async (userId, req, res) => {
     const id = String(req.params.id);
+    // No separate history cleanup: vacancy_status_history has a real FK to vacancies with ON
+    // DELETE CASCADE (see db/schema/app.ts) — deleting the vacancy row removes its history too.
     const deleted = await deleteVacancy(userId, id);
-    await deleteHistoryForVacancy(userId, Number(id));
     res.json({ ok: true, deleted });
   }),
 );

@@ -40,7 +40,7 @@ test("imports vacancies from a job-tracker.json-shaped file", async ({ page }) =
   expect(response.ok()).toBeTruthy();
   const body = (await response.json()) as { added: number; updated: number; skipped: number };
   // Idempotent upsert by url: the first run of this file — "added", a repeat run (e.g. a local
-  // rerun of the test without a clean e2e.db) — "updated". Either outcome means a successful import.
+  // rerun without resetting the e2e DB first) — "updated". Either outcome means a successful import.
   expect(body.added + body.updated).toBe(1);
   expect(body.skipped).toBe(0);
 

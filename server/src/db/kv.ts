@@ -1,31 +1,38 @@
-// Domain helpers on top of the generic kv table: candidate profile, checklist progress
-// (drills/pet projects/21-day plan/roadmap), and SRS flashcard state.
-//
-// Every function takes `userId` as its first argument (see server/src/db/user-id.ts), but the
-// CURRENT SQLite-backed query bodies don't actually filter by it: the physical `kv`/`srs` tables
-// have no user_id column yet, and there is exactly one user (the phase-2 bootstrap constant)
-// until better-auth lands in phase 3. Real per-tenant scoping starts working once this file's
-// implementation is swapped to the Postgres schema (server/src/db/schema/app.ts, which already
-// has a composite `(user_id, k)` key on `user_kv`) — no caller has to change for that swap, only
-// the bodies below do.
+// Domain helpers on top of the generic per-user `user_kv` table: candidate profile, checklist
+// progress (drills/pet projects/21-day plan/roadmap), and SRS flashcard state (`srs` table).
+// Every function is scoped by `userId` — see server/src/db/user-id.ts.
+import { and, eq } from "drizzle-orm";
 import db from "./client.js";
+import { userKv, srs } from "./schema/index.js";
 import type { UserId } from "./user-id.js";
 import type { Profile, SrsRow } from "./types.js";
 
-export async function getProfile(_userId: UserId): Promise<Profile> {
-  return JSON.parse((db.prepare("SELECT v FROM kv WHERE k='profile'").get() as { v: string }).v);
+export async function getProfile(userId: UserId): Promise<Profile> {
+  const [row] = await db
+    .select({ v: userKv.v })
+    .from(userKv)
+    .where(and(eq(userKv.userId, userId), eq(userKv.k, "profile")));
+  return row!.v as Profile;
 }
-export async function setProfile(_userId: UserId, p: Profile): Promise<void> {
-  db.prepare("INSERT INTO kv (k,v) VALUES ('profile',?) ON CONFLICT(k) DO UPDATE SET v=?").run(JSON.stringify(p), JSON.stringify(p));
+export async function setProfile(userId: UserId, p: Profile): Promise<void> {
+  await db
+    .insert(userKv)
+    .values({ userId, k: "profile", v: p })
+    .onConflictDoUpdate({ target: [userKv.userId, userKv.k], set: { v: p, updatedAt: new Date() } });
 }
 
-export async function getKvJson<T = unknown>(_userId: UserId, key: string): Promise<T | null> {
-  const row = db.prepare("SELECT v FROM kv WHERE k=?").get(key) as { v: string } | undefined;
-  return row ? JSON.parse(row.v) : null;
+export async function getKvJson<T = unknown>(userId: UserId, key: string): Promise<T | null> {
+  const [row] = await db
+    .select({ v: userKv.v })
+    .from(userKv)
+    .where(and(eq(userKv.userId, userId), eq(userKv.k, key)));
+  return row ? (row.v as T) : null;
 }
-export async function setKvJson(_userId: UserId, key: string, value: unknown): Promise<void> {
-  const v = JSON.stringify(value);
-  db.prepare("INSERT INTO kv (k,v) VALUES (?,?) ON CONFLICT(k) DO UPDATE SET v=?").run(key, v, v);
+export async function setKvJson(userId: UserId, key: string, value: unknown): Promise<void> {
+  await db
+    .insert(userKv)
+    .values({ userId, k: key, v: value })
+    .onConflictDoUpdate({ target: [userKv.userId, userKv.k], set: { v: value, updatedAt: new Date() } });
 }
 
 // ---- generic key-value object storage (for checklist progress) ----
@@ -74,13 +81,30 @@ export async function setRoadmapStatus(userId: UserId, tech: string, status: str
   return progress;
 }
 
-// Map of cardId -> SRS row (ease/interval/due/reps), for computing "due today" and stats.
-export async function getSrsStateByCard(_userId: UserId): Promise<Record<string, SrsRow>> {
-  return Object.fromEntries((db.prepare("SELECT * FROM srs").all() as unknown as SrsRow[]).map((s) => [s.cardId, s]));
+// Map of cardId -> SRS row (interval/due/reps/FSRS state), for computing "due today" and stats.
+export async function getSrsStateByCard(userId: UserId): Promise<Record<string, SrsRow>> {
+  const rows = await db.select().from(srs).where(eq(srs.userId, userId));
+  return Object.fromEntries(rows.map((s) => [s.cardId, toSrsRow(s)]));
 }
 
-export async function getSrsRow(_userId: UserId, cardId: string): Promise<SrsRow | undefined> {
-  return db.prepare("SELECT * FROM srs WHERE cardId=?").get(cardId) as SrsRow | undefined;
+export async function getSrsRow(userId: UserId, cardId: string): Promise<SrsRow | undefined> {
+  const [row] = await db
+    .select()
+    .from(srs)
+    .where(and(eq(srs.userId, userId), eq(srs.cardId, cardId)));
+  return row ? toSrsRow(row) : undefined;
+}
+
+function toSrsRow(row: typeof srs.$inferSelect): SrsRow {
+  return {
+    cardId: row.cardId,
+    intervalDays: row.intervalDays,
+    due: row.due,
+    reps: row.reps,
+    difficulty: row.difficulty,
+    stability: row.stability,
+    lastReview: row.lastReview,
+  };
 }
 
 export interface SrsGradeFields {
@@ -92,14 +116,28 @@ export interface SrsGradeFields {
   lastReview: string;
 }
 
-// ON CONFLICT(cardId) is a global uniqueness rule today — fine with one tenant, but once this
-// moves to Postgres it MUST become ON CONFLICT (user_id, cardId) (see the composite PK on `srs`
-// in schema/app.ts), or one user's grading would silently overwrite another user's SRS state
-// for a card with the same id.
-export async function recordSrsGrade(_userId: UserId, cardId: string, fields: SrsGradeFields): Promise<void> {
-  db.prepare(
-    `INSERT INTO srs (cardId, difficulty, stability, interval, due, reps, lastReview) VALUES (?,?,?,?,?,?,?)
-     ON CONFLICT(cardId) DO UPDATE SET difficulty=excluded.difficulty, stability=excluded.stability,
-       interval=excluded.interval, due=excluded.due, reps=excluded.reps, lastReview=excluded.lastReview`,
-  ).run(cardId, fields.difficulty, fields.stability, fields.interval, fields.due, fields.reps, fields.lastReview);
+export async function recordSrsGrade(userId: UserId, cardId: string, fields: SrsGradeFields): Promise<void> {
+  await db
+    .insert(srs)
+    .values({
+      userId,
+      cardId,
+      difficulty: fields.difficulty,
+      stability: fields.stability,
+      intervalDays: fields.interval,
+      due: fields.due,
+      reps: fields.reps,
+      lastReview: fields.lastReview,
+    })
+    .onConflictDoUpdate({
+      target: [srs.userId, srs.cardId],
+      set: {
+        difficulty: fields.difficulty,
+        stability: fields.stability,
+        intervalDays: fields.interval,
+        due: fields.due,
+        reps: fields.reps,
+        lastReview: fields.lastReview,
+      },
+    });
 }

@@ -9,6 +9,8 @@ import { app } from "./app.js";
 import { env } from "./config/env.js";
 import logger from "./core/logger.js";
 import { closeDb } from "./db/index.js";
+import { bootstrapUser } from "./db/bootstrap.js";
+import { BOOTSTRAP_USER_ID } from "./db/user-id.js";
 
 // Without these two handlers, an unexpected exception outside an Express request (e.g. a
 // throw in setTimeout/a background timer, or an unhandled Promise rejection from code nobody
@@ -31,6 +33,12 @@ process.on("uncaughtException", (err) => {
   void flushSentry().finally(() => process.exit(1));
 });
 
+// Phase 2 of the multi-tenant migration: there's no real registration flow yet (phase 3 adds
+// better-auth), so the one bootstrap user is seeded explicitly here, before the server starts
+// accepting requests — instead of the old node:sqlite version's import-time side effect against
+// a single shared file, which doesn't generalize to "seed if this user has nothing yet".
+await bootstrapUser(BOOTSTRAP_USER_ID);
+
 const server = app.listen(env.port, () =>
   logger.info(`✅ JobTrack API on http://localhost:${env.port} (LLM: ${env.llm.isAvailable ? "on" : "off — offline mode"})`),
 );
@@ -49,8 +57,9 @@ function shutdown(signal: string): void {
   forceExitTimer.unref();
   server.close((err) => {
     if (err) logger.error({ err }, "Error while closing the HTTP server");
-    closeDb();
-    void flushSentry().finally(() => process.exit(err ? 1 : 0));
+    void closeDb()
+      .catch((closeErr) => logger.error({ err: closeErr }, "Error while closing the DB pool"))
+      .finally(() => void flushSentry().finally(() => process.exit(err ? 1 : 0)));
   });
 }
 

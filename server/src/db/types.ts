@@ -1,4 +1,6 @@
-// Types for SQLite table rows and domain objects stored in the kv store.
+// Domain row shapes. Postgres jsonb columns (stack/questions/v) come back from Drizzle already
+// parsed into their native JS type — unlike the old SQLite TEXT-as-JSON columns, nothing here
+// needs a JSON.parse() step at the call site.
 
 export interface Profile {
   skills: string[];
@@ -17,22 +19,13 @@ export interface VacancyRow {
   applied: string;
   next: string;
   notes: string;
-  stack: string;
+  stack: string[];
   created: string;
-}
-
-export interface CompanyRow {
-  id: number;
-  name: string;
-  notes: string;
-  questions: string;
 }
 
 export interface SrsRow {
   cardId: string;
-  /** @deprecated Leftover from the SM-2 scheduler — the new code (FSRS) doesn't read/write this field. */
-  ease: number;
-  interval: number;
+  intervalDays: number;
   due: string;
   reps: number;
   /** FSRS difficulty (1..10). NULL — the card has never been graded by the new scheduler. */

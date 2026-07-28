@@ -1,6 +1,8 @@
 // Market demand — computed from the actual stack of added vacancies. Used in the CV
 // review, learning plan, roadmap, analytics, "focus of the week", and the 21-day plan.
-import db, { j } from "../db/index.js";
+import { eq } from "drizzle-orm";
+import db from "../db/client.js";
+import { vacancies } from "../db/schema/index.js";
 import type { UserId } from "../db/user-id.js";
 
 // Previously every vacancy weighed exactly 1, regardless of whether it was added yesterday
@@ -32,11 +34,11 @@ export function recencyWeight(createdIso: string, now: Date = new Date()): numbe
  * is also the shape the future async repository layer will call once demandMap() itself starts
  * reading from Postgres instead of node:sqlite.
  */
-export function computeDemand(rows: { stack: string; created: string }[], now: Date = new Date()): Record<string, number> {
+export function computeDemand(rows: { stack: string[]; created: string }[], now: Date = new Date()): Record<string, number> {
   const weighted: Record<string, number> = {};
   rows.forEach((v) => {
     const weight = recencyWeight(v.created, now);
-    j(v.stack).forEach((t) => (weighted[t] = (weighted[t] || 0) + weight));
+    v.stack.forEach((t) => (weighted[t] = (weighted[t] || 0) + weight));
   });
   const map: Record<string, number> = {};
   for (const [tech, sum] of Object.entries(weighted)) map[tech] = Math.round(sum);
@@ -44,7 +46,7 @@ export function computeDemand(rows: { stack: string; created: string }[], now: D
 }
 
 /** Convenience wrapper: reads every vacancy row and delegates the math to computeDemand(). */
-export async function demandMap(_userId: UserId, now: Date = new Date()): Promise<Record<string, number>> {
-  const rows = db.prepare("SELECT stack, created FROM vacancies").all() as { stack: string; created: string }[];
+export async function demandMap(userId: UserId, now: Date = new Date()): Promise<Record<string, number>> {
+  const rows = await db.select({ stack: vacancies.stack, created: vacancies.created }).from(vacancies).where(eq(vacancies.userId, userId));
   return computeDemand(rows, now);
 }

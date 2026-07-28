@@ -9,8 +9,13 @@ import { BOOTSTRAP_USER_ID } from "../../db/user-id.js";
 
 vi.mock("../../db/index.js", () => ({
   getProfile: vi.fn(async () => ({ skills: ["React"], cvText: "", domain: "" })),
-  getKvJson: vi.fn(async () => null),
-  setKvJson: vi.fn(async () => undefined),
+}));
+// shared/skill-extraction.js's cache (called transitively via quickAnalyze -> extractSkills)
+// reads/writes db/llm-cache.js directly, whose import chain would otherwise open a real
+// Postgres connection pool (db/client.js) during this unit test.
+vi.mock("../../db/llm-cache.js", () => ({
+  getLlmCache: vi.fn(async () => null),
+  setLlmCache: vi.fn(async () => undefined),
 }));
 vi.mock("../../llm/index.js", () => ({
   llmAvailable: vi.fn(() => false),

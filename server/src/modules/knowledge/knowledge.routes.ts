@@ -1,11 +1,12 @@
 import express from "express";
-import db, { getProfile } from "../../db/index.js";
+import { getProfile } from "../../db/index.js";
 import { getDynamicKnowledge } from "./knowledge.service.js";
 import { kbFor } from "./knowledge-base.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { authed } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
 import { demandMap } from "../../shared/demand.js";
+import { countVacancies } from "../vacancies/vacancies.repo.js";
 
 const r = express.Router();
 
@@ -37,8 +38,8 @@ r.get(
       .filter(([t]) => skills.has(t))
       .sort((a, b) => b[1] - a[1])
       .map(([tech, count]) => ({ tech, count }));
-    const total = db.prepare("SELECT COUNT(*) c FROM vacancies").get() as { c: number };
-    res.json({ gaps, strengths, totalVacancies: total.c });
+    const total = await countVacancies(userId);
+    res.json({ gaps, strengths, totalVacancies: total });
   }),
 );
 r.post(

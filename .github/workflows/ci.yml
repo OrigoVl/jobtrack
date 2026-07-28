@@ -101,6 +101,25 @@ jobs:
     name: E2E (Playwright)
     needs: build-and-test
     runs-on: ubuntu-latest
+    # The e2e job launches the real production build (playwright.config.ts#webServer), which
+    # needs a real reachable Postgres at DATABASE_URL — unlike build-and-test's unit tests,
+    # which use PGlite (in-process, no service container needed).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: jobtrack
+          POSTGRES_PASSWORD: jobtrack
+          POSTGRES_DB: jobtrack
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jobtrack -d jobtrack"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://jobtrack:jobtrack@localhost:5432/jobtrack
     steps:
       - name: Checkout
         uses: actions/checkout@v7

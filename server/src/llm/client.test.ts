@@ -8,15 +8,15 @@
 // nuance as in playwright.config.ts for e2e). vi.resetModules() + a dynamic import
 // are needed because env.ts reads process.env once at import time (the module is cached).
 //
-// db/index.js is mocked because client.ts imports getKvJson/setKvJson from there only for
-// the optional response cache — the real module pulls in node:sqlite, which vite/vitest can't
-// transform on a dynamic re-import (the test must stay isolated from the db).
+// db/llm-cache.js is mocked because client.ts imports getLlmCache/setLlmCache from there only
+// for the optional response cache — the real module opens a Postgres connection pool, which we
+// don't want in a unit test (the test must stay isolated from the db).
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { BOOTSTRAP_USER_ID } from "../db/user-id.js";
 
-vi.mock("../db/index.js", () => ({
-  getKvJson: vi.fn(() => null),
-  setKvJson: vi.fn(),
+vi.mock("../db/llm-cache.js", () => ({
+  getLlmCache: vi.fn(() => null),
+  setLlmCache: vi.fn(),
 }));
 
 describe("chat() / llmAvailable() offline fallback", () => {

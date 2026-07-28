@@ -6,8 +6,11 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
 /**
  * E2E config: spins up a production server build (build + node dist/index.js), which
  * itself serves the built frontend (client/dist) — we test the real build, not the dev
- * mode with a separate Vite proxy. An isolated DB via DB_PATH so we don't touch the local
- * jobtrack.db.
+ * mode with a separate Vite proxy. Needs a real reachable Postgres at DATABASE_URL — locally
+ * that's `docker compose up -d postgres` (see docker-compose.yml); CI runs one as a service
+ * container. `pretest:e2e` (server/scripts/reset-e2e-db.mjs) drops all app tables first so
+ * every run starts from a clean, freshly re-migrated + re-seeded (bootstrapUser) DB — the
+ * Postgres equivalent of the old SQLite setup's `rm -f e2e/.tmp/e2e.db*`.
  *
  * workers: 1 (not fullyParallel) — all E2E specs share ONE DB from a single running
  * server (no per-test data isolation). Roadmap/Plan21 are built dynamically from the
@@ -40,12 +43,8 @@ export default defineConfig({
     timeout: 30_000,
     env: {
       PORT: String(PORT),
-      DB_PATH: "./e2e/.tmp/e2e.db",
       NODE_ENV: "production",
-      // Storage is still SQLite (DB_PATH above) — nothing reads this yet, it only satisfies
-      // config/env.ts's production DATABASE_URL requirement (added ahead of the actual
-      // Postgres/Drizzle swap later in the migration).
-      DATABASE_URL: "postgres://jobtrack:jobtrack@localhost:5432/jobtrack",
+      DATABASE_URL: process.env.DATABASE_URL || "postgres://jobtrack:jobtrack@localhost:5432/jobtrack",
     },
   },
 });
