@@ -1,6 +1,7 @@
 // Vacancy text analysis: extracting text from the page, detecting skills/level,
 // and computing "fit" (how well the candidate matches) against the profile.
 import { getProfile } from "../../db/index.js";
+import type { UserId } from "../../db/user-id.js";
 import { extractLevel } from "../../shared/tech-dict.js";
 import { extractSkills } from "../../shared/skill-extraction.js";
 import { demandMap } from "../../shared/demand.js";
@@ -44,15 +45,15 @@ export interface QuickAnalysis {
 // value that gets discarded immediately). semanticFit is computed SEPARATELY, only in the
 // interactive POST /vacancies/analyze (vacancies.routes.ts), where the result is shown to the
 // user right away in the analyzer (client/src/features/analyzer).
-export async function quickAnalyze(text: string): Promise<QuickAnalysis> {
-  const profile = getProfile();
-  const techs = await extractSkills(text);
+export async function quickAnalyze(userId: UserId, text: string): Promise<QuickAnalysis> {
+  const profile = await getProfile(userId);
+  const techs = await extractSkills(userId, text);
   const level = extractLevel(text);
   const match = techs.filter((t) => profile.skills.includes(t));
   const gap = techs.filter((t) => !profile.skills.includes(t));
   // The demand map (skill frequency among already-added vacancies) weighs fit: missing a
   // common, frequently-requested skill is worse than missing a niche one — see computeFit() in vacancy-text.ts.
-  return { techs, level, match, gap, fit: computeFit(match, gap, demandMap()) };
+  return { techs, level, match, gap, fit: computeFit(match, gap, await demandMap(userId)) };
 }
 
 /**
@@ -63,7 +64,7 @@ export async function quickAnalyze(text: string): Promise<QuickAnalysis> {
  * (creating/updating a vacancy, import) can safely continue its main operation even if
  * auto-enrichment failed.
  */
-export async function tryAutoEnrichStack(url: string): Promise<QuickAnalysis | null> {
+export async function tryAutoEnrichStack(userId: UserId, url: string): Promise<QuickAnalysis | null> {
   if (!url) return null;
   try {
     assertSafeVacancyUrl(url);
@@ -81,7 +82,7 @@ export async function tryAutoEnrichStack(url: string): Promise<QuickAnalysis | n
       contextLogger().warn({ url, textLength: text.length }, "Auto-enrich skipped: fetched page text too short/empty");
       return null;
     }
-    return await quickAnalyze(text);
+    return await quickAnalyze(userId, text);
   } catch (e) {
     contextLogger().warn({ url, err: e }, "Auto-enrich failed: could not fetch or analyze vacancy URL");
     return null;

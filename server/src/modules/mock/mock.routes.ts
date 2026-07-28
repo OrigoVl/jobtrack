@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { getProfile } from "../../db/index.js";
 import { chatJson, llmAvailable } from "../../llm/index.js";
-import { HttpError, asyncHandler } from "../../core/http.js";
+import { HttpError, authed } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
 
 const r = express.Router();
@@ -19,15 +19,16 @@ const MockEvalSchema = z.object({
 r.post(
   "/mock/evaluate",
   aiLimiter,
-  asyncHandler(async (req, res) => {
+  authed(async (userId, req, res) => {
     const question = String(req.body?.question || "").slice(0, 2000);
     const answer = String(req.body?.answer || "").trim();
     const reference = String(req.body?.reference || "").slice(0, 2000);
     if (answer.length < 2) throw new HttpError(400, "Empty answer");
     if (!llmAvailable())
       return res.json({ offline: true, score: null, verdict: "AI offline — set a key in server/.env to evaluate answers." });
-    const role = getProfile().domain || "professional";
+    const role = (await getProfile(userId)).domain || "professional";
     const out = await chatJson(
+      userId,
       `You are a friendly but demanding interviewer for the role "${role}". You evaluate the candidate's answer honestly. Respond with ONLY valid JSON in English.`,
       `Question: ${question}\n` +
         `Reference answer: ${reference || "—"}\n` +

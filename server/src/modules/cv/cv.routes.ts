@@ -4,7 +4,7 @@ import { parseLinkedInArchive } from "./linkedin-import.service.js";
 import { extractSkills, detectDomain } from "../../shared/skill-extraction.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { extractText } from "./cv-extract.service.js";
-import { HttpError, asyncHandler } from "../../core/http.js";
+import { HttpError, authed } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
 import { parseProfileInput } from "../../shared/validation.js";
 import { uploadSingle } from "../../shared/upload.js";
@@ -15,18 +15,24 @@ import { emptyCvDoc, parseCvDocFromText } from "./cv-document.service.js";
 const r = express.Router();
 
 // ---------- profile ----------
-r.get("/profile", (_q, res) => res.json(getProfile()));
-r.put("/profile", (req, res) => {
-  setProfile({ ...getProfile(), ...parseProfileInput(req.body) });
-  res.json(getProfile());
-});
+r.get(
+  "/profile",
+  authed(async (userId, _req, res) => res.json(await getProfile(userId))),
+);
+r.put(
+  "/profile",
+  authed(async (userId, req, res) => {
+    await setProfile(userId, { ...(await getProfile(userId)), ...parseProfileInput(req.body) });
+    res.json(await getProfile(userId));
+  }),
+);
 
 // ---------- CV analysis against market demand ----------
 r.post(
   "/cv/analyze",
   aiLimiter,
-  asyncHandler(async (req, res) => {
-    res.json(await cvAnalysis(req.body?.cvText || getProfile().cvText));
+  authed(async (userId, req, res) => {
+    res.json(await cvAnalysis(userId, req.body?.cvText || (await getProfile(userId)).cvText));
   }),
 );
 
@@ -34,29 +40,29 @@ r.post(
   "/cv/upload",
   aiLimiter,
   uploadSingle("file"),
-  asyncHandler(async (req, res) => {
+  authed(async (userId, req, res) => {
     if (!req.file) throw new HttpError(400, "No file received");
     const text = await extractText(req.file.buffer, req.file.originalname, req.file.mimetype);
     if (!text || text.trim().length < 20) {
       throw new HttpError(422, "Couldn't extract text from the file (it might be a scan or image).");
     }
-    const profile = getProfile();
+    const profile = await getProfile(userId);
     // extractSkills and detectDomain are independent LLM calls over the same text (neither
     // reads the other's result), so we run them in parallel instead of waiting sequentially —
     // almost twice as fast for the user when uploading a CV.
-    const [cvTechs, domain] = await Promise.all([extractSkills(text), detectDomain(text)]);
+    const [cvTechs, domain] = await Promise.all([extractSkills(userId, text), detectDomain(userId, text)]);
     profile.cvText = text.slice(0, 8000);
     profile.skills = Array.from(new Set([...profile.skills, ...cvTechs]));
     if (domain) profile.domain = domain;
-    setProfile(profile);
+    await setProfile(userId, profile);
     // cvAnalysis (advice based on market demand) and parseCvDocFromText (parsing into the
     // builder structure) are also independent of each other — both only read the already
     // saved profile.cvText.
     const [analysis, cvDoc] = await Promise.all([
-      cvAnalysis(text),
-      llmAvailable() ? parseCvDocFromText(profile.cvText) : Promise.resolve(null),
+      cvAnalysis(userId, text),
+      llmAvailable() ? parseCvDocFromText(userId, profile.cvText) : Promise.resolve(null),
     ]);
-    if (cvDoc) setKvJson("cvDoc", cvDoc);
+    if (cvDoc) await setKvJson(userId, "cvDoc", cvDoc);
     res.json({ text: profile.cvText, skills: profile.skills, detected: cvTechs, domain: profile.domain, cvDoc, ...analysis });
   }),
 );
@@ -64,14 +70,15 @@ r.post(
 r.post(
   "/cv/skills-update",
   aiLimiter,
-  asyncHandler(async (req, res) => {
+  authed(async (userId, req, res) => {
     const done = strs(req.body?.completed);
-    const profile = getProfile();
+    const profile = await getProfile(userId);
     const merged = Array.from(new Set([...profile.skills, ...done]));
     const role = profile.domain || "specialist";
     let text = `Skills: ${merged.join(", ")}`;
     if (llmAvailable()) {
       const llm = await chat(
+        userId,
         "You write an ATS-friendly skills section for a resume.",
         `Generate a key skills section, grouped by logical topics, for the role "${role}" with skills: ${merged.join(", ")}. Concise, bullet points, in the resume's language.`,
         { maxTokens: 400, cache: true },
@@ -86,10 +93,10 @@ r.post(
 r.post(
   "/cv/review",
   aiLimiter,
-  asyncHandler(async (req, res) => {
-    const cvText = String(req.body?.cvText || getProfile().cvText || "").slice(0, 8000);
+  authed(async (userId, req, res) => {
+    const cvText = String(req.body?.cvText || (await getProfile(userId)).cvText || "").slice(0, 8000);
     if (cvText.trim().length < 30) throw new HttpError(400, "Not enough CV text to review");
-    res.json(await reviewCv(cvText));
+    res.json(await reviewCv(userId, cvText));
   }),
 );
 
@@ -97,38 +104,50 @@ r.post(
 r.post(
   "/cv/match",
   aiLimiter,
-  asyncHandler(async (req, res) => {
-    const cvText = String(req.body?.cvText || getProfile().cvText || "").slice(0, 8000);
+  authed(async (userId, req, res) => {
+    const cvText = String(req.body?.cvText || (await getProfile(userId)).cvText || "").slice(0, 8000);
     const jobTitle = String(req.body?.jobTitle || "").slice(0, 200);
     const jobText = String(req.body?.jobText || "").slice(0, 4000);
     if (cvText.trim().length < 30) throw new HttpError(400, "Not enough CV text to compare");
     if (!jobTitle.trim() && !jobText.trim()) throw new HttpError(400, "No vacancy data to compare against");
-    res.json(await matchCv(cvText, jobTitle, jobText));
+    res.json(await matchCv(userId, cvText, jobTitle, jobText));
   }),
 );
 
 // ---------- CV builder (structured resume) ----------
-r.get("/cv/doc", (_q, res) => {
-  const stored = getKvJson("cvDoc");
-  res.json(stored ? CvDocSchema.parse(stored) : emptyCvDoc());
-});
-r.put("/cv/doc", (req, res) => {
-  const doc = CvDocSchema.parse(req.body);
-  setKvJson("cvDoc", doc);
-  res.json(doc);
-});
-r.get("/cv/presets", (_q, res) => {
-  res.json({ presets: CvPresetsSchema.parse(getKvJson("cvPresets")) });
-});
-r.put("/cv/presets", (req, res) => {
-  const presets = CvPresetsSchema.parse(req.body?.presets);
-  setKvJson("cvPresets", presets);
-  res.json({ presets });
-});
+r.get(
+  "/cv/doc",
+  authed(async (userId, _req, res) => {
+    const stored = await getKvJson(userId, "cvDoc");
+    res.json(stored ? CvDocSchema.parse(stored) : await emptyCvDoc(userId));
+  }),
+);
+r.put(
+  "/cv/doc",
+  authed(async (userId, req, res) => {
+    const doc = CvDocSchema.parse(req.body);
+    await setKvJson(userId, "cvDoc", doc);
+    res.json(doc);
+  }),
+);
+r.get(
+  "/cv/presets",
+  authed(async (userId, _req, res) => {
+    res.json({ presets: CvPresetsSchema.parse(await getKvJson(userId, "cvPresets")) });
+  }),
+);
+r.put(
+  "/cv/presets",
+  authed(async (userId, req, res) => {
+    const presets = CvPresetsSchema.parse(req.body?.presets);
+    await setKvJson(userId, "cvPresets", presets);
+    res.json({ presets });
+  }),
+);
 r.post(
   "/cv/linkedin-import",
   uploadSingle("file"),
-  asyncHandler(async (req, res) => {
+  authed(async (userId, req, res) => {
     if (!req.file) throw new HttpError(400, "No file received");
     let parsed;
     try {
@@ -140,40 +159,41 @@ r.post(
       throw new HttpError(422, "No Profile.csv / Positions.csv / Skills.csv found in the archive.");
     }
     const doc = CvDocSchema.parse(parsed);
-    setKvJson("cvDoc", doc);
-    const profile = getProfile();
+    await setKvJson(userId, "cvDoc", doc);
+    const profile = await getProfile(userId);
     profile.skills = Array.from(new Set([...profile.skills, ...doc.skills]));
     if (!profile.domain && doc.title) profile.domain = doc.title.slice(0, 80);
-    setProfile(profile);
+    await setProfile(userId, profile);
     res.json({ doc });
   }),
 );
 r.post(
   "/cv/doc/generate",
   aiLimiter,
-  asyncHandler(async (req, res) => {
-    const cvText = String(req.body?.cvText || getProfile().cvText || "").slice(0, 8000);
+  authed(async (userId, req, res) => {
+    const cvText = String(req.body?.cvText || (await getProfile(userId)).cvText || "").slice(0, 8000);
     if (!llmAvailable() || cvText.trim().length < 30)
-      return res.json({ offline: !llmAvailable(), doc: getKvJson("cvDoc") || emptyCvDoc() });
-    const doc = await parseCvDocFromText(cvText);
-    setKvJson("cvDoc", doc);
+      return res.json({ offline: !llmAvailable(), doc: (await getKvJson(userId, "cvDoc")) || (await emptyCvDoc(userId)) });
+    const doc = await parseCvDocFromText(userId, cvText);
+    await setKvJson(userId, "cvDoc", doc);
     res.json({ doc });
   }),
 );
 r.post(
   "/cv/improve",
   aiLimiter,
-  asyncHandler(async (req, res) => {
+  authed(async (userId, req, res) => {
     const text = String(req.body?.text || "").trim();
     const kind = String(req.body?.kind || "bullet");
     if (text.length < 3) throw new HttpError(400, "Empty text");
     if (!llmAvailable()) return res.json({ text, offline: true });
-    const role = getProfile().domain || "specialist";
+    const role = (await getProfile(userId)).domain || "specialist";
     const guide =
       kind === "summary"
         ? "Rewrite this resume summary (2-3 sentences): engaging, with a focus on results and key skills."
         : 'Rewrite this experience bullet using the formula "strong verb → what you did → technology → measurable result". One sentence, no fluff.';
     const out = await chat(
+      userId,
       `You are a resume editor for the role "${role}". Write concisely, with a focus on results, in the original language.`,
       `${guide}\n\nOriginal: ${text.slice(0, 600)}`,
       { maxTokens: 200, temperature: 0.5, cache: true, tier: "smart" },

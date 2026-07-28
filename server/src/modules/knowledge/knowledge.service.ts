@@ -2,6 +2,7 @@ import { z } from "zod";
 import { kbFor, type Resource } from "./knowledge-base.js";
 import { chatJson, llmAvailable } from "../../llm/index.js";
 import { getKvJson, setKvJson, type Profile } from "../../db/index.js";
+import type { UserId } from "../../db/user-id.js";
 import { hashString } from "../../shared/hash.js";
 
 // focus.nullable().catch(null) (not .catch("")) — DynamicKnowledge.focus is typed as
@@ -85,15 +86,22 @@ interface CachedKnowledgePayload {
 }
 
 /** Returns learning content for a technology, personalized for the candidate. */
-export async function getDynamicKnowledge(tech: string, { profile, demand }: DynamicKnowledgeContext): Promise<DynamicKnowledge> {
+export async function getDynamicKnowledge(
+  userId: UserId,
+  tech: string,
+  { profile, demand }: DynamicKnowledgeContext,
+): Promise<DynamicKnowledge> {
   const base = kbFor(tech);
   const shared = { tech, drills: base.drills, cards: base.cards };
   if (!llmAvailable()) {
     return { ...shared, focus: null, learn: base.learn, resources: base.resources, source: "static" };
   }
   const skills = profile.skills || [];
+  // Deliberately NOT scoped by userId yet — same note as llm/client.ts's chat(): one of the 5
+  // known cross-tenant-leak-risk caches (this one keyed on a derived skill-set hash, not full
+  // content — an even higher existence-oracle risk), fixed in phase 4.
   const cacheKey = `kb:${tech}:${hashSkills(skills)}`;
-  const cached = getKvJson<CachedKnowledgePayload>(cacheKey);
+  const cached = await getKvJson<CachedKnowledgePayload>(userId, cacheKey);
   if (cached) {
     return {
       ...shared,
@@ -107,6 +115,7 @@ export async function getDynamicKnowledge(tech: string, { profile, demand }: Dyn
   const count = demand[tech] || 0;
   const role = profile.domain || "professional";
   const out = await chatJson(
+    userId,
     `You are a mentor for the role "${role}". Respond with ONLY valid JSON in English.`,
     `The candidate already knows: ${skills.join(", ") || "—"}.\n` +
       `They need to pick up "${tech}"${count ? ` (required in ${count} vacancies from the list)` : ""}.\n` +
@@ -123,6 +132,6 @@ export async function getDynamicKnowledge(tech: string, { profile, demand }: Dyn
   }
   const resources = await validateResources(base.resources, out.resources);
   const payload: CachedKnowledgePayload = { focus: out.focus, learn: out.learn, resources };
-  setKvJson(cacheKey, payload);
+  await setKvJson(userId, cacheKey, payload);
   return { ...shared, focus: payload.focus, learn: payload.learn, resources: payload.resources, source: "ai" };
 }

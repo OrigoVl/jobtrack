@@ -19,6 +19,7 @@ vi.mock("../../llm/index.js", () => ({
 import { getDynamicKnowledge } from "./knowledge.service.js";
 import { getKvJson } from "../../db/index.js";
 import { chatJson } from "../../llm/index.js";
+import { BOOTSTRAP_USER_ID } from "../../db/user-id.js";
 
 describe("getDynamicKnowledge() offline fallback", () => {
   beforeEach(() => {
@@ -26,7 +27,7 @@ describe("getDynamicKnowledge() offline fallback", () => {
   });
 
   it("returns static knowledge-base content without touching kv cache or chat()", async () => {
-    const result = await getDynamicKnowledge("React", {
+    const result = await getDynamicKnowledge(BOOTSTRAP_USER_ID, "React", {
       profile: { skills: ["JavaScript"], domain: "Frontend" },
       demand: { React: 5 },
     });

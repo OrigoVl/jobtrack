@@ -4,13 +4,14 @@
 // currently at stage X" (analytics.routes.ts funnel) — a vacancy rejected at "Tech interview"
 // disappears from that stage in the current snapshot, even though it really did pass through it.
 import db from "./client.js";
+import type { UserId } from "./user-id.js";
 
-export function recordStatusChange(vacancyId: number, status: string): void {
+export async function recordStatusChange(_userId: UserId, vacancyId: number, status: string): Promise<void> {
   db.prepare("INSERT INTO vacancy_status_history (vacancy_id, status) VALUES (?, ?)").run(vacancyId, status);
 }
 
 /** Count of UNIQUE vacancies that ever had each status (regardless of their current one). */
-export function getReachedCounts(): Record<string, number> {
+export async function getReachedCounts(_userId: UserId): Promise<Record<string, number>> {
   const rows = db.prepare("SELECT status, COUNT(DISTINCT vacancy_id) c FROM vacancy_status_history GROUP BY status").all() as {
     status: string;
     c: number;
@@ -18,7 +19,7 @@ export function getReachedCounts(): Record<string, number> {
   return Object.fromEntries(rows.map((r) => [r.status, Number(r.c)]));
 }
 
-export function deleteHistoryForVacancy(vacancyId: number): void {
+export async function deleteHistoryForVacancy(_userId: UserId, vacancyId: number): Promise<void> {
   db.prepare("DELETE FROM vacancy_status_history WHERE vacancy_id = ?").run(vacancyId);
 }
 
@@ -53,8 +54,8 @@ export function computeFunnelConversion(reached: Record<string, number>, order: 
 }
 
 /** Convenience wrapper: reads reached-counts from the DB and delegates to computeFunnelConversion(). */
-export function getFunnelConversion(order: readonly string[]): StageConversion[] {
-  return computeFunnelConversion(getReachedCounts(), order);
+export async function getFunnelConversion(userId: UserId, order: readonly string[]): Promise<StageConversion[]> {
+  return computeFunnelConversion(await getReachedCounts(userId), order);
 }
 
 export interface StageDuration {
@@ -96,7 +97,7 @@ export function avgDaysFromHistoryRows(rows: { vacancy_id: number; status: strin
 }
 
 /** Convenience wrapper: reads ordered history rows from the DB and delegates to avgDaysFromHistoryRows(). */
-export function getAvgDaysInStage(): StageDuration[] {
+export async function getAvgDaysInStage(_userId: UserId): Promise<StageDuration[]> {
   const rows = db.prepare("SELECT vacancy_id, status, changed_at FROM vacancy_status_history ORDER BY vacancy_id, changed_at").all() as {
     vacancy_id: number;
     status: string;

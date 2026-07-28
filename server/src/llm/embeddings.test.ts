@@ -3,6 +3,7 @@
 // MUST return false/null instead of throwing or reaching the network — the graceful degradation that
 // quickAnalyze() relies on (semanticFit becomes null, tech-based fit remains the main signal).
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { BOOTSTRAP_USER_ID } from "../db/user-id.js";
 
 vi.mock("../db/index.js", () => ({
   getKvJson: vi.fn(() => null),
@@ -44,13 +45,13 @@ describe("embeddingsAvailable() / embed() — offline / non-openai fallback", ()
   it("embed() resolves to null without calling the network when unavailable", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const { embed } = await import("./embeddings.js");
-    expect(await embed("some CV text")).toBeNull();
+    expect(await embed(BOOTSTRAP_USER_ID, "some CV text")).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("semanticSimilarity() resolves to null (not 0) when embeddings are unavailable", async () => {
     const { semanticSimilarity } = await import("./embeddings.js");
-    expect(await semanticSimilarity("a", "b")).toBeNull();
+    expect(await semanticSimilarity(BOOTSTRAP_USER_ID, "a", "b")).toBeNull();
   });
 });
 
@@ -78,7 +79,7 @@ describe("embed() / semanticSimilarity() — with an OpenAI key configured", () 
       json: async () => ({ data: [{ embedding: [1, 0, 0] }] }),
     } as Response);
     const { embed } = await import("./embeddings.js");
-    expect(await embed("some CV text")).toEqual([1, 0, 0]);
+    expect(await embed(BOOTSTRAP_USER_ID, "some CV text")).toEqual([1, 0, 0]);
   });
 
   it("returns null (not a thrown error) when the provider responds with a non-2xx status", async () => {
@@ -88,13 +89,13 @@ describe("embed() / semanticSimilarity() — with an OpenAI key configured", () 
       text: async () => JSON.stringify({ error: { message: "Invalid API key" } }),
     } as Response);
     const { embed } = await import("./embeddings.js");
-    expect(await embed("some CV text")).toBeNull();
+    expect(await embed(BOOTSTRAP_USER_ID, "some CV text")).toBeNull();
   });
 
   it("returns null for an empty/whitespace-only input without calling the network", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const { embed } = await import("./embeddings.js");
-    expect(await embed("   ")).toBeNull();
+    expect(await embed(BOOTSTRAP_USER_ID, "   ")).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -105,8 +106,8 @@ describe("embed() / semanticSimilarity() — with an OpenAI key configured", () 
       return { ok: true, status: 200, json: async () => ({ data: [{ embedding: vector }] }) } as Response;
     });
     const { semanticSimilarity } = await import("./embeddings.js");
-    expect(await semanticSimilarity("same text", "same text")).toBeCloseTo(1, 5);
-    expect(await semanticSimilarity("same text", "orthogonal-b")).toBeCloseTo(0, 5);
+    expect(await semanticSimilarity(BOOTSTRAP_USER_ID, "same text", "same text")).toBeCloseTo(1, 5);
+    expect(await semanticSimilarity(BOOTSTRAP_USER_ID, "same text", "orthogonal-b")).toBeCloseTo(0, 5);
   });
 });
 

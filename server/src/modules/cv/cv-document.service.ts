@@ -1,11 +1,12 @@
 // Building a structured CV document (builder): an empty template and
 // LLM parsing of arbitrary resume text into the CvDocSchema structure.
 import { getProfile, getKvJson } from "../../db/index.js";
+import type { UserId } from "../../db/user-id.js";
 import { chat } from "../../llm/index.js";
 import { CvDocSchema, CvThemeSchema, type CvDoc } from "./cv.schemas.js";
 
-export function emptyCvDoc(): CvDoc {
-  const p = getProfile();
+export async function emptyCvDoc(userId: UserId): Promise<CvDoc> {
+  const p = await getProfile(userId);
   return {
     name: "",
     title: p.domain || "",
@@ -21,8 +22,9 @@ export function emptyCvDoc(): CvDoc {
   };
 }
 
-export async function parseCvDocFromText(cvText: string): Promise<CvDoc> {
+export async function parseCvDocFromText(userId: UserId, cvText: string): Promise<CvDoc> {
   const out = await chat(
+    userId,
     "You parse a resume into a structure. Respond with ONLY valid JSON. Keep the original language.",
     `Break the resume down into a structure. Resume:\n${cvText}\n\n` +
       `Format strictly: {"name":"","title":"","contact":"email/links","summary":"2-4 sentences","skills":["..."],` +
@@ -34,7 +36,7 @@ export async function parseCvDocFromText(cvText: string): Promise<CvDoc> {
     { json: true, maxTokens: 2600, temperature: 0.3, cache: true, tier: "smart" },
   );
   const doc = CvDocSchema.parse(out || {});
-  const prev = getKvJson<CvDoc>("cvDoc");
+  const prev = await getKvJson<CvDoc>(userId, "cvDoc");
   if (prev?.theme) doc.theme = CvThemeSchema.parse(prev.theme);
   return doc;
 }

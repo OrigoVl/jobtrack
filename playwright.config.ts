@@ -42,6 +42,10 @@ export default defineConfig({
       PORT: String(PORT),
       DB_PATH: "./e2e/.tmp/e2e.db",
       NODE_ENV: "production",
+      // Storage is still SQLite (DB_PATH above) — nothing reads this yet, it only satisfies
+      // config/env.ts's production DATABASE_URL requirement (added ahead of the actual
+      // Postgres/Drizzle swap later in the migration).
+      DATABASE_URL: "postgres://jobtrack:jobtrack@localhost:5432/jobtrack",
     },
   },
 });

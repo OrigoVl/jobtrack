@@ -1,6 +1,7 @@
 // Market demand — computed from the actual stack of added vacancies. Used in the CV
 // review, learning plan, roadmap, analytics, "focus of the week", and the 21-day plan.
 import db, { j } from "../db/index.js";
+import type { UserId } from "../db/user-id.js";
 
 // Previously every vacancy weighed exactly 1, regardless of whether it was added yesterday
 // or a year ago — a vacancy from a "dead" market (outdated stack, company no longer hiring)
@@ -43,7 +44,7 @@ export function computeDemand(rows: { stack: string; created: string }[], now: D
 }
 
 /** Convenience wrapper: reads every vacancy row and delegates the math to computeDemand(). */
-export function demandMap(now: Date = new Date()): Record<string, number> {
+export async function demandMap(_userId: UserId, now: Date = new Date()): Promise<Record<string, number>> {
   const rows = db.prepare("SELECT stack, created FROM vacancies").all() as { stack: string; created: string }[];
   return computeDemand(rows, now);
 }

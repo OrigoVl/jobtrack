@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import db, { getProfile, getSrsStateByCard, getReachedCounts, getFunnelConversion, getAvgDaysInStage } from "../../db/index.js";
 import { chatJson, llmAvailable } from "../../llm/index.js";
-import { asyncHandler } from "../../core/http.js";
+import { authed } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
 import { demandMap } from "../../shared/demand.js";
 import { allCards } from "../study/content-store.js";
@@ -49,39 +49,42 @@ function isStaleApplication(v: VacancyStatusNextRow, nowMs: number): boolean {
 const FUNNEL_ORDER = ["Want to apply", "Applied", "Screening", "Tech interview", "Take-home task", "Final", "Offer", "Rejected"];
 const FUNNEL_PROGRESSION_ORDER = FUNNEL_ORDER.filter((s) => s !== "Rejected");
 
-r.get("/analytics", (_q, res) => {
-  const rows = db.prepare("SELECT status, created, applied FROM vacancies").all() as unknown as VacancyStatusRow[];
-  const funnelOrder = FUNNEL_ORDER;
-  const funnel: Record<string, number> = {};
-  funnelOrder.forEach((s) => (funnel[s] = 0));
-  const byDate: Record<string, number> = {};
-  rows.forEach((v) => {
-    funnel[v.status] = (funnel[v.status] || 0) + 1;
-    const d = v.created || "";
-    if (d) byDate[d] = (byDate[d] || 0) + 1;
-  });
-  // funnel is only the CURRENT distribution (a snapshot of "where the vacancy is now"): a
-  // vacancy rejected at the "Tech interview" stage no longer counts there, because the status
-  // was overwritten to "Rejected" — it looks like it never got there. funnelReached is how many
-  // vacancies EVER had each status (from vacancy_status_history), i.e. an honest funnel of
-  // stage progression regardless of the final outcome.
-  const reached = getReachedCounts();
-  const funnelReached: Record<string, number> = {};
-  funnelOrder.forEach((s) => (funnelReached[s] = reached[s] || 0));
-  const demand = demandMap();
-  const profile = getProfile();
-  const radar = Object.entries(demand)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([tech, cnt]) => ({
-      tech,
-      demand: cnt,
-      you: profile.skills.includes(tech) ? cnt : 0,
-    }));
-  const conversion = getFunnelConversion(FUNNEL_PROGRESSION_ORDER);
-  const stageDurations = getAvgDaysInStage().filter((d) => d.count >= 2); // count===1 is statistically insignificant, just noise in the UI
-  res.json({ funnel, funnelReached, byDate, demand, radar, conversion, stageDurations });
-});
+r.get(
+  "/analytics",
+  authed(async (userId, _req, res) => {
+    const rows = db.prepare("SELECT status, created, applied FROM vacancies").all() as unknown as VacancyStatusRow[];
+    const funnelOrder = FUNNEL_ORDER;
+    const funnel: Record<string, number> = {};
+    funnelOrder.forEach((s) => (funnel[s] = 0));
+    const byDate: Record<string, number> = {};
+    rows.forEach((v) => {
+      funnel[v.status] = (funnel[v.status] || 0) + 1;
+      const d = v.created || "";
+      if (d) byDate[d] = (byDate[d] || 0) + 1;
+    });
+    // funnel is only the CURRENT distribution (a snapshot of "where the vacancy is now"): a
+    // vacancy rejected at the "Tech interview" stage no longer counts there, because the status
+    // was overwritten to "Rejected" — it looks like it never got there. funnelReached is how many
+    // vacancies EVER had each status (from vacancy_status_history), i.e. an honest funnel of
+    // stage progression regardless of the final outcome.
+    const reached = await getReachedCounts(userId);
+    const funnelReached: Record<string, number> = {};
+    funnelOrder.forEach((s) => (funnelReached[s] = reached[s] || 0));
+    const demand = await demandMap(userId);
+    const profile = await getProfile(userId);
+    const radar = Object.entries(demand)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([tech, cnt]) => ({
+        tech,
+        demand: cnt,
+        you: profile.skills.includes(tech) ? cnt : 0,
+      }));
+    const conversion = await getFunnelConversion(userId, FUNNEL_PROGRESSION_ORDER);
+    const stageDurations = (await getAvgDaysInStage(userId)).filter((d) => d.count >= 2); // count===1 is statistically insignificant, just noise in the UI
+    res.json({ funnel, funnelReached, byDate, demand, radar, conversion, stageDurations });
+  }),
+);
 
 interface FocusSummary {
   totalVac: number;
@@ -135,9 +138,9 @@ function heuristicFocus(s: FocusSummary): FocusAction[] {
 r.get(
   "/insights/focus",
   aiLimiter,
-  asyncHandler(async (_q, res) => {
-    const profile = getProfile();
-    const demand = demandMap();
+  authed(async (userId, _req, res) => {
+    const profile = await getProfile(userId);
+    const demand = await demandMap(userId);
     const rows = db.prepare("SELECT status, next, applied FROM vacancies").all() as unknown as VacancyStatusNextRow[];
     const skills = new Set(profile.skills);
     const gaps = Object.entries(demand)
@@ -149,7 +152,7 @@ r.get(
     rows.forEach((v) => (funnel[v.status] = (funnel[v.status] || 0) + 1));
     const today = new Date().toISOString().slice(0, 10);
     const nowMs = Date.now();
-    const srs = getSrsStateByCard();
+    const srs = await getSrsStateByCard(userId);
     const summary: FocusSummary = {
       totalVac: rows.length,
       interviews: rows.filter((v) => ["Tech interview", "Take-home task", "Final"].includes(v.status)).length,
@@ -158,7 +161,7 @@ r.get(
       funnel,
       gaps,
       skillsCount: skills.size,
-      dueCards: allCards().filter((c) => {
+      dueCards: (await allCards(userId)).filter((c) => {
         const s = srs[c.id];
         return !s || s.due <= today;
       }).length,
@@ -167,6 +170,7 @@ r.get(
     if (!llmAvailable()) return res.json({ offline: true, actions: heuristicFocus(summary) });
     const role = profile.domain || "professional";
     const out = await chatJson(
+      userId,
       `You are a career mentor for a candidate (${role}) job-hunting. You analyze their state and give the 3 most important concrete actions for this week. Reply with ONLY valid JSON in English.`,
       `Search state (JSON): ${JSON.stringify(summary)}.\n` +
         `Give exactly 3 priority actions with an explanation of why now. Format strictly: {"actions":[{"title":"short action","why":"1 sentence why"}]}`,

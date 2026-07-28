@@ -1,6 +1,6 @@
 import express from "express";
 import { getProfile } from "../../db/index.js";
-import { asyncHandler } from "../../core/http.js";
+import { authed } from "../../core/http.js";
 import { fetchRemotive, fetchArbeitnow, fetchDou, type RawJob } from "./job-search.service.js";
 import { jobDocument, rankByTfidf } from "./job-ranking.js";
 import { dedupeBySimhash } from "./job-dedupe.js";
@@ -14,8 +14,8 @@ interface JobWithMatch extends RawJob {
 // ---------- job search across aggregators (Remotive + Arbeitnow + DOU, no keys needed) ----------
 r.get(
   "/jobs/search",
-  asyncHandler(async (req, res) => {
-    const profile = getProfile();
+  authed(async (userId, req, res) => {
+    const profile = await getProfile(userId);
     const q = String(req.query.q || "").trim() || profile.skills.slice(0, 3).join(" ") || profile.domain || "";
     const region = String(req.query.region || "all");
     const wantUa = region === "all" || region === "ua";

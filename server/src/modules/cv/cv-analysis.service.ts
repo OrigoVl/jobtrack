@@ -2,6 +2,7 @@
 // extracted from the controllers so the /cv/* routes stay thin (parse → delegate → respond).
 import { z } from "zod";
 import { getProfile } from "../../db/index.js";
+import type { UserId } from "../../db/user-id.js";
 import { extractTechs } from "../../shared/tech-dict.js";
 import { chat, chatJson, llmAvailable } from "../../llm/index.js";
 import { demandMap } from "../../shared/demand.js";
@@ -36,9 +37,9 @@ export interface CvAnalysis {
   advice: string;
 }
 
-export async function cvAnalysis(cvText: string): Promise<CvAnalysis> {
-  const profile = getProfile();
-  const demand = demandMap();
+export async function cvAnalysis(userId: UserId, cvText: string): Promise<CvAnalysis> {
+  const profile = await getProfile(userId);
+  const demand = await demandMap(userId);
   const cvTechs = cvText ? extractTechs(cvText).map((t) => t.name) : [];
   const skills = new Set([...profile.skills, ...cvTechs]);
   const gaps = Object.entries(demand)
@@ -57,6 +58,7 @@ export async function cvAnalysis(cvText: string): Promise<CvAnalysis> {
     .join(", ")}.`;
   if (llmAvailable() && cvText) {
     const llm = await chat(
+      userId,
       `You are a career coach for the role "${role}". Be specific.`,
       `Candidate's CV:\n${cvText.slice(0, 5000)}\n\nMarket demand (number of vacancies per skill): ${JSON.stringify(demand)}.\nGive 4-6 concrete recommendations: what to improve and what to emphasize in the resume.`,
       // "fast" is enough: turning structured gaps/strengths into recommendations is a
@@ -126,12 +128,13 @@ function heuristicReview(cvText: string, reason: FallbackReason = "no-key"): CvR
   };
 }
 
-export async function reviewCv(cvText: string): Promise<CvReview & { offline: boolean }> {
-  const profile = getProfile();
+export async function reviewCv(userId: UserId, cvText: string): Promise<CvReview & { offline: boolean }> {
+  const profile = await getProfile(userId);
   const role = profile.domain || "specialist";
-  const demand = demandMap();
+  const demand = await demandMap(userId);
   if (!llmAvailable()) return { offline: true, ...heuristicReview(cvText) };
   const out = await chatJson(
+    userId,
     `You are an experienced technical recruiter and career coach for the role "${role}". You give honest, actionable feedback on resumes. Respond with ONLY valid JSON, in English.`,
     `Candidate's resume:\n${cvText}\n\n` +
       `Market demand (skills from job postings): ${JSON.stringify(demand)}.\n` +
@@ -197,10 +200,11 @@ function heuristicMatch(cvText: string, jobText: string, reason: FallbackReason 
   };
 }
 
-export async function matchCv(cvText: string, jobTitle: string, jobText: string): Promise<CvMatch & { offline: boolean }> {
+export async function matchCv(userId: UserId, cvText: string, jobTitle: string, jobText: string): Promise<CvMatch & { offline: boolean }> {
   const combined = `${jobTitle}\n${jobText}`;
   if (!llmAvailable()) return { offline: true, ...heuristicMatch(cvText, combined) };
   const out = await chatJson(
+    userId,
     "You are a technical recruiter. You compare a candidate's resume against the requirements of a SPECIFIC vacancy and give a targeted gap analysis. Respond with ONLY valid JSON, in English. Don't invent experience that isn't in the resume.",
     `Vacancy: ${jobTitle}\nRequirements/description/stack:\n${jobText}\n\nCandidate's resume:\n${cvText}\n\n` +
       `Return JSON strictly: {"score":<0-100 how well the CV fits this vacancy>,` +

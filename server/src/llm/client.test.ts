@@ -12,6 +12,7 @@
 // the optional response cache — the real module pulls in node:sqlite, which vite/vitest can't
 // transform on a dynamic re-import (the test must stay isolated from the db).
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { BOOTSTRAP_USER_ID } from "../db/user-id.js";
 
 vi.mock("../db/index.js", () => ({
   getKvJson: vi.fn(() => null),
@@ -46,7 +47,7 @@ describe("chat() / llmAvailable() offline fallback", () => {
   it("chat() resolves to null in text mode without calling the network", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const { chat } = await import("./client.js");
-    const result = await chat("system prompt", "user prompt");
+    const result = await chat(BOOTSTRAP_USER_ID, "system prompt", "user prompt");
     expect(result).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
@@ -55,7 +56,7 @@ describe("chat() / llmAvailable() offline fallback", () => {
   it("chat() resolves to null in json mode without calling the network", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const { chat } = await import("./client.js");
-    const result = await chat<{ focus: string }>("system prompt", "user prompt", { json: true });
+    const result = await chat<{ focus: string }>(BOOTSTRAP_USER_ID, "system prompt", "user prompt", { json: true });
     expect(result).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
@@ -93,7 +94,7 @@ describe("chat() surfaces provider failures instead of a silent null", () => {
       text: async () => JSON.stringify({ error: { message: "Rate limit exceeded" } }),
     } as Response);
     const { chat } = await import("./client.js");
-    const result = await chat("system", "user");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user");
     expect(result).toBeNull();
   });
 
@@ -109,7 +110,7 @@ describe("chat() surfaces provider failures instead of a silent null", () => {
       }),
     } as Response);
     const { chat } = await import("./client.js");
-    const result = await chat<{ score: number }>("system", "user", { json: true });
+    const result = await chat<{ score: number }>(BOOTSTRAP_USER_ID, "system", "user", { json: true });
     expect(result).toBeNull();
   });
 
@@ -129,7 +130,7 @@ describe("chat() surfaces provider failures instead of a silent null", () => {
         json: async () => ({ choices: [{ message: { content: "ok after retry" }, finish_reason: "stop" }] }),
       } as Response);
     const { chat } = await import("./client.js");
-    const result = await chat("system", "user");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user");
     expect(result).toBe("ok after retry");
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
@@ -141,7 +142,7 @@ describe("chat() surfaces provider failures instead of a silent null", () => {
       text: async () => JSON.stringify({ error: { message: "Invalid API key" } }),
     } as Response);
     const { chat } = await import("./client.js");
-    const result = await chat("system", "user");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user");
     expect(result).toBeNull();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
@@ -155,7 +156,7 @@ describe("chat() surfaces provider failures instead of a silent null", () => {
       }),
     } as Response);
     const { chat } = await import("./client.js");
-    const result = await chat<{ score: number; summary: string }>("system", "user", { json: true });
+    const result = await chat<{ score: number; summary: string }>(BOOTSTRAP_USER_ID, "system", "user", { json: true });
     expect(result).toEqual({ score: 80, summary: "ok" });
   });
 });
@@ -192,7 +193,7 @@ describe("callProvider() falls back to the secondary provider", () => {
       } as Response;
     });
     const { chat } = await import("./client.js");
-    const result = await chat("system", "user");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user");
     expect(result).toBe("answer from anthropic");
     // openai: 1 call (401 is not retryable, no internal retry) + anthropic: 1 call = 2 total.
     expect(fetchSpy).toHaveBeenCalledTimes(2);
@@ -212,7 +213,7 @@ describe("callProvider() falls back to the secondary provider", () => {
       } as Response;
     });
     const { chat } = await import("./client.js");
-    const result = await chat("system", "user");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user");
     expect(result).toBe("answer from anthropic");
     // openai: 2 calls (original + 1 retry on 429) + anthropic: 1 call = 3 total.
     expect(fetchSpy).toHaveBeenCalledTimes(3);
@@ -226,7 +227,7 @@ describe("callProvider() falls back to the secondary provider", () => {
       text: async () => JSON.stringify({ error: { message: "Invalid API key" } }),
     } as Response);
     const { chat } = await import("./client.js");
-    const result = await chat("system", "user");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user");
     expect(result).toBeNull();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
@@ -238,7 +239,7 @@ describe("callProvider() falls back to the secondary provider", () => {
       text: async () => JSON.stringify({ error: { message: "Invalid API key" } }),
     } as Response);
     const { chat } = await import("./client.js");
-    const result = await chat("system", "user");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user");
     expect(result).toBeNull();
     expect(fetchSpy).toHaveBeenCalledTimes(2); // one attempt each (both 401 — not retryable)
   });
@@ -292,7 +293,7 @@ describe("chatJson()", () => {
     } as Response);
     const { chatJson } = await import("./client.js");
     const schema = z.object({ score: z.number() });
-    const result = await chatJson("system", "user", schema);
+    const result = await chatJson(BOOTSTRAP_USER_ID, "system", "user", schema);
     expect(result).toEqual({ score: 80 });
   });
 
@@ -313,7 +314,7 @@ describe("chatJson()", () => {
       } as Response);
     const { chatJson } = await import("./client.js");
     const schema = z.object({ score: z.number() });
-    const result = await chatJson("system", "user", schema);
+    const result = await chatJson(BOOTSTRAP_USER_ID, "system", "user", schema);
     expect(result).toEqual({ score: 80 });
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     const repairBody = JSON.parse(String(fetchSpy.mock.calls[1]![1]?.body));
@@ -329,7 +330,7 @@ describe("chatJson()", () => {
     } as Response);
     const { chatJson } = await import("./client.js");
     const schema = z.object({ score: z.number() });
-    const result = await chatJson("system", "user", schema);
+    const result = await chatJson(BOOTSTRAP_USER_ID, "system", "user", schema);
     expect(result).toBeNull();
   });
 
@@ -342,7 +343,7 @@ describe("chatJson()", () => {
     } as Response);
     const { chatJson } = await import("./client.js");
     const schema = z.object({ score: z.number() });
-    const result = await chatJson("system", "user", schema);
+    const result = await chatJson(BOOTSTRAP_USER_ID, "system", "user", schema);
     expect(result).toBeNull();
     expect(fetchSpy).toHaveBeenCalledTimes(1); // no repair call at all when there's no base result to begin with
   });

@@ -1,6 +1,7 @@
 // LLM layer with graceful fallback: without a key — offline mode (templates/dictionary).
 import type { ZodType } from "zod";
 import { getKvJson, setKvJson } from "../db/index.js";
+import type { UserId } from "../db/user-id.js";
 import { contextLogger } from "../core/logger.js";
 import { hashString } from "../shared/hash.js";
 import { env } from "../config/env.js";
@@ -48,13 +49,14 @@ function availableProviders(): LlmProvider[] {
  * type conformance at runtime, it only declares the expected shape for the compiler.
  * For structured JSON with AUTOMATIC zod validation + self-repair retry, see chatJson() below.
  */
-export async function chat(system: string, user: string, options?: ChatOptions & { json?: false }): Promise<string | null>;
+export async function chat(userId: UserId, system: string, user: string, options?: ChatOptions & { json?: false }): Promise<string | null>;
 export async function chat<T extends object = Record<string, unknown>>(
+  userId: UserId,
   system: string,
   user: string,
   options: ChatOptions & { json: true },
 ): Promise<T | null>;
-export async function chat(system: string, user: string, options: ChatOptions = {}): Promise<LlmResult> {
+export async function chat(userId: UserId, system: string, user: string, options: ChatOptions = {}): Promise<LlmResult> {
   const { json = false, maxTokens = 900, temperature = 0.4, cache = false, tier = "fast" } = options;
   if (!llmAvailable()) return null;
   const mode = json ? "json" : "text";
@@ -63,13 +65,20 @@ export async function chat(system: string, user: string, options: ChatOptions = 
   // provider (primary or fallback) ultimately answered; and changing OPENAI_MODEL/
   // ANTHROPIC_MODEL in .env for the same tier still correctly does NOT invalidate the old cache
   // (as before) — this is an acceptable tradeoff, the same one that existed before the fallback logic.
+  //
+  // Deliberately NOT scoped by userId yet: this cache key is one of the 5 known
+  // content-hash-keyed caches flagged in the phase-2 plan as a cross-tenant leak risk once a
+  // second real user exists (32-bit djb2 hash + no user scope) — the fix (SHA-256 + per-user
+  // scoping) is phase 4's job, once better-auth provides real distinct users to test it against.
+  // `userId` is threaded through this call today only so every caller already compiles against
+  // the shape phase 4 needs.
   const cacheKey = cache ? "llm:" + hashString([tier, mode, system, user].join("|")) : null;
   if (cacheKey) {
-    const hit = getKvJson<{ value: LlmResult }>(cacheKey);
+    const hit = await getKvJson<{ value: LlmResult }>(userId, cacheKey);
     if (hit) return hit.value;
   }
   const result = await callProvider(system, user, { json, maxTokens, temperature, tier });
-  if (cacheKey && result != null) setKvJson(cacheKey, { value: result });
+  if (cacheKey && result != null) await setKvJson(userId, cacheKey, { value: result });
   return result;
 }
 
@@ -305,12 +314,13 @@ function parseJsonOrLog(text: string, ctx: { model: string; provider: LlmProvide
  * different from the original, so it shouldn't claim the same cache key).
  */
 export async function chatJson<T>(
+  userId: UserId,
   system: string,
   user: string,
   schema: ZodType<T>,
   options: Omit<ChatOptions, "json"> = {},
 ): Promise<T | null> {
-  const raw = await chat<Record<string, unknown>>(system, user, { ...options, json: true });
+  const raw = await chat<Record<string, unknown>>(userId, system, user, { ...options, json: true });
   if (raw == null) return null;
   const parsed = schema.safeParse(raw);
   if (parsed.success) return parsed.data;
@@ -324,7 +334,7 @@ export async function chatJson<T>(
     parsed.error.issues.map((i) => `- ${i.path.join(".") || "(root)"}: ${i.message}`).join("\n") +
     `\n\nPrevious response:\n${JSON.stringify(raw).slice(0, 1500)}\n\n` +
     `Fix it and return ONLY valid JSON in exactly the same format as requested above.`;
-  const repaired = await chat<Record<string, unknown>>(system, repairUser, { ...options, json: true, cache: false });
+  const repaired = await chat<Record<string, unknown>>(userId, system, repairUser, { ...options, json: true, cache: false });
   if (repaired == null) return null;
   const parsedRepaired = schema.safeParse(repaired);
   if (parsedRepaired.success) return parsedRepaired.data;

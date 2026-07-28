@@ -14,6 +14,7 @@
 // semanticSimilarity/embed quietly return null (graceful — the same approach as chat()'s
 // llmAvailable()) — the caller (quickAnalyze) treats null as "no signal", not as "0%".
 import { getKvJson, setKvJson } from "../db/index.js";
+import type { UserId } from "../db/user-id.js";
 import { contextLogger } from "../core/logger.js";
 import { hashString } from "../shared/hash.js";
 import { env } from "../config/env.js";
@@ -35,12 +36,14 @@ export function embeddingsAvailable(): boolean {
  * NEVER throws (graceful, like chat()). Cached by a hash of text+model in the kv store:
  * the same CV/vacancy doesn't pay for an API call again.
  */
-export async function embed(text: string): Promise<number[] | null> {
+export async function embed(userId: UserId, text: string): Promise<number[] | null> {
   if (!embeddingsAvailable()) return null;
   const input = text.slice(0, MAX_INPUT_CHARS).trim();
   if (!input) return null;
+  // Deliberately NOT scoped by userId yet — see the same note on the cache key in llm/client.ts's
+  // chat(): one of the 5 known cross-tenant-leak-risk caches, fixed in phase 4.
   const cacheKey = "embedding:" + hashString([EMBEDDING_MODEL, input].join("|"));
-  const cached = getKvJson<{ vector: number[] }>(cacheKey);
+  const cached = await getKvJson<{ vector: number[] }>(userId, cacheKey);
   if (cached) return cached.vector;
   const signal = AbortSignal.timeout(TIMEOUT_MS);
   try {
@@ -58,7 +61,7 @@ export async function embed(text: string): Promise<number[] | null> {
     const d = (await r.json()) as { data?: { embedding?: number[] }[] };
     const vector = d?.data?.[0]?.embedding;
     if (!Array.isArray(vector) || !vector.length) return null;
-    setKvJson(cacheKey, { vector });
+    await setKvJson(userId, cacheKey, { vector });
     return vector;
   } catch (e) {
     const timedOut = e instanceof Error && e.name === "TimeoutError";
@@ -89,8 +92,8 @@ export function cosineSimilarity(a: readonly number[], b: readonly number[]): nu
  * embeddings for natural language is practically always non-negative — the clamp is just a safeguard).
  * null — embeddings are unavailable, or the API request failed for either text.
  */
-export async function semanticSimilarity(textA: string, textB: string): Promise<number | null> {
-  const [vecA, vecB] = await Promise.all([embed(textA), embed(textB)]);
+export async function semanticSimilarity(userId: UserId, textA: string, textB: string): Promise<number | null> {
+  const [vecA, vecB] = await Promise.all([embed(userId, textA), embed(userId, textB)]);
   if (!vecA || !vecB) return null;
   return Math.max(0, Math.min(1, cosineSimilarity(vecA, vecB)));
 }
