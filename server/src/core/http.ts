@@ -1,6 +1,6 @@
 // A single HTTP error type + wrappers for async routes (Express doesn't catch rejections on its own).
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { type UserId, BOOTSTRAP_USER_ID } from "../db/user-id.js";
+import type { UserId } from "../db/user-id.js";
 
 export class HttpError extends Error {
   status: number;
@@ -24,10 +24,21 @@ export function asyncHandler(fn: AsyncRequestHandler): RequestHandler {
 
 type AuthedRequestHandler = (userId: UserId, req: Request, res: Response) => Promise<unknown>;
 
-// The single seam between "who is making this request" and every route/repository. Right now
-// (phase 2 of the multi-tenant migration, before better-auth exists) it always resolves to the
-// one bootstrap user — phase 3 changes ONLY the line inside this function to read a real user
-// id off the better-auth session instead. No repository and no route ever imports a session or
+// `../auth/auth.js` is imported lazily (dynamic import inside the function, not a static
+// top-level one) purely to keep the module graph light: it pulls in db/client.ts, which opens a
+// real Postgres connection pool and runs migrate-on-boot as a side effect of being imported.
+// core/http.ts's HttpError/asyncHandler are used by dozens of otherwise DB-free modules
+// (validation.ts, pure services, ...) and their unit tests — a static import here would force
+// every one of them to either open a real DB connection or mock this file, for a dependency
+// they never actually use. Node caches the dynamic import after the first call, so this has no
+// meaningful runtime cost beyond the very first request.
+async function getSession(req: Request) {
+  const [{ auth }, { fromNodeHeaders }] = await Promise.all([import("../auth/auth.js"), import("better-auth/node")]);
+  return auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+}
+
+// The single seam between "who is making this request" and every route/repository — the ONLY
+// place that reads a better-auth session. No repository and no route ever imports a session or
 // reads req.user directly; they all go through the `userId` this function hands them.
 //
 // Deliberately explicit-parameter, not AsyncLocalStorage: an ALS-scoped userId is invisible at
@@ -36,7 +47,20 @@ type AuthedRequestHandler = (userId: UserId, req: Request, res: Response) => Pro
 // UserId` argument turns "forgot to scope this query" into a compile error instead.
 export function authed(fn: AuthedRequestHandler): RequestHandler {
   return asyncHandler(async (req, res) => {
-    const userId: UserId = BOOTSTRAP_USER_ID;
-    await fn(userId, req, res);
+    const session = await getSession(req);
+    if (!session) throw new HttpError(401, "Not authenticated");
+    await fn(session.user.id as UserId, req, res);
+  });
+}
+
+// Same seam as authed(), plus a role check — for admin-only routes (server/src/modules/admin/*,
+// phase 6). 403 (not a redirect/silent 200) so the client can tell "not logged in" (401) apart
+// from "logged in but not an admin" (403).
+export function requireAdmin(fn: AuthedRequestHandler): RequestHandler {
+  return asyncHandler(async (req, res) => {
+    const session = await getSession(req);
+    if (!session) throw new HttpError(401, "Not authenticated");
+    if (session.user.role !== "admin") throw new HttpError(403, "Admin access required");
+    await fn(session.user.id as UserId, req, res);
   });
 }

@@ -3,7 +3,7 @@
 // the vacancy_status_history FK's ON DELETE CASCADE (schema/app.ts) really does remove history
 // rows when a vacancy is deleted, without a separate manual cleanup call.
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { createTestDb } from "../../db/test-db.js";
+import { createTestDb, insertTestUser } from "../../db/test-db.js";
 import { BOOTSTRAP_USER_ID, type UserId } from "../../db/user-id.js";
 
 const USER_A = BOOTSTRAP_USER_ID;
@@ -27,6 +27,8 @@ let history: typeof import("../../db/vacancy-history.js");
 
 beforeAll(async () => {
   const testDb = await createTestDb();
+  await insertTestUser(testDb, USER_A);
+  await insertTestUser(testDb, USER_B);
   vi.doMock("../../db/client.js", () => ({ default: testDb }));
   repo = await import("./vacancies.repo.js");
   history = await import("../../db/vacancy-history.js");

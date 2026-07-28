@@ -14,6 +14,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { fileURLToPath } from "url";
 import path from "path";
 import * as schema from "./schema/index.js";
+import type { UserId } from "./user-id.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = path.join(__dirname, "..", "..", "drizzle");
@@ -24,4 +25,16 @@ export async function createTestDb() {
   const db = drizzle(client, { schema });
   await migrate(db, { migrationsFolder });
   return db;
+}
+
+type TestDb = Awaited<ReturnType<typeof createTestDb>>;
+
+/**
+ * Every app table's `user_id` is a real FK to `user.id` (schema/auth.ts) — a repository test
+ * inserting a vacancy/company/etc. for a given userId needs a matching `user` row to exist
+ * first, or Postgres rejects the insert (correctly — this is the constraint actually doing its
+ * job). Call once per test userId before exercising any repository against it.
+ */
+export async function insertTestUser(db: TestDb, id: UserId, email = `${id}@example.test`): Promise<void> {
+  await db.insert(schema.user).values({ id, name: id, email });
 }

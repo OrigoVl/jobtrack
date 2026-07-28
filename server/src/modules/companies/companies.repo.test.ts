@@ -3,7 +3,7 @@
 // Drizzle queries and the real `companies_user_name_key` unique index, proving the multi-tenant
 // scoping this repository is supposed to guarantee actually holds at the SQL level.
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { createTestDb } from "../../db/test-db.js";
+import { createTestDb, insertTestUser } from "../../db/test-db.js";
 import { BOOTSTRAP_USER_ID, type UserId } from "../../db/user-id.js";
 
 const USER_A = BOOTSTRAP_USER_ID;
@@ -15,6 +15,8 @@ let findCompanyByName: typeof import("./companies.repo.js").findCompanyByName;
 
 beforeAll(async () => {
   const testDb = await createTestDb();
+  await insertTestUser(testDb, USER_A);
+  await insertTestUser(testDb, USER_B);
   vi.doMock("../../db/client.js", () => ({ default: testDb }));
   const repo = await import("./companies.repo.js");
   listCompanies = repo.listCompanies;

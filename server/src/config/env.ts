@@ -57,10 +57,38 @@ const RawEnvSchema = z
     SENTRY_DSN: z.string().trim().min(1).optional(),
     // Build version for grouping errors in Sentry by release ("release health"). Empty in dev.
     APP_VERSION: z.string().trim().min(1).optional(),
+
+    // better-auth: signs/encrypts session cookies and tokens — required in production
+    // (enforced below), with an obviously-insecure dev-only fallback so a fresh local checkout
+    // doesn't need any auth setup to run `pnpm dev`.
+    BETTER_AUTH_SECRET: z.string().trim().min(1).optional(),
+    // The origin the auth handler considers itself to run at (used to build email verification/
+    // reset links and OAuth callback URLs) — defaults to http://localhost:PORT in dev.
+    BETTER_AUTH_URL: z.string().trim().min(1).optional(),
+    // Resend (optional) — not set → verification/reset-password emails are logged instead of
+    // sent (the same graceful-offline-fallback pattern as the LLM keys), so local dev/e2e need
+    // no email provider at all. EMAIL_FROM defaults to Resend's shared sandbox sender, which
+    // only delivers to the Resend account's own verified email until a custom domain is set up.
+    RESEND_API_KEY: z.string().trim().min(1).optional(),
+    EMAIL_FROM: z.string().trim().min(1).default("JobTrack <onboarding@resend.dev>"),
+    // Google OAuth (optional) — both or neither (enforced below); absent → the client hides the
+    // "Continue with Google" button and only email+password is offered.
+    GOOGLE_CLIENT_ID: z.string().trim().min(1).optional(),
+    GOOGLE_CLIENT_SECRET: z.string().trim().min(1).optional(),
   })
   .superRefine((v, ctx) => {
     if (v.NODE_ENV === "production" && !v.DATABASE_URL) {
       ctx.addIssue({ code: "custom", path: ["DATABASE_URL"], message: "DATABASE_URL is required in production" });
+    }
+    if (v.NODE_ENV === "production" && !v.BETTER_AUTH_SECRET) {
+      ctx.addIssue({ code: "custom", path: ["BETTER_AUTH_SECRET"], message: "BETTER_AUTH_SECRET is required in production" });
+    }
+    if (!!v.GOOGLE_CLIENT_ID !== !!v.GOOGLE_CLIENT_SECRET) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["GOOGLE_CLIENT_ID"],
+        message: "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must both be set, or both left unset",
+      });
     }
   });
 
@@ -108,6 +136,26 @@ export const env = {
     appVersion: raw.APP_VERSION,
     get isAvailable(): boolean {
       return !!env.sentry.dsn;
+    },
+  },
+
+  auth: {
+    // INSECURE dev-only fallback — never used in production (BETTER_AUTH_SECRET is required
+    // there, enforced above). Fixed rather than randomly generated per boot so sessions survive
+    // a local server restart during development.
+    secret: raw.BETTER_AUTH_SECRET || "dev-only-insecure-secret-do-not-use-in-production",
+    baseUrl: raw.BETTER_AUTH_URL || `http://localhost:${raw.PORT}`,
+    google:
+      raw.GOOGLE_CLIENT_ID && raw.GOOGLE_CLIENT_SECRET
+        ? { clientId: raw.GOOGLE_CLIENT_ID, clientSecret: raw.GOOGLE_CLIENT_SECRET }
+        : undefined,
+  },
+
+  email: {
+    resendApiKey: raw.RESEND_API_KEY,
+    from: raw.EMAIL_FROM,
+    get isAvailable(): boolean {
+      return !!env.email.resendApiKey;
     },
   },
 

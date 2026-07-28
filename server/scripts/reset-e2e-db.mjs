@@ -23,10 +23,8 @@ try {
   // recorded and skips re-running it — leaving the just-dropped tables missing instead of
   // recreated, and the e2e server crashes on the first query ("relation ... does not exist").
   await client.query(`DROP SCHEMA IF EXISTS drizzle CASCADE`);
-  // eslint-disable-next-line no-console -- one-shot CLI script, no logger set up
   console.log(`✅ e2e DB reset (${url})`);
 } catch (e) {
-  // eslint-disable-next-line no-console -- one-shot CLI script, no logger set up
   console.error(`❌ Could not reset the e2e DB at ${url} — is Postgres running? (docker compose up -d postgres)`, e);
   process.exit(1);
 } finally {

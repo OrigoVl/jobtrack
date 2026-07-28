@@ -62,16 +62,18 @@ Don't declare a task finished on the basis of "it should work" — actually run 
   builder (parameterized by construction) — no raw SQL string concatenation.
 - **Multi-tenancy**: every table and repository function takes an explicit `userId: UserId`
   (branded type, `server/src/db/user-id.ts`) as its first argument — produced only by
-  `authed()` (`core/http.ts`), never read from a route/service directly. There's no real login
-  yet (see below), so `authed()` currently always resolves to one bootstrap user, but every
-  call site is already shaped for real per-user scoping. New repository functions must follow
-  this pattern, not add a parameterless "global" query.
+  `authed()`/`requireAdmin()` (`core/http.ts`, reading a real better-auth session), never read
+  from a route/service directly. New repository functions must follow this pattern, not add a
+  parameterless "global" query.
 - **Every mutation that does a network call needs a loading indicator** — use `Btn`'s `loading`
   prop (`client/src/shared/ui.tsx`), scoped to the specific row/card via
   `mutation.isPending && mutation.variables === …` when one hook serves many list items.
-- **No real authentication yet** (still one bootstrap user — see README "Security" and "Multi-
-  tenancy migration"). The data layer is already multi-tenant-shaped (see above); real auth
-  (better-auth) is a planned separate migration, not a small patch — don't hand-roll a login.
+- **Auth**: better-auth (`server/src/auth/auth.ts`) — email+password (email verification
+  required) + Google OAuth, admin plugin for the `role` field. `authed()`/`requireAdmin()` are
+  the ONLY place a session is read; `core/http.ts` imports `auth/auth.js` lazily (dynamic
+  `import()` inside the function, not a static top-level one) specifically so modules that only
+  need `HttpError`/`asyncHandler` — and their unit tests — don't transitively open a real
+  Postgres connection just by importing this file.
 
 ## Testing philosophy
 

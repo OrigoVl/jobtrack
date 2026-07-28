@@ -2,6 +2,7 @@ import express from "express";
 import { llmAvailable } from "../../llm/index.js";
 import { pingDb } from "../../db/index.js";
 import { asyncHandler } from "../../core/http.js";
+import { env } from "../../config/env.js";
 
 const r = express.Router();
 
@@ -15,5 +16,12 @@ r.get(
     res.status(dbOk ? 200 : 503).json({ ok: dbOk, db: dbOk, llm: llmAvailable() });
   }),
 );
+
+// Public (unauthenticated) — the client needs this before a session exists, to know whether to
+// render the "Continue with Google" button (see client/src/shared/auth-client.ts). Reflects
+// config presence only, never secrets.
+r.get("/auth-config", (_q, res) => {
+  res.json({ googleEnabled: !!env.auth.google });
+});
 
 export default r;

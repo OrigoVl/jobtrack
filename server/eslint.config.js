@@ -23,4 +23,10 @@ export default tseslint.config(
     files: ["**/*.test.ts"],
     languageOptions: { globals: { ...globals.node } },
   },
+  {
+    // One-shot CLI scripts (migrations, admin bootstrap, e2e DB reset) — console output IS
+    // their output, there's no logger set up for a standalone script run outside the app.
+    files: ["scripts/**"],
+    rules: { "no-console": "off" },
+  },
 );

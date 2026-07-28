@@ -43,7 +43,6 @@ function translateStatus(status) {
   return STATUS_TRANSLATION[status] ?? status;
 }
 
-// eslint-disable-next-line no-console -- one-shot CLI script, no logger set up
 const log = (...args) => console.log(...args);
 
 let sqlite;
@@ -176,7 +175,6 @@ async function migrate() {
     );
   } catch (e) {
     await client.query("ROLLBACK").catch(() => {});
-    // eslint-disable-next-line no-console -- one-shot CLI script, no logger set up
     console.error(`❌ Migration failed and was rolled back — is Postgres running at ${url}?`, e);
     process.exitCode = 1;
   } finally {

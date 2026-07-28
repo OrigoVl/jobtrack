@@ -114,7 +114,7 @@ Dependabot (`.github/dependabot.yml`) proposes npm/Docker/Actions updates weekly
 - The JS sandbox for drill practice (`study/runner.ts`) runs in an isolated Web Worker with a hard timeout — not on the main thread.
 - The Docker image runs the process as an unprivileged user.
 
-**⚠️ No authentication yet.** The data layer is already multi-tenant-shaped (every table is scoped by `user_id`), but there's still only one user — a bootstrap constant, not a real login (see "Multi-tenancy migration" below). Anyone with network access to port 3001 can see and edit all the data without logging in. That's fine for `localhost`/a home network, but **don't expose the port directly to the public internet** without a reverse proxy with Basic Auth/OAuth (Caddy/nginx/Cloudflare Tunnel) or a VPN.
+**Authentication (better-auth).** Email+password (with required email verification) and Google OAuth. Every table is scoped by `user_id` (a real FK to the `user` table, `ON DELETE CASCADE`) — see "Multi-tenancy migration" below for what's still open. Without `RESEND_API_KEY` configured, verification/reset-password emails are logged instead of sent (see `server/.env.example`), so local dev needs no email provider to exercise the full flow.
 
 ## Architecture
 
@@ -129,7 +129,8 @@ jobtrack/
 │       ├── app.ts           # assembles the Express app (middleware → /api → static → errorHandler)
 │       ├── routes.ts        # aggregates all modules/*/*.routes.ts into a single Router
 │       ├── config/env.ts    # single typed access point for process.env
-│       ├── core/            # http (HttpError/asyncHandler/authed), logger (pino), error-handler
+│       ├── core/            # http (HttpError/asyncHandler, authed()/requireAdmin()), logger, error-handler
+│       ├── auth/             # better-auth instance (email+password, Google OAuth, admin plugin), email sending
 │       ├── db/               # Postgres client (migrate-on-boot), schema/ (Drizzle), kv, bootstrap, llm-cache
 │       ├── llm/              # OpenAI/Anthropic client with graceful fallback + response cache
 │       ├── shared/           # tech-dict, skill-extraction, validation (DTO+SSRF), demand, hash, slug, upload
@@ -173,6 +174,8 @@ Data and mutations flow through **TanStack Query** (`shared/queries/*`) — each
 
 ### Multi-tenancy migration (in progress)
 
-The data layer already runs on Postgres/Drizzle and every table/repository function is scoped by an explicit `userId` parameter (see `db/schema/`, `db/user-id.ts`, `core/http.ts#authed`) — but there's still exactly one user, a bootstrap constant, since real auth doesn't exist yet. Remaining steps: (1) real auth (better-auth) providing a session-backed `userId` instead of the bootstrap constant — the only place that changes is `authed()`, no route or repository signature needs to change; (2) closing the LLM/embeddings/skill-extraction response caches, which are still deliberately global (see `db/llm-cache.ts`) since they're keyed on a hash of the full input text, not a per-user attribute; (3) an automated cross-tenant-leak test once a second real user exists.
+The data layer runs on Postgres/Drizzle, every table/repository function is scoped by an explicit `userId` parameter (see `db/schema/`, `db/user-id.ts`, `core/http.ts#authed`), and real auth (better-auth) provides that `userId` from a session. What's still open: (1) closing the LLM/embeddings/skill-extraction response caches, which are still deliberately global (see `db/llm-cache.ts`) since they're keyed on a hash of the full input text, not a per-user attribute; (2) an automated cross-tenant-leak test now that real distinct users exist.
 
-If you have real data in an old `server/jobtrack.db` (from before this migration), migrate it with `node server/scripts/migrate-sqlite-data.mjs --dry-run` (preview), then without the flag to actually write it into Postgres as the bootstrap user's rows. Run it **before** starting the app against a fresh Postgres — otherwise the bootstrap step seeds sample data first and the migration script's own duplicate-guard will refuse to run without `--force`.
+**Admin accounts.** There's no signup checkbox or env-var toggle for this — grant it directly, after the person has registered: `node server/scripts/make-admin.mjs <email>`. Deliberately not automatic (e.g. an `ADMIN_EMAIL` env var matched on login) — that would be a standing, always-on privilege-escalation path reachable from the normal login flow, instead of an explicit, out-of-band action.
+
+**Legacy personal data.** If you have real data in an old `server/jobtrack.db` (from before this migration), migrate it with `node server/scripts/migrate-sqlite-data.mjs --dry-run` (preview), then without the flag to actually write it into Postgres under the `bootstrap-user` id. Run it **before** starting the app against a fresh Postgres — otherwise the startup bootstrap step seeds sample data first and the migration script's own duplicate-guard refuses to run without `--force`. Once you've registered a real account, claim that data with `node server/scripts/claim-bootstrap-data.mjs <email>` — it reassigns everything from `bootstrap-user` onto your real account (replacing the fresh default profile registration seeded for you, since the bootstrap data is the real one).

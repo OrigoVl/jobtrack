@@ -1,7 +1,7 @@
 // Integration test against a REAL (in-process, PGlite) Postgres — proves bootstrapUser() seeds a
 // brand-new user exactly once (idempotent) and never touches a different user's data.
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { createTestDb } from "./test-db.js";
+import { createTestDb, insertTestUser } from "./test-db.js";
 import { BOOTSTRAP_USER_ID, type UserId } from "./user-id.js";
 import { SEED_VACANCIES } from "./seed-vacancies.js";
 
@@ -14,6 +14,8 @@ let listVacancies: typeof import("../modules/vacancies/vacancies.repo.js").listV
 
 beforeAll(async () => {
   const testDb = await createTestDb();
+  await insertTestUser(testDb, USER_A);
+  await insertTestUser(testDb, USER_B);
   vi.doMock("./client.js", () => ({ default: testDb }));
   bootstrapUser = (await import("./bootstrap.js")).bootstrapUser;
   getProfile = (await import("./kv.js")).getProfile;

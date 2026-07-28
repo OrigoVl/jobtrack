@@ -8,11 +8,13 @@ import path from "path";
 import type { IncomingMessage } from "http";
 import { randomUUID } from "crypto";
 import { pinoHttp } from "pino-http";
+import { toNodeHandler } from "better-auth/node";
 import { env } from "./config/env.js";
 import logger from "./core/logger.js";
 import { errorHandler } from "./core/error-handler.js";
 import { apiLimiter } from "./core/rate-limit.js";
 import { runWithRequestContext } from "./core/request-context.js";
+import { auth } from "./auth/auth.js";
 import routes from "./routes.js";
 
 export const app = express();
@@ -68,13 +70,14 @@ app.use(
     },
   }),
 );
-// Same-origin in prod (the server serves client/dist itself) — CORS is only needed for dev
-// (Vite on a different port) and potential external integrations. Without CORS_ORIGIN in
-// .env, all origins are allowed (no credentials: there are no cookies/sessions, the app is
-// single-user, auth isn't needed). Set CORS_ORIGIN if you need to explicitly restrict the
-// list of allowed domains.
-app.use(cors(env.corsOrigins ? { origin: env.corsOrigins } : {}));
-app.use(express.json({ limit: "4mb" }));
+// Same-origin in prod (the server serves client/dist itself) and in dev (Vite proxies /api to
+// this server, see client/vite.config.ts) — cookies never actually cross an origin in either
+// case, so CORS_ORIGIN is only needed for a genuinely split deployment (client hosted
+// separately from this API). `credentials: true` is required there since better-auth's
+// sessions are cookie-based — and only safe to combine with an explicit origin list, never a
+// wildcard (the browser rejects credentialed requests against `Access-Control-Allow-Origin: *`
+// anyway, so this isn't a new restriction, just made explicit).
+app.use(cors(env.corsOrigins ? { origin: env.corsOrigins, credentials: true } : {}));
 app.use(
   pinoHttp({
     logger,
@@ -88,6 +91,13 @@ app.use((req, _res, next) => {
   runWithRequestContext(req.id != null ? String(req.id) : randomUUID(), next);
 });
 
+// better-auth's handler reads the raw request body itself — it MUST be mounted before
+// express.json() below (a body-parsing middleware that's already consumed the stream would
+// leave nothing for it to read). Not behind apiLimiter: better-auth has its own built-in,
+// IP-keyed rate limiter for these specific endpoints (auto-enabled in production).
+app.all("/api/auth/*splat", toNodeHandler(auth));
+
+app.use(express.json({ limit: "4mb" }));
 app.use("/api", apiLimiter, routes);
 // unknown API endpoint → JSON 404 (not the HTML SPA)
 app.use("/api", (_q, res) => res.status(404).json({ error: "Endpoint not found" }));

@@ -4,10 +4,10 @@
 // brand has no runtime cost — it's erased by TypeScript, this is purely a type-checker guardrail.
 export type UserId = string & { readonly __brand: "UserId" };
 
-// Phase 2 of the multi-tenant migration (Postgres schema + async repositories) lands before
-// phase 3 (better-auth), so there is no real session yet — every request is scoped to this one
-// constant "bootstrap" user, and the app keeps behaving exactly like the single-user tool it is
-// today. `authed()` is the ONLY place that reads this constant; once better-auth exists, that
-// one function starts returning the session's real user id instead — no repository, no route,
-// and no call site anywhere else has to change.
+// Phase 2 of the multi-tenant migration used this constant as every request's `userId` — there
+// was no real session yet, so `authed()` (core/http.ts) always resolved to it. Phase 3
+// (better-auth) replaced that with the real session user id; `authed()` no longer reads this
+// constant at all. It's kept only as the well-known id that any pre-auth data (seeded/migrated
+// while this was still the only "user") is scoped under — see
+// server/scripts/claim-bootstrap-data.mjs, which reassigns it to a real registered account.
 export const BOOTSTRAP_USER_ID = "bootstrap-user" as UserId;

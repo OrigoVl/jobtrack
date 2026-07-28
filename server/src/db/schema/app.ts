@@ -1,15 +1,13 @@
 // Postgres schema (Drizzle) for JobTrack's own domain tables. Multi-tenant from day one:
-// every table carries `userId`, even though phase 2 of the migration only ever sets it to a
-// single bootstrap user (see server/src/db/seed-user.ts, added later in the migration) — auth
-// (phase 3) only swaps *where* that id comes from, it never has to touch this schema.
-//
-// `userId` is NOT a foreign key to a `user` table here on purpose: better-auth's schema (which
-// owns the `user` table) is generated in phase 3, after this file. Constraints are additive in
-// Postgres, so the FK + ON DELETE CASCADE from every table below to `user.id` is added in a
-// follow-up migration once that table exists — nothing here has to be rewritten for it.
+// every table carries `userId`, a real FK to better-auth's `user` table (schema/auth.ts) with
+// ON DELETE CASCADE — deleting a user's account cleanly removes all of their data.
 import { pgTable, integer, text, jsonb, date, timestamp, real, index, uniqueIndex, primaryKey, foreignKey } from "drizzle-orm/pg-core";
+import { user } from "./auth.js";
 
-const userIdCol = () => text("user_id").notNull();
+const userIdCol = () =>
+  text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" });
 
 export const vacancies = pgTable(
   "vacancies",
