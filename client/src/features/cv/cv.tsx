@@ -3,9 +3,9 @@ import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useToast } from "../../shared/use-toast";
 import { useApplyCvUpload, useProfile, useSaveProfile, useVacancies } from "../../shared/queries";
-import { Btn, Card, Chip, PageHeader, Spinner } from "../../shared/ui";
+import { Btn, Card, Chip, PageHeader, Segmented, Spinner } from "../../shared/ui";
 import type { CvAnalysis, CvMatch, CvReview, Vacancy } from "../../shared/types";
-import { Field } from "../../shared/view-kit";
+import { Field, SkillsInput } from "../../shared/view-kit";
 
 /** Composes vacancy text from fields already saved in the tracker (position/company/level/stack/notes) —
  * the same data set already shown in the vacancy table, assembled into one block for the LLM prompt. */
@@ -237,6 +237,13 @@ export function CVView({ llm }: { llm: boolean }) {
   const [coverVacId, setCoverVacId] = useUi<number>("cv.coverVacId", 0);
   const [coverUrl, setCoverUrl] = useUi("cv.coverUrl", "");
   const [busy, setBusy] = useState("");
+  // Analysis/review get their own busy flags (not the shared `busy` string above) so their
+  // buttons' loading spinners can't be stolen/cleared by an unrelated concurrent action — and a
+  // single `activeReport` tab so running the second AI check never visually "buries"/closes the
+  // first one, it just becomes one tab-click away instead of disappearing off-screen.
+  const [busyAnalysis, setBusyAnalysis] = useState(false);
+  const [busyReview, setBusyReview] = useState(false);
+  const [activeReport, setActiveReport] = useUi<"analysis" | "review">("cv.activeReport", "analysis");
   const coverCompany = vacancies.find((v) => v.id === coverVacId)?.company || "";
   const pickCoverVacancy = (id: number) => {
     setCoverVacId(id);
@@ -261,19 +268,21 @@ export function CVView({ llm }: { llm: boolean }) {
   const domain = draft?.domain ?? profile?.domain ?? "";
   const patch = (p: Partial<{ cvText: string; skills: string[]; domain: string }>) => setDraft({ cvText, skills, domain, ...p });
   const analyze = async () => {
-    setBusy("cv");
+    setBusyAnalysis(true);
     try {
       setAnalysis(await api.analyzeCV(cvText));
+      setActiveReport("analysis");
     } finally {
-      setBusy("");
+      setBusyAnalysis(false);
     }
   };
   const doReview = async () => {
-    setBusy("review");
+    setBusyReview(true);
     try {
       setReview(await api.reviewCV(cvText));
+      setActiveReport("review");
     } finally {
-      setBusy("");
+      setBusyReview(false);
     }
   };
   const gen = async () => {
@@ -351,10 +360,10 @@ export function CVView({ llm }: { llm: boolean }) {
           </label>
           <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />
           <span className="text-xs font-semibold text-slate-500">AI analysis:</span>
-          <Btn size="sm" variant="ghost" onClick={analyze} loading={busy === "cv"} disabled={!cvText.trim()}>
+          <Btn size="sm" variant="ghost" onClick={analyze} loading={busyAnalysis} disabled={!cvText.trim()}>
             🔍 CV vs market
           </Btn>
-          <Btn size="sm" variant="ghost" onClick={doReview} loading={busy === "review"} disabled={!cvText.trim()}>
+          <Btn size="sm" variant="ghost" onClick={doReview} loading={busyReview} disabled={!cvText.trim()}>
             🔎 Deep review
           </Btn>
         </div>
@@ -386,26 +395,49 @@ export function CVView({ llm }: { llm: boolean }) {
             className="w-full mt-0.5 h-32 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
         </label>
-        <Field
-          label="Skills (comma-separated)"
-          value={skills.join(", ")}
-          onChange={(v) =>
-            patch({
-              skills: v
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean),
-            })
-          }
-          placeholder="React, Node, TypeScript…"
-        />
+        <SkillsInput label="Skills" skills={skills} onChange={(skills) => patch({ skills })} placeholder="React, Node, TypeScript…" />
       </Card>
-      {analysis && (
-        <Card>
-          <div className="text-sm whitespace-pre-wrap text-slate-700">{analysis.advice}</div>
-        </Card>
-      )}
-      {review && <CvReviewPanel review={review} />}
+      {(analysis || review) &&
+        (() => {
+          // Which reports actually exist right now — falls back to whatever's available if the
+          // remembered tab was hidden/cleared, so the dismiss (✕) button below always acts on
+          // what's actually on screen instead of a stale tab selection.
+          const available: ("analysis" | "review")[] = [
+            ...(analysis ? (["analysis"] as const) : []),
+            ...(review ? (["review"] as const) : []),
+          ];
+          const current = available.includes(activeReport) ? activeReport : available[0];
+          return (
+            <div className="space-y-2">
+              {available.length > 1 && (
+                <Segmented
+                  value={current}
+                  onChange={setActiveReport}
+                  options={[
+                    { value: "analysis", label: "🔍 CV vs market" },
+                    { value: "review", label: "🔎 Deep review" },
+                  ]}
+                />
+              )}
+              <div className="relative">
+                <button
+                  onClick={() => (current === "analysis" ? setAnalysis(null) : setReview(null))}
+                  title="Hide"
+                  className="absolute right-3 top-3 z-10 text-slate-400 hover:text-slate-600 text-sm"
+                >
+                  ✕
+                </button>
+                {current === "analysis" && analysis ? (
+                  <Card>
+                    <div className="text-sm whitespace-pre-wrap text-slate-700">{analysis.advice}</div>
+                  </Card>
+                ) : (
+                  review && <CvReviewPanel review={review} />
+                )}
+              </div>
+            </div>
+          );
+        })()}
       <div className="grid md:grid-cols-2 gap-4 items-start">
         <Card className="space-y-2">
           <div className="text-sm font-semibold text-slate-700">🔧 Update Skills section</div>

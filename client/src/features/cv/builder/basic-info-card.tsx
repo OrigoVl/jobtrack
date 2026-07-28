@@ -1,5 +1,5 @@
 import { Btn, Card } from "../../../shared/ui";
-import { Field } from "../../../shared/view-kit";
+import { Field, SkillsInput } from "../../../shared/view-kit";
 import type { CvDoc } from "../../../shared/types";
 
 interface BasicInfoCardProps {
@@ -44,18 +44,7 @@ export function BasicInfoCard({ doc, onChange, llm, improvingSummary, onImproveS
           className="w-full mt-0.5 h-20 bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
         />
       </label>
-      <Field
-        label="Skills (comma-separated)"
-        value={doc.skills.join(", ")}
-        onChange={(v) =>
-          onChange({
-            skills: v
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean),
-          })
-        }
-      />
+      <SkillsInput label="Skills" skills={doc.skills} onChange={(skills) => onChange({ skills })} placeholder="React, Node, TypeScript…" />
     </Card>
   );
 }

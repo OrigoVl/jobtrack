@@ -27,6 +27,14 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   const [review, setReview] = useUi<CvReview | null>("cvbuilder.review", null);
   const [match, setMatch] = useUi<CvMatch | null>("cvbuilder.match", null);
   const [matchVacId, setMatchVacId] = useUi<number>("cvbuilder.matchVac", 0);
+  // Own busy flags for review/match (not the shared `busy` string below) — otherwise starting
+  // one while the other is still in flight steals its loading spinner via the shared variable.
+  // `activeReport` picks which of the two shows in the single reports card below, so generating
+  // the second one is a tab switch, not a re-stack that shoves the first one off-screen (which
+  // looked like it "closed" when both were rendered as separate, independently-ordered blocks).
+  const [busyReview, setBusyReview] = useState(false);
+  const [busyMatch, setBusyMatch] = useState(false);
+  const [activeReport, setActiveReport] = useUi<"review" | "match">("cvbuilder.activeReport", "review");
   const [dismissedSuggest, setDismissedSuggest] = useState(false);
   // Content and design are split across tabs (instead of stacked on top of each other in one
   // column) — this is what keeps the preview on the right sticky and immediately visible instead
@@ -122,15 +130,16 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       return;
     }
     const jobText = [vac.stack.length ? `Stack: ${vac.stack.join(", ")}` : "", vac.notes].filter(Boolean).join("\n") || vac.position;
-    setBusy("match");
+    setBusyMatch(true);
     try {
       const r = await api.matchVacancy(cvDocToText(doc), `${vac.position}${vac.company ? ` @ ${vac.company}` : ""}`, jobText);
       setMatch(r);
+      setActiveReport("match");
       toast(r.offline ? "Basic comparison (enable LLM for accurate results)" : "Comparison ready", r.offline ? "info" : "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Comparison error", "error");
     } finally {
-      setBusy("");
+      setBusyMatch(false);
     }
   };
   const doReview = async () => {
@@ -139,15 +148,16 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       toast("Fill in more CV details for analysis", "error");
       return;
     }
-    setBusy("review");
+    setBusyReview(true);
     try {
       const r = await api.reviewCV(text);
       setReview(r);
+      setActiveReport("review");
       toast(r.offline ? "Basic analysis (enable LLM for deeper analysis)" : "Analysis ready", r.offline ? "info" : "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Analysis error", "error");
     } finally {
-      setBusy("");
+      setBusyReview(false);
     }
   };
   const deletePreset = async (name: string) => {
@@ -295,7 +305,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           </Btn>
           <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />
           <span className="text-xs font-semibold text-slate-500">AI analysis:</span>
-          <Btn size="sm" variant="ghost" onClick={doReview} loading={busy === "review"}>
+          <Btn size="sm" variant="ghost" onClick={doReview} loading={busyReview}>
             🔎 Tips
           </Btn>
         </div>
@@ -318,7 +328,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
                   </option>
                 ))}
               </select>
-              <Btn size="sm" onClick={doMatch} loading={busy === "match"} disabled={!matchVacId}>
+              <Btn size="sm" onClick={doMatch} loading={busyMatch} disabled={!matchVacId}>
                 Compare
               </Btn>
             </>
@@ -346,37 +356,51 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           </Btn>
         </Card>
       )}
-      {match && (
-        <div className="relative">
-          <button
-            onClick={() => setMatch(null)}
-            title="Hide"
-            className="absolute right-3 top-3 z-10 text-slate-400 hover:text-slate-600 text-sm"
-          >
-            ✕
-          </button>
-          <CvMatchPanel
-            match={match}
-            onAddKeyword={addSkill}
-            onApplySummary={(s) => {
-              set({ summary: s });
-              toast("Summary updated for the vacancy", "success");
-            }}
-          />
-        </div>
-      )}
-      {review && (
-        <div className="relative">
-          <button
-            onClick={() => setReview(null)}
-            title="Hide analysis"
-            className="absolute right-3 top-3 z-10 text-slate-400 hover:text-slate-600 text-sm"
-          >
-            ✕
-          </button>
-          <CvReviewPanel review={review} onAddKeyword={addSkill} onApplyRewrite={applyRewrite} />
-        </div>
-      )}
+      {(review || match) &&
+        (() => {
+          // Which reports actually exist — falls back to whichever is available if the
+          // remembered tab was hidden/cleared, so the dismiss (✕) button always acts on what's
+          // actually on screen. Because both live in one fixed-position card with a tab
+          // switcher instead of two independently-ordered blocks, running "Compare" after
+          // "Tips" never pushes the review result out of view — it's one click away, not gone.
+          const available: ("review" | "match")[] = [...(review ? (["review"] as const) : []), ...(match ? (["match"] as const) : [])];
+          const current = available.includes(activeReport) ? activeReport : available[0];
+          return (
+            <div className="space-y-2">
+              {available.length > 1 && (
+                <Segmented
+                  value={current}
+                  onChange={setActiveReport}
+                  options={[
+                    { value: "review", label: "🔎 Tips" },
+                    { value: "match", label: "🎯 Vacancy match" },
+                  ]}
+                />
+              )}
+              <div className="relative">
+                <button
+                  onClick={() => (current === "review" ? setReview(null) : setMatch(null))}
+                  title="Hide"
+                  className="absolute right-3 top-3 z-10 text-slate-400 hover:text-slate-600 text-sm"
+                >
+                  ✕
+                </button>
+                {current === "match" && match ? (
+                  <CvMatchPanel
+                    match={match}
+                    onAddKeyword={addSkill}
+                    onApplySummary={(s) => {
+                      set({ summary: s });
+                      toast("Summary updated for the vacancy", "success");
+                    }}
+                  />
+                ) : (
+                  review && <CvReviewPanel review={review} onAddKeyword={addSkill} onApplyRewrite={applyRewrite} />
+                )}
+              </div>
+            </div>
+          );
+        })()}
       {/* grid-cols-1 (not just "grid" with no columns) — important: Tailwind explicitly sets
           `minmax(0, 1fr)`, whereas "none" (the default implicit grid without any `grid-cols-*`)
           gives track sizing "auto", which honors the min-content of descendants. The CV preview
