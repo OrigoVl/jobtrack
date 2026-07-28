@@ -5,6 +5,7 @@ import type { UserId } from "../db/user-id.js";
 import { contextLogger } from "../core/logger.js";
 import { hashString } from "../shared/hash.js";
 import { env } from "../config/env.js";
+import { insertLlmUsage, type LlmUsageOutcome } from "../telemetry/telemetry.repo.js";
 
 export type LlmTier = "fast" | "smart";
 type LlmProvider = "openai" | "anthropic";
@@ -16,6 +17,12 @@ export interface ChatOptions {
   /** Cache the response in the kv store by hash (system+user+model) — for stable/expensive requests. */
   cache?: boolean;
   tier?: LlmTier;
+  /**
+   * Which product feature this call belongs to (e.g. "cv-review", "mock-interview") — attributed
+   * in the admin's cost-by-feature view (Phase 6). Optional so ad-hoc/test call sites don't need
+   * one; every real call site should pass it. Falls back to "unspecified" if omitted.
+   */
+  feature?: string;
 }
 
 export function llmAvailable(): boolean {
@@ -56,12 +63,11 @@ export async function chat<T extends object = Record<string, unknown>>(
   user: string,
   options: ChatOptions & { json: true },
 ): Promise<T | null>;
-// `_userId` isn't read below — the cache is content-hash-keyed and deliberately global (see
-// db/llm-cache.ts), not per-user. It's still a required parameter because phase 5's usage/cost
-// telemetry hooks into this exact call and needs to attribute the call to a user; keeping every
-// caller passing it now avoids a second signature change later.
-export async function chat(_userId: UserId, system: string, user: string, options: ChatOptions = {}): Promise<LlmResult> {
-  const { json = false, maxTokens = 900, temperature = 0.4, cache = false, tier = "fast" } = options;
+// `userId` attributes this call's telemetry (recordLlmUsage below) to a user for the admin's
+// per-user/per-feature usage views (Phase 5/6) — the cache itself stays content-hash-keyed and
+// deliberately global (see db/llm-cache.ts), not per-user.
+export async function chat(userId: UserId, system: string, user: string, options: ChatOptions = {}): Promise<LlmResult> {
+  const { json = false, maxTokens = 900, temperature = 0.4, cache = false, tier = "fast", feature = "unspecified" } = options;
   if (!llmAvailable()) return null;
   const mode = json ? "json" : "text";
   // The cache key deliberately includes `tier` (not the specific model/provider) — for the same
@@ -72,9 +78,37 @@ export async function chat(_userId: UserId, system: string, user: string, option
   const cacheKey = cache ? "llm:" + hashString([tier, mode, system, user].join("|")) : null;
   if (cacheKey) {
     const hit = await getLlmCache<{ value: LlmResult }>(cacheKey);
-    if (hit) return hit.value;
+    if (hit) {
+      // provider/model are deliberately null: the cache is tier-scoped, not provider-scoped, so
+      // there's no truthful single provider/model to attribute a hit to (see db/schema/app.ts's
+      // llmCache comment) — and 0 tokens/cost genuinely is what a cache hit costs.
+      recordLlmUsage({
+        userId,
+        feature,
+        tier,
+        provider: null,
+        model: null,
+        usage: null,
+        cacheHit: true,
+        latencyMs: 0,
+        outcome: "cache_hit",
+      });
+      return hit.value;
+    }
   }
-  const result = await callProvider(system, user, { json, maxTokens, temperature, tier });
+  const started = Date.now();
+  const { result, provider, model, usage } = await callProvider(system, user, { json, maxTokens, temperature, tier });
+  recordLlmUsage({
+    userId,
+    feature,
+    tier,
+    provider,
+    model,
+    usage,
+    cacheHit: false,
+    latencyMs: Date.now() - started,
+    outcome: result != null ? "success" : "error",
+  });
   if (cacheKey && result != null) await setLlmCache(cacheKey, { value: result });
   return result;
 }
@@ -106,6 +140,16 @@ const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 // but not so long that it noticeably hurts the user's perceived speed.
 const RETRY_DELAY_MS = 400;
 
+/** What actually happened for one chat() call — enough for recordLlmUsage() to attribute cost
+ * even when the result is null (provider/model of the LAST attempt, so a total failure is still
+ * traceable to which model/provider was tried). */
+interface CallProviderResult {
+  result: LlmResult;
+  provider: LlmProvider | null;
+  model: string | null;
+  usage: LlmUsage | null;
+}
+
 /**
  * Iterates over providers in availableProviders() order (usually one; two only if
  * BOTH keys are configured): for each — up to 2 attempts (original + 1 retry on a transient
@@ -114,16 +158,24 @@ const RETRY_DELAY_MS = 400;
  * removes the single point of failure for owners of BOTH keys: a short outage/
  * rate limit on one provider does not put the app's AI features fully offline.
  */
-async function callProvider(system: string, user: string, { json, maxTokens, temperature, tier }: CallProviderOptions): Promise<LlmResult> {
+async function callProvider(
+  system: string,
+  user: string,
+  { json, maxTokens, temperature, tier }: CallProviderOptions,
+): Promise<CallProviderResult> {
   const providers = availableProviders();
   const timeoutMs = tier === "smart" ? env.llm.timeoutMs : env.llm.timeoutMsFast;
+  let lastProvider: LlmProvider | null = null;
+  let lastModel: string | null = null;
   for (let i = 0; i < providers.length; i++) {
     const provider = providers[i]!;
     const model = modelForProvider(provider, tier);
+    lastProvider = provider;
+    lastModel = model;
     const isLastProvider = i === providers.length - 1;
     for (let attempt = 0; attempt < 2; attempt++) {
       const outcome = await callProviderOnce(provider, system, user, { json, maxTokens, temperature, model, timeoutMs });
-      if (outcome.result != null) return outcome.result;
+      if (outcome.result != null) return { result: outcome.result, provider, model, usage: outcome.usage };
       if (outcome.retryable && attempt === 0) {
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
         continue;
@@ -137,7 +189,7 @@ async function callProvider(system: string, user: string, { json, maxTokens, tem
       );
     }
   }
-  return null;
+  return { result: null, provider: lastProvider, model: lastModel, usage: null };
 }
 
 async function callProviderOnce(
@@ -145,14 +197,14 @@ async function callProviderOnce(
   system: string,
   user: string,
   { json, maxTokens, temperature, model, timeoutMs }: CallProviderOnceOptions,
-): Promise<{ result: LlmResult; retryable: boolean }> {
+): Promise<{ result: LlmResult; retryable: boolean; usage: LlmUsage | null }> {
   // AbortSignal.timeout — so a stuck provider response doesn't hold the user's request
   // (and the server connection) indefinitely; the error is caught below and
   // returned as a graceful offline fallback, not a 500/hang.
   const signal = AbortSignal.timeout(timeoutMs);
   try {
     if (provider === "anthropic") {
-      if (!env.llm.anthropicApiKey) return { result: null, retryable: false }; // no key — no point even trying
+      if (!env.llm.anthropicApiKey) return { result: null, retryable: false, usage: null }; // no key — no point even trying
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         signal,
@@ -177,16 +229,16 @@ async function callProviderOnce(
       if (!r.ok) {
         const body = await r.text().catch(() => "");
         contextLogger().error({ status: r.status, body: body.slice(0, 500), model, provider }, "LLM API error response");
-        return { result: null, retryable: RETRYABLE_STATUSES.has(r.status) };
+        return { result: null, retryable: RETRYABLE_STATUSES.has(r.status), usage: null };
       }
       const d = (await r.json()) as { content?: { text?: string }[]; stop_reason?: string; usage?: Record<string, number> };
-      logUsage(provider, model, d.usage);
+      const usage = normalizeUsage(provider, model, d.usage);
       const text = d?.content?.[0]?.text || "";
       const result = json ? parseJsonOrLog(text, { model, provider, stopReason: d?.stop_reason }) : text;
-      return { result, retryable: false };
+      return { result, retryable: false, usage };
     }
     // OpenAI
-    if (!env.llm.openaiApiKey) return { result: null, retryable: false };
+    if (!env.llm.openaiApiKey) return { result: null, retryable: false, usage: null };
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       signal,
@@ -205,16 +257,16 @@ async function callProviderOnce(
     if (!r.ok) {
       const body = await r.text().catch(() => "");
       contextLogger().error({ status: r.status, body: body.slice(0, 500), model, provider }, "LLM API error response");
-      return { result: null, retryable: RETRYABLE_STATUSES.has(r.status) };
+      return { result: null, retryable: RETRYABLE_STATUSES.has(r.status), usage: null };
     }
     const d = (await r.json()) as {
       choices?: { message?: { content?: string }; finish_reason?: string }[];
       usage?: Record<string, number>;
     };
-    logUsage(provider, model, d.usage);
+    const usage = normalizeUsage(provider, model, d.usage);
     const text = d?.choices?.[0]?.message?.content || "";
     const result = json ? parseJsonOrLog(text, { model, provider, stopReason: d?.choices?.[0]?.finish_reason }) : text;
-    return { result, retryable: false };
+    return { result, retryable: false, usage };
   } catch (e) {
     const timedOut = e instanceof Error && e.name === "TimeoutError";
     // contextLogger() picks up the current HTTP request's reqId (if any) via AsyncLocalStorage —
@@ -223,7 +275,7 @@ async function callProviderOnce(
     // Network errors/timeouts are also worth one retry (could be a connection micro-glitch),
     // except for an explicit timeout of our own budget: if the provider didn't make it within timeoutMs once,
     // a retry with the same budget is unlikely to be faster — we don't spend a round trip on that.
-    return { result: null, retryable: !timedOut };
+    return { result: null, retryable: !timedOut, usage: null };
   }
 }
 
@@ -250,12 +302,42 @@ export function normalizeUsage(provider: LlmProvider, model: string, usage: Reco
   return { provider, model, inputTokens, outputTokens, totalTokens };
 }
 
+interface RecordLlmUsageInput {
+  userId: UserId;
+  feature: string;
+  tier: LlmTier;
+  provider: LlmProvider | null;
+  model: string | null;
+  usage: LlmUsage | null;
+  cacheHit: boolean;
+  latencyMs: number;
+  outcome: LlmUsageOutcome;
+}
+
+// Emits telemetry for exactly one chat() call (cache hit, successful provider response, or a
+// total failure) — every code path in chat() above calls this exactly once, so cost/usage
+// admin views (Phase 6) see one row per logical call, not one per provider retry attempt.
 // info level (not debug) — deliberately: this must be visible in production logs by default
 // (LOG_LEVEL="info" — see config/env.ts) without extra configuration, so the pino aggregator
-// (see README "Logging") can compute cost totals/trends per model.
-function logUsage(provider: LlmProvider, model: string, usage: Record<string, number> | undefined): void {
-  const normalized = normalizeUsage(provider, model, usage);
-  if (normalized) contextLogger().info(normalized, "LLM usage");
+// (see README "Logging") can compute cost totals/trends per model even before the admin panel
+// exists. The DB insert is fire-and-forget (see telemetry.repo.ts's own doc comment) — this
+// function itself is synchronous from the caller's point of view, it never returns a promise
+// chat() would need to await, so persisting telemetry can never add latency to a user's request.
+function recordLlmUsage({ userId, feature, tier, provider, model, usage, cacheHit, latencyMs, outcome }: RecordLlmUsageInput): void {
+  contextLogger().info({ feature, tier, provider, model, usage, cacheHit, latencyMs, outcome }, "LLM usage");
+  void insertLlmUsage({
+    userId,
+    feature,
+    provider,
+    model,
+    tier,
+    inputTokens: usage?.inputTokens ?? 0,
+    outputTokens: usage?.outputTokens ?? 0,
+    totalTokens: usage?.totalTokens ?? 0,
+    cacheHit,
+    latencyMs,
+    outcome,
+  });
 }
 
 function safeJson(text: string): Record<string, unknown> | null {

@@ -35,7 +35,7 @@ r.post(
         `Candidate's answer: ${answer.slice(0, 2000)}\n\n` +
         `Evaluate the answer. Return JSON strictly: {"score":<0-100>,"verdict":"1 sentence summary","good":["what's good, 1-3"],"missed":["what was missed/inaccurate, 1-3"],"tip":"1 concrete tip"}`,
       MockEvalSchema,
-      { maxTokens: 500, temperature: 0.3, cache: true, tier: "smart" },
+      { maxTokens: 500, temperature: 0.3, cache: true, tier: "smart", feature: "mock-interview" },
     );
     if (!out) {
       // offline:true — the LLM call didn't produce a valid evaluation even after chatJson's

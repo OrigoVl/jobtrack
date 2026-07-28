@@ -33,7 +33,7 @@ export async function parseCvDocFromText(userId: UserId, cvText: string): Promis
     // A full resume (several jobs × several bullets + education/projects/languages) — 1500
     // tokens genuinely wasn't enough for a rich CV (the same class of JSON truncation as in
     // reviewCv/matchCv), and generation was silently cut off by maxTokens before the JSON closed.
-    { json: true, maxTokens: 2600, temperature: 0.3, cache: true, tier: "smart" },
+    { json: true, maxTokens: 2600, temperature: 0.3, cache: true, tier: "smart", feature: "cv-doc-parse" },
   );
   const doc = CvDocSchema.parse(out || {});
   const prev = await getKvJson<CvDoc>(userId, "cvDoc");

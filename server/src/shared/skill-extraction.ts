@@ -35,7 +35,7 @@ export async function extractSkills(userId: UserId, text: string): Promise<strin
     `Text (vacancy or CV):\n${text.slice(0, 4000)}\n\n` +
       `Return JSON: {"skills":["8-15 normalized short names of skills/tools/technologies"]}`,
     SkillsSchema,
-    { maxTokens: 400, temperature: 0.2 },
+    { maxTokens: 400, temperature: 0.2, feature: "skill-extraction" },
   );
   const ai: string[] = (out?.skills ?? []).map((s) => s.trim()).filter(Boolean);
   if (!ai.length) return regex;
@@ -56,7 +56,7 @@ export async function detectDomain(userId: UserId, cvText: string): Promise<stri
     `CV:\n${cvText.slice(0, 3000)}\n\n` +
       `Return JSON: {"domain":"short role name, e.g.: Frontend Developer, UX Designer, Accountant, Marketer, Data Analyst"}`,
     DomainSchema,
-    { maxTokens: 60, temperature: 0.2 },
+    { maxTokens: 60, temperature: 0.2, feature: "domain-detection" },
   );
   const domain = (out?.domain ?? "").trim().slice(0, 80);
   if (domain) await setLlmCache(cacheKey, { domain });

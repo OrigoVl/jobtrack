@@ -65,7 +65,7 @@ export async function cvAnalysis(userId: UserId, cvText: string): Promise<CvAnal
       // formatting/summarization task, not deep analysis (that's what reviewCv/matchCv are
       // for, where "smart" is kept). Called often (every /cv/analyze and /cv/upload) — savings
       // without a noticeable drop in advice quality.
-      { maxTokens: 600, cache: true, tier: "fast" },
+      { maxTokens: 600, cache: true, tier: "fast", feature: "cv-analyze" },
     );
     if (llm) advice = llm;
   }
@@ -151,7 +151,7 @@ export async function reviewCv(userId: UserId, cvText: string): Promise<CvReview
     // invalid and silently (HTTP 200, so the r.ok check above didn't catch it) falls back to the
     // offline heuristic — this is exactly what the reported bug looked like ("I click Advice
     // and get generic text").
-    { maxTokens: 2200, temperature: 0.4, cache: true, tier: "smart" },
+    { maxTokens: 2200, temperature: 0.4, cache: true, tier: "smart", feature: "cv-review" },
   );
   // offline:true (NOT false) — what follows is the same offline heuristic used when the LLM is
   // disabled (llmAvailable()===false above). A false "offline:false" here meant the client (and
@@ -215,7 +215,7 @@ export async function matchCv(userId: UserId, cvText: string, jobTitle: string, 
       `"tailoredSummary":"a summary tailored to this vacancy, 2-3 sentences, based only on the candidate's real experience"}`,
     CvMatchSchema,
     // maxTokens 1800 (not 1000) — the same risk of generation being cut off as in reviewCv above.
-    { maxTokens: 1800, temperature: 0.4, cache: true, tier: "smart" },
+    { maxTokens: 1800, temperature: 0.4, cache: true, tier: "smart", feature: "cv-match" },
   );
   // Same fix as in reviewCv above: this is the offline heuristic, not an LLM result.
   if (!out) return { offline: true, ...heuristicMatch(cvText, combined, "llm-failed") };

@@ -18,6 +18,15 @@ vi.mock("../db/llm-cache.js", () => ({
   getLlmCache: vi.fn(() => null),
   setLlmCache: vi.fn(),
 }));
+// telemetry.repo.js lazily imports db/client.js only when actually invoked (see its own doc
+// comment) precisely so tests like this one don't need a real Postgres connection — but
+// chat()'s recordLlmUsage() DOES call insertLlmUsage() on every code path (cache hit, success,
+// error), so we still stub it out here rather than let a real (fire-and-forget, harmlessly-
+// failing) DB call happen during a unit test.
+vi.mock("../telemetry/telemetry.repo.js", () => ({
+  insertLlmUsage: vi.fn(),
+  insertProductEvent: vi.fn(),
+}));
 
 describe("chat() / llmAvailable() offline fallback", () => {
   beforeAll(async () => {

@@ -58,7 +58,7 @@ r.post(
       userId,
       `You are a mentor for the role "${profile.domain || "professional"}". Be concrete and concise.`,
       `Candidate's skills: ${profile.skills.join(", ")}.\nGaps by market demand priority: ${gaps.join(", ") || "none"}.\nBuild a personal learning plan by phases/days: what to learn first, which topics, how to practice, and in what order to close the gaps.`,
-      { maxTokens: 900, cache: true, tier: "smart" },
+      { maxTokens: 900, cache: true, tier: "smart", feature: "learn-plan" },
     );
     res.json({ plan });
   }),

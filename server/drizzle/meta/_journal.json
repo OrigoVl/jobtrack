@@ -15,6 +15,13 @@
       "when": 1785267320625,
       "tag": "0001_luxuriant_marten_broadcloak",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785273587552,
+      "tag": "0002_tranquil_doctor_doom",
+      "breakpoints": true
     }
   ]
 }

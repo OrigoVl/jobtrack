@@ -205,10 +205,10 @@ r.post(
             userId,
             "You are a recruiter. Be concise, in English.",
             `Here is the vacancy text. List 5-8 key requirements as one list, and in 1 sentence assess whether a candidate with these skills fits: ${profile.skills.join(", ")}.\n\n${text.slice(0, 4000)}`,
-            { maxTokens: 500, cache: true },
+            { maxTokens: 500, cache: true, feature: "vacancy-analyze" },
           )
         : Promise.resolve(null),
-      embeddingsAvailable() && profile.cvText ? semanticSimilarity(userId, text, profile.cvText) : Promise.resolve(null),
+      embeddingsAvailable() && profile.cvText ? semanticSimilarity(userId, text, profile.cvText, "vacancy-analyze") : Promise.resolve(null),
     ]);
     const level = extractLevel(text);
     const gap = techs.filter((t) => !profile.skills.includes(t));

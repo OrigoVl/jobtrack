@@ -173,7 +173,7 @@ r.get(
       FocusActionsSchema,
       // "fast": prioritizing 3 actions from a structured funnel state — a light task, doesn't
       // need "smart"-tier; cheaper and faster for a card the user sees every day.
-      { maxTokens: 500, temperature: 0.5, cache: true, tier: "fast" },
+      { maxTokens: 500, temperature: 0.5, cache: true, tier: "fast", feature: "focus-actions" },
     );
     const actions: FocusAction[] = out?.actions ?? [];
     // offline:true when the LLM didn't give valid actions (provider error/timeout/bad JSON even

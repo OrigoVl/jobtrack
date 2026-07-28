@@ -128,7 +128,7 @@ export async function getDynamicKnowledge(
       `"learn":["5-7 concrete topics from easy to advanced, interview-oriented"],` +
       `"resources":[{"t":"name","u":"https URL of official docs or a well-known tutorial"}]}`,
     DynamicKnowledgeSchema,
-    { maxTokens: 650, temperature: 0.4, tier: "smart" },
+    { maxTokens: 650, temperature: 0.4, tier: "smart", feature: "knowledge" },
   );
   if (!out || out.learn.length === 0) {
     return { ...shared, focus: out?.focus ?? null, learn: base.learn, resources: base.resources, source: "static" };

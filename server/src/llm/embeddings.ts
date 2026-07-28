@@ -18,6 +18,7 @@ import type { UserId } from "../db/user-id.js";
 import { contextLogger } from "../core/logger.js";
 import { hashString } from "../shared/hash.js";
 import { env } from "../config/env.js";
+import { insertLlmUsage, type LlmUsageOutcome } from "../telemetry/telemetry.repo.js";
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
 // The same time budget as the "fast" tier of chat requests (llm/client.ts) — a short text
@@ -31,21 +32,47 @@ export function embeddingsAvailable(): boolean {
   return env.llm.provider === "openai" && !!env.llm.openaiApiKey;
 }
 
+function recordEmbeddingUsage(
+  userId: UserId,
+  feature: string,
+  cacheHit: boolean,
+  totalTokens: number,
+  latencyMs: number,
+  outcome: LlmUsageOutcome,
+): void {
+  void insertLlmUsage({
+    userId,
+    feature,
+    provider: "openai",
+    model: EMBEDDING_MODEL,
+    tier: null,
+    inputTokens: totalTokens,
+    outputTokens: 0,
+    totalTokens,
+    cacheHit,
+    latencyMs,
+    outcome,
+  });
+}
+
 /**
  * Embeds text, or returns null if the provider is unavailable/the input is empty/the API call fails —
  * NEVER throws (graceful, like chat()). Cached by a hash of text+model in the kv store:
  * the same CV/vacancy doesn't pay for an API call again.
+ * `feature` attributes usage telemetry to a product feature (see llm/client.ts's ChatOptions.feature) —
+ * defaults to "embeddings" for call sites that don't have a more specific one to pass.
  */
-// `_userId` isn't read below — the cache is content-hash-keyed and deliberately global (see
-// db/llm-cache.ts). Kept as a required parameter for the same forward-compat reason as
-// llm/client.ts's chat(): phase 5's usage telemetry attributes this call to a user.
-export async function embed(_userId: UserId, text: string): Promise<number[] | null> {
+export async function embed(userId: UserId, text: string, feature = "embeddings"): Promise<number[] | null> {
   if (!embeddingsAvailable()) return null;
   const input = text.slice(0, MAX_INPUT_CHARS).trim();
   if (!input) return null;
   const cacheKey = "embedding:" + hashString([EMBEDDING_MODEL, input].join("|"));
   const cached = await getLlmCache<{ vector: number[] }>(cacheKey);
-  if (cached) return cached.vector;
+  if (cached) {
+    recordEmbeddingUsage(userId, feature, true, 0, 0, "cache_hit");
+    return cached.vector;
+  }
+  const started = Date.now();
   const signal = AbortSignal.timeout(TIMEOUT_MS);
   try {
     const r = await fetch("https://api.openai.com/v1/embeddings", {
@@ -57,16 +84,22 @@ export async function embed(_userId: UserId, text: string): Promise<number[] | n
     if (!r.ok) {
       const body = await r.text().catch(() => "");
       contextLogger().error({ status: r.status, body: body.slice(0, 500), model: EMBEDDING_MODEL }, "Embeddings API error response");
+      recordEmbeddingUsage(userId, feature, false, 0, Date.now() - started, "error");
       return null;
     }
-    const d = (await r.json()) as { data?: { embedding?: number[] }[] };
+    const d = (await r.json()) as { data?: { embedding?: number[] }[]; usage?: { total_tokens?: number } };
     const vector = d?.data?.[0]?.embedding;
-    if (!Array.isArray(vector) || !vector.length) return null;
+    if (!Array.isArray(vector) || !vector.length) {
+      recordEmbeddingUsage(userId, feature, false, 0, Date.now() - started, "error");
+      return null;
+    }
     await setLlmCache(cacheKey, { vector });
+    recordEmbeddingUsage(userId, feature, false, d.usage?.total_tokens ?? 0, Date.now() - started, "success");
     return vector;
   } catch (e) {
     const timedOut = e instanceof Error && e.name === "TimeoutError";
     contextLogger().error({ err: e, model: EMBEDDING_MODEL }, timedOut ? "Embeddings request timeout" : "Embeddings request error");
+    recordEmbeddingUsage(userId, feature, false, 0, Date.now() - started, "error");
     return null;
   }
 }
@@ -93,8 +126,8 @@ export function cosineSimilarity(a: readonly number[], b: readonly number[]): nu
  * embeddings for natural language is practically always non-negative — the clamp is just a safeguard).
  * null — embeddings are unavailable, or the API request failed for either text.
  */
-export async function semanticSimilarity(userId: UserId, textA: string, textB: string): Promise<number | null> {
-  const [vecA, vecB] = await Promise.all([embed(userId, textA), embed(userId, textB)]);
+export async function semanticSimilarity(userId: UserId, textA: string, textB: string, feature = "embeddings"): Promise<number | null> {
+  const [vecA, vecB] = await Promise.all([embed(userId, textA, feature), embed(userId, textB, feature)]);
   if (!vecA || !vecB) return null;
   return Math.max(0, Math.min(1, cosineSimilarity(vecA, vecB)));
 }

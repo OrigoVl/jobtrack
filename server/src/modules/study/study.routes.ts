@@ -61,7 +61,7 @@ r.post(
       `Task (${drill.cat}, ${drill.lvl}): ${drill.q}\n` +
         `Give 3 hints from the subtlest to the strongest (direction of thought → approach/structure → almost the solution, but without ready-made code). Format: {"hints":["...","...","..."]}`,
       HintsSchema,
-      { maxTokens: 400, temperature: 0.3, cache: true },
+      { maxTokens: 400, temperature: 0.3, cache: true, feature: "study-hint" },
     );
     const hints: string[] = (out?.hints ?? []).slice(0, 3);
     res.json({ hints });
@@ -88,7 +88,7 @@ r.post(
         `Generate 3 new practical interview-level tasks specifically for "${tech}", of varying difficulty.\n` +
         `Format strictly: {"drills":[{"q":"task statement","lvl":"easy|med|hard","sol":"short sample solution","exp":"1-2 sentence explanation"}]}`,
       GenDrillsSchema,
-      { maxTokens: 1200, temperature: 0.6, tier: "smart" },
+      { maxTokens: 1200, temperature: 0.6, tier: "smart", feature: "study-generate-drills" },
     );
     const items = out?.drills ?? [];
     const gen = await genDrills(userId);
@@ -134,7 +134,7 @@ r.post(
         `Generate 5 flashcards, "question → concise accurate answer", at interview level.\n` +
         `Format strictly: {"cards":[{"q":"question","a":"answer in 2-4 sentences"}]}`,
       GenCardsSchema,
-      { maxTokens: 900, temperature: 0.5, tier: "smart" },
+      { maxTokens: 900, temperature: 0.5, tier: "smart", feature: "study-generate-cards" },
     );
     const items = out?.cards ?? [];
     const gen = await genCards(userId);

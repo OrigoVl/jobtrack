@@ -33,7 +33,7 @@ r.post(
         `Vacancy${company ? ` (${company})` : ""}:\n${vt.slice(0, 3000)}\n\n` +
         `Vacancy technologies the candidate already has: ${matched.join(", ") || "—"}.\n` +
         `Write a cover letter (4-6 sentences): a hooking intro → 2-3 relevant experience matches against the requirements → a short closing offering to discuss further.`,
-      { maxTokens: 500, temperature: 0.7, cache: true, tier: "smart" },
+      { maxTokens: 500, temperature: 0.7, cache: true, tier: "smart", feature: "cover-letter" },
     );
     res.json({ text: text || "" });
   }),

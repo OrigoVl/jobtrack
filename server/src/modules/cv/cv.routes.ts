@@ -82,7 +82,7 @@ r.post(
         userId,
         "You write an ATS-friendly skills section for a resume.",
         `Generate a key skills section, grouped by logical topics, for the role "${role}" with skills: ${merged.join(", ")}. Concise, bullet points, in the resume's language.`,
-        { maxTokens: 400, cache: true },
+        { maxTokens: 400, cache: true, feature: "cv-skills-update" },
       );
       if (llm) text = llm;
     }
@@ -224,7 +224,7 @@ r.post(
       userId,
       `You are a resume editor for the role "${role}". Write concisely, with a focus on results, in the original language.`,
       `${guide}\n\nOriginal: ${text.slice(0, 600)}`,
-      { maxTokens: 200, temperature: 0.5, cache: true, tier: "smart" },
+      { maxTokens: 200, temperature: 0.5, cache: true, tier: "smart", feature: "cv-improve" },
     );
     res.json({ text: out || text });
   }),
