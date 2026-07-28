@@ -23,7 +23,10 @@ test("AI-analysis button shows a real animated spinner (not just text swap) whil
   });
 
   await page.goto("/cvbuilder");
-  const btn = page.getByRole("button", { name: "🔎 Tips" });
+  // "🔎 Tips" is the AI review result's tab label — it only exists once a report is already on
+  // screen. The action that *triggers* the review from a clean page is the header's "AI
+  // Assistant" button (see cv-builder.tsx's simplified toolbar).
+  const btn = page.getByRole("button", { name: "🤖 AI Assistant" });
   await expect(btn).toBeVisible();
   await btn.click();
 

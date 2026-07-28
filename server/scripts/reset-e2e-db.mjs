@@ -17,6 +17,12 @@ const TABLES = ["vacancy_status_history", "vacancies", "companies", "srs", "user
 try {
   await client.connect();
   await client.query(`DROP TABLE IF EXISTS ${TABLES.map((t) => `"${t}"`).join(", ")} CASCADE`);
+  // Drizzle records applied migrations in its own "drizzle" schema (separate from the app's
+  // "public" schema, so it survives the DROP TABLEs above). Without dropping it too, the next
+  // boot's migrate-on-boot (server/src/db/client.ts) sees migration 0000's hash already
+  // recorded and skips re-running it — leaving the just-dropped tables missing instead of
+  // recreated, and the e2e server crashes on the first query ("relation ... does not exist").
+  await client.query(`DROP SCHEMA IF EXISTS drizzle CASCADE`);
   // eslint-disable-next-line no-console -- one-shot CLI script, no logger set up
   console.log(`✅ e2e DB reset (${url})`);
 } catch (e) {
