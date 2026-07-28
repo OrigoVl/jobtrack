@@ -9,11 +9,12 @@ export default defineConfig({
       reporter: ["text", "html", "lcov"],
       include: ["src/**/*.ts"],
       exclude: ["src/**/*.test.ts", "src/index.ts"],
-      // Baseline-пороги, зафіксовані від поточної реальної покривності (49.88/69.46/47.56/49.88%)
-      // з невеликим запасом — це regression-гейт ("не впади нижче того, що вже є"), а не мета
-      // саме такого відсотка. Багато *.routes.ts лишаються 0% (покриті лише E2E/ручним CURL,
-      // не юніт-тестами) — свідомий вибір: тонкі роути тестувати юніт-тестами малоцінно,
-      // юніт-покриття фокусується на сервісах/валідації з реальною логікою.
+      // Baseline thresholds, pinned to the current real coverage (49.88/69.46/47.56/49.88%)
+      // with a small margin — this is a regression gate ("don't drop below what's already
+      // there"), not a target for that exact percentage. Many *.routes.ts files stay at 0%
+      // (covered only by E2E/manual CURL, not unit tests) — a deliberate choice: unit-testing
+      // thin routes has little value, so unit coverage focuses on services/validation with
+      // real logic.
       thresholds: {
         statements: 45,
         branches: 65,

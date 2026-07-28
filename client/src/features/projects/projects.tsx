@@ -1,7 +1,7 @@
 import { useProjects, useSetProjectItem } from "../../shared/queries";
 import { Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
 
-/* ---------- Pet-проєкти ---------- */
+/* ---------- Pet projects ---------- */
 export function Projects() {
   const { data: projects, isLoading } = useProjects();
   const setProjectItemMutation = useSetProjectItem();
@@ -11,11 +11,11 @@ export function Projects() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Pet-проєкти"
-        subtitle="Драбина з 4 проєктів на стеку вакансій. Кожен закриває конкретну прогалину й стає доказом навичок на GitHub. Відмічай пункти Definition of Done."
+        title="Pet projects"
+        subtitle="A ladder of 4 projects on your vacancies' stack. Each closes a specific gap and becomes proof of skills on GitHub. Check off the Definition of Done items."
         actions={
           <Chip tone="emerald">
-            {doneItems} / {totalItems} готово
+            {doneItems} / {totalItems} done
           </Chip>
         }
       />

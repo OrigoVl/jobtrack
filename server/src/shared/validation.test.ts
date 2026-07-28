@@ -14,7 +14,7 @@ import { HttpError } from "../core/http.js";
 describe("parseVacancyInput", () => {
   it("fills defaults for a full (non-partial) payload", () => {
     const out = parseVacancyInput({ position: "Backend Developer" });
-    expect(out.company).toBe("Нова");
+    expect(out.company).toBe("New");
     expect(out.status).toBe(STATUSES[0]);
     expect(out.fit).toBe("med");
     expect(out.stack).toEqual([]);
@@ -26,7 +26,7 @@ describe("parseVacancyInput", () => {
   });
 
   it("rejects an invalid status", () => {
-    expect(() => parseVacancyInput({ status: "не-статус" })).toThrow(HttpError);
+    expect(() => parseVacancyInput({ status: "not-a-status" })).toThrow(HttpError);
   });
 
   it("rejects an invalid fit", () => {
@@ -44,15 +44,15 @@ describe("parseVacancyInput", () => {
   });
 
   it("rejects a non-ISO date for applied/next (analytics compares these as strings)", () => {
-    // server/src/modules/analytics/analytics.routes.ts і client/dashboard.tsx порівнюють
-    // ці поля як рядки (напр. v.next < today) — вільний текст тихо ламає цю логіку.
-    expect(() => parseVacancyInput({ next: "завтра" })).toThrow(HttpError);
+    // server/src/modules/analytics/analytics.routes.ts and client/dashboard.tsx compare
+    // these fields as strings (e.g. v.next < today) — free text would silently break that logic.
+    expect(() => parseVacancyInput({ next: "tomorrow" })).toThrow(HttpError);
     expect(() => parseVacancyInput({ applied: "15.08.2026" })).toThrow(HttpError);
   });
 
   it("in partial mode only touches provided fields", () => {
-    const out = parseVacancyInput({ notes: "оновлення" }, { partial: true });
-    expect(out).toEqual({ notes: "оновлення" });
+    const out = parseVacancyInput({ notes: "update" }, { partial: true });
+    expect(out).toEqual({ notes: "update" });
   });
 });
 
@@ -62,7 +62,7 @@ describe("parseJsonVacancyItem", () => {
     pos: "Full-Stack Engineer (Node.js, JS) (#1114)",
     level: "Middle/Senior",
     fit: "med",
-    status: "Хочу подати",
+    status: "Want to apply",
     applied: "2026-07-26",
     next: "",
     notes: "",
@@ -73,7 +73,7 @@ describe("parseJsonVacancyItem", () => {
     const out = parseJsonVacancyItem(validItem);
     expect(out.position).toBe(validItem.pos);
     expect(out.company).toBe("Zone3000");
-    expect(out.status).toBe("Хочу подати");
+    expect(out.status).toBe("Want to apply");
     expect(out.fit).toBe("med");
   });
 
@@ -85,7 +85,7 @@ describe("parseJsonVacancyItem", () => {
   });
 
   it("rejects an unknown status or fit", () => {
-    expect(() => parseJsonVacancyItem({ ...validItem, status: "не-статус" })).toThrow(HttpError);
+    expect(() => parseJsonVacancyItem({ ...validItem, status: "not-a-status" })).toThrow(HttpError);
     expect(() => parseJsonVacancyItem({ ...validItem, fit: "ultra" })).toThrow(HttpError);
   });
 
@@ -150,9 +150,9 @@ describe("assertSafeVacancyUrl (SSRF guard)", () => {
     expect(assertSafeVacancyUrl("https://jobs.dou.ua/companies/acme/vacancies/1/")).toContain("jobs.dou.ua");
   });
 
-  // Раніше тут був жорсткий allowlist лише на dou.ua — тепер дозволений будь-який публічний
-  // https-хост (користувач сам вирішує, з якого сайту тягнути вакансії: LinkedIn, Djinni,
-  // robota.ua, Indeed тощо), заблоковані лише внутрішні/локальні цілі (тести нижче).
+  // This used to have a hard allowlist of just dou.ua — now any public https host is allowed
+  // (the user decides which site to pull vacancies from: LinkedIn, Djinni, robota.ua, Indeed,
+  // etc.), only internal/local targets are blocked (tests below).
   it("allows an arbitrary public https host (no longer restricted to dou.ua)", () => {
     expect(assertSafeVacancyUrl("https://www.linkedin.com/jobs/view/123/")).toContain("linkedin.com");
     expect(assertSafeVacancyUrl("https://djinni.co/jobs/123-backend-developer/")).toContain("djinni.co");

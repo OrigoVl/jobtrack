@@ -4,16 +4,18 @@ const PORT = 4173;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 /**
- * E2E-конфіг: піднімає збірку продакшн-сервера (build + node dist/index.js), який сам
- * роздає зібраний фронтенд (client/dist), — тестуємо реальний білд, а не dev-режим
- * з окремим Vite-проксі. Ізольована БД через DB_PATH, щоб не чіпати локальну jobtrack.db.
+ * E2E config: spins up a production server build (build + node dist/index.js), which
+ * itself serves the built frontend (client/dist) — we test the real build, not the dev
+ * mode with a separate Vite proxy. An isolated DB via DB_PATH so we don't touch the local
+ * jobtrack.db.
  *
- * workers: 1 (не fullyParallel) — усі E2E-специфікації діляться ОДНІЄЮ БД одного
- * запущеного сервера (без per-test ізоляції даних). Roadmap/Plan21 будуються динамічно
- * з поточного стану вакансій (попит/прогалини перераховуються на кожен запит) — паралельний
- * запуск разом із тестом, що додає вакансію (vacancies-kanban.spec.ts), зсуває ці
- * розрахунки між кроками іншого тесту й ламає його (день/навичка, що існували на GET,
- * стають невалідними до PUT). Послідовний прогін коштує кілька секунд, зате детермінований.
+ * workers: 1 (not fullyParallel) — all E2E specs share ONE DB from a single running
+ * server (no per-test data isolation). Roadmap/Plan21 are built dynamically from the
+ * current state of vacancies (demand/gaps are recalculated on every request) — running in
+ * parallel alongside a test that adds a vacancy (vacancies-kanban.spec.ts) would shift these
+ * calculations between another test's steps and break it (a day/skill that existed at GET
+ * time becomes invalid by the time of PUT). A sequential run costs a few extra seconds but
+ * is deterministic.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -28,10 +30,10 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    // E2E має бути швидким, детермінованим і безкоштовним — примусово офлайн-режим
-    // (словниковий аналіз замість реальних платних викликів OpenAI/Anthropic), незалежно
-    // від того, чи є ключі в оточенні розробника/CI-раннера. `env -u` знімає їх для
-    // дочірнього процесу (env.ts трактує "не задано" як офлайн, на відміну від "" — не проходить min(1)).
+    // E2E must be fast, deterministic, and free — force offline mode
+    // (dictionary-based analysis instead of real paid OpenAI/Anthropic calls), regardless
+    // of whether keys are present in the developer/CI-runner environment. `env -u` strips
+    // them for the child process (env.ts treats "unset" as offline, unlike "" — which fails min(1)).
     command: `env -u OPENAI_API_KEY -u ANTHROPIC_API_KEY node server/dist/index.js`,
     url: `${BASE_URL}/api/health`,
     reuseExistingServer: !process.env.CI,

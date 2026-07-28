@@ -11,7 +11,7 @@ export function useVacancies() {
 
 function useMutationErrorToast() {
   const { toast } = useToast();
-  return (e: unknown) => toast(e instanceof Error ? e.message : "Сталася помилка", "error");
+  return (e: unknown) => toast(e instanceof Error ? e.message : "An error occurred", "error");
 }
 
 export function useAddVacancy() {
@@ -24,7 +24,7 @@ export function useAddVacancy() {
     onSuccess: async (row) => {
       qc.setQueryData<Vacancy[]>(queryKeys.vacancies, (cur) => [row, ...(cur ?? [])]);
       await invalidateDerived();
-      toast("Вакансію додано", "success");
+      toast("Vacancy added", "success");
     },
     onError,
   });
@@ -41,17 +41,17 @@ export function useUpdateVacancy() {
       const prevUrl = qc.getQueryData<Vacancy[]>(queryKeys.vacancies)?.find((x) => x.id === row.id)?.url;
       qc.setQueryData<Vacancy[]>(queryKeys.vacancies, (cur) => cur?.map((x) => (x.id === row.id ? row : x)) ?? cur);
       await invalidateDerived();
-      // Сервер намагається автоматично стягнути стек/рівень/fit, коли з'являється/змінюється
-      // посилання (server/src/modules/vacancies/vacancy-analysis.service.ts tryAutoEnrichStack,
-      // best-effort, будь-який публічний https-хост — LinkedIn, Djinni, robota.ua, dou.ua тощо,
-      // крім локальних/внутрішніх адрес, заблокованих SSRF-захистом) — повідомляємо про результат.
+      // The server tries to automatically pull the stack/level/fit when the URL appears or
+      // changes (server/src/modules/vacancies/vacancy-analysis.service.ts tryAutoEnrichStack,
+      // best-effort, any public https host — LinkedIn, Djinni, robota.ua, dou.ua, etc.,
+      // except local/internal addresses blocked by SSRF protection) — we report the outcome.
       if (variables.patch.url !== undefined && variables.patch.url !== prevUrl) {
         toast(
           row.stack.length > 0
-            ? `Стек підтягнуто з посилання: ${row.stack.slice(0, 5).join(", ")}${row.stack.length > 5 ? "…" : ""}`
+            ? `Stack pulled from the link: ${row.stack.slice(0, 5).join(", ")}${row.stack.length > 5 ? "…" : ""}`
             : variables.patch.url
-              ? "Посилання збережено (не вдалося автоматично розпізнати стек зі сторінки)"
-              : "Посилання прибрано",
+              ? "Link saved (could not automatically detect the stack from the page)"
+              : "Link removed",
           row.stack.length > 0 ? "success" : "info",
         );
       }
@@ -70,7 +70,7 @@ export function useDeleteVacancy() {
     onSuccess: async (_res, id) => {
       qc.setQueryData<Vacancy[]>(queryKeys.vacancies, (cur) => cur?.filter((x) => x.id !== id) ?? cur);
       await invalidateDerived();
-      toast("Вакансію видалено", "success");
+      toast("Vacancy deleted", "success");
     },
     onError,
   });
@@ -84,7 +84,7 @@ export function useImportVacancies() {
     mutationFn: (html: string) => api.importVacancies(html),
     onSuccess: async (res) => {
       await invalidateAll();
-      toast(res.added ? `Додано ${res.added} вакансій` : "Нових посилань не знайдено", res.added ? "success" : "info");
+      toast(res.added ? `Added ${res.added} vacancies` : "No new links found", res.added ? "success" : "info");
     },
     onError,
   });
@@ -99,11 +99,11 @@ export function useImportVacanciesJson() {
     onSuccess: async (res) => {
       await invalidateAll();
       const parts: string[] = [];
-      if (res.added) parts.push(`додано ${res.added}`);
-      if (res.updated) parts.push(`оновлено ${res.updated}`);
-      if (res.skipped) parts.push(`пропущено ${res.skipped} (помилки формату)`);
+      if (res.added) parts.push(`added ${res.added}`);
+      if (res.updated) parts.push(`updated ${res.updated}`);
+      if (res.skipped) parts.push(`skipped ${res.skipped} (format errors)`);
       const ok = res.added > 0 || res.updated > 0;
-      toast(parts.length ? parts.join(", ") : "Нових даних не знайдено", ok ? "success" : "error");
+      toast(parts.length ? parts.join(", ") : "No new data found", ok ? "success" : "error");
     },
     onError,
   });
@@ -117,7 +117,7 @@ export function useFetchAllVacancies() {
     mutationFn: () => api.fetchAllVacancies(),
     onSuccess: async (res) => {
       await invalidateAll();
-      toast(`Оброблено ${res.processed} вакансій — стек оновлено всюди`, "success");
+      toast(`Processed ${res.processed} vacancies — stack updated everywhere`, "success");
     },
     onError,
   });

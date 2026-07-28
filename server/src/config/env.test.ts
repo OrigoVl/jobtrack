@@ -1,10 +1,11 @@
-// env.llm.isAvailable — регресія: раніше перевіряв "чи є БУДЬ-ЯКИЙ ключ" незалежно від
-// LLM_PROVIDER, тож LLM_PROVIDER=openai (дефолт) з лише ANTHROPIC_API_KEY у .env вважався
-// "доступним", а llm/client.ts все одно йшов у гілку OpenAI з `Bearer undefined` — кожен
-// запит тихо провалювався. Тепер isAvailable прив'язаний саме до вибраного провайдера.
+// env.llm.isAvailable — regression test: it used to check "is ANY key present" regardless
+// of LLM_PROVIDER, so LLM_PROVIDER=openai (default) with only ANTHROPIC_API_KEY set in .env
+// was considered "available", while llm/client.ts still went down the OpenAI branch with
+// `Bearer undefined` — every request silently failed. Now isAvailable is tied to the
+// specifically selected provider.
 //
-// vi.resetModules() + динамічний import — env.ts читає process.env один раз при імпорті
-// (той самий підхід, що в llm/client.test.ts).
+// vi.resetModules() + dynamic import — env.ts reads process.env once at import time
+// (the same approach used in llm/client.test.ts).
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("env.llm.isAvailable", () => {

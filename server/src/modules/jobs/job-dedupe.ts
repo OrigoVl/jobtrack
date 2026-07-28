@@ -1,27 +1,28 @@
-// SimHash — near-duplicate detection для зовнішніх вакансій. Раніше дедуплікація в
-// /jobs/search рахувалась лише по ТОЧНОМУ URL (`seen.has(j.url)`) — та сама вакансія,
-// опублікована компанією одночасно на Remotive, Arbeitnow і власному сайті (різні URL,
-// майже той самий текст), проходила в список стільки разів, скільки джерел її підхопили.
-// SimHash — класична техніка з інформаційного пошуку (Charikar, 2002; той самий підхід,
-// що Google використовує для дедуплікації сторінок при індексації) для швидкого виявлення
-// текстово-схожих документів без парної O(n²) порівняння повного тексту: кожен документ
-// стискається в один 64-бітний "відбиток", і схожі документи мають МАЛО різних бітів
-// (мала відстань Геммінга) — на відміну від криптографічних хешів, де 1 символ різниці
-// перевертає ~половину бітів.
+// SimHash — near-duplicate detection for external vacancies. Deduplication in /jobs/search used
+// to be based only on the EXACT URL (`seen.has(j.url)`) — the same vacancy, posted by a company
+// simultaneously on Remotive, Arbeitnow, and their own site (different URLs, almost the same
+// text), showed up in the list once per source that picked it up. SimHash is a classic
+// information-retrieval technique (Charikar, 2002; the same approach Google uses to deduplicate
+// pages during indexing) for quickly detecting textually similar documents without a pairwise
+// O(n²) comparison of the full text: each document is compressed into a single 64-bit
+// "fingerprint", and similar documents have FEW differing bits (a small Hamming distance) —
+// unlike cryptographic hashes, where a 1-character difference flips ~half the bits.
 const HASH_BITS = 64;
-// Скільки з 64 бітів можуть відрізнятись, щоб два документи все ще вважались "тим самим
-// оголошенням". Підібрано емпірично на короткому тексті (company+position, ~4-8 токенів):
-// та сама вакансія, злегка переформульована іншим агрегатором (доданий "(remote)", "position",
-// "full-time" замість "fulltime") дає дистанцію ~8-10; ГЕНУЇННО різні вакансії (інша посада
-// або інша компанія) — 16+. Порі=12 лежить у розриві між цими двома кластерами.
+// How many of the 64 bits can differ for two documents to still be considered "the same
+// posting". Picked empirically on short text (company+position, ~4-8 tokens): the same vacancy,
+// slightly reworded by a different aggregator (an added "(remote)", "position", "full-time"
+// instead of "fulltime") gives a distance of ~8-10; GENUINELY different vacancies (a different
+// role or a different company) — 16+. A threshold of 12 sits in the gap between these two clusters.
 const HAMMING_THRESHOLD = 12;
 
+// Deliberately includes the Cyrillic letter ranges (а-я, і, ї, є, ґ) — job postings on Ukrainian
+// boards (DOU etc.) can have company/position names in Ukrainian even though the app's UI is English.
 function tokenize(text: string): string[] {
   return text.toLowerCase().match(/[a-zа-яіїєґ0-9]+/gi) || [];
 }
 
-// FNV-1a (64-bit) — простий, швидкий, детермінований хеш рядка. Не криптографічний (і не
-// повинен бути) — тут потрібна лише рівномірна дисперсія бітів для конкретного терміну.
+// FNV-1a (64-bit) — a simple, fast, deterministic string hash. Not cryptographic (and doesn't
+// need to be) — we only need uniform bit dispersion for a given term here.
 function fnv1a64(str: string): bigint {
   const PRIME = 0x100000001b3n;
   const MASK = 0xffffffffffffffffn;
@@ -34,9 +35,9 @@ function fnv1a64(str: string): bigint {
 }
 
 /**
- * SimHash-відбиток тексту: кожен унікальний термін голосує (+вага/-вага за частотою) за
- * кожен зі своїх 64 бітів; фінальний біт = 1, якщо сума голосів позитивна. Схожі тексти
- * (спільні терміни) дають схожі відбитки навіть при різному порядку слів чи дрібних правках.
+ * The SimHash fingerprint of a text: every unique term votes (+weight/-weight by frequency) on
+ * each of its 64 bits; the final bit is 1 if the sum of votes is positive. Similar texts (shared
+ * terms) produce similar fingerprints even with different word order or minor edits.
  */
 export function simhash(text: string): bigint {
   const freq = new Map<string, number>();
@@ -56,7 +57,7 @@ export function simhash(text: string): bigint {
   return fingerprint;
 }
 
-/** К-сть відмінних бітів між двома відбитками — стандартна метрика близькості для SimHash. */
+/** Number of differing bits between two fingerprints — the standard SimHash proximity metric. */
 export function hammingDistance(a: bigint, b: bigint): number {
   let diff = a ^ b;
   let count = 0;
@@ -73,10 +74,10 @@ export interface DedupableJob {
 }
 
 /**
- * Прибирає near-duplicate вакансії (одна й та сама позиція, майже той самий текст, з різних
- * агрегаторів) — лишає ПЕРШЕ входження в порядку вхідного масиву. O(n²) порівнянь відстані
- * Геммінга — прийнятно для сотень вакансій за запит (реальний масштаб цього застосунку);
- * для десятків тисяч знадобилось би LSH-бакетування, тут це була б надлишкова складність.
+ * Removes near-duplicate vacancies (the same position, almost the same text, from different
+ * aggregators) — keeps the FIRST occurrence in input array order. O(n²) Hamming-distance
+ * comparisons — acceptable for hundreds of vacancies per request (this app's real scale);
+ * for tens of thousands, LSH bucketing would be needed — unnecessary complexity here.
  */
 export function dedupeBySimhash<T extends DedupableJob>(jobs: T[]): T[] {
   const kept: bigint[] = [];

@@ -38,8 +38,8 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      # Без --coverage тут не жорсткий gate (немає thresholds у vitest.config) — лише
-      # видимість реальної покривності в логах CI + завантажений html/lcov звіт.
+      # No --coverage here isn't a hard gate (no thresholds in vitest.config) — just
+      # visibility into real coverage in the CI logs plus an uploaded html/lcov report.
       - name: Test + coverage
         run: pnpm test:coverage
 
@@ -64,6 +64,38 @@ jobs:
             client/dist
             server/dist
           retention-days: 1
+
+  security:
+    name: Security audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Blocking gate — only prod dependencies (what actually ships in the build) and only
+      # critical: otherwise a new dev-tooling vulnerability (vite/vitest/eslint) turns main
+      # red on an unrelated PR every week. Dependabot already updates these dev deps weekly.
+      - name: Audit (prod, critical) — blocking
+        run: pnpm audit --prod --audit-level=critical
+
+      # Visibility without blocking: moderate+ across the whole tree (including dev) goes to
+      # the CI log but doesn't fail the build. Actual remediation happens via Dependabot or
+      # manual review below.
+      - name: Audit (all, moderate+) — visibility only
+        if: always()
+        run: pnpm audit --audit-level=moderate || true
 
   e2e:
     name: E2E (Playwright)

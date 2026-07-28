@@ -1,15 +1,16 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Регресія: кнопки AI-дій у Конструкторі CV раніше лише міняли текст на "…" замість справжнього
- * анімованого спінера (`Btn loading` -> `<Spinner>` з `animate-spin`) — користувач повідомив, що
- * не розуміє, чи йде процес, бо зміна тексту непомітна. Тепер `loading` показує SVG-іконку.
+ * Regression test: AI-action buttons in the CV Builder used to only change their text to "…"
+ * instead of a real animated spinner (`Btn loading` -> `<Spinner>` with `animate-spin`) — a user
+ * reported not being able to tell whether anything was happening, since the text change was easy
+ * to miss. Now `loading` shows an SVG icon.
  *
- * У реальному використанні з увімкненим LLM-ключем запит займає секунди — досить, щоб побачити
- * спінер. У E2E LLM свідомо офлайн (детермінізм, playwright.config.ts) — офлайн-аналіз відповідає
- * майже миттєво, тож звичний клік не встигає "зловити" проміжний стан. Штучно затримуємо саме цей
- * запит через `page.route()`, щоб перевірити спінер детерміновано, а не покладатись на випадковий
- * таймінг реальної мережі.
+ * In real usage with an LLM key enabled, the request takes seconds — enough to see the spinner.
+ * In E2E, the LLM is deliberately offline (determinism, playwright.config.ts) — offline analysis
+ * responds almost instantly, so a normal click doesn't have time to "catch" the intermediate
+ * state. We artificially delay this specific request via `page.route()` to check the spinner
+ * deterministically, instead of relying on the random timing of a real network call.
  */
 test("AI-analysis button shows a real animated spinner (not just text swap) while the request is in flight", async ({ page }) => {
   let releaseResponse: (() => void) | undefined;
@@ -22,7 +23,7 @@ test("AI-analysis button shows a real animated spinner (not just text swap) whil
   });
 
   await page.goto("/cvbuilder");
-  const btn = page.getByRole("button", { name: "🔎 Поради" });
+  const btn = page.getByRole("button", { name: "🔎 Tips" });
   await expect(btn).toBeVisible();
   await btn.click();
 

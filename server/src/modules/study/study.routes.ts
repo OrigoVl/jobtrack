@@ -14,8 +14,9 @@ import type { SrsRow } from "../../db/types.js";
 const r = express.Router();
 
 const HintsSchema = z.object({ hints: z.array(z.string()) });
-// `.catch("med")` на lvl (не строгий enum-фейл) — модель іноді видає щось поза easy|med|hard,
-// стара ручна перевірка теж мовчки нормалізувала до "med" замість відбраковувати задачу цілком.
+// `.catch("med")` on lvl (not a strict enum failure) — the model sometimes returns something
+// outside easy|med|hard; the old manual check also silently normalized it to "med" instead of
+// discarding the task entirely.
 const GenDrillsSchema = z.object({
   drills: z.array(
     z.object({
@@ -33,24 +34,24 @@ r.get("/study/content", (_q, res) => res.json({ cards: CARDS, drills: allDrills(
 r.put("/study/drill", (req, res) => {
   const id = String(req.body?.id || "");
   const status = String(req.body?.status || "todo");
-  if (!allDrills().some((d) => d.id === id)) throw new HttpError(400, `Невідома задача: "${id}"`);
-  if (status !== "solved" && status !== "todo") throw new HttpError(400, `Невідомий статус: "${status}"`);
+  if (!allDrills().some((d) => d.id === id)) throw new HttpError(400, `Unknown task: "${id}"`);
+  if (status !== "solved" && status !== "todo") throw new HttpError(400, `Unknown status: "${status}"`);
   res.json({ ok: true, progress: setDrillStatus(id, status) });
 });
 
-// прогресивні підказки до задачі (LLM, кеш) — не розкриваємо розв'язок одразу
+// progressive hints for a task (LLM, cached) — don't reveal the solution right away
 r.post(
   "/study/drill-hint",
   aiLimiter,
   asyncHandler(async (req, res) => {
     const id = String(req.body?.id || "");
     const drill = allDrills().find((d) => d.id === id);
-    if (!drill) throw new HttpError(400, `Невідома задача: "${id}"`);
+    if (!drill) throw new HttpError(400, `Unknown task: "${id}"`);
     if (!llmAvailable()) return res.json({ offline: true, hints: [] });
     const out = await chatJson(
-      "Ти ментор. Даєш прогресивні підказки до завдання, НЕ розкриваючи повного розв'язку одразу. Відповідай ЛИШЕ валідним JSON українською.",
-      `Завдання (${drill.cat}, ${drill.lvl}): ${drill.q}\n` +
-        `Дай 3 підказки від найтоншої до найсильнішої (напрям думки → підхід/структура → майже розв'язок, але без готового коду). Формат: {"hints":["...","...","..."]}`,
+      "You are a mentor. You give progressive hints for a task WITHOUT revealing the full solution right away. Respond ONLY with valid JSON in English.",
+      `Task (${drill.cat}, ${drill.lvl}): ${drill.q}\n` +
+        `Give 3 hints from the subtlest to the strongest (direction of thought → approach/structure → almost the solution, but without ready-made code). Format: {"hints":["...","...","..."]}`,
       HintsSchema,
       { maxTokens: 400, temperature: 0.3, cache: true },
     );
@@ -59,7 +60,7 @@ r.post(
   }),
 );
 
-// генерація персональних задач саме під технологію-прогалину (доповнює статичний пул)
+// generate personal tasks specifically for a gap technology (supplements the static pool)
 r.post(
   "/study/generate",
   aiLimiter,
@@ -67,16 +68,16 @@ r.post(
     const tech = String(req.body?.tech || "")
       .trim()
       .slice(0, 60);
-    if (!tech) throw new HttpError(400, "Не вказано технологію");
+    if (!tech) throw new HttpError(400, "No technology specified");
     if (!llmAvailable()) return res.json({ offline: true, added: 0, drills: allDrills() });
     const cat = catFor(tech) || tech;
     const profile = getProfile();
-    const role = profile.domain || "фахівець";
+    const role = profile.domain || "specialist";
     const out = await chatJson(
-      "Ти автор практичних співбесідних завдань. Відповідай ЛИШЕ валідним JSON українською (код/приклади у полях — за потреби англійською).",
-      `Кандидат (${role}) знає: ${profile.skills.join(", ") || "—"}. Треба підтягнути «${tech}».\n` +
-        `Згенеруй 3 нові практичні завдання рівня співбесіди саме під «${tech}», різної складності.\n` +
-        `Формат строго: {"drills":[{"q":"умова завдання","lvl":"easy|med|hard","sol":"коротке зразкове рішення","exp":"1-2 речення пояснення"}]}`,
+      "You are the author of practical interview tasks. Respond ONLY with valid JSON in English (code/examples in fields can be in English as needed).",
+      `The candidate (${role}) knows: ${profile.skills.join(", ") || "—"}. Needs to brush up on "${tech}".\n` +
+        `Generate 3 new practical interview-level tasks specifically for "${tech}", of varying difficulty.\n` +
+        `Format strictly: {"drills":[{"q":"task statement","lvl":"easy|med|hard","sol":"short sample solution","exp":"1-2 sentence explanation"}]}`,
       GenDrillsSchema,
       { maxTokens: 1200, temperature: 0.6, tier: "smart" },
     );
@@ -104,24 +105,24 @@ r.post(
   }),
 );
 
-// генерація персональних флеш-карток під домен/тему (доповнює статичний пул SRS)
+// generate personal flashcards for a domain/topic (supplements the static SRS pool)
 r.post(
   "/study/generate-cards",
   aiLimiter,
   asyncHandler(async (req, res) => {
     const profile = getProfile();
-    const role = profile.domain || "фахівець";
+    const role = profile.domain || "specialist";
     const topic =
       String(req.body?.topic || "")
         .trim()
         .slice(0, 60) || role;
-    if (!topic) throw new HttpError(400, "Не вказано тему");
+    if (!topic) throw new HttpError(400, "No topic specified");
     if (!llmAvailable()) return res.json({ offline: true, added: 0 });
     const out = await chatJson(
-      "Ти автор флеш-карток для підготовки до співбесід. Відповідай ЛИШЕ валідним JSON українською.",
-      `Роль/тема: «${topic}» (кандидат — ${role}).\n` +
-        `Згенеруй 5 флеш-карток «питання → стисла точна відповідь» рівня співбесіди.\n` +
-        `Формат строго: {"cards":[{"q":"питання","a":"відповідь на 2-4 речення"}]}`,
+      "You are the author of flashcards for interview prep. Respond ONLY with valid JSON in English.",
+      `Role/topic: "${topic}" (candidate — ${role}).\n` +
+        `Generate 5 flashcards, "question → concise accurate answer", at interview level.\n` +
+        `Format strictly: {"cards":[{"q":"question","a":"answer in 2-4 sentences"}]}`,
       GenCardsSchema,
       { maxTokens: 900, temperature: 0.5, tier: "smart" },
     );
@@ -151,20 +152,20 @@ r.get("/study/due", (_q, res) => {
 });
 r.post("/study/grade", (req, res) => {
   const { cardId, grade } = req.body || {};
-  if (typeof cardId !== "string" || !allCards().some((c) => c.id === cardId)) throw new HttpError(400, "Невідома картка");
-  // 1=Знову (не пам'ятаю), 2=Важко, 3=Добре, 4=Легко — 4-точкова шкала FSRS замість старої
-  // бінарної (0/1), щоб алгоритм міг розрізняти "ледь згадав" від "згадав миттєво" —
-  // це і є основний виграш FSRS над SM-2 з бінарною оцінкою.
+  if (typeof cardId !== "string" || !allCards().some((c) => c.id === cardId)) throw new HttpError(400, "Unknown card");
+  // 1=Again (forgot), 2=Hard, 3=Good, 4=Easy — a 4-point FSRS scale instead of the old
+  // binary one (0/1), so the algorithm can distinguish "barely remembered" from "recalled
+  // instantly" — this is the main advantage of FSRS over SM-2 with its binary rating.
   if (grade !== 1 && grade !== 2 && grade !== 3 && grade !== 4) {
-    throw new HttpError(400, "grade має бути 1-4 (FSRS: 1=Знову, 2=Важко, 3=Добре, 4=Легко)");
+    throw new HttpError(400, "grade must be 1-4 (FSRS: 1=Again, 2=Hard, 3=Good, 4=Easy)");
   }
   const rating = grade as FsrsRating;
   const now = new Date();
   const existing = db.prepare("SELECT * FROM srs WHERE cardId=?").get(cardId) as SrsRow | undefined;
   const prev =
     existing?.difficulty != null && existing?.stability != null ? { difficulty: existing.difficulty, stability: existing.stability } : null;
-  // Скільки днів минуло від останнього огляду — ключовий вхід у формулу retrievability
-  // FSRS; для нової картки (prev===null) elapsedDays ігнорується всередині scheduleFsrs.
+  // How many days have passed since the last review — the key input into the FSRS
+  // retrievability formula; for a new card (prev===null), elapsedDays is ignored inside scheduleFsrs.
   const elapsedDays = existing?.lastReview
     ? Math.max(0, Math.round((now.getTime() - new Date(existing.lastReview).getTime()) / 86400000))
     : 0;

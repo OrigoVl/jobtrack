@@ -1,4 +1,4 @@
-// Типи рядків SQLite-таблиць та доменних об'єктів, що зберігаються у kv-сховищі.
+// Types for SQLite table rows and domain objects stored in the kv store.
 
 export interface Profile {
   skills: string[];
@@ -30,15 +30,15 @@ export interface CompanyRow {
 
 export interface SrsRow {
   cardId: string;
-  /** @deprecated Залишок SM-2-планувальника — новий код (FSRS) не читає/не пише це поле. */
+  /** @deprecated Leftover from the SM-2 scheduler — the new code (FSRS) doesn't read/write this field. */
   ease: number;
   interval: number;
   due: string;
   reps: number;
-  /** FSRS difficulty (1..10). NULL — картку ще ніколи не оцінювали новим планувальником. */
+  /** FSRS difficulty (1..10). NULL — the card has never been graded by the new scheduler. */
   difficulty: number | null;
-  /** FSRS stability у днях. NULL — картку ще ніколи не оцінювали новим планувальником. */
+  /** FSRS stability in days. NULL — the card has never been graded by the new scheduler. */
   stability: number | null;
-  /** Дата останнього огляду (ISO), потрібна щоб рахувати elapsed days для FSRS. NULL — нова картка. */
+  /** Date of the last review (ISO), needed to compute elapsed days for FSRS. NULL — a new card. */
   lastReview: string | null;
 }

@@ -1,4 +1,4 @@
-// Дрібні хелпери навколо SQLite-рядків, спільні для кількох доменних роутерів.
+// Small helpers around SQLite rows, shared across several domain routers.
 
 export const j = (s: string | null | undefined): string[] => JSON.parse(s || "[]");
 

@@ -1,15 +1,15 @@
-// Історія зміни статусів вакансії — потрібна, бо колонка vacancies.status просто
-// перезаписується при кожному оновленні: без окремого журналу неможливо чесно порахувати
-// "скільки вакансій колись досягли етапу X" (реальна воронка), лише "скільки зараз на етапі X"
-// (analytics.routes.ts funnel) — вакансія, відхилена на "Тех.співбесіді", зникає з цього етапу
-// в поточному знімку, хоча реально через нього пройшла.
+// History of a vacancy's status changes — needed because the vacancies.status column is
+// simply overwritten on every update: without a separate log it's impossible to honestly
+// count "how many vacancies ever reached stage X" (the real funnel), only "how many are
+// currently at stage X" (analytics.routes.ts funnel) — a vacancy rejected at "Tech interview"
+// disappears from that stage in the current snapshot, even though it really did pass through it.
 import db from "./client.js";
 
 export function recordStatusChange(vacancyId: number, status: string): void {
   db.prepare("INSERT INTO vacancy_status_history (vacancy_id, status) VALUES (?, ?)").run(vacancyId, status);
 }
 
-/** Кількість УНІКАЛЬНИХ вакансій, що коли-небудь мали кожен статус (незалежно від поточного). */
+/** Count of UNIQUE vacancies that ever had each status (regardless of their current one). */
 export function getReachedCounts(): Record<string, number> {
   const rows = db.prepare("SELECT status, COUNT(DISTINCT vacancy_id) c FROM vacancy_status_history GROUP BY status").all() as {
     status: string;
@@ -25,17 +25,17 @@ export function deleteHistoryForVacancy(vacancyId: number): void {
 export interface StageConversion {
   from: string;
   to: string;
-  /** % вакансій, що досягли `from`, які ПОТІМ (чи одночасно) досягли й `to`. null — жодна вакансія ще не досягала `from`. */
+  /** % of vacancies that reached `from` which LATER (or at the same time) also reached `to`. null — no vacancy has reached `from` yet. */
   rate: number | null;
 }
 
 /**
- * Конверсія між СУСІДНІМИ етапами заданого порядку (напр. funnelOrder з analytics.routes.ts) —
- * класична funnel-метрика: яка частка тих, хто дійшов до етапу N, дійшла й до N+1. Рахується
- * лише з getReachedCounts() (уже завантажені дані, без додаткового запиту до БД) — тому дешева
- * й безпечна викликати на кожен /analytics. НЕ припускає строго лінійний рух (вакансія може
- * "перескочити" етап чи піти у "Відмова" з будь-якого етапу) — це коректно, бо рахує лише
- * "чи КОЛИ-НЕБУДЬ був на обох етапах", а не послідовність переходів.
+ * Conversion between ADJACENT stages of a given order (e.g. funnelOrder from
+ * analytics.routes.ts) — a classic funnel metric: what share of those who reached stage N
+ * also reached N+1. Computed solely from getReachedCounts() (data already loaded, no extra
+ * DB query) — so it's cheap and safe to call on every /analytics request. Does NOT assume
+ * strictly linear movement (a vacancy can "skip" a stage or go to "Rejected" from any stage) —
+ * that's correct, since it only counts "was it EVER on both stages", not the sequence of transitions.
  */
 export function getFunnelConversion(order: readonly string[]): StageConversion[] {
   const reached = getReachedCounts();
@@ -52,17 +52,18 @@ export function getFunnelConversion(order: readonly string[]): StageConversion[]
 
 export interface StageDuration {
   status: string;
-  /** Середня кількість днів МІЖ входом у цей статус і НАСТУПНОЮ зміною статусу (по всіх вакансіях). */
+  /** Average number of days BETWEEN entering this status and the NEXT status change (across all vacancies). */
   avgDays: number;
-  /** К-сть переходів, з яких усереднено avgDays — щоб UI міг сховати статистично незначущі рядки (напр. count===1). */
+  /** Number of transitions averaged into avgDays — so the UI can hide statistically insignificant rows (e.g. count===1). */
   count: number;
 }
 
 /**
- * Середній час "затримки" в кожному статусі — для кожної вакансії дивимось на ПОСЛІДОВНІ пари
- * записів історії (упорядковані за часом) і рахуємо різницю в днях. Той самий принцип, що й у
- * survival-аналізі "time in state": показує, на якому етапі кандидат/рекрутер найдовше тримає
- * паузу — інформація, якої немає в статичних funnel/funnelReached (лише "скільки", не "як довго").
+ * Average "dwell time" in each status — for each vacancy we look at CONSECUTIVE pairs of
+ * history records (ordered by time) and compute the difference in days. The same principle
+ * as "time in state" survival analysis: shows which stage the candidate/recruiter tends to
+ * linger in the longest — information the static funnel/funnelReached numbers don't have
+ * (only "how many", not "how long").
  */
 export function getAvgDaysInStage(): StageDuration[] {
   const rows = db.prepare("SELECT vacancy_id, status, changed_at FROM vacancy_status_history ORDER BY vacancy_id, changed_at").all() as {
@@ -74,7 +75,7 @@ export function getAvgDaysInStage(): StageDuration[] {
   for (let i = 0; i < rows.length - 1; i++) {
     const cur = rows[i]!;
     const next = rows[i + 1]!;
-    if (next.vacancy_id !== cur.vacancy_id) continue; // межа між різними вакансіями — не пара переходу
+    if (next.vacancy_id !== cur.vacancy_id) continue; // boundary between different vacancies — not a transition pair
     const days = (new Date(next.changed_at).getTime() - new Date(cur.changed_at).getTime()) / 86_400_000;
     if (!Number.isFinite(days) || days < 0) continue;
     const acc = sums.get(cur.status) ?? { total: 0, count: 0 };

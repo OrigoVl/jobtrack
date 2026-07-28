@@ -1,4 +1,4 @@
-// Ресурси з гайду: best practices, майданчики, шпаргалка, чек-лист.
+// Resources from the guide: best practices, practice platforms, cheat sheet, checklist.
 export interface Link {
   t: string;
   u: string;
@@ -56,7 +56,7 @@ export const BEST_PRACTICES: BestPracticeGroup[] = [
         u: "https://react.dev/learn/thinking-in-react",
       },
       {
-        t: "Bulletproof React (архітектура) EN",
+        t: "Bulletproof React (architecture) EN",
         u: "https://github.com/alan2207/bulletproof-react",
       },
       {
@@ -66,7 +66,7 @@ export const BEST_PRACTICES: BestPracticeGroup[] = [
     ],
   },
   {
-    group: "Архітектура, БД, дизайн систем",
+    group: "Architecture, Databases, System Design",
     links: [
       {
         t: "System Design Primer EN",
@@ -91,7 +91,7 @@ export const BEST_PRACTICES: BestPracticeGroup[] = [
     ],
   },
   {
-    group: "Підготовка до співбесід",
+    group: "Interview Preparation",
     links: [
       {
         t: "Tech Interview Handbook EN",
@@ -118,70 +118,70 @@ export interface Platform {
 
 export const PLATFORMS: Platform[] = [
   {
-    group: "🧩 Алгоритми та задачі",
+    group: "🧩 Algorithms & Problems",
     name: "LeetCode",
     url: "https://leetcode.com/",
-    note: "Головна для алгоритмічних співбесід, є JS",
+    note: "The go-to for algorithmic interviews, has JS",
   },
   {
-    group: "🧩 Алгоритми та задачі",
+    group: "🧩 Algorithms & Problems",
     name: "Codewars",
     url: "https://www.codewars.com/",
-    note: "Гейміфіковані «ката», багато JS/TS",
+    note: 'Gamified "kata" challenges, lots of JS/TS',
   },
   {
-    group: "🧩 Алгоритми та задачі",
+    group: "🧩 Algorithms & Problems",
     name: "Exercism",
     url: "https://exercism.org/tracks/javascript",
-    note: "JS/TS треки + безкоштовний ментор-фідбек",
+    note: "JS/TS tracks + free mentor feedback",
   },
   {
-    group: "🧩 Алгоритми та задачі",
+    group: "🧩 Algorithms & Problems",
     name: "NeetCode",
     url: "https://neetcode.io/practice",
-    note: "Структурований roadmap + відео-розбори",
+    note: "Structured roadmap + video walkthroughs",
   },
   {
-    group: "🧩 Алгоритми та задачі",
+    group: "🧩 Algorithms & Problems",
     name: "Frontend Mentor",
     url: "https://www.frontendmentor.io/",
-    note: "Реальні фронт/верстка челенджі (React/Vue практика)",
+    note: "Real front-end/markup challenges (React/Vue practice)",
   },
   {
-    group: "🎤 Mock-інтерв'ю (живий діалог)",
+    group: "🎤 Mock Interviews (live conversation)",
     name: "Pramp / Exponent",
     url: "https://www.tryexponent.com/practice",
-    note: "Peer-to-peer: ти й інший інженер по черзі інтерв'юєте одне одного",
+    note: "Peer-to-peer: you and another engineer take turns interviewing each other",
   },
   {
-    group: "🎤 Mock-інтерв'ю (живий діалог)",
+    group: "🎤 Mock Interviews (live conversation)",
     name: "interviewing.io",
     url: "https://interviewing.io/",
-    note: "Анонімні mock з інженерами топ-компаній",
+    note: "Anonymous mock interviews with engineers from top companies",
   },
   {
-    group: "💻 Онлайн-редактори (репетирувати «як на співбесіді»)",
+    group: '💻 Online Editors (rehearse "interview-style" coding)',
     name: "StackBlitz",
     url: "https://stackblitz.com/",
-    note: "Повноцінні Node/React/Vue/Angular проєкти в браузері",
+    note: "Full Node/React/Vue/Angular projects right in the browser",
   },
   {
-    group: "💻 Онлайн-редактори (репетирувати «як на співбесіді»)",
+    group: '💻 Online Editors (rehearse "interview-style" coding)',
     name: "CodeSandbox",
     url: "https://codesandbox.io/",
-    note: "Швидкі фронт/фулстек пісочниці (ідеально для React-практики)",
+    note: "Quick front-end/full-stack sandboxes (great for React practice)",
   },
   {
-    group: "💻 Онлайн-редактори (репетирувати «як на співбесіді»)",
+    group: '💻 Online Editors (rehearse "interview-style" coding)',
     name: "TS Playground",
     url: "https://www.typescriptlang.org/play",
-    note: "Перевірити типи TypeScript",
+    note: "Check TypeScript types",
   },
   {
-    group: "💻 Онлайн-редактори (репетирувати «як на співбесіді»)",
+    group: '💻 Online Editors (rehearse "interview-style" coding)',
     name: "DB Fiddle",
     url: "https://www.db-fiddle.com/",
-    note: "Тренувати SQL-запити (PostgreSQL/MySQL) онлайн",
+    note: "Practice SQL queries (PostgreSQL/MySQL) online",
   },
 ];
 
@@ -192,75 +192,79 @@ export interface CheatSection {
 
 export const CHEAT: CheatSection[] = [
   {
-    title: "JavaScript одним рядком",
+    title: "JavaScript in one line",
     items: [
-      "Event loop: sync → мікротаски (Promise) → 1 макротаска (setTimeout)",
-      "Closure: функція пам'ятає зовнішні змінні",
-      "let/const — блокові + TDZ; var — функційна",
-      "Завжди ===; x == null ловить null+undefined",
-      "Promise.all — паралельно, падає на першій помилці; allSettled — не падає",
+      "Event loop: sync → microtasks (Promise) → 1 macrotask (setTimeout)",
+      "Closure: a function remembers its outer variables",
+      "let/const are block-scoped + TDZ; var is function-scoped",
+      "Always use ===; x == null catches both null and undefined",
+      "Promise.all runs in parallel and rejects on the first error; allSettled never rejects",
     ],
   },
   {
     title: "TypeScript",
     items: [
-      "interface — об'єкти/merge; type — union/utility",
-      "unknown безпечніший за any; never — недосяжне",
-      "Generics + extends для обмежень",
+      "interface — objects/declaration merging; type — unions/utility types",
+      "unknown is safer than any; never means unreachable",
+      "Generics + extends for constraints",
     ],
   },
   {
     title: "Node / Nest",
     items: [
-      "Single-thread + libuv thread pool; CPU-важке → worker_threads",
-      "DI = залежності через конструктор, легко мокати",
-      "Guards (auth) · Pipes (валідація) · Interceptors · Filters (помилки)",
+      "Single-threaded + libuv thread pool; CPU-heavy work → worker_threads",
+      "DI = dependencies injected via the constructor, easy to mock",
+      "Guards (auth) · Pipes (validation) · Interceptors · Filters (errors)",
     ],
   },
   {
     title: "React",
     items: [
-      "Virtual DOM + diff; key для списків",
-      "useEffect: deps = коли перезапуск; return = cleanup",
-      "useMemo кешує значення; useCallback — функцію",
-      "Хуки — лише на верхньому рівні, сталий порядок",
+      "Virtual DOM + diffing; key for lists",
+      "useEffect: deps = when it reruns; return = cleanup",
+      "useMemo caches a value; useCallback caches a function",
+      "Hooks — only at the top level, in a consistent order",
     ],
   },
   {
-    title: "Бази даних",
+    title: "Databases",
     items: [
-      "SQL — консистентність/зв'язки; NoSQL — гнучкість/масштаб",
-      "Індекс = швидше читання, повільніший запис; перевір EXPLAIN",
+      "SQL — consistency/relations; NoSQL — flexibility/scale",
+      "Index = faster reads, slower writes; check with EXPLAIN",
       "N+1 → eager load / JOIN",
-      "ACID, транзакції для платежів",
+      "ACID, transactions for payments",
     ],
   },
   {
     title: "System design",
-    items: ["Профілюй → кеш (Redis/CDN) → репліки → черга → шардинг", "Черга = decouple + згладжування піків"],
+    items: ["Profile → cache (Redis/CDN) → replicas → queue → sharding", "Queue = decoupling + smoothing traffic spikes"],
   },
   {
-    title: "Питання ДО них (постав сам!)",
-    items: ["Який стек і чому саме він? Як виглядає команда?", "Як тестуєте й деплоїте? Технічний борг?", "Етапи співбесіди далі?"],
+    title: "Questions to ask them (bring your own!)",
+    items: [
+      "What's the stack and why? What does the team look like?",
+      "How do you test and deploy? Any tech debt?",
+      "What are the next interview stages?",
+    ],
   },
 ];
 
 export const CHECKLIST: string[] = [
-  "React: hooks, ре-рендери, TanStack Query — переписав 1–2 своїх Vue-компоненти на React",
-  "React: зібрав міні-проєкт (CRUD + fetch) на React + TypeScript",
-  "Next.js: розібрав SSR/SSG, app router (базово)",
-  "SQL: пройшов SQLBolt + PostgreSQL Exercises",
-  "SQL: вмію пояснити індекси, транзакції, N+1, SQL vs NoSQL",
-  "SQL: зробив Nest + Prisma/TypeORM з PostgreSQL",
-  "TypeScript: generics, utility types, пройшов 5+ type-challenges",
-  "JS core: event loop, closures, async — проговорюю впевнено",
-  "Node/Nest: освіжив DI, guards, pipes, обробку помилок, черги",
-  "Docker: написав Dockerfile (multi-stage) + docker-compose",
-  "AWS: зіставив сервіси з Azure, розібрав S3/Lambda/RDS/SQS",
-  "Алгоритми: NeetCode 75 або 30+ задач LeetCode",
-  "System Design: розібрав 3+ типові дизайни (scaling, cache, MQ)",
-  "Питання: пройшов усі QA з розділу 10, відповідаю своїми словами",
-  "Behavioral: підготував 3 STAR-історії + відповідь про AI-workflow",
-  "Mock: провів 2+ mock-інтерв'ю на Pramp/interviewing.io",
-  "Портфоліо: pet-проєкт TaskFlow (React+Nest+PostgreSQL+Docker) на GitHub",
+  "React: hooks, re-renders, TanStack Query — rewrote 1-2 of my Vue components in React",
+  "React: built a mini project (CRUD + fetch) with React + TypeScript",
+  "Next.js: learned SSR/SSG, app router (basics)",
+  "SQL: completed SQLBolt + PostgreSQL Exercises",
+  "SQL: can explain indexes, transactions, N+1, SQL vs NoSQL",
+  "SQL: built a Nest + Prisma/TypeORM app with PostgreSQL",
+  "TypeScript: generics, utility types, completed 5+ type-challenges",
+  "JS core: event loop, closures, async — can explain confidently",
+  "Node/Nest: refreshed DI, guards, pipes, error handling, queues",
+  "Docker: wrote a Dockerfile (multi-stage) + docker-compose",
+  "AWS: mapped services to Azure equivalents, learned S3/Lambda/RDS/SQS",
+  "Algorithms: NeetCode 75 or 30+ LeetCode problems",
+  "System Design: worked through 3+ common designs (scaling, cache, MQ)",
+  "Questions: went through all Q&A in section 10, can answer in my own words",
+  "Behavioral: prepared 3 STAR stories + an answer about my AI workflow",
+  "Mock: did 2+ mock interviews on Pramp/interviewing.io",
+  "Portfolio: TaskFlow pet project (React+Nest+PostgreSQL+Docker) on GitHub",
 ];

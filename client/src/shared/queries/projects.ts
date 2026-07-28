@@ -25,7 +25,7 @@ export function useSetProjectItem() {
     },
     onError: (e, _vars, ctx) => {
       if (ctx?.previous) qc.setQueryData(queryKeys.projects, ctx.previous);
-      toast(e instanceof Error ? e.message : "Сталася помилка", "error");
+      toast(e instanceof Error ? e.message : "An error occurred", "error");
     },
   });
 }

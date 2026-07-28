@@ -36,7 +36,7 @@ describe("buildPlan", () => {
       profile: { skills: [] },
       demand: { React: 5, Docker: 2 },
     });
-    // React (демо >), Docker, потім завжди фінальна фаза останньою.
+    // React (higher demand), Docker, then the final phase always comes last.
     expect(phases.map((p) => p.id)).toEqual(["ph-react", "ph-docker", "ph-final"]);
     expect(phases.at(-1)?.id).toBe("ph-final");
 
@@ -69,8 +69,9 @@ describe("buildPlan", () => {
   it("does not retroactively mutate a previously returned plan's final phase", () => {
     const first = buildPlan({ profile: { skills: [] }, demand: { React: 3 } });
     const snapshot = first.find((p) => p.id === "ph-final")!.days.map((d) => d.day);
-    // Другий виклик з іншою кількістю прогалин точно дає іншу нумерацію днів фінальної фази —
-    // якщо об'єкти днів спільні (не скопійовані), snapshot вище зміниться заднім числом.
+    // A second call with a different number of gaps definitely gives different day numbering
+    // for the final phase — if the day objects are shared (not copied), the snapshot above
+    // would change retroactively.
     buildPlan({ profile: { skills: [] }, demand: { React: 3, Vue: 3, Docker: 3 } });
     const afterSecondCall = first.find((p) => p.id === "ph-final")!.days.map((d) => d.day);
     expect(afterSecondCall).toEqual(snapshot);

@@ -1,175 +1,175 @@
-# JobTrack — динамічний трекер пошуку роботи (React + Node + SQLite + AI)
+# JobTrack — a dynamic job-search tracker (React + Node + SQLite + AI)
 
-Повноцінний легкий full-stack застосунок: **аналізує вакансії та CV, показує прогалини й попит ринку, тренує до співбесід і допомагає з резюме/листами.** Стек: **React + TypeScript + Node.js + SQLite (+ опційно LLM)**.
+A full-featured, lightweight full-stack app: **analyzes job postings and CVs, surfaces skill gaps and market demand, drills you for interviews, and helps with your resume/cover letters.** Stack: **React + TypeScript + Node.js + SQLite (+ optional LLM)**.
 
-> **Вимога:** Node.js **≥ 22.5** (краще 24 LTS) — бекенд використовує вбудований модуль `node:sqlite`, окрема БД-залежність не потрібна.
-> **Пакетний менеджер:** [pnpm](https://pnpm.io) (workspace-монорепо `client` + `server`). Встанови: `corepack enable` або `npm i -g pnpm`.
+> **Requirement:** Node.js **≥ 22.5** (24 LTS recommended) — the backend uses the built-in `node:sqlite` module, so no separate DB dependency is needed.
+> **Package manager:** [pnpm](https://pnpm.io) (workspace monorepo `client` + `server`). Install with: `corepack enable` or `npm i -g pnpm`.
 
-## Що вміє
+## What it does
 
-- **🌐 Будь-яка професія** — з LLM навички та роль визначаються з CV й вакансій (не лише IT), і під це підлаштовуються AI-поради. Офлайн — fallback на словник IT-технологій.
-- **📋 Вакансії** — CRUD, редагування прямо в таблиці, кольорове маркування статусу (таблиця + Канбан), автопідтягування стеку/рівня/fit за посиланням (з будь-якого публічного сайту вакансій) при додаванні/зміні URL, імпорт з DOU-експорту, імпорт/експорт JSON (upsert за `url`/company+position).
-- **🔔 Нагадування** — опційні браузерні Web Notifications про прострочені/сьогоднішні «наступні кроки».
-- **🔍 Аналіз вакансії** — навички і рівень (LLM або офлайн-словник), збіг/прогалини під профіль, семантична схожість CV↔вакансія (embeddings, з OpenAI-ключем).
-- **🎯 Skill-radar** — «твої навички vs попит ринку» з реального стеку доданих вакансій (recency-weighted).
-- **📊 Аналітика** — воронка подач (поточна + «коли-небудь досягли етапу»), конверсія між етапами, середній час у статусі, попит на технології.
-- **🧠 Навчання** — флеш-картки на FSRS (як в Anki) + drill-режим (89 задач: JS/TS/React/SQL/Node/NestJS/алгоритми/System Design), JS-пісочниця, AI-підказки, генерація карток/задач під роль.
-- **🎤 Мок-інтерв'ю** — випадкова добірка питань і задач із таймером та AI-оцінкою відповіді.
-- **🗺️ Роудмапа** + **📅 Інтенсив 21 день** — трекери навчання з персистентним прогресом.
-- **🧩 Pet-проєкти** — драбина з 4 проєктів із чек-лістами Definition of Done.
-- **📄 CV** — аналіз проти попиту ринку, генератор Skills, cover letter (ручний текст / вибір із трекера / посилання з автозавантаженням), Конструктор CV з live-прев'ю і експортом у PDF.
-- **🏢 Компанії** — нотатки й банк питань «що спитали тут».
-- **🗂 Канбан вакансій** — drag-and-drop між статусами (з клавіатури теж).
+- **🌐 Any profession** — with an LLM, skills and role are inferred from the CV and job postings (not just IT), and AI advice adapts accordingly. Offline — falls back to an IT tech dictionary.
+- **📋 Job postings** — CRUD, inline table editing, color-coded status (table + Kanban), auto-fills stack/level/fit from a URL (from any public job site) when adding/editing a link, import from a DOU export, JSON import/export (upsert by `url`/company+position).
+- **🔔 Reminders** — optional browser Web Notifications for overdue/today's "next steps."
+- **🔍 Job analysis** — skills and level (LLM or offline dictionary), match/gaps against your profile, semantic CV↔job similarity (embeddings, with an OpenAI key).
+- **🎯 Skill radar** — "your skills vs. market demand" from the actual stack of jobs you've added (recency-weighted).
+- **📊 Analytics** — application funnel (current + "ever reached this stage"), stage-to-stage conversion, average time in status, technology demand.
+- **🧠 Study** — FSRS-based flashcards (like Anki) + drill mode (89 tasks: JS/TS/React/SQL/Node/NestJS/algorithms/system design), a JS sandbox, AI hints, card/task generation tailored to your role.
+- **🎤 Mock interviews** — a random set of questions and tasks with a timer and AI-scored answers.
+- **🗺️ Roadmap** + **📅 21-Day Intensive** — study trackers with persistent progress.
+- **🧩 Pet projects** — a ladder of 4 projects with Definition-of-Done checklists.
+- **📄 CV** — analysis against market demand, a Skills generator, cover letters (manual text / picked from the tracker / auto-fetched from a link), a CV Builder with a live preview and PDF export.
+- **🏢 Companies** — notes and a bank of "what they asked here" questions.
+- **🗂 Job Kanban** — drag-and-drop between statuses (keyboard-accessible too).
 
-## Швидкий старт
+## Quick start
 
 ```bash
-# з кореня репозиторію — встановлює й client, і server одразу (pnpm workspace)
+# from the repo root — installs both client and server at once (pnpm workspace)
 pnpm install
-cp server/.env.example server/.env   # (опційно) впиши OPENAI_API_KEY, щоб увімкнути AI
+cp server/.env.example server/.env   # (optional) fill in OPENAI_API_KEY to enable AI
 
-# піднімає бекенд (:3001) і фронтенд (:5173) одночасно
+# starts the backend (:3001) and frontend (:5173) together
 pnpm dev
 ```
 
-Відкрий **http://localhost:5173**. База (SQLite) створюється автоматично.
+Open **http://localhost:5173**. The SQLite database is created automatically.
 
-Інші корисні команди з кореня: `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format`,
-`pnpm test:coverage`, `pnpm test:e2e` (Playwright, потребує `pnpm build`).
+Other useful commands from the root: `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format`,
+`pnpm test:coverage`, `pnpm test:e2e` (Playwright, requires `pnpm build`).
 
-### Прод-режим (один процес)
-
-```bash
-pnpm build                            # збере client у client/dist
-pnpm --filter jobtrack-server start   # сервер сам віддасть фронтенд на http://localhost:3001
-```
-
-### Docker (одна команда)
+### Production mode (single process)
 
 ```bash
-docker compose up --build      # застосунок на http://localhost:3001
+pnpm build                            # builds the client into client/dist
+pnpm --filter jobtrack-server start   # the server serves the frontend itself at http://localhost:3001
 ```
 
-Multi-stage образ збирає фронтенд і запускає API, що роздає статику. БД (SQLite) зберігається у Docker-волюмі `jobtrack-data` (шлях — `DB_PATH`). LLM-ключі — через змінні оточення в `docker-compose.yml`.
+### Docker (one command)
 
-## AI-режим (опційно)
+```bash
+docker compose up --build      # app available at http://localhost:3001
+```
 
-Без ключа все працює в **офлайн-режимі** (аналіз за словником технологій, шаблонні листи). Щоб увімкнути AI — впиши у `server/.env`:
+A multi-stage image builds the frontend and runs the API, which serves the static assets. The SQLite database is stored in the `jobtrack-data` Docker volume (path — `DB_PATH`). LLM keys are passed via environment variables in `docker-compose.yml`.
+
+## AI mode (optional)
+
+Without a key, everything works in **offline mode** (tech-dictionary-based analysis, template letters). To enable AI, fill in `server/.env`:
 
 ```
 LLM_PROVIDER=openai
 OPENAI_API_KEY=sk-...
 ```
 
-Підтримується і Anthropic (`LLM_PROVIDER=anthropic`, `ANTHROPIC_API_KEY=...`). Якщо задані **обидва** ключі, `client.ts` автоматично пробує другий провайдер, якщо перший повністю провалився (outage/rate-limit).
+Anthropic is also supported (`LLM_PROVIDER=anthropic`, `ANTHROPIC_API_KEY=...`). If **both** keys are set, `client.ts` automatically tries the other provider if the first one fails outright (outage/rate limit).
 
-`server/src/config/env.ts` валідує `.env` через Zod при старті (fail-fast) і перевіряє, що ключ саме для вибраного `LLM_PROVIDER` заданий (а не будь-який) — інакше попередження в консоль замість тихого «напів-увімкненого» AI.
+`server/src/config/env.ts` validates `.env` with Zod at startup (fail-fast) and checks that a key exists specifically for the chosen `LLM_PROVIDER` (not just any key) — otherwise it logs a warning instead of silently running AI in a "half-enabled" state.
 
-### Технічні деталі LLM-шару
+### LLM layer technical details
 
-- **Два рівні моделі** (`tier: "fast" | "smart"`) — дешева модель для екстракції/форматування, сильніша — для глибокого аналізу (рев'ю CV, match, cover letter, генерація).
-- **`chatJson<T>()`** (`server/src/llm/client.ts`) — `chat()` у json-режимі + Zod-валідація структури + один self-repair retry, якщо відповідь не пройшла схему. Кожен call-site лише декларує очікувану форму.
-- Кешування за хешем вхідних даних, одна повторна спроба на транзієнтні помилки (`429`/`5xx`), tier-aware timeout, логування помилок провайдера й обрізаних JSON-відповідей, облік токенів (`normalizeUsage()`).
+- **Two model tiers** (`tier: "fast" | "smart"`) — a cheap model for extraction/formatting, a stronger one for deep analysis (CV review, matching, cover letters, generation).
+- **`chatJson<T>()`** (`server/src/llm/client.ts`) — `chat()` in JSON mode plus Zod schema validation and one self-repair retry if the response fails validation. Each call site only has to declare the expected shape.
+- Caching keyed by input hash, one retry on transient errors (`429`/`5xx`), tier-aware timeouts, logging of provider errors and truncated JSON responses, token accounting (`normalizeUsage()`).
 
-### Алгоритмічні покращення (не-LLM, детерміновані)
+### Algorithmic improvements (non-LLM, deterministic)
 
-Швидше/дешевше за LLM там, де завдання не потребує «розуміння» тексту — усі offline-тестовані:
+Faster/cheaper than an LLM wherever the task doesn't require "understanding" text — all of these are tested offline:
 
-- **FSRS** (`study/fsrs.ts`) — spaced-repetition алгоритм для SRS-флешкарток (той самий, що в Anki).
-- **TF-IDF** (`jobs/job-ranking.ts`) — ранжування зовнішніх вакансій у `/jobs/search`.
-- **Fuzzy-matching / Левенштейн** (`shared/fuzzy-match.ts`) — толерантність до друкарських помилок у назвах технологій.
-- **Ймовірнісний fit-score** (`vacancies/vacancy-text.ts`) — логістична функція замість грубого «5 match = high».
-- **Recency-weighted попит** (`shared/demand.ts`) — експоненційне згасання ваги вакансії за віком (half-life 90 днів).
-- **SimHash-дедублікація** (`jobs/job-dedupe.ts`) — злиття near-duplicate вакансій з різних агрегаторів.
-- **Векторні embeddings** (`llm/embeddings.ts`) — OpenAI `text-embedding-3-small` для семантичної схожості CV↔вакансія (лише з OpenAI-ключем).
-- **Funnel-конверсія та середній час у статусі** (`db/vacancy-history.ts`) — похідні метрики з журналу зміни статусів.
+- **FSRS** (`study/fsrs.ts`) — the spaced-repetition algorithm behind SRS flashcards (the same one Anki uses).
+- **TF-IDF** (`jobs/job-ranking.ts`) — ranking of external job listings in `/jobs/search`.
+- **Fuzzy matching / Levenshtein** (`shared/fuzzy-match.ts`) — tolerance for typos in technology names.
+- **Probabilistic fit score** (`vacancies/vacancy-text.ts`) — a logistic function instead of a crude "5 matches = high."
+- **Recency-weighted demand** (`shared/demand.ts`) — exponential decay of a job posting's weight by age (90-day half-life).
+- **SimHash deduplication** (`jobs/job-dedupe.ts`) — merging near-duplicate postings from different aggregators.
+- **Vector embeddings** (`llm/embeddings.ts`) — OpenAI `text-embedding-3-small` for semantic CV↔job similarity (OpenAI key only).
+- **Funnel conversion and average time in status** (`db/vacancy-history.ts`) — derived metrics from the status-change history log.
 
-## Логування
+## Logging
 
-Структуроване JSON-логування на `pino` (у dev — кольоровий вивід через `pino-pretty`, у прод — чистий JSON у stdout).
+Structured JSON logging via `pino` (colorized output through `pino-pretty` in dev, clean JSON to stdout in production).
 
-- `pino-http` логує кожен HTTP-запит з унікальним `reqId`; `AsyncLocalStorage` прокидує його в сервіси без прямого доступу до `req`.
-- Глобальний `redact` — `Authorization`/`Cookie`/`password`/`apiKey` ніколи не потраплять у лог.
-- `unhandledRejection`/`uncaughtException` логуються структуровано, а не губляться в stderr.
+- `pino-http` logs every HTTP request with a unique `reqId`; `AsyncLocalStorage` threads it through to services without needing direct access to `req`.
+- A global `redact` rule — `Authorization`/`Cookie`/`password`/`apiKey` never end up in the logs.
+- `unhandledRejection`/`uncaughtException` are logged in a structured way instead of getting lost in stderr.
 
-Для продової агрегації логів (JSON у stdout, сумісно з будь-яким колектором) підійде
-**[Axiom](https://axiom.co/)** чи **[Better Stack Logs](https://betterstack.com/logs)** (обидва мають готовий pino-транспорт і щедрий безкоштовний план) або self-hosted **[Dozzle](https://dozzle.dev/)** над `docker logs` для персонального використання.
+For aggregating logs in production (JSON to stdout, compatible with any collector),
+**[Axiom](https://axiom.co/)** or **[Better Stack Logs](https://betterstack.com/logs)** work well (both have a ready-made pino transport and a generous free tier), or a self-hosted **[Dozzle](https://dozzle.dev/)** on top of `docker logs` for personal use.
 
-## CI та якість коду
+## CI and code quality
 
-GitHub Actions (`.github/workflows/ci.yml`) на кожен push/PR у `main` ганяє:
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR to `main`:
 
-1. **Lint · Typecheck · Test · Build** — для client і server, з baseline-порогами покривності тестів.
-2. **E2E (Playwright)** — ключові наскрізні флоу на прод-білді, офлайн-режимі LLM (детермінований, без платних API), послідовно (`workers: 1`).
+1. **Lint · Typecheck · Test · Build** — for client and server, with baseline test-coverage thresholds.
+2. **E2E (Playwright)** — key end-to-end flows against the production build, LLM in offline mode (deterministic, no paid APIs), run sequentially (`workers: 1`).
 
-Локально `husky` + `lint-staged` автоматично прогонять Prettier перед кожним комітом.
-Dependabot (`.github/dependabot.yml`) щотижня пропонує оновлення npm/Docker/Actions.
+Locally, `husky` + `lint-staged` automatically run Prettier before every commit.
+Dependabot (`.github/dependabot.yml`) proposes npm/Docker/Actions updates weekly.
 
-## Безпека
+## Security
 
-- `helmet()` з реальним Content-Security-Policy, глобальний rate-limit на `/api` (600 запитів/15хв на IP), окремий суворіший ліміт для AI-ендпоінтів (30/15хв — вони коштують грошей на LLM).
-- Timeout на всі виклики LLM-провайдерів, SSRF-захист для парсингу вакансій за URL (блокує localhost/приватні/link-local IP, включно з cloud-metadata-адресами), обмеження типів файлів для завантаження (`multer`).
-- `CORS_ORIGIN`/`TRUST_PROXY` — явно вимикаються за замовчуванням, вмикаються лише якщо реально потрібні.
-- JS-пісочниця для drill-практики (`study/runner.ts`) виконується в ізольованому Web Worker з жорстким таймаутом — не в головному потоці.
-- Docker-образ запускає процес від непривілейованого користувача.
+- `helmet()` with a real Content-Security-Policy, a global rate limit on `/api` (600 requests/15 min per IP), a separate, stricter limit for AI endpoints (30/15 min — they cost real money in LLM usage).
+- Timeouts on all LLM provider calls, SSRF protection for parsing job postings by URL (blocks localhost/private/link-local IPs, including cloud metadata addresses), file-type restrictions on uploads (`multer`).
+- `CORS_ORIGIN`/`TRUST_PROXY` are explicitly disabled by default, enabled only when actually needed.
+- The JS sandbox for drill practice (`study/runner.ts`) runs in an isolated Web Worker with a hard timeout — not on the main thread.
+- The Docker image runs the process as an unprivileged user.
 
-**⚠️ Немає авторизації.** Застосунок свідомо однокористувацький (див. "Міграція на Postgres + auth" нижче) — будь-хто з мережевим доступом до порту 3001 бачить і редагує всі дані без логіну. Прийнятно для `localhost`/домашньої мережі, але **не виставляй порт напряму в публічний інтернет** без reverse-proxy з Basic Auth/OAuth (Caddy/nginx/Cloudflare Tunnel) чи VPN.
+**⚠️ No authentication.** The app is intentionally single-user (see "Migrating to Postgres + auth" below) — anyone with network access to port 3001 can see and edit all the data without logging in. That's fine for `localhost`/a home network, but **don't expose the port directly to the public internet** without a reverse proxy with Basic Auth/OAuth (Caddy/nginx/Cloudflare Tunnel) or a VPN.
 
-## Архітектура
+## Architecture
 
-Бекенд структурований **по доменних модулях** (feature-based, layered-стиль без фреймворк-оверхеду): кожен модуль має тонкий `*.routes.ts` (parse → delegate → respond) і `*.service.ts`/`*.data.ts` з бізнес-логікою, яку можна юніт-тестити без Express.
+The backend is structured **around domain modules** (feature-based, layered style without framework overhead): each module has a thin `*.routes.ts` (parse → delegate → respond) and a `*.service.ts`/`*.data.ts` with the business logic, which can be unit-tested without Express.
 
 ```
 jobtrack/
-├── Dockerfile, docker-compose.yml   # контейнеризація (multi-stage)
+├── Dockerfile, docker-compose.yml   # containerization (multi-stage)
 ├── server/                  # Node (ESM) + TypeScript + Express + node:sqlite
 │   └── src/
 │       ├── index.ts         # entrypoint: app.listen()
-│       ├── app.ts           # збірка Express-застосунку (middleware → /api → статика → errorHandler)
-│       ├── routes.ts        # агрегує всі modules/*/*.routes.ts в один Router
-│       ├── config/env.ts    # єдина типізована точка доступу до process.env
+│       ├── app.ts           # assembles the Express app (middleware → /api → static → errorHandler)
+│       ├── routes.ts        # aggregates all modules/*/*.routes.ts into a single Router
+│       ├── config/env.ts    # single typed access point for process.env
 │       ├── core/            # http (HttpError/asyncHandler), logger (pino), error-handler
-│       ├── db/              # client (з'єднання+схема+сід), types, kv, helpers
-│       ├── llm/             # OpenAI/Anthropic-клієнт з graceful fallback + кеш відповідей
-│       ├── shared/          # tech-dict, skill-extraction, validation (DTO+SSRF), demand, hash, slug, upload
-│       └── modules/         # по одній теці на домен API:
-│           ├── vacancies/   # CRUD вакансій + аналіз тексту вакансії
-│           ├── jobs/        # пошук у зовнішніх агрегаторах (DOU/Remotive/Arbeitnow)
-│           ├── cv/          # профіль, CV-конструктор, рев'ю/match, LinkedIn-імпорт, upload
-│           ├── knowledge/   # статична + LLM-персоналізована база знань
-│           ├── roadmap/     # roadmap.sh-стиль карта навичок з реальних даних
-│           ├── plan21/      # динамічний 21-денний інтенсив (прогалини: вакансії − CV)
-│           ├── study/       # SRS-картки + drills (статичні + LLM-згенеровані)
+│       ├── db/               # client (connection+schema+seed), types, kv, helpers
+│       ├── llm/              # OpenAI/Anthropic client with graceful fallback + response cache
+│       ├── shared/           # tech-dict, skill-extraction, validation (DTO+SSRF), demand, hash, slug, upload
+│       └── modules/         # one folder per API domain:
+│           ├── vacancies/   # job CRUD + job-text analysis
+│           ├── jobs/        # search across external aggregators (DOU/Remotive/Arbeitnow)
+│           ├── cv/          # profile, CV builder, review/match, LinkedIn import, upload
+│           ├── knowledge/   # static + LLM-personalized knowledge base
+│           ├── roadmap/     # roadmap.sh-style skill map built from real data
+│           ├── plan21/      # dynamic 21-day intensive (gaps: job postings − CV)
+│           ├── study/       # SRS cards + drills (static + LLM-generated)
 │           └── projects/, resources/, companies/, analytics/, writing/, mock/, health/
 └── client/                  # React + Vite + TS + Router + TanStack Query
     └── src/
         ├── main.tsx, index.css      # entrypoint
-        ├── app/App.tsx              # роутинг (React Router), sidebar/shell, providers
-        ├── shared/                  # наскрізні речі, спільні для всіх фіч:
-        │   ├── api.ts               # єдиний типізований контракт з бекендом
-        │   ├── queries/             # TanStack Query хуки по домену (кеш, інвалідація, оптимістичні мутації)
+        ├── app/App.tsx              # routing (React Router), sidebar/shell, providers
+        ├── shared/                  # cross-cutting things shared by all features:
+        │   ├── api.ts               # single typed contract with the backend
+        │   ├── queries/             # TanStack Query hooks per domain (cache, invalidation, optimistic mutations)
         │   ├── toast.tsx            # ToastProvider/useToast
-        │   ├── ui-state.ts          # useUi — персистентний UI-стан вкладок
-        │   ├── types.ts             # спільні DTO-типи (дзеркалять бекенд)
-        │   └── ui.tsx               # UI-кіт (Btn, Card, Chip, PageHeader, Skeleton…)
-        └── features/                # по одній теці на домен екрана (дзеркалить server/src/modules):
+        │   ├── ui-state.ts          # useUi — persistent UI state for tabs
+        │   ├── types.ts             # shared DTO types (mirror the backend)
+        │   └── ui.tsx               # UI kit (Btn, Card, Chip, PageHeader, Skeleton…)
+        └── features/                # one folder per screen domain (mirrors server/src/modules):
             ├── dashboard/, vacancies/, jobs/, analyzer/, companies/
-            ├── cv/                  # перегляд CV + Конструктор CV (cv.tsx, cv-builder/*)
-            ├── knowledge/           # план навчання (learn.tsx)
+            ├── cv/                  # CV view + CV Builder (cv.tsx, cv-builder/*)
+            ├── knowledge/           # study plan (learn.tsx)
             ├── roadmap/, plan21/, projects/, resources/, mock/
-            ├── study/               # SRS + drills (study.tsx) + JS-пісочниця (runner.ts)
-            └── analytics/           # Skill-radar + графіки (charts.tsx, code-split)
+            ├── study/               # SRS + drills (study.tsx) + JS sandbox (runner.ts)
+            └── analytics/           # Skill radar + charts (charts.tsx, code-split)
 ```
 
-Дані та мутації йдуть через **TanStack Query** (`shared/queries/*`) — кожен домен має власний хук з типізованим ключем кешу; toggle-мутації роблять оптимістичне оновлення з відкатом при помилці мережі. Немає глобального "god context" — сторінки підписуються лише на потрібні їм дані.
+Data and mutations flow through **TanStack Query** (`shared/queries/*`) — each domain has its own hook with a typed cache key; toggle mutations do an optimistic update with rollback on network error. There's no global "god context" — pages subscribe only to the data they actually need.
 
-## Що далі (ідеї для розвитку)
+## What's next (ideas for future work)
 
-- Повноцінний календар співбесід (зараз лише базові Web Notifications).
-- Дедуплікація при ручному додаванні вакансії (SimHash-дедуп зараз лише для `/jobs/search` і імпорту).
-- Зберігати embedding кожної доданої вакансії й зробити семантичний пошук/рекомендації по всій БД (варто розглянути `sqlite-vec` замість брутфорс-косинуса в JS).
-- `POST /cv/match` офлайн-фолбек досі не використовує `semanticFit` — лише token-overlap.
+- A full interview calendar (currently just basic Web Notifications).
+- Deduplication when manually adding a job posting (SimHash dedup currently only applies to `/jobs/search` and imports).
+- Store an embedding for every added job posting and build semantic search/recommendations across the whole DB (worth considering `sqlite-vec` instead of a brute-force cosine similarity in JS).
+- The offline fallback for `POST /cv/match` still doesn't use `semanticFit` — only token overlap.
 
-### Міграція на Postgres + auth (запланований крок)
+### Migrating to Postgres + auth (planned step)
 
-Наразі персистентність — на `node:sqlite` (синхронний API, нуль залежностей). Для мультиюзерності потрібно: (1) винести доступ до БД за async-репозиторій, (2) підключити `pg`/Prisma до сервісу `postgres` (уже описаний у `docker-compose.yml`), (3) додати JWT-auth (login + guard на `/api`) і прив'язати дані до `user_id`. Свідомо винесено окремо, щоб не ламати наявний робочий шар.
+Persistence currently runs on `node:sqlite` (synchronous API, zero dependencies). Supporting multiple users requires: (1) extracting DB access behind an async repository, (2) wiring up `pg`/Prisma to the `postgres` service (already described in `docker-compose.yml`), (3) adding JWT auth (login + a guard on `/api`) and scoping data to `user_id`. This is deliberately kept as a separate step so it doesn't break the existing working layer.

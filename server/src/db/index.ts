@@ -1,6 +1,6 @@
-// Публічний фасад db/-модуля: інші модулі імпортують лише звідси, а не з client.ts
-// напряму — це дозволяє вільно міняти внутрішню структуру (client/kv/helpers) без
-// зачіпання решти застосунку.
+// Public facade of the db/ module: other modules import only from here, not directly
+// from client.ts — this allows freely changing the internal structure (client/kv/helpers)
+// without touching the rest of the app.
 export { default } from "./client.js";
 export { pingDb, closeDb } from "./client.js";
 export * from "./types.js";

@@ -1,12 +1,12 @@
 import type { CvDoc, CvSection, CvTheme } from "../../../shared/types";
 
 export const SECTION_LABELS: [CvSection, string][] = [
-  ["summary", "Профіль"],
-  ["skills", "Навички"],
-  ["experience", "Досвід"],
-  ["projects", "Проєкти"],
-  ["education", "Освіта"],
-  ["languages", "Мови"],
+  ["summary", "Profile"],
+  ["skills", "Skills"],
+  ["experience", "Experience"],
+  ["projects", "Projects"],
+  ["education", "Education"],
+  ["languages", "Languages"],
 ];
 export const DEFAULT_ORDER: CvSection[] = SECTION_LABELS.map(([k]) => k);
 export const DEFAULT_THEME: CvTheme = {
@@ -44,22 +44,22 @@ export function buildCvHtml(doc: CvDoc): string {
         `<div class="company">${esc(e.company)}</div>${e.bullets.filter(Boolean).length ? `<ul>${list(e.bullets)}</ul>` : ""}</div>`,
     )
     .join("");
-  const photoImg = doc.photo && t.showPhoto !== false ? `<img class="photo" src="${doc.photo}" alt="Фото"/>` : "";
+  const photoImg = doc.photo && t.showPhoto !== false ? `<img class="photo" src="${doc.photo}" alt="Photo"/>` : "";
   const hmeta = `<div class="hmeta"><h1>${esc(doc.name)}</h1><div class="title">${esc(doc.title)}</div><div class="contact">${esc(doc.contact)}</div></div>`;
   const langs = (doc.languages || []).filter((l) => l && l.name);
   const useInline = t.template === "compact" || t.template === "academic";
   const secSkillsChips = doc.skills.length
-    ? `${H("Навички")}<div class="chips">${doc.skills.map((s) => `<span class="chip">${esc(s)}</span>`).join("")}</div>`
+    ? `${H("Skills")}<div class="chips">${doc.skills.map((s) => `<span class="chip">${esc(s)}</span>`).join("")}</div>`
     : "";
-  const secSkillsInline = doc.skills.length ? `${H("Навички")}<p>${doc.skills.map(esc).join(" · ")}</p>` : "";
+  const secSkillsInline = doc.skills.length ? `${H("Skills")}<p>${doc.skills.map(esc).join(" · ")}</p>` : "";
   const sec: Record<string, string> = {
-    summary: doc.summary ? `${H("Профіль")}<p>${esc(doc.summary)}</p>` : "",
+    summary: doc.summary ? `${H("Profile")}<p>${esc(doc.summary)}</p>` : "",
     skills: useInline ? secSkillsInline : secSkillsChips,
-    experience: doc.experience.length ? `${H("Досвід")}${exp}` : "",
-    projects: doc.projects.filter(Boolean).length ? `${H("Проєкти")}<ul>${list(doc.projects)}</ul>` : "",
-    education: doc.education.filter(Boolean).length ? `${H("Освіта")}<ul>${list(doc.education)}</ul>` : "",
+    experience: doc.experience.length ? `${H("Experience")}${exp}` : "",
+    projects: doc.projects.filter(Boolean).length ? `${H("Projects")}<ul>${list(doc.projects)}</ul>` : "",
+    education: doc.education.filter(Boolean).length ? `${H("Education")}<ul>${list(doc.education)}</ul>` : "",
     languages: langs.length
-      ? `${H("Мови")}<ul>${langs.map((l) => `<li>${esc(l.name)}${l.level ? ` — <span class="lvl">${esc(l.level)}</span>` : ""}</li>`).join("")}</ul>`
+      ? `${H("Languages")}<ul>${langs.map((l) => `<li>${esc(l.name)}${l.level ? ` — <span class="lvl">${esc(l.level)}</span>` : ""}</li>`).join("")}</ul>`
       : "",
   };
   const order = (t.order && t.order.length ? t.order : ["summary", "skills", "experience", "projects", "education", "languages"]).filter(
@@ -115,23 +115,23 @@ export function buildCvHtml(doc: CvDoc): string {
     `.company{color:#64748b;font-size:${px(fs * 0.9)}}ul{margin:4px 0;padding-left:18px}li{margin:2px 0}` +
     `.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{background:${t.accent}14;color:${t.accent};border:1px solid ${t.accent}33;border-radius:6px;padding:2px 8px;font-size:${px(fs * 0.85)}}` +
     extraCss +
-    // `@page{margin:0}` — прибирає системний заголовок/підвал браузера (дата, назва
-    // документа, URL, номер сторінки) на кожній сторінці друку: у Chrome/Edge вони
-    // рендеряться саме в полях сторінки, зарезервованих під друк, тож без полів для них
-    // просто немає місця. Власні відступи від фізичного краю паперу задаємо через
-    // padding у body (замість поля сторінки), інакше контент притискався б до краю.
-    // Це не потребує від користувача вручну знімати галочку "Заголовки та підвали" у
-    // вікні друку — але в деяких браузерах (напр. Safari) вона все ж може лишатися,
-    // тож галочку варто перевірити, якщо дата/назва все одно з'явиться.
+    // `@page{margin:0}` — removes the browser's system header/footer (date, document title,
+    // URL, page number) on every printed page: in Chrome/Edge they render in the page margins
+    // reserved for printing, so with no margins there's simply no room for them. We set our own
+    // spacing from the physical paper edge via padding on body (instead of a page margin),
+    // otherwise the content would be pressed against the edge. This doesn't require the user to
+    // manually uncheck "Headers and footers" in the print dialog — but in some browsers
+    // (e.g. Safari) it may still show up, so that checkbox is worth checking if a date/title
+    // still appears.
     `@page{margin:0}` +
     `@media print{body{margin:0;max-width:none;padding:14mm 12mm}}`;
-  return `<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>${esc(doc.name || "CV")}</title><style>${css}</style></head><body>${layout}</body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(doc.name || "CV")}</title><style>${css}</style></head><body>${layout}</body></html>`;
 }
 
 export function exportCvDoc(doc: CvDoc): void {
   const w = window.open("", "_blank");
   if (!w) {
-    alert("Дозволь спливаючі вікна, щоб експортувати PDF.");
+    alert("Allow pop-ups to export the PDF.");
     return;
   }
   w.document.write(buildCvHtml(doc));
@@ -145,20 +145,20 @@ export function cvDocToText(doc: CvDoc): string {
   if (doc.name) lines.push(doc.name);
   if (doc.title) lines.push(doc.title);
   if (doc.contact) lines.push(doc.contact);
-  if (doc.summary) lines.push(`\nПрофіль:\n${doc.summary}`);
-  if (doc.skills.length) lines.push(`\nНавички: ${doc.skills.join(", ")}`);
+  if (doc.summary) lines.push(`\nProfile:\n${doc.summary}`);
+  if (doc.skills.length) lines.push(`\nSkills: ${doc.skills.join(", ")}`);
   if (doc.experience.length) {
-    lines.push("\nДосвід:");
+    lines.push("\nExperience:");
     doc.experience.forEach((e) => {
       lines.push(`${e.role} — ${e.company} (${e.period})`);
       e.bullets.filter(Boolean).forEach((b) => lines.push(`- ${b}`));
     });
   }
   const projects = doc.projects.filter(Boolean);
-  if (projects.length) lines.push(`\nПроєкти:\n${projects.join("\n")}`);
+  if (projects.length) lines.push(`\nProjects:\n${projects.join("\n")}`);
   const education = doc.education.filter(Boolean);
-  if (education.length) lines.push(`\nОсвіта:\n${education.join("\n")}`);
+  if (education.length) lines.push(`\nEducation:\n${education.join("\n")}`);
   const langs = (doc.languages || []).filter((l) => l.name);
-  if (langs.length) lines.push(`\nМови: ${langs.map((l) => `${l.name} (${l.level})`).join(", ")}`);
+  if (langs.length) lines.push(`\nLanguages: ${langs.map((l) => `${l.name} (${l.level})`).join(", ")}`);
   return lines.join("\n");
 }

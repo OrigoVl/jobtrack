@@ -22,7 +22,7 @@ import {
   DEFAULT_STATUS_BORDER_L_CLASS,
 } from "../../shared/status-tone";
 
-/** Ініціює завантаження браузером JSON-файлу з переданими даними (для експорту вакансій). */
+/** Triggers a browser download of a JSON file with the given data (for exporting vacancies). */
 function downloadJson(filename: string, data: unknown): void {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -33,7 +33,7 @@ function downloadJson(filename: string, data: unknown): void {
   URL.revokeObjectURL(url);
 }
 
-/** Днів від дати подачі (YYYY-MM-DD) до сьогодні — показуємо, доки чекаємо відповіді. */
+/** Days since the applied date (YYYY-MM-DD) until today — shown while waiting for a response. */
 function daysSinceApplied(applied: string): number | null {
   if (!applied) return null;
   const then = new Date(applied);
@@ -41,21 +41,21 @@ function daysSinceApplied(applied: string): number | null {
   return Math.max(0, Math.floor((Date.now() - then.getTime()) / 86_400_000));
 }
 
-// Дзеркалить STALE_APPLICATION_DAYS/WAITING_STATUSES із server/src/modules/analytics/analytics.routes.ts
-// (лише для кольорового натяку в таблиці — авторитетне джерело правди все одно "Фокус тижня").
+// Mirrors STALE_APPLICATION_DAYS/WAITING_STATUSES from server/src/modules/analytics/analytics.routes.ts
+// (just a color hint in the table — the authoritative source of truth is still "Focus of the week").
 const STALE_APPLICATION_DAYS = 14;
-const WAITING_STATUSES = ["Відправив CV", "Скринінг", "Тех.співбесіда", "Тестове завдання", "Фінал"];
+const WAITING_STATUSES = ["Applied", "Screening", "Tech interview", "Take-home task", "Final"];
 function isStaleApplication(status: string, days: number | null): boolean {
   return days != null && days > STALE_APPLICATION_DAYS && WAITING_STATUSES.includes(status);
 }
 
-/* ---------- Vacancies board (drag-and-drop + клавіатура) ---------- */
+/* ---------- Vacancies board (drag-and-drop + keyboard) ---------- */
 function VacancyBoard() {
   const { data: vacancies = [] } = useVacancies();
   const updateVacancyMutation = useUpdateVacancy();
   const [over, setOver] = useState<string | null>(null);
-  // Рефи карток для DnD-незалежного (keyboard-only) переміщення: після зміни статусу
-  // React перемонтовує картку в іншу колонку — без цього фокус загубився б.
+  // Card refs for DnD-independent (keyboard-only) moves: after a status change React
+  // remounts the card into a different column — without this the focus would be lost.
   const cardRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const onDrop = (status: string) => (e: React.DragEvent) => {
     e.preventDefault();
@@ -64,8 +64,8 @@ function VacancyBoard() {
     const v = vacancies.find((x) => x.id === id);
     if (v && v.status !== status) updateVacancyMutation.mutate({ id, patch: { status } });
   };
-  // Клавіатурна альтернатива drag-and-drop: ←/→ на фокусованій картці перемикають
-  // її на сусідній статус (порядок — як у STATUSES), фокус лишається на тій самій картці.
+  // Keyboard alternative to drag-and-drop: ←/→ on a focused card switches it to the
+  // adjacent status (order — as in STATUSES), focus stays on the same card.
   const moveByKeyboard = (v: Vacancy, direction: -1 | 1) => {
     const idx = STATUSES.indexOf(v.status as (typeof STATUSES)[number]);
     const nextStatus = STATUSES[idx + direction];
@@ -83,7 +83,7 @@ function VacancyBoard() {
           <div
             key={status}
             role="list"
-            aria-label={`Колонка «${status}», ${items.length} вакансій`}
+            aria-label={`Column "${status}", ${items.length} vacancies`}
             onDragOver={(e) => {
               e.preventDefault();
               setOver(status);
@@ -104,9 +104,9 @@ function VacancyBoard() {
             <div className="space-y-2 min-h-[40px]">
               {items.map((v) => {
                 const idx = STATUSES.indexOf(status);
-                // Позначаємо саме ту картку, чий статус зараз зберігається (drag-and-drop або
-                // клавіатурне переміщення) — updateVacancyMutation одна на всю дошку, тож
-                // scope'имо за variables.id, аби спінер не блимав на всіх картках одразу.
+                // Mark exactly the card whose status is currently being saved (drag-and-drop or
+                // keyboard move) — updateVacancyMutation is one hook for the whole board, so
+                // scope by variables.id so the spinner doesn't flash on every card at once.
                 const isSaving = updateVacancyMutation.isPending && updateVacancyMutation.variables?.id === v.id;
                 return (
                   <div
@@ -116,8 +116,8 @@ function VacancyBoard() {
                     }}
                     role="button"
                     tabIndex={0}
-                    aria-label={`${v.company}, ${v.position}. Статус: ${status}.${idx > 0 ? ` Стрілка вліво — «${STATUSES[idx - 1]}».` : ""}${
-                      idx < STATUSES.length - 1 ? ` Стрілка вправо — «${STATUSES[idx + 1]}».` : ""
+                    aria-label={`${v.company}, ${v.position}. Status: ${status}.${idx > 0 ? ` Left arrow — "${STATUSES[idx - 1]}".` : ""}${
+                      idx < STATUSES.length - 1 ? ` Right arrow — "${STATUSES[idx + 1]}".` : ""
                     }`}
                     draggable
                     onDragStart={(e) => e.dataTransfer.setData("text/plain", String(v.id))}
@@ -133,7 +133,7 @@ function VacancyBoard() {
                     className={`relative bg-white border border-slate-200 border-l-4 ${STATUS_BORDER_L_CLASS[status] ?? DEFAULT_STATUS_BORDER_L_CLASS} rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-card focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-opacity ${isSaving ? "opacity-60" : ""}`}
                   >
                     {isSaving && (
-                      <span className="absolute top-1.5 right-1.5 text-indigo-500" aria-label="Зберігаю…">
+                      <span className="absolute top-1.5 right-1.5 text-indigo-500" aria-label="Saving…">
                         <Spinner className="h-3 w-3" />
                       </span>
                     )}
@@ -178,15 +178,15 @@ export function Vacancies() {
   };
   const onImportJsonFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    e.target.value = ""; // дозволити повторний вибір того самого файлу
+    e.target.value = ""; // allow picking the same file again
     if (!file) return;
     try {
       const parsed: unknown = JSON.parse(await file.text());
       const items = Array.isArray(parsed) ? parsed : (parsed as { items?: unknown[] })?.items;
-      if (!Array.isArray(items)) throw new Error("Очікується масив вакансій у файлі");
+      if (!Array.isArray(items)) throw new Error("Expected an array of vacancies in the file");
       await importJsonMutation.mutateAsync(items);
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Не вдалося прочитати файл", "error");
+      toast(err instanceof Error ? err.message : "Failed to read the file", "error");
     }
   };
   const onExportJson = async () => {
@@ -194,55 +194,55 @@ export function Vacancies() {
       const items = await api.exportVacancies();
       downloadJson("job-tracker.json", items);
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Не вдалося експортувати вакансії", "error");
+      toast(err instanceof Error ? err.message : "Failed to export vacancies", "error");
     }
   };
   if (isLoading) return <CardsSkeleton count={3} />;
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Вакансії"
-        subtitle="Веди всі вакансії в одному місці. Встав посилання на вакансію (з будь-якого сайту — LinkedIn, Djinni, robota.ua, dou.ua тощо) — стек підтягнеться сам. У режимі «Канбан» перетягуй картки між статусами (або обери картку й тисни ←/→ — без миші)."
+        title="Vacancies"
+        subtitle="Track all your vacancies in one place. Paste a vacancy link (from any site — LinkedIn, Djinni, robota.ua, dou.ua, etc.) and the stack fills in itself. In Kanban view, drag cards between statuses (or select a card and press ←/→ — no mouse needed)."
         actions={
           <div className="flex gap-2 flex-wrap">
             <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
               <Btn variant={view === "table" ? "primary" : "subtle"} size="sm" onClick={() => setView("table")}>
-                ☰ Таблиця
+                ☰ Table
               </Btn>
               <Btn variant={view === "board" ? "primary" : "subtle"} size="sm" onClick={() => setView("board")}>
-                🗂 Канбан
+                🗂 Kanban
               </Btn>
             </div>
             <Btn
               loading={addVacancyMutation.isPending}
-              onClick={() => addVacancyMutation.mutate({ company: "Нова компанія", position: "Позиція" })}
+              onClick={() => addVacancyMutation.mutate({ company: "New company", position: "Position" })}
             >
-              + Додати вакансію
+              + Add vacancy
             </Btn>
           </div>
         }
       />
 
       <Card>
-        <div className="text-sm font-semibold mb-2 text-slate-700">📥 Імпорт з DOU-експорту</div>
+        <div className="text-sm font-semibold mb-2 text-slate-700">📥 Import from a DOU export</div>
         <textarea
           value={imp}
           onChange={(e) => setImp(e.target.value)}
-          aria-label="HTML або текст для імпорту з DOU"
-          placeholder="Встав HTML або текст зі збереженої таблиці вакансій DOU — витягнемо всі посилання…"
+          aria-label="HTML or text to import from DOU"
+          placeholder="Paste the HTML or text of a saved DOU vacancies table — we'll extract every link…"
           className="w-full h-20 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
         />
         <Btn className="mt-2" variant="ghost" onClick={doImport} disabled={!imp} loading={importVacanciesMutation.isPending}>
-          {importVacanciesMutation.isPending ? "Імпортую й аналізую…" : "Імпортувати посилання"}
+          {importVacanciesMutation.isPending ? "Importing and analyzing…" : "Import links"}
         </Btn>
       </Card>
 
       <Card>
-        <div className="text-sm font-semibold mb-1 text-slate-700">🔄 Імпорт / експорт JSON</div>
+        <div className="text-sm font-semibold mb-1 text-slate-700">🔄 Import / export JSON</div>
         <p className="text-xs text-slate-500 mb-2">
-          Формат <code>job-tracker.json</code> — масив <code>{"{company, pos, level, fit, status, applied, next, notes, url}"}</code>.
-          Вакансії з тим самим посиланням (або компанією+позицією) оновляться, решта додасться — можна вести файл окремо (напр. в іншому
-          чаті) і просто скидати його сюди для синхронізації.
+          Format <code>job-tracker.json</code> — an array of <code>{"{company, pos, level, fit, status, applied, next, notes, url}"}</code>.
+          Vacancies with the same link (or company+position) get updated, the rest get added — you can keep the file elsewhere (e.g. in
+          another chat) and just drop it here to sync.
         </p>
         <div className="flex gap-2 flex-wrap">
           <input
@@ -251,13 +251,13 @@ export function Vacancies() {
             accept="application/json,.json"
             onChange={onImportJsonFile}
             className="hidden"
-            aria-label="Файл job-tracker.json для імпорту"
+            aria-label="job-tracker.json file to import"
           />
           <Btn variant="ghost" onClick={() => jsonFileInputRef.current?.click()} loading={importJsonMutation.isPending}>
-            {importJsonMutation.isPending ? "Імпортую…" : "⬆ Імпортувати з файлу"}
+            {importJsonMutation.isPending ? "Importing…" : "⬆ Import from file"}
           </Btn>
           <Btn variant="ghost" onClick={onExportJson} disabled={vacancies.length === 0}>
-            ⬇ Експортувати в job-tracker.json
+            ⬇ Export to job-tracker.json
           </Btn>
         </div>
       </Card>
@@ -266,14 +266,14 @@ export function Vacancies() {
         <Card>
           <EmptyState
             icon="📋"
-            title="Ще немає вакансій"
-            hint="Додай першу вакансію вручну або імпортуй список із DOU — далі застосунок сам збудує аналітику й роудмапу."
+            title="No vacancies yet"
+            hint="Add your first vacancy by hand or import a list from DOU — the app will build the analytics and roadmap from there."
             action={
               <Btn
                 loading={addVacancyMutation.isPending}
-                onClick={() => addVacancyMutation.mutate({ company: "Нова компанія", position: "Позиція" })}
+                onClick={() => addVacancyMutation.mutate({ company: "New company", position: "Position" })}
               >
-                + Додати першу
+                + Add the first one
               </Btn>
             }
           />
@@ -286,20 +286,20 @@ export function Vacancies() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-slate-500 text-xs text-left bg-slate-50 border-b border-slate-200">
-                  <th className="p-3">Компанія / Позиція</th>
-                  <th className="p-3">Стек</th>
+                  <th className="p-3">Company / Position</th>
+                  <th className="p-3">Stack</th>
                   <th className="p-3">Fit</th>
-                  <th className="p-3">Статус</th>
-                  <th className="p-3">Подано</th>
-                  <th className="p-3">Наступний крок</th>
+                  <th className="p-3">Status</th>
+                  <th className="p-3">Applied</th>
+                  <th className="p-3">Next step</th>
                   <th className="p-3"></th>
                 </tr>
               </thead>
               <tbody>
                 {vacancies.map((row) => {
-                  // updateVacancyMutation — один хук на всю таблицю, тож scope'имо "зберігаю" саме
-                  // до рядка, чий id збігається з variables останнього виклику (React Query тримає
-                  // variables, доки isPending) — інакше спінер блимав би одразу в усіх рядках.
+                  // updateVacancyMutation is one hook for the whole table, so scope "saving" to
+                  // exactly the row whose id matches the last call's variables (React Query holds
+                  // variables while isPending) — otherwise the spinner would flash on every row at once.
                   const isSavingRow = updateVacancyMutation.isPending && updateVacancyMutation.variables?.id === row.id;
                   const isDeletingRow = deleteVacancyMutation.isPending && deleteVacancyMutation.variables === row.id;
                   return (
@@ -320,8 +320,8 @@ export function Vacancies() {
                             type="url"
                             defaultValue={row.url}
                             onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { url: e.target.value } })}
-                            placeholder="Посилання на вакансію (з будь-якого сайту) → стек підтягнеться сам…"
-                            aria-label={`Посилання на вакансію — ${row.company}`}
+                            placeholder="Vacancy link (from any site) → the stack fills in itself…"
+                            aria-label={`Vacancy link — ${row.company}`}
                             className="bg-transparent text-indigo-600 text-[11px] flex-1 min-w-0 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
                           />
                           {row.url && (
@@ -329,7 +329,7 @@ export function Vacancies() {
                               href={row.url}
                               target="_blank"
                               rel="noreferrer"
-                              title="Відкрити вакансію"
+                              title="Open the vacancy"
                               className="text-indigo-600 text-xs shrink-0"
                             >
                               ↗
@@ -338,7 +338,7 @@ export function Vacancies() {
                         </div>
                         {isSavingRow && (
                           <div className="flex items-center gap-1 text-[11px] text-indigo-500 mt-0.5">
-                            <Spinner className="h-3 w-3" /> Зберігаю…
+                            <Spinner className="h-3 w-3" /> Saving…
                           </div>
                         )}
                       </td>
@@ -387,7 +387,7 @@ export function Vacancies() {
                           type="date"
                           defaultValue={row.applied}
                           onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { applied: e.target.value } })}
-                          aria-label={`Дата подачі заявки — ${row.company}`}
+                          aria-label={`Applied date — ${row.company}`}
                           className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
                         />
                         {daysSinceApplied(row.applied) != null && (
@@ -397,11 +397,11 @@ export function Vacancies() {
                             }`}
                             title={
                               isStaleApplication(row.status, daysSinceApplied(row.applied))
-                                ? `Понад ${STALE_APPLICATION_DAYS} днів без відповіді — варто поштовхнути рекрутера`
+                                ? `More than ${STALE_APPLICATION_DAYS} days without a response — worth nudging the recruiter`
                                 : undefined
                             }
                           >
-                            {daysSinceApplied(row.applied)} дн. очікування
+                            {daysSinceApplied(row.applied)}d waiting
                           </div>
                         )}
                       </td>
@@ -410,7 +410,7 @@ export function Vacancies() {
                           type="date"
                           defaultValue={row.next}
                           onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { next: e.target.value } })}
-                          aria-label={`Дата наступного кроку — ${row.company}`}
+                          aria-label={`Next step date — ${row.company}`}
                           className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
                         />
                       </td>
@@ -419,7 +419,7 @@ export function Vacancies() {
                           onClick={() => deleteVacancyMutation.mutate(row.id)}
                           disabled={isDeletingRow}
                           className="text-slate-400 hover:text-rose-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Видалити"
+                          title="Delete"
                         >
                           {isDeletingRow ? <Spinner className="h-3.5 w-3.5" /> : "✕"}
                         </button>

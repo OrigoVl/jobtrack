@@ -1,5 +1,5 @@
-// Словник технологій для офлайн-аналізу тексту вакансій/CV.
-// canonical -> { cat, re } де re — регулярка з алясами.
+// Technology dictionary for offline analysis of vacancy/CV text.
+// canonical -> { cat, re } where re is a regex with aliases.
 import { isFuzzyMatch } from "./fuzzy-match.js";
 
 export interface TechDef {
@@ -50,20 +50,20 @@ export interface TechMatch {
   cat: string;
 }
 
-// Складені назви (два слова/скорочення-абревіатури) виключено з fuzzy-фолбеку: злиття
-// "REST API" -> "restapi" для порівняння відстані Левенштейна дає малокорисні збіги
-// (типові друкарські помилки трапляються в ОДНОМУ слові, не в склеєній фразі).
+// Compound names (two words/abbreviations) are excluded from the fuzzy fallback: merging
+// "REST API" -> "restapi" for Levenshtein distance comparison yields mostly useless matches
+// (typical typos happen within a SINGLE word, not in a merged phrase).
 const FUZZY_EXCLUDE = new Set(["REST API", "HTML/CSS", "CI/CD", "AI/LLM"]);
 const FUZZY_KEYS: { name: string; key: string }[] = Object.keys(TECHS)
   .filter((name) => !FUZZY_EXCLUDE.has(name))
   .map((name) => ({ name, key: name.toLowerCase().replace(/[^a-z0-9]/g, "") }));
 
 /**
- * Знаходить технології в довільному тексті: спершу точний regex-словник (швидко, надійно,
- * підтримує відомі алiаси — "k8s", "pg" тощо), а для того, що НЕ зловив regex, — fuzzy-фолбек
- * на друкарські помилки/варіації написання (isFuzzyMatch, толерантність за довжиною слова:
- * короткі слова взагалі не толеруються, щоб не плодити фолс-позитиви). Fuzzy НЕ замінює
- * точний словник — лише додає те, що точний словник пропустив через typo.
+ * Finds technologies in arbitrary text: first the exact regex dictionary (fast, reliable,
+ * supports known aliases — "k8s", "pg", etc.), and for whatever the regex did NOT catch —
+ * a fuzzy fallback for typos/spelling variations (isFuzzyMatch, tolerant based on word
+ * length: short words aren't tolerated at all, to avoid false positives). Fuzzy does NOT
+ * replace the exact dictionary — it only adds what the exact dictionary missed due to a typo.
  */
 export function extractTechs(text: unknown): TechMatch[] {
   const t = String(text || "");

@@ -55,8 +55,8 @@ describe("demandMap()", () => {
     () => {
       rows.length = 0;
       rows.push(
-        { stack: JSON.stringify(["React"]), created: "2026-01-01" }, // сьогодні, вага ~1
-        { stack: JSON.stringify(["COBOL"]), created: "2024-01-01" }, // ~2 роки тому, вага ~0
+        { stack: JSON.stringify(["React"]), created: "2026-01-01" }, // today, weight ~1
+        { stack: JSON.stringify(["COBOL"]), created: "2024-01-01" }, // ~2 years ago, weight ~0
       );
       const demand = demandMap(now);
       expect(demand.React).toBeGreaterThan(demand.COBOL ?? 0);

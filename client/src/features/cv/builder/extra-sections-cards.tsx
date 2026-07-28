@@ -2,7 +2,7 @@ import { Btn, Card } from "../../../shared/ui";
 import { Field } from "../../../shared/view-kit";
 import type { CvLanguage } from "../../../shared/types";
 
-const LANGUAGE_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2", "Рідна", "Розмовний"];
+const LANGUAGE_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2", "Native", "Conversational"];
 
 interface ProjectsEducationCardProps {
   projects: string[];
@@ -11,12 +11,12 @@ interface ProjectsEducationCardProps {
   onChangeEducation: (v: string) => void;
 }
 
-/** Проєкти та освіта — прості текстові списки (по одному пункту на рядок). */
+/** Projects and education — simple text lists (one item per line). */
 export function ProjectsEducationCard({ projects, education, onChangeProjects, onChangeEducation }: ProjectsEducationCardProps) {
   return (
     <Card className="space-y-2">
       <label className="block">
-        <span className="text-xs font-semibold text-slate-500">Проєкти (по одному на рядок)</span>
+        <span className="text-xs font-semibold text-slate-500">Projects (one per line)</span>
         <textarea
           value={projects.join("\n")}
           onChange={(e) => onChangeProjects(e.target.value)}
@@ -24,7 +24,7 @@ export function ProjectsEducationCard({ projects, education, onChangeProjects, o
         />
       </label>
       <label className="block">
-        <span className="text-xs font-semibold text-slate-500">Освіта (по одному на рядок)</span>
+        <span className="text-xs font-semibold text-slate-500">Education (one per line)</span>
         <textarea
           value={education.join("\n")}
           onChange={(e) => onChangeEducation(e.target.value)}
@@ -40,27 +40,33 @@ interface LanguagesCardProps {
   onChange: (languages: CvLanguage[]) => void;
 }
 
-/** Мови й рівень володіння — окрема секція в CV. */
+/** Languages and proficiency level — a separate section in the CV. */
 export function LanguagesCard({ languages, onChange }: LanguagesCardProps) {
   const setLang = (i: number, p: Partial<CvLanguage>) => onChange(languages.map((l, idx) => (idx === i ? { ...l, ...p } : l)));
   return (
     <Card className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-slate-700">Мови</span>
+        <span className="text-sm font-semibold text-slate-700">Languages</span>
         <Btn size="sm" variant="ghost" onClick={() => onChange([...languages, { name: "", level: "B2" }])}>
-          + Додати мову
+          + Add a language
         </Btn>
       </div>
       {languages.length === 0 && (
-        <div className="text-xs text-slate-400">Додай мови й рівень володіння — вони з’являться окремою секцією в CV.</div>
+        <div className="text-xs text-slate-400">Add languages and proficiency level — they'll show up as a separate section in the CV.</div>
       )}
       {languages.map((l, i) => (
         <div key={i} className="flex items-end gap-2">
           <div className="flex-1">
-            <Field label={`Мова ${i + 1}`} value={l.name} onChange={(v) => setLang(i, { name: v })} placeholder="English" maxLength={60} />
+            <Field
+              label={`Language ${i + 1}`}
+              value={l.name}
+              onChange={(v) => setLang(i, { name: v })}
+              placeholder="English"
+              maxLength={60}
+            />
           </div>
           <label className="block w-40">
-            <span className="text-xs font-semibold text-slate-500">Рівень</span>
+            <span className="text-xs font-semibold text-slate-500">Level</span>
             <select
               value={l.level}
               onChange={(e) => setLang(i, { level: e.target.value })}

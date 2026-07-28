@@ -1,8 +1,8 @@
-// Регресія для логування зовнішніх агрегаторів (Remotive/Arbeitnow/DOU): раніше будь-яка
-// не-2xx відповідь, мережева помилка чи невалідний JSON тихо перетворювались на порожній
-// результат (fetchRemotive/fetchArbeitnow/fetchDou повертали []), без жодного логу причини.
-// Якщо джерело почне блокувати/падати, /jobs/search просто тихо давав би менше вакансій —
-// ці тести фіксують контракт "завжди залогуй причину провалу перед тим, як повернути null/[]".
+// Regression test for logging around external aggregators (Remotive/Arbeitnow/DOU): any
+// non-2xx response, network error, or invalid JSON used to be silently turned into an empty
+// result (fetchRemotive/fetchArbeitnow/fetchDou returned []), with no log of the cause.
+// If a source starts blocking/failing, /jobs/search would just silently return fewer vacancies —
+// these tests pin down the contract "always log the failure reason before returning null/[]".
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockLog = { debug: vi.fn(), warn: vi.fn(), error: vi.fn() };

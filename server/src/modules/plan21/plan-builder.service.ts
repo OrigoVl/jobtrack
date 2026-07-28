@@ -2,8 +2,8 @@ import { kbFor } from "../knowledge/knowledge-base.js";
 import { slugify as slug } from "../../shared/slug.js";
 import type { DynamicKnowledge } from "../knowledge/knowledge.service.js";
 
-// Динамічний fast-track план: будується з РЕАЛЬНИХ прогалин (попит вакансій − навички з CV/профілю).
-// Змінюються вакансії або CV → змінюється план. Прогрес зберігається за стабільними id (за технологією).
+// Dynamic fast-track plan: built from REAL gaps (vacancy demand − skills from CV/profile).
+// Vacancies or CV change → the plan changes. Progress is stored under stable ids (per technology).
 
 export interface PlanDay {
   id: string;
@@ -28,54 +28,50 @@ const MAX_TOPICS_PER_TECH = 4;
 
 const FINAL_PHASE: PlanPhase = {
   id: "ph-final",
-  title: "Фіналізація — алгоритми, System Design, моки",
-  range: "фінальні дні",
-  note: "Спільне для всіх напрямів — закриваємо співбесідні патерни.",
+  title: "Finalization — algorithms, System Design, mocks",
+  range: "final days",
+  note: "Common to all tracks — closing out interview patterns.",
   days: [
     {
       id: "final-algo",
-      theory: "NeetCode-патерни: two pointers, sliding window, hashmap, BFS/DFS, DP, Big-O",
-      practice: "«Тренування» → тема «Algorithms»: прорешай 6–8 задач уголос",
+      theory: "NeetCode patterns: two pointers, sliding window, hashmap, BFS/DFS, DP, Big-O",
+      practice: '"Practice" → the "Algorithms" topic: solve 6-8 problems out loud',
     },
     {
       id: "final-sysdesign",
-      theory: "System Design: масштабування, кеш, черги, вибір БД (картки «System Design»)",
-      practice: "Спроєктуй на папері URL shortener + rate limiter (є в дрилах)",
+      theory: 'System Design: scaling, caching, queues, DB choice ("System Design" cards)',
+      practice: "Design a URL shortener + rate limiter on paper (in the drills)",
     },
     {
       id: "final-behavioral",
-      theory: "STAR-історії, презентація AI-workflow, оновлення CV під стек вакансій",
-      practice: "Пройди «Мок-інтерв'ю» 2×; закрий слабкі флеш-картки",
+      theory: "STAR stories, presenting your AI workflow, updating your CV to match the vacancy stack",
+      practice: 'Do a "Mock interview" 2x; clear out weak flashcards',
     },
   ],
 };
 
 function pluralVacancy(n: number): string {
-  const d10 = n % 10;
-  const d100 = n % 100;
-  if (d10 === 1 && d100 !== 11) return "вакансія";
-  if (d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14)) return "вакансії";
-  return "вакансій";
+  return n === 1 ? "vacancy" : "vacancies";
 }
 
 function buildTechPhase(tech: string, count: number, index: number, dyn?: DynamicKnowledge): PlanPhase {
   const kb = kbFor(tech);
   const isAi = dyn?.source === "ai";
   const source = dyn?.learn?.length ? dyn.learn : kb.learn;
-  const topics = source.length ? source.slice(0, MAX_TOPICS_PER_TECH) : [`Основи ${tech} на практиці`];
+  const topics = source.length ? source.slice(0, MAX_TOPICS_PER_TECH) : [`${tech} fundamentals in practice`];
   const days: PlanDay[] = topics.map((topic, ti) => {
     const drill = kb.drills[ti % (kb.drills.length || 1)];
     const practice = drill
-      ? `Задача «${drill.q}» (${drill.lvl}) — вкладка «Тренування»`
-      : `Міні-практика на ${tech}: застосуй тему на реальному прикладі`;
+      ? `Problem "${drill.q}" (${drill.lvl}) — the "Practice" tab`
+      : `Mini-practice on ${tech}: apply the topic to a real example`;
     return { id: `g-${slug(tech)}-${ti}`, theory: topic, practice, warmup: WARMUPS[(index + ti) % WARMUPS.length] };
   });
   const resources = dyn?.resources?.length ? dyn.resources : kb.resources;
-  const note = dyn?.focus || (resources.length ? `Ресурси: ${resources.map((r) => r.t).join(" · ")}` : undefined);
+  const note = dyn?.focus || (resources.length ? `Resources: ${resources.map((r) => r.t).join(" · ")}` : undefined);
   return {
     id: `ph-${slug(tech)}`,
-    title: `${tech} — прогалина №${index + 1}`,
-    range: `${count} ${pluralVacancy(count)} потребують`,
+    title: `${tech} — gap #${index + 1}`,
+    range: `${count} ${pluralVacancy(count)} require this`,
     note,
     personalized: isAi,
     days,
@@ -85,15 +81,15 @@ function buildTechPhase(tech: string, count: number, index: number, dyn?: Dynami
 function buildRefreshPhase(strengths: [string, number][]): PlanPhase {
   const days: PlanDay[] = strengths.slice(0, MAX_TOPICS_PER_TECH).map(([tech], ti) => ({
     id: `refresh-${slug(tech)}`,
-    theory: `Освіжити ${tech}: типові питання співбесіди (флеш-картки за темою)`,
-    practice: `«Тренування» — повтори картки/задачі за темою ${tech}`,
+    theory: `Refresh ${tech}: common interview questions (flashcards on this topic)`,
+    practice: `"Practice" — review cards/problems on ${tech}`,
     warmup: WARMUPS[ti % WARMUPS.length],
   }));
   return {
     id: "ph-refresh",
-    title: "Освіження сильних сторін",
-    range: "твій стек збігається з попитом",
-    note: "Прогалин під попит немає — тримай форму й переходь до фіналу.",
+    title: "Refreshing your strengths",
+    range: "your stack matches demand",
+    note: "No gaps against demand — stay sharp and move on to the final phase.",
     days,
   };
 }
@@ -103,7 +99,7 @@ interface PlanGapTechsInput {
   demand: Record<string, number>;
 }
 
-/** Технології-прогалини, під які варто згенерувати персональний контент (топ за попитом). */
+/** Gap technologies worth generating personal content for (top by demand). */
 export function planGapTechs({ profile, demand }: PlanGapTechsInput): string[] {
   const known = new Set(profile.skills);
   return Object.entries(demand)
@@ -119,7 +115,7 @@ interface BuildPlanInput {
   knowledgeByTech?: Record<string, DynamicKnowledge>;
 }
 
-/** Будує персональний план із профілю та попиту ринку. Повертає phases з наскрізною нумерацією днів. */
+/** Builds a personal plan from the profile and market demand. Returns phases with sequential day numbering. */
 export function buildPlan({ profile, demand, knowledgeByTech = {} }: BuildPlanInput): PlanPhase[] {
   const known = new Set(profile.skills);
   const ranked = Object.entries(demand).sort((a, b) => b[1] - a[1]);
@@ -133,7 +129,7 @@ export function buildPlan({ profile, demand, knowledgeByTech = {} }: BuildPlanIn
   return phases;
 }
 
-/** Множина валідних id днів для поточного плану (для валідації PUT прогресу). */
+/** The set of valid day ids for the current plan (for validating PUT progress). */
 export function planDayIds(phases: PlanPhase[]): Set<string> {
   return new Set(phases.flatMap((p) => p.days.map((d) => d.id)));
 }

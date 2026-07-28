@@ -1,10 +1,10 @@
-// Contract-тест офлайн-фолбеку на рівні сервісу (не лише LLM-клієнта): коли llmAvailable()
-// повертає false, getDynamicKnowledge() має прозоро віддати статичний контент з
-// knowledge-base.ts (source: "static", focus: null) і НЕ чіпати ні kv-кеш, ні chat().
+// Contract test for the offline fallback at the service level (not just the LLM client): when
+// llmAvailable() returns false, getDynamicKnowledge() must transparently return static content
+// from knowledge-base.ts (source: "static", focus: null) and NOT touch the kv cache or chat().
 //
-// І db/index.js, і llm/index.js мокнуті цілком — тест ізольований від реального
-// node:sqlite (яке vitest не вміє трансформувати транзитивно) і від мережі, та перевіряє
-// лише власну логіку гілкування knowledge.service.ts за прапорцем llmAvailable().
+// Both db/index.js and llm/index.js are fully mocked — the test is isolated from real
+// node:sqlite (which vitest can't transform transitively) and from the network, and checks
+// only knowledge.service.ts's own branching logic on the llmAvailable() flag.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../db/index.js", () => ({

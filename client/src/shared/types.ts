@@ -3,15 +3,15 @@ export type RoadmapStatus = "todo" | "learning" | "done";
 export type ToastType = "success" | "error" | "info";
 
 export const STATUSES = [
-  "Хочу подати",
-  "Відправив CV",
-  "Скринінг",
-  "Тех.співбесіда",
-  "Тестове завдання",
-  "Фінал",
-  "Оффер",
-  "Відмова",
-  "Пауза",
+  "Want to apply",
+  "Applied",
+  "Screening",
+  "Tech interview",
+  "Take-home task",
+  "Final",
+  "Offer",
+  "Rejected",
+  "Paused",
 ] as const;
 export type VacancyStatus = (typeof STATUSES)[number];
 
@@ -61,28 +61,28 @@ export interface RadarPoint {
 export interface StageConversion {
   from: string;
   to: string;
-  /** % вакансій, що досягли `from`, які потім досягли й `to`. null — жодна ще не досягала `from`. */
+  /** % of vacancies that reached `from` which then also reached `to`. null — none has reached `from` yet. */
   rate: number | null;
 }
 
 export interface StageDuration {
   status: string;
-  /** Середня к-сть днів між входом у цей статус і наступною зміною статусу. */
+  /** Average number of days between entering this status and the next status change. */
   avgDays: number;
   count: number;
 }
 
 export interface Analytics {
-  /** Поточний розподіл вакансій за статусом (знімок "де зараз"). */
+  /** Current distribution of vacancies by status (a "where things stand now" snapshot). */
   funnel: Record<string, number>;
-  /** Скільки вакансій КОЛИ-НЕБУДЬ мали кожен статус — чесна воронка проходження етапів. */
+  /** How many vacancies EVER had each status — an honest funnel of stage progression. */
   funnelReached: Record<string, number>;
   byDate: Record<string, number>;
   demand: Record<string, number>;
   radar: RadarPoint[];
-  /** Конверсія між сусідніми етапами воронки (яка частка застрягає саме тут). */
+  /** Conversion between adjacent funnel stages (what fraction gets stuck right here). */
   conversion: StageConversion[];
-  /** Середній час "очікування" в кожному статусі, від найдовшого — де реально застрягають кроки. */
+  /** Average "wait" time in each status, longest first — where steps actually get stuck. */
   stageDurations: StageDuration[];
 }
 
@@ -248,7 +248,7 @@ export interface AnalyzeResult {
   match: string[];
   summary: string | null;
   fit: Fit;
-  /** Косинусна схожість embeddings CV↔вакансія, [0,1]. null — embeddings недоступні (не-OpenAI/без CV). */
+  /** Cosine similarity of CV↔vacancy embeddings, [0,1]. null — embeddings unavailable (non-OpenAI/no CV). */
   semanticFit: number | null;
 }
 

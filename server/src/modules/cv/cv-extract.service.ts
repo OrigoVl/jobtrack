@@ -1,6 +1,6 @@
 import mammoth from "mammoth";
 
-// Витягує текст із CV: PDF / DOCX / TXT.
+// Extracts text from a CV: PDF / DOCX / TXT.
 export async function extractText(buffer: Buffer, filename = "", mimetype = ""): Promise<string> {
   const name = filename.toLowerCase();
   const mt = mimetype.toLowerCase();
@@ -15,7 +15,7 @@ export async function extractText(buffer: Buffer, filename = "", mimetype = ""):
   if (name.endsWith(".pdf") || mt.includes("pdf")) {
     return await extractPdf(buffer);
   }
-  // спроба як текст
+  // try as plain text
   return buffer.toString("utf8");
 }
 

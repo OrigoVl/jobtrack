@@ -1,6 +1,6 @@
-// Контрактні тести для FSRS: не перевіряємо точні числа з довгим хвостом десяткових знаків
-// (це б зробило тест крихким до найменшого уточнення ваг), а перевіряємо ЯКІСНІ властивості
-// алгоритму, які мають виконуватись для БУДЬ-ЯКОГО коректного FSRS-планувальника.
+// Contract tests for FSRS: we don't check exact numbers with a long tail of decimal digits
+// (that would make the test brittle to the smallest weight tweak), but instead verify the
+// QUALITATIVE properties the algorithm must satisfy for ANY correct FSRS scheduler.
 import { describe, expect, it } from "vitest";
 import { retrievability, scheduleFsrs, type FsrsCardState } from "./fsrs.js";
 

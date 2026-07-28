@@ -5,25 +5,25 @@ import { Btn, Card, PageHeader, Segmented } from "./ui";
 describe("Btn", () => {
   it("renders children and handles click", () => {
     const onClick = vi.fn();
-    render(<Btn onClick={onClick}>Зберегти</Btn>);
-    const btn = screen.getByRole("button", { name: "Зберегти" });
+    render(<Btn onClick={onClick}>Save</Btn>);
+    const btn = screen.getByRole("button", { name: "Save" });
     fireEvent.click(btn);
     expect(onClick).toHaveBeenCalledOnce();
   });
 
   it("disables interaction when disabled", () => {
-    render(<Btn disabled>Недоступно</Btn>);
-    expect(screen.getByRole("button", { name: "Недоступно" })).toBeDisabled();
+    render(<Btn disabled>Unavailable</Btn>);
+    expect(screen.getByRole("button", { name: "Unavailable" })).toBeDisabled();
   });
 
   it("shows a spinner and disables the button while loading", () => {
     const onClick = vi.fn();
     render(
       <Btn loading onClick={onClick}>
-        Зберегти
+        Save
       </Btn>,
     );
-    const btn = screen.getByRole("button", { name: "Зберегти" });
+    const btn = screen.getByRole("button", { name: "Save" });
     expect(btn).toBeDisabled();
     expect(btn).toHaveAttribute("aria-busy", "true");
     fireEvent.click(btn);
@@ -33,17 +33,17 @@ describe("Btn", () => {
 
 describe("Card", () => {
   it("renders children inside a container", () => {
-    render(<Card>вміст картки</Card>);
-    expect(screen.getByText("вміст картки")).toBeInTheDocument();
+    render(<Card>card content</Card>);
+    expect(screen.getByText("card content")).toBeInTheDocument();
   });
 });
 
 describe("PageHeader", () => {
   it("renders title, subtitle and actions", () => {
-    render(<PageHeader title="Заголовок" subtitle="Підзаголовок" actions={<Btn>Дія</Btn>} />);
-    expect(screen.getByRole("heading", { name: "Заголовок" })).toBeInTheDocument();
-    expect(screen.getByText("Підзаголовок")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Дія" })).toBeInTheDocument();
+    render(<PageHeader title="Title" subtitle="Subtitle" actions={<Btn>Action</Btn>} />);
+    expect(screen.getByRole("heading", { name: "Title" })).toBeInTheDocument();
+    expect(screen.getByText("Subtitle")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Action" })).toBeInTheDocument();
   });
 });
 

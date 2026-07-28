@@ -1,5 +1,5 @@
-// Кольорові пресети для Fit ("high"/"med"/"low") — винесено з view-kit.tsx (лишає той
-// файл суто компонентним для react-refresh) у окремий файл констант.
+// Color presets for Fit ("high"/"med"/"low") — extracted from view-kit.tsx (keeps that
+// file purely component-based for react-refresh) into a separate constants file.
 import type { Fit } from "./types";
 
 export const fitTone: Record<Fit, "emerald" | "amber" | "rose"> = { high: "emerald", med: "amber", low: "rose" };

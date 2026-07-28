@@ -19,16 +19,16 @@ export function useSaveProfile() {
     onSuccess: async (saved) => {
       qc.setQueryData<Profile>(queryKeys.profile, saved);
       await invalidateDerived();
-      toast("Профіль збережено", "success");
+      toast("Profile saved", "success");
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "Сталася помилка", "error"),
+    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
   });
 }
 
 /**
- * Застосовує щойно розпарсений CV (сервер уже зберіг skills/cvText як побічний ефект
- * /cv/upload) до кешу профілю — оптимістично, без окремого мережевого виклику — і одразу
- * тягне похідні дані (аналітику/roadmap/план), щоб усе оновилось узгоджено.
+ * Applies a freshly parsed CV (the server has already saved skills/cvText as a side effect
+ * of /cv/upload) to the profile cache — optimistically, without a separate network call —
+ * and immediately refetches derived data (analytics/roadmap/plan) so everything updates consistently.
  */
 export function useApplyCvUpload() {
   const qc = useQueryClient();

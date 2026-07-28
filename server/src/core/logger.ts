@@ -1,16 +1,16 @@
-// Централізований pino-логер. У dev — людяний вивід через pino-pretty,
-// у prod — структурований JSON (легко парситься лог-агрегаторами).
+// Centralized pino logger. In dev — human-readable output via pino-pretty,
+// in prod — structured JSON (easily parsed by log aggregators).
 import pino from "pino";
 import { env } from "../config/env.js";
 import { getRequestId } from "./request-context.js";
 
 const logger = pino({
   level: env.logLevel,
-  // Захист-за-замовчуванням від випадкового потрапляння секретів у логи (напр., якщо колись
-  // з'явиться auth і хтось необдумано залоге `req` цілком, або pino-http автологування request
-  // за замовчуванням серіалізує заголовки запиту). Застосовується глобально до ВСІХ логів
-  // (і pino-http access-логів, і contextLogger()) — узгоджено з правилом проєкту "ніколи не
-  // логувати secrets/tokens/passwords/auth headers".
+  // Default protection against secrets accidentally ending up in logs (e.g. if auth is
+  // added later and someone carelessly logs the whole `req`, or pino-http's default request
+  // auto-logging serializes request headers). Applied globally to ALL logs (both pino-http
+  // access logs and contextLogger()) — consistent with the project rule of "never log
+  // secrets/tokens/passwords/auth headers".
   redact: {
     paths: [
       "req.headers.authorization",
@@ -31,10 +31,10 @@ const logger = pino({
 });
 
 /**
- * Child-логер із прив'язаним reqId поточного HTTP-запиту (через AsyncLocalStorage), якщо код
- * виконується всередині обробки запиту — інакше звичайний базовий логер. Використовуй у коді
- * без прямого доступу до `req` (напр. llm/client.ts), щоб його логи можна було зкорелювати
- * з конкретним запитом користувача так само, як робить pino-http для HTTP access-логів.
+ * A child logger with the current HTTP request's reqId attached (via AsyncLocalStorage), if
+ * the code is running inside request handling — otherwise the plain base logger. Use it in
+ * code without direct access to `req` (e.g. llm/client.ts) so its logs can be correlated with
+ * a specific user request the same way pino-http does for HTTP access logs.
  */
 export function contextLogger(): pino.Logger {
   const reqId = getRequestId();

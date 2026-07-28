@@ -1,34 +1,35 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * "🧪 Пісочниця JS" (features/study/runner.ts) виконує довільний код у Web Worker (не на
- * головному потоці, як було раніше) — реальний браузерний шлях виконання перевіряємо тут.
- * Таймаут/убивство нескінченного циклу (найважливіша частина контракту) перевіряється ОКРЕМО
- * юніт-тестом із фейковими таймерами й мок-Worker (src/features/study/runner.test.ts) — реальний
- * busy-loop у справжньому Worker перевантажує CPU настільки, що в CI/sandboxed середовищах з
- * малою к-стю ядер підвисає навіть click() ще ДО старту циклу (конкуренція за той самий процес
- * Chromium), що робить такий e2e-тест недетермінованим залежно від заліза раннера.
+ * "🧪 JS sandbox" (features/study/runner.ts) runs arbitrary code in a Web Worker (not on the
+ * main thread, as it used to) — we check the real browser execution path here. The
+ * timeout/kill of an infinite loop (the most important part of the contract) is checked
+ * SEPARATELY by a unit test with fake timers and a mock Worker (src/features/study/runner.test.ts)
+ * — a real busy-loop in an actual Worker overloads the CPU so much that in CI/sandboxed
+ * environments with few cores even click() hangs BEFORE the loop starts (competing for the
+ * same Chromium process), which would make an e2e test like this non-deterministic depending
+ * on the runner's hardware.
  */
 test.beforeEach(async ({ page }) => {
   await page.goto("/study");
   await page.getByRole("button", { name: "⌨️ Drill" }).click();
-  // Статичні drill-задачі категорії "JavaScript" мають запускний блок пісочниці (RUNNABLE_CATS).
+  // Static drill problems in the "JavaScript" category have a runnable sandbox block (RUNNABLE_CATS).
   await page.locator("select").first().selectOption("JavaScript");
-  await page.getByRole("button", { name: /Відкрити пісочницю/ }).click();
+  await page.getByRole("button", { name: /Open sandbox/ }).click();
 });
 
 test("runs normal code in a real Worker (not eval on the main thread) and shows console.log output", async ({ page }) => {
   const textarea = page.locator("textarea");
   await textarea.fill("console.log(1 + 1);");
-  await page.getByRole("button", { name: "▶ Запустити" }).click();
+  await page.getByRole("button", { name: "▶ Run" }).click();
   await expect(page.getByText("2", { exact: true })).toBeVisible();
 });
 
 test("surfaces a runtime error from the sandboxed code without crashing the page", async ({ page }) => {
   const textarea = page.locator("textarea");
   await textarea.fill("throw new Error('boom');");
-  await page.getByRole("button", { name: "▶ Запустити" }).click();
+  await page.getByRole("button", { name: "▶ Run" }).click();
   await expect(page.getByText(/Error: boom/)).toBeVisible();
-  // Сторінка лишається живою й керованою після помилки в пісочниці.
-  await expect(page.getByRole("button", { name: "Скинути" })).toBeEnabled();
+  // The page stays alive and interactive after an error in the sandbox.
+  await expect(page.getByRole("button", { name: "Reset" })).toBeEnabled();
 });

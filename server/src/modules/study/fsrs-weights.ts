@@ -1,11 +1,11 @@
-// Дефолтні ваги FSRS-4.5 (w[0..18]) — офіційні дефолти проєкту open-spaced-repetition/fsrs4anki,
-// натреновані на великому датасеті реальних повторень Anki. Для персонального інструмента з
-// одним користувачем повне перенавчання ваг на власній історії недоцільне (замало даних) —
-// дефолти дають добре обґрунтований старт "з коробки", без потреби в датасеті/тренуванні.
-// Винесено в окремий файл, щоб colocate з коментарем-джерелом і не захаращувати fsrs.ts.
-// Тип-тюпл фіксованої довжини (19 елементів), а не `number[] `— з noUncheckedIndexedAccess
-// звичайний масив дав би `number | undefined` на кожному індексі; тюпл із точним числом
-// елементів дозволяє TS знати, що всі 19 позицій завжди визначені.
+// Default FSRS-4.5 weights (w[0..18]) — the official defaults from the open-spaced-repetition/fsrs4anki
+// project, trained on a large dataset of real Anki reviews. For a personal single-user tool, fully
+// retraining the weights on your own history isn't worthwhile (too little data) — the defaults give
+// a well-grounded out-of-the-box starting point, without needing a dataset or training.
+// Kept in a separate file to colocate with the source comment and avoid cluttering fsrs.ts.
+// A fixed-length tuple type (19 elements), not `number[]` — with noUncheckedIndexedAccess a plain
+// array would give `number | undefined` at every index; a tuple with an exact element count lets
+// TS know all 19 positions are always defined.
 export type FsrsWeights = readonly [
   number,
   number,

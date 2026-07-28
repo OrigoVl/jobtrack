@@ -16,7 +16,7 @@ r.post(
     const profile = getProfile();
     if (!llmAvailable()) {
       return res.json({
-        text: `Доброго дня!\n\nМене зацікавила ваша вакансія${company ? " в " + company : ""}. Маю 7 років досвіду Full-Stack (Vue, Node.js, NestJS) та практику AI-інтеграції. Готовий детальніше обговорити, чим можу бути корисним.\n\nЗ повагою, Michael`,
+        text: `Hello!\n\nI was interested in your vacancy${company ? " at " + company : ""}. I have 7 years of Full-Stack experience (Vue, Node.js, NestJS) and hands-on practice with AI integration. I'd be glad to discuss in more detail how I can help.\n\nBest regards, Michael`,
         offline: true,
       });
     }
@@ -24,14 +24,14 @@ r.post(
     const techs = extractTechs(vt).map((t) => t.name);
     const matched = techs.filter((t) => profile.skills.includes(t));
     const text = await chat(
-      "Ти пишеш короткі персоналізовані cover letter українською. По суті, без кліше й води, теплий професійний тон. Не вигадуй фактів, яких немає в резюме.",
-      // profile.cvText уже обмежений до 8000 символів при завантаженні (/cv/upload), але
-      // додаємо захисний .slice і тут — на випадок ручного редагування профілю через PUT
-      // /cv/profile без цього обмеження, щоб не роздувати токени/вартість запиту.
-      `Резюме кандидата:\n${profile.cvText.slice(0, 8000)}\n\n` +
-        `Вакансія${company ? ` (${company})` : ""}:\n${vt.slice(0, 3000)}\n\n` +
-        `Технології вакансії, які кандидат уже має: ${matched.join(", ") || "—"}.\n` +
-        `Напиши cover letter (4–6 речень): чіпляючий вступ → 2–3 релевантні збіги досвіду під вимоги → коротке закриття з готовністю поспілкуватись.`,
+      "You write short, personalized cover letters in English. To the point, no cliches or filler, a warm professional tone. Don't invent facts that aren't in the resume.",
+      // profile.cvText is already capped at 8000 characters on upload (/cv/upload), but we
+      // add a defensive .slice here too — in case the profile was manually edited via PUT
+      // /cv/profile without that cap, so we don't blow up token count/request cost.
+      `Candidate's resume:\n${profile.cvText.slice(0, 8000)}\n\n` +
+        `Vacancy${company ? ` (${company})` : ""}:\n${vt.slice(0, 3000)}\n\n` +
+        `Vacancy technologies the candidate already has: ${matched.join(", ") || "—"}.\n` +
+        `Write a cover letter (4-6 sentences): a hooking intro → 2-3 relevant experience matches against the requirements → a short closing offering to discuss further.`,
       { maxTokens: 500, temperature: 0.7, cache: true, tier: "smart" },
     );
     res.json({ text: text || "" });

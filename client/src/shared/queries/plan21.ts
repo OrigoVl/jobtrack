@@ -25,7 +25,7 @@ export function useSetPlanDay() {
     },
     onError: (e, _vars, ctx) => {
       if (ctx?.previous) qc.setQueryData(queryKeys.plan21, ctx.previous);
-      toast(e instanceof Error ? e.message : "Сталася помилка", "error");
+      toast(e instanceof Error ? e.message : "An error occurred", "error");
     },
   });
 }

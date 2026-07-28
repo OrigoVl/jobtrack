@@ -1,7 +1,7 @@
-// Той самий контракт-паттерн, що й у client.test.ts: без OpenAI-ключа (або з провайдером
-// anthropic — embeddings тут не реалізовані) embeddingsAvailable()/embed()/semanticSimilarity()
-// МАЮТЬ повертати false/null, а не кидати чи стукатись у мережу — graceful-деградація, на яку
-// покладається quickAnalyze() (semanticFit стає null, tech-based fit лишається основним сигналом).
+// The same contract pattern as in client.test.ts: without an OpenAI key (or with the anthropic
+// provider — embeddings aren't implemented for it here), embeddingsAvailable()/embed()/semanticSimilarity()
+// MUST return false/null instead of throwing or reaching the network — the graceful degradation that
+// quickAnalyze() relies on (semanticFit becomes null, tech-based fit remains the main signal).
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/index.js", () => ({

@@ -9,19 +9,19 @@ import { demandMap } from "../../shared/demand.js";
 
 const r = express.Router();
 
-// ---------- персональна база знань (LLM + кеш, fallback на статичну) ----------
+// ---------- personal knowledge base (LLM + cache, fallback to static) ----------
 r.get(
   "/knowledge/:tech",
   aiLimiter,
   asyncHandler(async (req, res) => {
-    // Express 5: типи req.params допускають string[] (для повторюваних сегментів шляху),
-    // хоча для "/:tech" рантайм завжди повертає string.
+    // Express 5: req.params types allow string[] (for repeated path segments),
+    // though for "/:tech" the runtime always returns a string.
     const tech = decodeURIComponent(String(req.params.tech));
     res.json(await getDynamicKnowledge(tech, { profile: getProfile(), demand: demandMap() }));
   }),
 );
 
-// ---------- динамічний план навчання ----------
+// ---------- dynamic learning plan ----------
 r.get("/learn", (_q, res) => {
   const profile = getProfile();
   const demand = demandMap();
@@ -48,10 +48,10 @@ r.post(
     const gaps = Object.entries(demand)
       .filter(([t]) => !skills.has(t))
       .sort((a, b) => b[1] - a[1])
-      .map(([t, c]) => `${t} (${c} вак.)`);
+      .map(([t, c]) => `${t} (${c} jobs)`);
     const plan = await chat(
-      `Ти ментор для ролі «${profile.domain || "фахівець"}». Українською, конкретно, стисло.`,
-      `Навички кандидата: ${profile.skills.join(", ")}.\nПрогалини за пріоритетом попиту ринку: ${gaps.join(", ") || "немає"}.\nСклади персональний навчальний план по фазах/днях: що вчити спершу, які теми, як тренуватись і в якому порядку закривати прогалини.`,
+      `You are a mentor for the role "${profile.domain || "professional"}". Be concrete and concise.`,
+      `Candidate's skills: ${profile.skills.join(", ")}.\nGaps by market demand priority: ${gaps.join(", ") || "none"}.\nBuild a personal learning plan by phases/days: what to learn first, which topics, how to practice, and in what order to close the gaps.`,
       { maxTokens: 900, cache: true, tier: "smart" },
     );
     res.json({ plan });

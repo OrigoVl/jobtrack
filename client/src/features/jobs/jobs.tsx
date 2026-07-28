@@ -6,16 +6,16 @@ import { useAddVacancy, useProfile } from "../../shared/queries";
 import { Btn, Card, Chip, EmptyState, PageHeader, Segmented } from "../../shared/ui";
 import type { JobResult, JobSearchResult } from "../../shared/types";
 
-/* ---------- Job search (агрегатори) ---------- */
+/* ---------- Job search (aggregators) ---------- */
 const LI_COUNTRIES: { code: string; label: string; geoId?: string; wt?: string }[] = [
-  { code: "remote", label: "🌍 Remote / будь-де", wt: "2" },
-  { code: "ua", label: "🇺🇦 Україна", geoId: "102264497" },
-  { code: "pl", label: "🇵🇱 Польща", geoId: "105072130" },
-  { code: "de", label: "🇩🇪 Німеччина", geoId: "101282230" },
-  { code: "gb", label: "🇬🇧 Велика Британія", geoId: "101165590" },
-  { code: "us", label: "🇺🇸 США", geoId: "103644278" },
-  { code: "nl", label: "🇳🇱 Нідерланди", geoId: "102890719" },
-  { code: "es", label: "🇪🇸 Іспанія", geoId: "105646813" },
+  { code: "remote", label: "🌍 Remote / anywhere", wt: "2" },
+  { code: "ua", label: "🇺🇦 Ukraine", geoId: "102264497" },
+  { code: "pl", label: "🇵🇱 Poland", geoId: "105072130" },
+  { code: "de", label: "🇩🇪 Germany", geoId: "101282230" },
+  { code: "gb", label: "🇬🇧 United Kingdom", geoId: "101165590" },
+  { code: "us", label: "🇺🇸 USA", geoId: "103644278" },
+  { code: "nl", label: "🇳🇱 Netherlands", geoId: "102890719" },
+  { code: "es", label: "🇪🇸 Spain", geoId: "105646813" },
 ];
 function externalLinks(q: string, country: { geoId?: string; wt?: string }): { label: string; url: string }[] {
   const e = encodeURIComponent(q.trim());
@@ -24,7 +24,7 @@ function externalLinks(q: string, country: { geoId?: string; wt?: string }): { l
   if (country.wt) li.set("f_WT", country.wt);
   const slug = (q.trim() || "jobs").replace(/\s+/g, "-").toLowerCase();
   return [
-    { label: "🔗 LinkedIn (з фільтром країни)", url: `https://www.linkedin.com/jobs/search/?${li.toString()}` },
+    { label: "🔗 LinkedIn (with country filter)", url: `https://www.linkedin.com/jobs/search/?${li.toString()}` },
     { label: "🟢 Djinni", url: `https://djinni.co/jobs/?all-keywords=${e}` },
     { label: "🔵 DOU", url: `https://jobs.dou.ua/vacancies/?search=${e}` },
     { label: "🟠 Work.ua", url: `https://www.work.ua/jobs/?search=${e}` },
@@ -40,8 +40,8 @@ export function Jobs() {
   const [region, setRegion] = useUi("jobs.region", "all");
   const [page, setPage] = useUi("jobs.page", 1);
   const [pageSize, setPageSize] = useUi("jobs.pageSize", 8);
-  // Параметри останнього запущеного пошуку — окремо від "live" інпуту, щоб
-  // не смикати мережу на кожен символ і кешувати результати через TanStack Query.
+  // Parameters of the last submitted search — separate from the "live" input, so we
+  // don't hit the network on every keystroke, and results get cached via TanStack Query.
   const [submitted, setSubmitted] = useUi<{ q: string; region: string } | null>("jobs.submitted", null);
   const listTopRef = useRef<HTMLDivElement>(null);
   const goPage = (p: number) => {
@@ -68,15 +68,15 @@ export function Jobs() {
       position: job.position,
       url: job.url,
       stack: job.tags,
-      status: "Хочу подати",
+      status: "Want to apply",
     });
     setAdded((a) => ({ ...a, [job.url]: true }));
   };
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Пошук вакансій"
-        subtitle="Реальні вакансії з агрегаторів (Remotive + Arbeitnow) під твої навички. Знайшов цікаву — додай у трекер одним кліком."
+        title="Job search"
+        subtitle="Real vacancies from aggregators (Remotive + Arbeitnow) matched to your skills. Found something interesting — add it to the tracker in one click."
       />
       <Card>
         <div className="flex gap-2 flex-wrap">
@@ -84,38 +84,38 @@ export function Jobs() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && search()}
-            aria-label="Ключові слова для пошуку вакансій"
-            placeholder={profile?.skills.slice(0, 3).join(" ") || "напр. react node typescript"}
+            aria-label="Keywords for the job search"
+            placeholder={profile?.skills.slice(0, 3).join(" ") || "e.g. react node typescript"}
             className="flex-1 min-w-[220px] bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
           <Btn onClick={search} loading={loading}>
-            {loading ? "Шукаю…" : "🔎 Знайти"}
+            {loading ? "Searching…" : "🔎 Search"}
           </Btn>
         </div>
         <div className="flex items-center gap-2 mt-2 flex-wrap">
-          <span className="text-xs font-semibold text-slate-500">Джерела:</span>
+          <span className="text-xs font-semibold text-slate-500">Sources:</span>
           <Segmented
             value={region}
             onChange={setRegion}
             options={[
-              { value: "all", label: "Всі" },
-              { value: "ua", label: "🇺🇦 Україна (DOU)" },
+              { value: "all", label: "All" },
+              { value: "ua", label: "🇺🇦 Ukraine (DOU)" },
               { value: "remote", label: "🌍 Remote" },
             ]}
           />
         </div>
         <div className="text-xs text-slate-400 mt-2">
-          Порожній запит → шукаємо за твоїми топ-навичками. «Україна» = DOU, «Remote» = Remotive + Arbeitnow.
+          Empty query → we search by your top skills. "Ukraine" = DOU, "Remote" = Remotive + Arbeitnow.
         </div>
       </Card>
       <Card>
-        <div className="text-sm font-semibold text-slate-700 mb-1">🌐 Шукати на зовнішніх сайтах</div>
+        <div className="text-sm font-semibold text-slate-700 mb-1">🌐 Search on external sites</div>
         <div className="text-xs text-slate-400 mb-2">
-          Djinni та LinkedIn не мають відкритого API (парсинг проти ToS). Тому — готові пошукові посилання з твоїм запитом і фільтром країни
-          для LinkedIn.
+          Djinni and LinkedIn don't have an open API (scraping would violate ToS). So here are ready-made search links with your query and a
+          country filter for LinkedIn.
         </div>
         <div className="flex gap-2 items-center flex-wrap mb-2">
-          <span className="text-xs font-semibold text-slate-500">Країна (LinkedIn):</span>
+          <span className="text-xs font-semibold text-slate-500">Country (LinkedIn):</span>
           <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
@@ -144,18 +144,18 @@ export function Jobs() {
       </Card>
       {isError && !loading && (
         <Card>
-          <EmptyState icon="⚠️" title="Не вдалося виконати пошук" hint="Проблема з мережею або сервером. Спробуй ще раз." />
+          <EmptyState icon="⚠️" title="Search failed" hint="A network or server problem. Try again." />
         </Card>
       )}
       {data && data.jobs.length === 0 && (
         <Card>
           <EmptyState
             icon="🔍"
-            title="Нічого не знайдено"
+            title="Nothing found"
             hint={
               data.offline
-                ? "Агрегатори недоступні (мережа/таймаут). Спробуй ще раз пізніше."
-                : "Спробуй інші ключові слова або ширший запит."
+                ? "The aggregators are unavailable (network/timeout). Try again later."
+                : "Try different keywords or a broader query."
             }
           />
         </Card>
@@ -171,10 +171,10 @@ export function Jobs() {
             <div className="space-y-2">
               <div ref={listTopRef} className="scroll-mt-4 flex items-center gap-2 flex-wrap">
                 <div className="text-sm text-slate-500">
-                  Знайдено {data.count} за запитом «{data.query}» · показано {start + 1}–{start + pageJobs.length}
+                  Found {data.count} for "{data.query}" · showing {start + 1}–{start + pageJobs.length}
                 </div>
                 <div className="ml-auto flex items-center gap-1.5 text-xs text-slate-500">
-                  <span>На сторінці:</span>
+                  <span>Per page:</span>
                   <Segmented
                     value={pageSize}
                     onChange={(n) => {
@@ -186,15 +186,15 @@ export function Jobs() {
                 </div>
               </div>
               {pageJobs.map((job) => {
-                // Один mutation-хук обслуговує кнопки всіх карток на сторінці — скоупимо
-                // isPending за variables.url (аргументами САМЕ цього виклику), інакше лоадер
-                // блимав би одразу в усіх картках при доданні будь-якої з них.
+                // One mutation hook serves every card's button on the page — scope isPending by
+                // variables.url (the arguments of THIS SPECIFIC call), otherwise the loader would
+                // flash on every card at once when adding any one of them.
                 const isAdding = addVacancyMutation.isPending && addVacancyMutation.variables?.url === job.url;
                 return (
                   <Card key={job.url} className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-slate-800">{job.position}</span>
-                      {job.matchCount > 0 && <Chip tone="emerald">★ {job.matchCount} збіг</Chip>}
+                      {job.matchCount > 0 && <Chip tone="emerald">★ {job.matchCount} match</Chip>}
                       <Chip>{job.source}</Chip>
                       <span className="text-xs text-slate-400 ml-auto">{job.location}</span>
                     </div>
@@ -213,10 +213,10 @@ export function Jobs() {
                         rel="noreferrer"
                         className="text-sm px-3 py-1.5 rounded-lg bg-slate-100 text-indigo-600 hover:bg-slate-200 transition-colors"
                       >
-                        Відкрити ↗
+                        Open ↗
                       </a>
                       <Btn size="sm" variant="ghost" loading={isAdding} onClick={() => addJob(job)} disabled={added[job.url]}>
-                        {added[job.url] ? "✓ у трекері" : "➕ у трекер"}
+                        {added[job.url] ? "✓ in tracker" : "➕ add to tracker"}
                       </Btn>
                     </div>
                   </Card>
@@ -225,13 +225,13 @@ export function Jobs() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-3 pt-1">
                   <Btn size="sm" variant="ghost" onClick={() => goPage(current - 1)} disabled={current <= 1}>
-                    ← Назад
+                    ← Back
                   </Btn>
                   <span className="text-sm text-slate-500">
-                    Сторінка {current} з {totalPages}
+                    Page {current} of {totalPages}
                   </span>
                   <Btn size="sm" variant="ghost" onClick={() => goPage(current + 1)} disabled={current >= totalPages}>
-                    Далі →
+                    Next →
                   </Btn>
                 </div>
               )}

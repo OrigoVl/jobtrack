@@ -1,57 +1,58 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Наскрізний тест прев'ю-панелі Конструктора CV (features/cv/builder/cv-preview-panel.tsx):
- * бейдж кількості сторінок і fullscreen-режим на весь екран.
+ * End-to-end test of the CV Builder's preview panel (features/cv/builder/cv-preview-panel.tsx):
+ * the page-count badge and the fullscreen mode.
  *
- * Fullscreen-модалка навмисно перевіряється саме E2E (а не unit-тестом): у певний момент
- * (до фіксу в index.css) вона мала pixel-perfect позиціонуватись відносно справжнього
- * вьюпорту `position: fixed`, але через глобальну CSS-анімацію `main > *` з
- * `animation-fill-mode: both` (transform лишався в computed style навіть після завершення
- * анімації) прямий нащадок <main> ставав containing block для fixed-нащадків — модалка
- * рендерилась відносно контенту сторінки, а не вьюпорту, і не покривала бічний сайдбар.
- * jsdom/vitest не рендерить справжній layout/CSS-каскад, тож така регресія непомітна
- * без реального браузера.
+ * The fullscreen modal is deliberately checked via E2E (not a unit test): at one point
+ * (before a fix in index.css) it needed to be pixel-perfectly positioned relative to the real
+ * `position: fixed` viewport, but a global CSS animation on `main > *` with
+ * `animation-fill-mode: both` (the transform stayed in the computed style even after the
+ * animation finished) turned the direct child of <main> into the containing block for fixed
+ * descendants — the modal rendered relative to the page content instead of the viewport, and
+ * didn't cover the sidebar. jsdom/vitest doesn't render a real layout/CSS cascade, so a
+ * regression like this is invisible without a real browser.
  */
 test("CV preview shows a page-count badge and opens/closes a real fullscreen overlay", async ({ page }) => {
   await page.goto("/cvbuilder");
 
-  const badge = page.getByTitle(/сторінок при друку в PDF/);
+  const badge = page.getByTitle(/pages when printed to PDF/);
   await expect(badge).toBeVisible();
-  await expect(badge).toHaveText(/стор\.$/);
+  await expect(badge).toHaveText(/pg\.$/);
 
   const openFullscreen = page.getByRole("button", { name: "⛶" });
   await openFullscreen.click();
 
-  const modalHeading = page.getByText("Прев'ю CV", { exact: true });
+  const modalHeading = page.getByText("CV preview", { exact: true });
   await expect(modalHeading).toBeVisible();
 
-  // Справжня fixed-модалка — position:fixed відносно вьюпорту, не якогось скрольованого
-  // предка сторінки: bounding box має починатись близько до (0,0) вьюпорту, а не десь
-  // посеред довгого контенту сторінки (саме так виглядав описаний вище баг).
+  // A real fixed modal — position:fixed relative to the viewport, not some scrolled ancestor of
+  // the page: the bounding box should start close to viewport (0,0), not somewhere in the
+  // middle of a long page's content (exactly how the bug described above looked).
   const overlay = page.locator("div.fixed.inset-0.z-50");
   const box = await overlay.boundingBox();
-  // "Справжня" fixed-модалка розтягнута на весь вьюпорт (inset-0) незалежно від скролу
-  // сторінки — допуск невеликий (напр. можливий скролбар), але до бага верхній край
-  // потрапляв на сотні пікселів нижче (там, де випадково зупинявся скрол сторінки).
+  // A "real" fixed modal stretches across the whole viewport (inset-0) regardless of page
+  // scroll — the tolerance is small (e.g. a possible scrollbar), but before the fix the top
+  // edge ended up hundreds of pixels lower (wherever the page scroll happened to stop).
   expect(box?.x).toBeLessThan(20);
   expect(box?.y).toBeLessThan(20);
 
-  await page.getByRole("button", { name: "Закрити", exact: true }).click();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
   await expect(modalHeading).not.toBeVisible();
 });
 
 /**
- * Регресія компоновки: прев'ю раніше йшло в тій самій sticky-колонці ПІСЛЯ панелей
- * Appearance/Presets ("превью знизу справа" — скарга користувача), тож перевіряємо, що
- * воно завжди першим і видимим одразу, незалежно від активної вкладки зліва ("Зміст"/"Дизайн").
+ * Layout regression: the preview used to be in the same sticky column AFTER the
+ * Appearance/Presets panels ("preview at the bottom right" — a user complaint), so we check
+ * that it's always first and visible immediately, regardless of the active tab on the left
+ * ("Content"/"Design").
  *
- * Друга частина — регресія CSS Grid "blowout": iframe прев'ю рендериться з фіксованою
- * "сторінковою" шириною 880px (PAGE_WIDTH у cv-preview-panel.tsx) і лише візуально
- * масштабується transform-ом. Без явного `grid-cols-1` (Tailwind ставить `minmax(0,1fr)`)
- * замість неявного одноколонкового гріда (track sizing "auto", що враховує min-content
- * нащадків) ця фіксована ширина розтягувала ВСЮ мобільну сторінку в горизонтальний скрол —
- * jsdom/vitest не рендерить справжній layout і такий баг непомітний без реального браузера.
+ * The second part is a CSS Grid "blowout" regression: the preview iframe renders at a fixed
+ * "page" width of 880px (PAGE_WIDTH in cv-preview-panel.tsx) and is only visually scaled via a
+ * transform. Without an explicit `grid-cols-1` (Tailwind sets `minmax(0,1fr)`) instead of an
+ * implicit single-column grid (track sizing "auto", which accounts for descendants' min-content),
+ * that fixed width would stretch the ENTIRE mobile page into horizontal scroll —
+ * jsdom/vitest doesn't render a real layout, so a bug like this is invisible without a real browser.
  */
 test("preview column stays visible-first across tabs and never causes horizontal overflow on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -66,11 +67,11 @@ test("preview column stays visible-first across tabs and never causes horizontal
   };
   await noHorizontalOverflow();
 
-  await page.getByRole("button", { name: "🎨 Дизайн" }).click();
-  await expect(page.getByText("Шаблон, колір, фото")).toBeVisible();
+  await page.getByRole("button", { name: "🎨 Design" }).click();
+  await expect(page.getByText("Template, color, photo, section order and presets")).toBeVisible();
   await noHorizontalOverflow();
 
-  await page.getByRole("button", { name: "📝 Зміст" }).click();
-  await expect(page.getByText("прев'ю праворуч оновлюється одразу")).toBeVisible();
+  await page.getByRole("button", { name: "📝 Content" }).click();
+  await expect(page.getByText("the preview on the right updates immediately")).toBeVisible();
   await noHorizontalOverflow();
 });

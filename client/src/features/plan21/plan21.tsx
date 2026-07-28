@@ -1,7 +1,7 @@
 import { usePlan21, useSetPlanDay } from "../../shared/queries";
 import { Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
 
-/* ---------- Fast-track план 21 день ---------- */
+/* ---------- Fast-track 21-day plan ---------- */
 export function Plan21() {
   const { data: plan21, isLoading } = usePlan21();
   const setPlanDayMutation = useSetPlanDay();
@@ -11,11 +11,11 @@ export function Plan21() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Персональний інтенсив"
-        subtitle="План будується автоматично з твоїх прогалин: попит вакансій зі списку мінус навички з CV/профілю. Додаси вакансію чи оновиш CV — фази перебудуються під актуальні прогалини."
+        title="Personal intensive"
+        subtitle="The plan builds itself automatically from your gaps: demand from your vacancy list minus skills from your CV/profile. Add a vacancy or update your CV — phases rebuild to match the current gaps."
         actions={
           <Chip tone="emerald">
-            {done} / {allDays.length} днів
+            {done} / {allDays.length} days
           </Chip>
         }
       />
@@ -44,14 +44,14 @@ export function Plan21() {
                   onChange={(e) => setPlanDayMutation.mutate({ dayId: d.id, done: e.target.checked })}
                 />
                 <div className="min-w-0">
-                  <div className="font-semibold text-slate-800 text-sm">День {d.day}</div>
+                  <div className="font-semibold text-slate-800 text-sm">Day {d.day}</div>
                   <div className="text-sm text-slate-600 mt-0.5">
-                    <span className="text-slate-400">Теорія:</span> {d.theory}
+                    <span className="text-slate-400">Theory:</span> {d.theory}
                   </div>
                   <div className="text-sm text-slate-600">
-                    <span className="text-slate-400">Практика:</span> {d.practice}
+                    <span className="text-slate-400">Practice:</span> {d.practice}
                   </div>
-                  {d.warmup && <div className="text-xs text-slate-400 mt-0.5">🔁 Розігрів: {d.warmup}</div>}
+                  {d.warmup && <div className="text-xs text-slate-400 mt-0.5">🔁 Warm-up: {d.warmup}</div>}
                 </div>
               </label>
             ))}

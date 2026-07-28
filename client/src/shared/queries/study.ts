@@ -14,7 +14,7 @@ export function useGradeCard() {
   return useMutation({
     mutationFn: ({ cardId, grade }: { cardId: string; grade: number }) => api.grade(cardId, grade),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.study }),
-    onError: (e) => toast(e instanceof Error ? e.message : "Сталася помилка", "error"),
+    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
   });
 }
 
@@ -39,11 +39,11 @@ export function useSetDrillStatus() {
       });
       return { previous };
     },
-    // Роудмапа показує лічильник розвʼязаних drill'ів за темою — теж треба оновити.
+    // The roadmap shows a counter of solved drills per topic — that needs updating too.
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.roadmap }),
     onError: (e, _vars, ctx) => {
       if (ctx?.previous) qc.setQueryData(queryKeys.study, ctx.previous);
-      toast(e instanceof Error ? e.message : "Сталася помилка", "error");
+      toast(e instanceof Error ? e.message : "An error occurred", "error");
     },
   });
 }
@@ -57,14 +57,14 @@ export function useGenerateDrills() {
       await Promise.all([qc.invalidateQueries({ queryKey: queryKeys.study }), qc.invalidateQueries({ queryKey: queryKeys.roadmap })]);
       toast(
         res.offline
-          ? "AI офлайн — увімкни ключ у server/.env"
+          ? "AI offline — enable the key in server/.env"
           : res.added
-            ? `Додано ${res.added} нових задач під «${tech}»`
-            : "Нових задач не згенеровано (усе вже є)",
+            ? `Added ${res.added} new tasks for "${tech}"`
+            : "No new tasks generated (all already exist)",
         res.added ? "success" : "info",
       );
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "Сталася помилка", "error"),
+    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
   });
 }
 
@@ -77,13 +77,13 @@ export function useGenerateCards() {
       await qc.invalidateQueries({ queryKey: queryKeys.study });
       toast(
         res.offline
-          ? "AI офлайн — увімкни ключ у server/.env"
+          ? "AI offline — enable the key in server/.env"
           : res.added
-            ? `Додано ${res.added} нових карток під «${topic}»`
-            : "Нових карток не згенеровано (усе вже є)",
+            ? `Added ${res.added} new cards for "${topic}"`
+            : "No new cards generated (all already exist)",
         res.added ? "success" : "info",
       );
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "Сталася помилка", "error"),
+    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
   });
 }

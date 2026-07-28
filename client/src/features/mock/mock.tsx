@@ -5,7 +5,7 @@ import { useHealth, useStudy } from "../../shared/queries";
 import { Btn, Card, Chip, EmptyState, PageHeader } from "../../shared/ui";
 import type { MockEvaluation } from "../../shared/types";
 
-/* ---------- Мок-інтерв'ю ---------- */
+/* ---------- Mock interview ---------- */
 interface MockItem {
   type: "card" | "drill";
   q: string;
@@ -24,7 +24,7 @@ function MockEvalCard({ ev }: { ev: MockEvaluation }) {
   if (ev.offline || ev.score === null) {
     return (
       <div className="mt-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
-        {ev.verdict || "AI недоступний для оцінки."}
+        {ev.verdict || "AI is unavailable for evaluation."}
       </div>
     );
   }
@@ -41,7 +41,7 @@ function MockEvalCard({ ev }: { ev: MockEvaluation }) {
       </div>
       {ev.good && ev.good.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-emerald-600">✓ Сильні сторони</div>
+          <div className="text-xs font-semibold text-emerald-600">✓ Strengths</div>
           <ul className="list-disc pl-5 text-sm text-slate-700">
             {ev.good.map((g, i) => (
               <li key={i}>{g}</li>
@@ -51,7 +51,7 @@ function MockEvalCard({ ev }: { ev: MockEvaluation }) {
       )}
       {ev.missed && ev.missed.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-rose-600">△ Що пропущено</div>
+          <div className="text-xs font-semibold text-rose-600">△ What was missed</div>
           <ul className="list-disc pl-5 text-sm text-slate-700">
             {ev.missed.map((m, i) => (
               <li key={i}>{m}</li>
@@ -99,8 +99,8 @@ export function MockInterview() {
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const header = (
     <PageHeader
-      title="Мок-інтерв'ю"
-      subtitle="Симуляція співбесіди: випадкова добірка питань і задач із таймером. Проговорюй відповідь уголос, потім звіряйся."
+      title="Mock interview"
+      subtitle="An interview simulation: a random selection of questions and problems with a timer. Say your answer out loud, then check yourself."
     />
   );
   if (!session) {
@@ -110,8 +110,8 @@ export function MockInterview() {
         <Card>
           <EmptyState
             icon="🎤"
-            title="Готовий до тренувального інтерв'ю?"
-            hint={`Дамо випадкову добірку з ${pool.length} питань і задач. Відповідай уголос, тримай темп, наприкінці — підсумок.`}
+            title="Ready for a practice interview?"
+            hint={`We'll give you a random selection from ${pool.length} questions and problems. Answer out loud, keep the pace, and get a summary at the end.`}
             action={
               <div className="flex items-center gap-2 justify-center flex-wrap">
                 <select
@@ -121,12 +121,12 @@ export function MockInterview() {
                 >
                   {[5, 8, 10, 15].map((n) => (
                     <option key={n} value={n}>
-                      {n} питань
+                      {n} questions
                     </option>
                   ))}
                 </select>
                 <Btn onClick={start} disabled={pool.length === 0}>
-                  ▶ Почати
+                  ▶ Start
                 </Btn>
               </div>
             }
@@ -142,9 +142,9 @@ export function MockInterview() {
         <Card>
           <EmptyState
             icon="🏁"
-            title="Інтерв'ю завершено!"
-            hint={`Ти пройшов ${session.length} питань. Найкраще закріплення — повторити слабкі теми у «Тренуванні».`}
-            action={<Btn onClick={() => setSession(null)}>🔄 Нова сесія</Btn>}
+            title="Interview finished!"
+            hint={`You went through ${session.length} questions. The best way to reinforce this is to review the weak topics in "Practice".`}
+            action={<Btn onClick={() => setSession(null)}>🔄 New session</Btn>}
           />
         </Card>
       </div>
@@ -157,7 +157,7 @@ export function MockInterview() {
     try {
       setEvaluation(await api.evaluateMock(item.q, answer, item.a));
     } catch {
-      setEvaluation({ score: null, verdict: "Не вдалося оцінити — спробуй ще раз." });
+      setEvaluation({ score: null, verdict: "Couldn't evaluate — try again." });
     } finally {
       setEvaluating(false);
     }
@@ -167,32 +167,32 @@ export function MockInterview() {
       {header}
       <div className="flex items-center gap-3 text-xs text-slate-400">
         <span>
-          Питання {idx + 1} / {session.length}
+          Question {idx + 1} / {session.length}
         </span>
         <span>⏱ {fmt(sec)}</span>
         <Btn size="sm" variant="subtle" className="ml-auto" onClick={() => setSession(null)}>
-          Завершити
+          Finish
         </Btn>
       </div>
       <Card className="min-h-[240px] flex flex-col">
         <div className="flex items-center gap-2">
           <span className="text-xs uppercase tracking-wide text-indigo-600 font-bold">{item.cat}</span>
-          <Chip>{item.type === "card" ? "питання" : "задача"}</Chip>
+          <Chip>{item.type === "card" ? "question" : "problem"}</Chip>
         </div>
         <div className="text-lg font-semibold mt-2 text-slate-800">{item.q}</div>
         <div className="mt-3">
           <textarea
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
-            aria-label="Твоя відповідь на питання"
-            placeholder="Напиши свою відповідь — AI її оцінить і дасть фідбек…"
+            aria-label="Your answer to the question"
+            placeholder="Write your answer — AI will evaluate it and give feedback…"
             className="w-full h-24 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
           <div className="flex gap-2 mt-2 items-center">
             <Btn size="sm" variant="ghost" onClick={evaluate} loading={evaluating} disabled={!answer.trim()}>
-              ✨ Оцінити відповідь (AI)
+              ✨ Evaluate answer (AI)
             </Btn>
-            {!llm && <span className="text-xs text-slate-400">AI офлайн — увімкни ключ у server/.env</span>}
+            {!llm && <span className="text-xs text-slate-400">AI offline — set a key in server/.env</span>}
           </div>
           {evaluation && <MockEvalCard ev={evaluation} />}
         </div>
@@ -203,7 +203,7 @@ export function MockInterview() {
         )}
         <div className="mt-auto pt-4 flex flex-wrap gap-2">
           {!revealed ? (
-            <Btn onClick={() => setRevealed(true)}>👁 Показати відповідь</Btn>
+            <Btn onClick={() => setRevealed(true)}>👁 Show answer</Btn>
           ) : (
             <Btn
               onClick={() => {
@@ -211,7 +211,7 @@ export function MockInterview() {
                 setRevealed(false);
               }}
             >
-              {idx + 1 < session.length ? "Наступне →" : "Завершити 🏁"}
+              {idx + 1 < session.length ? "Next →" : "Finish 🏁"}
             </Btn>
           )}
         </div>

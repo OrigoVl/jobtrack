@@ -15,7 +15,7 @@ interface LayoutPresetsPanelProps {
   saving: boolean;
 }
 
-/** Драг-н-дроп порядку секцій CV та керування збереженими пресетами теми. */
+/** Drag-and-drop CV section ordering and managing saved theme presets. */
 export function LayoutPresetsPanel({
   sectionOrder,
   onMoveSection,
@@ -30,7 +30,7 @@ export function LayoutPresetsPanel({
   const [secDrag, setSecDrag] = useState<number | null>(null);
   return (
     <>
-      <Section title="Порядок секцій" icon="↕️">
+      <Section title="Section order" icon="↕️">
         <div className="flex flex-col gap-1">
           {sectionOrder.map((key, i) => {
             const label = SECTION_LABELS.find(([k]) => k === key)?.[1] ?? key;
@@ -48,7 +48,7 @@ export function LayoutPresetsPanel({
                   draggable
                   onDragStart={() => setSecDrag(i)}
                   onDragEnd={() => setSecDrag(null)}
-                  title="Перетягни, щоб змінити порядок"
+                  title="Drag to reorder"
                   className="cursor-grab active:cursor-grabbing select-none text-slate-400 hover:text-slate-600"
                 >
                   ⠿
@@ -66,9 +66,11 @@ export function LayoutPresetsPanel({
             );
           })}
         </div>
-        <div className="text-[11px] text-slate-400">У «Двох колонках» Навички/Мови/Освіта — у бічній колонці, решта — в основній.</div>
+        <div className="text-[11px] text-slate-400">
+          In "Two columns", Skills/Languages/Education go in the side column, the rest in the main one.
+        </div>
       </Section>
-      <Section title="Пресети" icon="💾" hint={presets.length ? `${presets.length} збережено` : undefined}>
+      <Section title="Presets" icon="💾" hint={presets.length ? `${presets.length} saved` : undefined}>
         {presets.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {presets.map((p) => (
@@ -81,7 +83,7 @@ export function LayoutPresetsPanel({
                 </button>
                 <button
                   onClick={() => onDeletePreset(p.name)}
-                  title="Видалити"
+                  title="Delete"
                   className="text-slate-400 hover:text-rose-500 leading-none px-1"
                 >
                   ✕
@@ -96,14 +98,16 @@ export function LayoutPresetsPanel({
             maxLength={40}
             onChange={(e) => onPresetNameChange(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && onSavePreset()}
-            placeholder="напр. Мій синій компакт"
+            placeholder="e.g. My blue compact"
             className="flex-1 bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
           <Btn size="sm" onClick={onSavePreset} loading={saving}>
-            Зберегти
+            Save
           </Btn>
         </div>
-        <div className="text-[11px] text-slate-400">Пресет запам'ятовує шаблон, колір, шрифт, масштаб, фото-стиль і порядок секцій.</div>
+        <div className="text-[11px] text-slate-400">
+          A preset remembers the template, color, font, scale, photo style, and section order.
+        </div>
       </Section>
     </>
   );

@@ -7,8 +7,8 @@ import { useHealth, useRoadmap } from "../shared/queries";
 import { CardsSkeleton, ProgressBar } from "../shared/ui";
 import { ErrorBoundary } from "../shared/error-boundary";
 
-// Кожна фіч-сторінка — окремий route-based чанк: користувач довантажує лише те, куди
-// реально заходить, замість одного великого eager-бандла з усіма 14 сторінками одразу.
+// Each feature page is its own route-based chunk: the user only loads what they actually
+// navigate to, instead of one big eager bundle with all 14 pages at once.
 const Dashboard = lazy(() => import("../features/dashboard/dashboard").then((m) => ({ default: m.Dashboard })));
 const Vacancies = lazy(() => import("../features/vacancies/vacancies").then((m) => ({ default: m.Vacancies })));
 const Analyzer = lazy(() => import("../features/analyzer/analyzer").then((m) => ({ default: m.Analyzer })));
@@ -29,34 +29,34 @@ const Analytics = lazy(() => import("../features/analytics/charts").then((m) => 
 type NavItem = { path: string; icon: string; label: string };
 const NAV: { section: string; items: NavItem[] }[] = [
   {
-    section: "Пошук роботи",
+    section: "Job Search",
     items: [
-      { path: "/dashboard", icon: "🏠", label: "Дашборд" },
-      { path: "/vacancies", icon: "📋", label: "Вакансії" },
-      { path: "/jobs", icon: "🔎", label: "Пошук вакансій" },
-      { path: "/analyzer", icon: "🔍", label: "Аналіз вакансії" },
-      { path: "/companies", icon: "🏢", label: "Компанії" },
-      { path: "/analytics", icon: "📊", label: "Аналітика" },
+      { path: "/dashboard", icon: "🏠", label: "Dashboard" },
+      { path: "/vacancies", icon: "📋", label: "Vacancies" },
+      { path: "/jobs", icon: "🔎", label: "Job Search" },
+      { path: "/analyzer", icon: "🔍", label: "Vacancy Analysis" },
+      { path: "/companies", icon: "🏢", label: "Companies" },
+      { path: "/analytics", icon: "📊", label: "Analytics" },
     ],
   },
   {
-    section: "Розвиток",
+    section: "Growth",
     items: [
-      { path: "/roadmap", icon: "🗺️", label: "Роудмапа" },
-      { path: "/plan21", icon: "📅", label: "Інтенсив 21 день" },
-      { path: "/learn", icon: "📚", label: "План навчання" },
-      { path: "/study", icon: "🧠", label: "Тренування" },
-      { path: "/mock", icon: "🎤", label: "Мок-інтерв'ю" },
-      { path: "/projects", icon: "🧩", label: "Pet-проєкти" },
-      { path: "/radar", icon: "🎯", label: "Skill-radar" },
-      { path: "/resources", icon: "📖", label: "Ресурси" },
+      { path: "/roadmap", icon: "🗺️", label: "Roadmap" },
+      { path: "/plan21", icon: "📅", label: "21-Day Intensive" },
+      { path: "/learn", icon: "📚", label: "Learning Plan" },
+      { path: "/study", icon: "🧠", label: "Practice" },
+      { path: "/mock", icon: "🎤", label: "Mock Interview" },
+      { path: "/projects", icon: "🧩", label: "Pet Projects" },
+      { path: "/radar", icon: "🎯", label: "Skill Radar" },
+      { path: "/resources", icon: "📖", label: "Resources" },
     ],
   },
   {
-    section: "Профіль",
+    section: "Profile",
     items: [
       { path: "/cv", icon: "📄", label: "CV" },
-      { path: "/cvbuilder", icon: "🛠", label: "Конструктор CV" },
+      { path: "/cvbuilder", icon: "🛠", label: "CV Builder" },
     ],
   },
 ];
@@ -96,7 +96,7 @@ function AiBadge() {
       }`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${llm ? "bg-emerald-500" : "bg-slate-400"}`} />
-      {llm ? "AI: увімкнено" : "AI: офлайн"}
+      {llm ? "AI: on" : "AI: offline"}
     </span>
   );
 }
@@ -115,7 +115,7 @@ function SidebarProgress() {
   return (
     <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
       <div className="text-xs font-medium text-slate-600 mb-1.5">
-        Роудмапа: {roadmap.progress.done}/{roadmap.progress.total}
+        Roadmap: {roadmap.progress.done}/{roadmap.progress.total}
       </div>
       <ProgressBar value={roadmap.progress.done} max={roadmap.progress.total} tone="emerald" />
     </div>
@@ -139,7 +139,7 @@ function navBtn(item: NavItem, compact = false) {
   );
 }
 
-/** Пам'ятає останню відвідану вкладку в localStorage, щоб при відкритті "/" повернути користувача туди, де він зупинився. */
+/** Remembers the last visited tab in localStorage, so opening "/" returns the user to where they left off. */
 function useRememberLastPath() {
   const location = useLocation();
   useEffect(() => {
@@ -163,11 +163,11 @@ function Shell() {
   useRememberLastPath();
   const go = (t: string) => navigate(`/${t}`);
 
-  // Кожна сторінка тепер сама тримає свій loading/empty-стан через власні query-хуки
-  // (замість одного глобального "чекаємо на все"), тож тут лишається лише сповіщення
-  // про повну відсутність звʼязку із сервером.
+  // Each page now owns its own loading/empty state via its own query hooks (instead of one
+  // global "wait for everything"), so all that's left here is a notification for a complete
+  // loss of connection to the server.
   useEffect(() => {
-    if (connectionError) toast("Не вдалося зʼєднатися з сервером", "error");
+    if (connectionError) toast("Could not connect to the server", "error");
   }, [connectionError, toast]);
 
   return (
@@ -253,7 +253,7 @@ export default function App() {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60 * 1000, // 5 хв — дані агрегаторів/зовнішніх пошуків не змінюються щохвилини
+            staleTime: 5 * 60 * 1000, // 5 min — aggregator/external search data doesn't change every minute
             retry: 1,
             refetchOnWindowFocus: false,
           },

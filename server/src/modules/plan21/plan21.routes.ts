@@ -8,7 +8,7 @@ import { demandMap } from "../../shared/demand.js";
 
 const r = express.Router();
 
-// ---------- fast-track план (динамічний: з вакансій + CV, теми — з /knowledge) ----------
+// ---------- fast-track plan (dynamic: from vacancies + CV, topics from /knowledge) ----------
 async function gatherGapKnowledge(profile: Profile, demand: Record<string, number>): Promise<Record<string, DynamicKnowledge>> {
   if (!llmAvailable()) return {};
   const techs = planGapTechs({ profile, demand });
@@ -36,7 +36,7 @@ r.put(
     const demand = demandMap();
     const knowledgeByTech = await gatherGapKnowledge(profile, demand);
     const phases = buildPlan({ profile, demand, knowledgeByTech });
-    if (!planDayIds(phases).has(dayId)) throw new HttpError(400, `Невідомий день: "${dayId}"`);
+    if (!planDayIds(phases).has(dayId)) throw new HttpError(400, `Unknown day: "${dayId}"`);
     res.json({ ok: true, progress: toggleChecklistItem("planProgress", dayId, done) });
   }),
 );

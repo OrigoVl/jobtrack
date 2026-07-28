@@ -3,14 +3,14 @@ import { useCallback, useSyncExternalStore } from "react";
 type Listener = () => void;
 
 /**
- * Мінімальне зовнішнє сховище персистентного (у межах SPA-сесії) UI-стану вкладок —
- * фільтри, чернетки форм, індекси карток тощо. Раніше жило як один об'єкт `ui` усередині
- * StoreContext: зміна БУДЬ-ЯКОГО ключа (напр. "study.index" на одній вкладці) перерендерювала
- * геть усі компоненти, підписані на useStore(), навіть на інших вкладках.
+ * A minimal external store for persistent (within-SPA-session) tab UI state —
+ * filters, form drafts, card indices, etc. It used to live as a single `ui` object inside
+ * StoreContext: changing ANY key (e.g. "study.index" on one tab) re-rendered absolutely every
+ * component subscribed to useStore(), even on other tabs.
  *
- * useSyncExternalStore підписує кожен виклик useUi(key) лише на зміни ЦЬОГО конкретного
- * ключа — зміна "jobs.page" більше не чіпає компоненти, що читають "study.mode".
- * Без Context-провайдера — модуль-синглтон, достатньо для одного SPA-застосунку.
+ * useSyncExternalStore subscribes each useUi(key) call only to changes of THAT specific
+ * key — changing "jobs.page" no longer touches components reading "study.mode".
+ * No Context provider — a module singleton is enough for a single SPA app.
  */
 class UiStore {
   private state: Record<string, unknown> = {};

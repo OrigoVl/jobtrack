@@ -1,4 +1,4 @@
-// Статичний пул drills/cards + LLM-згенеровані доповнення (зберігаються в kv-сховищі).
+// Static pool of drills/cards + LLM-generated additions (stored in the kv store).
 import { getKvJson } from "../../db/index.js";
 import { CARDS, DRILLS, type Card, type DrillItem } from "./content.js";
 

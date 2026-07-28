@@ -28,9 +28,10 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   const [match, setMatch] = useUi<CvMatch | null>("cvbuilder.match", null);
   const [matchVacId, setMatchVacId] = useUi<number>("cvbuilder.matchVac", 0);
   const [dismissedSuggest, setDismissedSuggest] = useState(false);
-  // Контент і дизайн розведені по вкладках (а не стековані одне над одним в одній колонці) —
-  // саме так прев'ю праворуч лишається sticky й одразу видимим замість "падіння" вниз під
-  // Appearance/Presets-панелями (звідси й був "прев'ю знизу справа").
+  // Content and design are split across tabs (instead of stacked on top of each other in one
+  // column) — this is what keeps the preview on the right sticky and immediately visible instead
+  // of "falling" below the Appearance/Presets panels (hence the earlier "preview at the bottom
+  // right" complaint).
   const [tab, setTab] = useUi<"content" | "design">("cvbuilder.tab", "content");
   useEffect(() => {
     api
@@ -59,7 +60,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   const savePreset = async () => {
     const name = presetName.trim();
     if (!name) {
-      toast("Введи назву пресета", "error");
+      toast("Enter a preset name", "error");
       return;
     }
     const next = [...presets.filter((p) => p.name.toLowerCase() !== name.toLowerCase()), { name, theme }];
@@ -68,28 +69,28 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       const r = await api.saveCvPresets(next);
       setPresets(r.presets);
       setPresetName("");
-      toast(`Пресет «${name}» збережено`, "success");
+      toast(`Preset "${name}" saved`, "success");
     } finally {
       setBusy("");
     }
   };
   const applyPreset = (p: CvPreset) => {
     setTheme(p.theme);
-    toast(`Застосовано «${p.name}»`, "info");
+    toast(`Applied "${p.name}"`, "info");
   };
   const addSkill = (k: string) => {
     if (doc.skills.some((s) => s.toLowerCase() === k.toLowerCase())) {
-      toast(`«${k}» вже в навичках`, "info");
+      toast(`"${k}" already in skills`, "info");
       return;
     }
     set({ skills: [...doc.skills, k] });
-    toast(`Додано «${k}» в навички`, "success");
+    toast(`Added "${k}" to skills`, "success");
   };
   const applyRewrite = (before: string, after: string) => {
     const norm = (s: string) =>
       s
         .toLowerCase()
-        .replace(/[^a-zа-яїєґ0-9 ]/gi, " ")
+        .replace(/[^a-z0-9 ]/gi, " ")
         .split(/\s+/)
         .filter(Boolean);
     const b = new Set(norm(before));
@@ -108,26 +109,26 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           ei === best.ei ? { ...e, bullets: e.bullets.map((bl, bi) => (bi === best.bi ? after : bl)) } : e,
         ),
       });
-      toast(`Оновлено пункт у «${doc.experience[best.ei].role || `запис ${best.ei + 1}`}»`, "success");
+      toast(`Updated the bullet in "${doc.experience[best.ei].role || `entry ${best.ei + 1}`}"`, "success");
       return;
     }
     navigator.clipboard?.writeText(after).catch(() => undefined);
-    toast("Не знайшов схожий пункт — текст скопійовано в буфер", "info");
+    toast("Couldn't find a similar bullet — text copied to clipboard", "info");
   };
   const doMatch = async () => {
     const vac = vacancies.find((v) => v.id === matchVacId);
     if (!vac) {
-      toast("Обери вакансію зі списку", "error");
+      toast("Select a vacancy from the list", "error");
       return;
     }
-    const jobText = [vac.stack.length ? `Стек: ${vac.stack.join(", ")}` : "", vac.notes].filter(Boolean).join("\n") || vac.position;
+    const jobText = [vac.stack.length ? `Stack: ${vac.stack.join(", ")}` : "", vac.notes].filter(Boolean).join("\n") || vac.position;
     setBusy("match");
     try {
       const r = await api.matchVacancy(cvDocToText(doc), `${vac.position}${vac.company ? ` @ ${vac.company}` : ""}`, jobText);
       setMatch(r);
-      toast(r.offline ? "Базове порівняння (увімкни LLM для точного)" : "Порівняння готове", r.offline ? "info" : "success");
+      toast(r.offline ? "Basic comparison (enable LLM for accurate results)" : "Comparison ready", r.offline ? "info" : "success");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Помилка порівняння", "error");
+      toast(e instanceof Error ? e.message : "Comparison error", "error");
     } finally {
       setBusy("");
     }
@@ -135,16 +136,16 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   const doReview = async () => {
     const text = cvDocToText(doc);
     if (text.trim().length < 30) {
-      toast("Заповни CV детальніше для аналізу", "error");
+      toast("Fill in more CV details for analysis", "error");
       return;
     }
     setBusy("review");
     try {
       const r = await api.reviewCV(text);
       setReview(r);
-      toast(r.offline ? "Базовий аналіз (увімкни LLM для глибокого)" : "Аналіз готовий", r.offline ? "info" : "success");
+      toast(r.offline ? "Basic analysis (enable LLM for deeper analysis)" : "Analysis ready", r.offline ? "info" : "success");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Помилка аналізу", "error");
+      toast(e instanceof Error ? e.message : "Analysis error", "error");
     } finally {
       setBusy("");
     }
@@ -165,7 +166,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     setBusy("save");
     try {
       setDoc(await api.saveCvDoc(doc));
-      toast("CV збережено", "success");
+      toast("CV saved", "success");
     } finally {
       setBusy("");
     }
@@ -175,7 +176,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     try {
       const r = await api.generateCvDoc(profile?.cvText || "");
       if (r.doc) setDoc(r.doc);
-      toast(r.offline ? "AI офлайн — увімкни ключ" : "Розібрано з твого CV на секції", r.offline ? "info" : "success");
+      toast(r.offline ? "AI offline — enable the key" : "Parsed from your CV into sections", r.offline ? "info" : "success");
     } finally {
       setBusy("");
     }
@@ -186,9 +187,9 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     try {
       const r = await api.importLinkedIn(file);
       if (r.doc) setDoc(r.doc);
-      toast("Профіль імпортовано з LinkedIn", "success");
+      toast("Profile imported from LinkedIn", "success");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Помилка імпорту", "error");
+      toast(e instanceof Error ? e.message : "Import error", "error");
     } finally {
       setBusy("");
     }
@@ -201,11 +202,11 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       await applyCvUpload(r);
       setDoc(r.cvDoc ?? (await api.cvDoc()));
       toast(
-        r.cvDoc ? "CV розібрано в конструктор і застосовано всюди" : "CV завантажено (увімкни LLM для авто-розбору на секції)",
+        r.cvDoc ? "CV parsed into the builder and applied everywhere" : "CV uploaded (enable LLM for auto-parsing into sections)",
         "success",
       );
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Помилка завантаження", "error");
+      toast(e instanceof Error ? e.message : "Upload error", "error");
     } finally {
       setBusy("");
     }
@@ -233,35 +234,35 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Конструктор CV"
-        subtitle="Структуроване резюме з фокусом на результатах. Заповни з наявного CV, відредагуй і експортуй у PDF."
+        title="CV Builder"
+        subtitle="A structured resume focused on outcomes. Fill it in from your existing CV, edit it, and export to PDF."
         actions={
           <>
             <Btn
               variant="ghost"
               onClick={() => exportCvDoc(doc)}
-              title="У вікні друку браузера дата/назва документа зверху сторінок вимкнені автоматично; якщо все ж з'являються — вимкни «Заголовки та підвали»"
+              title="In the browser's print dialog, the date/document title at the top of pages are disabled automatically; if they still appear — turn off «Headers and footers»"
             >
               ⬇️ PDF
             </Btn>
             <Btn onClick={save} loading={busy === "save"}>
-              💾 Зберегти
+              💾 Save
             </Btn>
           </>
         }
       />
       <Card className="!py-3 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-slate-500">Заповнити:</span>
+          <span className="text-xs font-semibold text-slate-500">Fill in:</span>
           <label
             className={`inline-flex items-center gap-1.5 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer transition-colors ${busy === "upload" ? "bg-indigo-300 text-white" : "bg-indigo-600 text-white hover:bg-indigo-500"}`}
           >
             {busy === "upload" ? (
               <>
-                <Spinner className="h-3 w-3" /> Розбираю…
+                <Spinner className="h-3 w-3" /> Parsing…
               </>
             ) : (
-              "📎 З файлу CV"
+              "📎 From CV file"
             )}
             <input
               type="file"
@@ -276,7 +277,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           >
             {busy === "li" ? (
               <>
-                <Spinner className="h-3 w-3" /> Імпорт…
+                <Spinner className="h-3 w-3" /> Importing…
               </>
             ) : (
               "🔗 LinkedIn (.zip)"
@@ -290,18 +291,18 @@ export function CvBuilder({ llm }: { llm: boolean }) {
             />
           </label>
           <Btn size="sm" variant="ghost" onClick={fromText} loading={busy === "gen"} disabled={!llm}>
-            🪄 З тексту профілю (AI)
+            🪄 From profile text (AI)
           </Btn>
           <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />
-          <span className="text-xs font-semibold text-slate-500">AI-аналіз:</span>
+          <span className="text-xs font-semibold text-slate-500">AI analysis:</span>
           <Btn size="sm" variant="ghost" onClick={doReview} loading={busy === "review"}>
-            🔎 Поради
+            🔎 Tips
           </Btn>
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2.5">
-          <span className="text-xs font-semibold text-slate-500">🎯 Під вакансію:</span>
+          <span className="text-xs font-semibold text-slate-500">🎯 For a vacancy:</span>
           {vacancies.length === 0 ? (
-            <span className="text-xs text-slate-400">додай вакансії у трекер, щоб порівняти CV із ними</span>
+            <span className="text-xs text-slate-400">add vacancies to the tracker to compare your CV against them</span>
           ) : (
             <>
               <select
@@ -309,7 +310,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
                 onChange={(e) => setMatchVacId(Number(e.target.value))}
                 className="flex-1 min-w-[200px] bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
               >
-                <option value={0}>— обери вакансію —</option>
+                <option value={0}>— select a vacancy —</option>
                 {vacancies.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.position}
@@ -318,16 +319,16 @@ export function CvBuilder({ llm }: { llm: boolean }) {
                 ))}
               </select>
               <Btn size="sm" onClick={doMatch} loading={busy === "match"} disabled={!matchVacId}>
-                Порівняти
+                Compare
               </Btn>
             </>
           )}
         </div>
         <details className="text-xs text-slate-500">
-          <summary className="cursor-pointer select-none hover:text-slate-700 font-medium">Як експортувати .zip з LinkedIn?</summary>
+          <summary className="cursor-pointer select-none hover:text-slate-700 font-medium">How do I export a .zip from LinkedIn?</summary>
           <div className="mt-1.5 text-slate-600">
-            Зайди на LinkedIn → <b>Settings & Privacy → Data Privacy → Get a copy of your data</b> → обери «Want something in particular»
-            (Profile, Positions, Skills, Education) → отримай архів на email → завантаж <b>.zip</b> кнопкою вище.
+            Go to LinkedIn → <b>Settings & Privacy → Data Privacy → Get a copy of your data</b> → choose «Want something in particular»
+            (Profile, Positions, Skills, Education) → get the archive by email → upload the <b>.zip</b> using the button above.
           </div>
         </details>
       </Card>
@@ -335,13 +336,13 @@ export function CvBuilder({ llm }: { llm: boolean }) {
         <Card className="!py-3 bg-amber-50 border-amber-200 flex items-center gap-3">
           <span className="text-lg">💡</span>
           <div className="text-sm text-slate-700 flex-1">
-            У профілі вже є текст CV, а конструктор ще порожній. Розібрати його на секції автоматично?
+            Your profile already has CV text, but the builder is still empty. Parse it into sections automatically?
           </div>
           <Btn size="sm" onClick={fromText} loading={busy === "gen"}>
-            🪄 Розібрати CV
+            🪄 Parse CV
           </Btn>
           <Btn size="sm" variant="ghost" onClick={() => setDismissedSuggest(true)}>
-            Пізніше
+            Later
           </Btn>
         </Card>
       )}
@@ -349,7 +350,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
         <div className="relative">
           <button
             onClick={() => setMatch(null)}
-            title="Сховати"
+            title="Hide"
             className="absolute right-3 top-3 z-10 text-slate-400 hover:text-slate-600 text-sm"
           >
             ✕
@@ -359,7 +360,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
             onAddKeyword={addSkill}
             onApplySummary={(s) => {
               set({ summary: s });
-              toast("Summary оновлено під вакансію", "success");
+              toast("Summary updated for the vacancy", "success");
             }}
           />
         </div>
@@ -368,7 +369,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
         <div className="relative">
           <button
             onClick={() => setReview(null)}
-            title="Сховати аналіз"
+            title="Hide analysis"
             className="absolute right-3 top-3 z-10 text-slate-400 hover:text-slate-600 text-sm"
           >
             ✕
@@ -376,14 +377,14 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           <CvReviewPanel review={review} onAddKeyword={addSkill} onApplyRewrite={applyRewrite} />
         </div>
       )}
-      {/* grid-cols-1 (не просто "grid" без колонок) — важливо: Tailwind явно ставить
-          `minmax(0, 1fr)`, тоді як "none" (дефолт implicit-грід без жодного `grid-cols-*`)
-          дає track sizing "auto", який враховує min-content нащадків. Прев'ю CV рендерить
-          iframe фіксованої "сторінкової" ширини 880px (PAGE_WIDTH у cv-preview-panel.tsx) і
-          масштабує його лише візуально (CSS transform) — це фіксована пікселева ширина, яка
-          на мобільних БЕЗ minmax(0,...) розтягувала б track (а з ним і всю колонку зі
-          сторонніми картками зліва, бо в одноколонковому гріді всі рядки спільно ту саму
-          ширину) до 880px і викликала горизонтальний скрол усієї сторінки. */}
+      {/* grid-cols-1 (not just "grid" with no columns) — important: Tailwind explicitly sets
+          `minmax(0, 1fr)`, whereas "none" (the default implicit grid without any `grid-cols-*`)
+          gives track sizing "auto", which honors the min-content of descendants. The CV preview
+          renders an iframe with a fixed "page" width of 880px (PAGE_WIDTH in cv-preview-panel.tsx)
+          and only scales it visually (CSS transform) — this is a fixed pixel width which on
+          mobile WITHOUT minmax(0,...) would stretch the track (and with it the whole column
+          along with unrelated cards on the left, since in a single-column grid all rows share
+          the same track width) up to 880px and cause horizontal scroll of the entire page. */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-4 items-start">
         <div className="min-w-0 space-y-3">
           <div className="flex items-center gap-2.5 flex-wrap">
@@ -392,12 +393,14 @@ export function CvBuilder({ llm }: { llm: boolean }) {
               onChange={setTab}
               size="md"
               options={[
-                { value: "content", label: "📝 Зміст" },
-                { value: "design", label: "🎨 Дизайн" },
+                { value: "content", label: "📝 Content" },
+                { value: "design", label: "🎨 Design" },
               ]}
             />
             <span className="text-xs text-slate-400">
-              {tab === "content" ? "Текст резюме — прев'ю праворуч оновлюється одразу" : "Шаблон, колір, фото, порядок секцій і пресети"}
+              {tab === "content"
+                ? "Resume text — the preview on the right updates immediately"
+                : "Template, color, photo, section order and presets"}
             </span>
           </div>
           {tab === "content" ? (
@@ -438,8 +441,9 @@ export function CvBuilder({ llm }: { llm: boolean }) {
             </div>
           )}
         </div>
-        {/* Права колонка — лише прев'ю, без нічого над ним: sticky й одразу у фокусі незалежно
-            від того, яку вкладку зліва обрано (перемикання на "Дизайн" й далі видно результат). */}
+        {/* Right column — preview only, nothing above it: sticky and immediately in focus
+            regardless of which tab is selected on the left (switching to "Design" still shows
+            the result). */}
         <div className="min-w-0 lg:sticky lg:top-6">
           <CvPreviewPanel doc={doc} onExport={() => exportCvDoc(doc)} />
         </div>

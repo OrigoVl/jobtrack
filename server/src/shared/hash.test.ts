@@ -18,6 +18,6 @@ describe("hashString", () => {
 
   it("handles empty strings and unicode without throwing", () => {
     expect(() => hashString("")).not.toThrow();
-    expect(() => hashString("Full-Stack розробник 🚀")).not.toThrow();
+    expect(() => hashString("Full-Stack developer 🚀")).not.toThrow();
   });
 });

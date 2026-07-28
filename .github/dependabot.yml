@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # pnpm workspace (root + client + server залежності описані в кореневому pnpm-lock.yaml)
+  # pnpm workspace (root + client + server dependencies are described in the root pnpm-lock.yaml)
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -10,9 +10,9 @@ updates:
       dev-dependencies:
         dependency-type: "development"
     ignore:
-      # TypeScript 7 (нативний Go-компілятор) поки не підтримується typescript-eslint
-      # (peer-range "<6.1.0"), тож груповий PR з dev-залежностями падає на CI щоразу.
-      # Знімемо цей ignore, коли typescript-eslint офіційно підтримає TS 7.
+      # TypeScript 7 (the native Go compiler) is not yet supported by typescript-eslint
+      # (peer-range "<6.1.0"), so the grouped dev-dependencies PR fails CI every time.
+      # Remove this ignore once typescript-eslint officially supports TS 7.
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
 

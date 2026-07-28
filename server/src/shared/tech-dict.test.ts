@@ -22,14 +22,14 @@ describe("extractTechs", () => {
   });
 
   it("fuzzy-catches a typo'd tech name that the exact regex dictionary would miss", () => {
-    // "Dockr" — типова друкарська помилка на "Docker", яку точний regex \bdocker\b не зловить.
+    // "Dockr" — a typical typo of "Docker" that the exact regex \bdocker\b would not catch.
     const names = extractTechs("Looking for someone comfortable with Dockr and Kubernets").map((t) => t.name);
     expect(names).toEqual(expect.arrayContaining(["Docker", "Kubernetes"]));
   });
 
   it("does not fuzzy-match short (<=3 char) tech names even with a 1-char typo — too risky", () => {
-    // "sq" — 1 символ від "sql" (name SQL), але короткі слова взагалі не толеруються
-    // (maxTypoDistance <= 3 chars === 0) саме щоб уникнути фолс-позитивів на побутовій мові.
+    // "sq" — 1 character off from "sql" (name SQL), but short words aren't tolerated at all
+    // (maxTypoDistance <= 3 chars === 0), specifically to avoid false positives in everyday language.
     const names = extractTechs("We had a chat about the sq report format").map((t) => t.name);
     expect(names).not.toContain("SQL");
   });

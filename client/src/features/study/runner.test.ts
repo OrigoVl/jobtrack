@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runJs } from "./runner";
 
-// runJs() створює РЕАЛЬНИЙ Web Worker — jsdom (середовище для юніт-тестів, див. vitest.config.ts)
-// його не реалізує, а перевіряти справжній нескінченний цикл у e2e недетерміновано (реальний
-// busy-loop у CI/sandboxed середовищі з малою к-стю ядер конкурує за CPU з самим браузером —
-// див. коментар у e2e/study-js-sandbox.spec.ts). Тут мокаємо глобальний Worker повністю
-// контрольованим фейком, щоб детерміновано й швидко (без реального очікування 3с) перевірити
-// САМЕ ту частину контракту, яка тут найважливіша: таймаут форсовано вбиває воркер і резолвить
-// рівно один раз, навіть якщо повідомлення від воркера все ж прийде "запізно".
+// runJs() creates a REAL Web Worker — jsdom (the unit test environment, see vitest.config.ts)
+// doesn't implement it, and testing a real infinite loop in e2e would be non-deterministic (a
+// real busy-loop in a CI/sandboxed environment with few cores competes for CPU with the browser
+// itself — see the comment in e2e/study-js-sandbox.spec.ts). Here we mock the global Worker with
+// a fully controlled fake, to deterministically and quickly (without a real 3s wait) check
+// exactly the part of the contract that matters most here: the timeout forcibly kills the worker
+// and resolves exactly once, even if a message from the worker still arrives "too late".
 class FakeWorker {
   static instances: FakeWorker[] = [];
   onmessage: ((e: MessageEvent) => void) | null = null;
@@ -24,7 +24,7 @@ class FakeWorker {
   terminate(): void {
     this.terminated = true;
   }
-  // Тестовий хелпер (не частина реального Worker API) — симулює відповідь воркера.
+  // Test helper (not part of the real Worker API) — simulates the worker's response.
   respond(result: { logs: string[]; error: string | null; ms: number }): void {
     this.onmessage?.({ data: result } as MessageEvent);
   }
@@ -66,7 +66,7 @@ describe("runJs()", () => {
     const result = await promise;
 
     expect(worker.terminated).toBe(true);
-    expect(result.error).toMatch(/ліміт часу виконання/);
+    expect(result.error).toMatch(/Execution time limit exceeded/);
     expect(result.logs).toEqual([]);
   });
 
@@ -76,13 +76,14 @@ describe("runJs()", () => {
 
     await vi.advanceTimersByTimeAsync(3000);
     const timedOutResult = await promise;
-    // Пізня відповідь воркера — має бути безпечно ігнорована (worker уже terminate()-нутий,
-    // а Promise уже settled): без "settled"-флагу в runner.ts друга відповідь спробувала б
-    // резолвнути вже вирішений Promise (безпечний no-op у специфікації Promise, але семантично
-    // означав би "забули прибрати обробники" — таймер і слухач лишились би живими).
+    // A late worker response — should be safely ignored (the worker is already terminate()'d
+    // and the Promise is already settled): without the "settled" flag in runner.ts, the second
+    // response would try to resolve an already-settled Promise (a safe no-op per the Promise
+    // spec, but semantically it would mean "forgot to clean up the handlers" — the timer and
+    // listener would stay alive).
     worker.respond({ logs: ["too late"], error: null, ms: 9999 });
 
-    expect(timedOutResult.error).toMatch(/ліміт часу виконання/);
+    expect(timedOutResult.error).toMatch(/Execution time limit exceeded/);
   });
 
   it("passes the raw code string to the worker unmodified", () => {

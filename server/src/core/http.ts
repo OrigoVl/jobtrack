@@ -1,4 +1,4 @@
-// Єдиний тип HTTP-помилки + обгортка для async-роутів (Express не ловить reject сам).
+// A single HTTP error type + a wrapper for async routes (Express doesn't catch rejections on its own).
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 
 export class HttpError extends Error {

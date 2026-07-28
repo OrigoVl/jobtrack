@@ -5,10 +5,10 @@ import type { CvDoc, CvTheme } from "../../../shared/types";
 import { PhotoCropper } from "./photo-cropper";
 
 const TEMPLATES: [CvTheme["template"], string][] = [
-  ["classic", "Класичний"],
-  ["compact", "Компактний"],
-  ["academic", "Академічний"],
-  ["twocol", "Дві колонки"],
+  ["classic", "Classic"],
+  ["compact", "Compact"],
+  ["academic", "Academic"],
+  ["twocol", "Two columns"],
 ];
 
 interface AppearancePanelProps {
@@ -18,18 +18,18 @@ interface AppearancePanelProps {
   onSetPhoto: (dataUrl: string) => void;
 }
 
-/** Вибір шаблону, стилю (акцент/шрифт/масштаб) і фото (з кадруванням). */
+/** Choosing a template, style (accent/font/scale), and photo (with cropping). */
 export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: AppearancePanelProps) {
   const { toast } = useToast();
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const pickPhoto = (file?: File) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      toast("Обери файл зображення (PNG/JPG)", "error");
+      toast("Choose an image file (PNG/JPG)", "error");
       return;
     }
     if (file.size > 8 * 1024 * 1024) {
-      toast("Зображення завелике (макс 8 МБ)", "error");
+      toast("Image too large (max 8 MB)", "error");
       return;
     }
     setCropSrc(URL.createObjectURL(file));
@@ -40,7 +40,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
   };
   return (
     <>
-      <Section title="Шаблон" icon="🧩" defaultOpen hint={TEMPLATES.find(([id]) => id === theme.template)?.[1]}>
+      <Section title="Template" icon="🧩" defaultOpen hint={TEMPLATES.find(([id]) => id === theme.template)?.[1]}>
         <div className="grid grid-cols-2 gap-2">
           {TEMPLATES.map(([id, label]) => (
             <button
@@ -53,10 +53,10 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
           ))}
         </div>
       </Section>
-      <Section title="Стиль" icon="🎨" hint={`${theme.font === "serif" ? "Serif" : "Sans"} · ${Math.round(theme.scale * 100)}%`}>
+      <Section title="Style" icon="🎨" hint={`${theme.font === "serif" ? "Serif" : "Sans"} · ${Math.round(theme.scale * 100)}%`}>
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <label className="flex items-center gap-2 text-sm text-slate-600">
-            Акцент
+            Accent
             <input
               type="color"
               value={theme.accent}
@@ -65,7 +65,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             />
           </label>
           <div className="flex items-center gap-2 text-sm text-slate-600">
-            Шрифт
+            Font
             <Segmented
               value={theme.font}
               onChange={(v) => onSetTheme({ font: v })}
@@ -78,7 +78,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
         </div>
         <label className="block text-sm text-slate-600">
           <div className="flex justify-between">
-            <span>Масштаб тексту</span>
+            <span>Text scale</span>
             <span className="text-slate-400">{Math.round(theme.scale * 100)}%</span>
           </div>
           <input
@@ -88,17 +88,17 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             step={0.05}
             value={theme.scale}
             onChange={(e) => onSetTheme({ scale: Number(e.target.value) })}
-            aria-label="Масштаб тексту"
+            aria-label="Text scale"
             className="w-full mt-1 accent-indigo-600"
           />
         </label>
       </Section>
-      <Section title="Фото" icon="🖼" hint={doc.photo ? (theme.showPhoto === false ? "приховано" : "додано") : "немає"}>
+      <Section title="Photo" icon="🖼" hint={doc.photo ? (theme.showPhoto === false ? "hidden" : "added") : "none"}>
         <div className="flex items-center gap-3">
           {doc.photo ? (
             <img
               src={doc.photo}
-              alt="Фото"
+              alt=""
               className={`w-16 h-16 object-cover border-2 border-indigo-200 ${theme.photoShape === "square" ? "rounded-lg" : "rounded-full"}`}
             />
           ) : (
@@ -110,7 +110,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
           )}
           <div className="flex gap-1.5 flex-wrap">
             <label className="inline-flex items-center gap-1 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200">
-              {doc.photo ? "🔄 Змінити" : "🖼 Додати"}
+              {doc.photo ? "🔄 Change" : "🖼 Add"}
               <input
                 type="file"
                 accept="image/*"
@@ -123,30 +123,30 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             </label>
             {doc.photo && (
               <Btn size="sm" variant="danger" onClick={() => onSetPhoto("")}>
-                Прибрати
+                Remove
               </Btn>
             )}
           </div>
         </div>
         <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
-          <span>Форма</span>
+          <span>Shape</span>
           <Segmented
             value={theme.photoShape ?? "circle"}
             onChange={(v) => onSetTheme({ photoShape: v })}
             options={[
-              { value: "circle", label: "● Коло" },
-              { value: "square", label: "■ Квадрат" },
+              { value: "circle", label: "● Circle" },
+              { value: "square", label: "■ Square" },
             ]}
           />
         </div>
         <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
-          <span>Позиція</span>
+          <span>Position</span>
           <Segmented
             value={theme.photoPos ?? "left"}
             onChange={(v) => onSetTheme({ photoPos: v })}
             options={[
-              { value: "left", label: "← Ліво" },
-              { value: "right", label: "Право →" },
+              { value: "left", label: "← Left" },
+              { value: "right", label: "Right →" },
             ]}
           />
         </div>
@@ -157,7 +157,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             onChange={(e) => onSetTheme({ showPhoto: e.target.checked })}
             className="accent-indigo-600"
           />
-          Показувати фото в PDF
+          Show photo in the PDF
         </label>
       </Section>
       {cropSrc && (
@@ -167,7 +167,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
           onDone={(dataUrl) => {
             onSetPhoto(dataUrl);
             closeCrop();
-            toast("Фото додано", "success");
+            toast("Photo added", "success");
           }}
         />
       )}

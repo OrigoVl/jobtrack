@@ -9,8 +9,8 @@ import { allDrills } from "../study/content-store.js";
 
 const r = express.Router();
 
-// порядок груп у роудмапі (як у roadmap.sh — від бази до спеціалізації)
-const OTHER_GROUP = "Навички за попитом";
+// group order in the roadmap (like roadmap.sh — from fundamentals to specialization)
+const OTHER_GROUP = "Skills in demand";
 const GROUP_ORDER = ["Core", "Frontend", "Backend", "Database", "DevOps", "Testing", "AI", "Tools", OTHER_GROUP, "Other"];
 
 interface RoadmapNode {
@@ -25,7 +25,7 @@ interface RoadmapNode {
   drillsSolved: number;
 }
 
-// ---------- roadmap (roadmap.sh-стиль, будується з РЕАЛЬНИХ навичок вакансій+CV) ----------
+// ---------- roadmap (roadmap.sh style, built from REAL skills of vacancies+CV) ----------
 r.get("/roadmap", (_q, res) => {
   const profile = getProfile();
   const demand = demandMap();
@@ -33,7 +33,7 @@ r.get("/roadmap", (_q, res) => {
   const progress = getRoadmapProgress();
   const drillProgress = getDrillProgress();
   const drills = allDrills();
-  // Всесвіт навичок = усе, що є в CV/профілі + усе, що потрібно ринку (стек вакансій).
+  // Universe of skills = everything in the CV/profile + everything the market demands (vacancy stack).
   const universe = new Set([...profile.skills, ...Object.keys(demand)]);
   const byGroup: Record<string, RoadmapNode[]> = {};
   for (const tech of universe) {
@@ -75,8 +75,8 @@ r.put("/roadmap/progress", (req, res) => {
     .trim()
     .slice(0, 80);
   const status = String(req.body?.status || "todo");
-  if (!tech) throw new HttpError(400, "Не вказано навичку");
-  if (!(ROADMAP_STATUSES as readonly string[]).includes(status)) throw new HttpError(400, `Невідомий статус: "${status}"`);
+  if (!tech) throw new HttpError(400, "No skill specified");
+  if (!(ROADMAP_STATUSES as readonly string[]).includes(status)) throw new HttpError(400, `Unknown status: "${status}"`);
   res.json({ ok: true, progress: setRoadmapStatus(tech, status as RoadmapStatus) });
 });
 

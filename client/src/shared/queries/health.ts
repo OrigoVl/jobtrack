@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
 import { queryKeys } from "./keys";
 
-/** Прапорець LLM + перевірка звʼязку з бекендом. Не змінюється без рестарту сервера — тримаємо довго. */
+/** LLM flag + backend connectivity check. Doesn't change without a server restart — cache it for a long time. */
 export function useHealth() {
   return useQuery({
     queryKey: queryKeys.health,

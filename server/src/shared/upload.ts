@@ -1,46 +1,46 @@
-// Спільний multer-інстанс для файлових ендпоінтів (CV upload, LinkedIn import).
+// Shared multer instance for file endpoints (CV upload, LinkedIn import).
 import type { RequestHandler } from "express";
 import multer from "multer";
 import { HttpError } from "../core/http.js";
 
-// /cv/upload приймає pdf/docx/doc/txt (парситься в cv-extract.service.ts),
-// /cv/linkedin-import приймає zip (LinkedIn "Get a copy of your data" експорт).
-// Обидва роути ділять один multer-інстанс, тож фільтр дозволяє об'єднаний список.
+// /cv/upload accepts pdf/docx/doc/txt (parsed in cv-extract.service.ts),
+// /cv/linkedin-import accepts zip (LinkedIn "Get a copy of your data" export).
+// Both routes share a single multer instance, so the filter allows the combined list.
 const ALLOWED_EXTENSIONS = [".pdf", ".docx", ".doc", ".txt", ".zip"];
 const ALLOWED_MIME_PATTERNS = [/pdf/, /wordprocessingml/, /msword/, /^text\/plain$/, /zip/];
 
 function isAllowedFile(originalname: string, mimetype: string): boolean {
   const name = originalname.toLowerCase();
   const mt = mimetype.toLowerCase();
-  // Розширення — основний сигнал (браузери часто шлють generic application/octet-stream),
-  // mimetype — додаткова перевірка, якщо розширення відсутнє/нетипове.
+  // Extension is the primary signal (browsers often send generic application/octet-stream),
+  // mimetype is a secondary check if the extension is missing/atypical.
   if (ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext))) return true;
   return ALLOWED_MIME_PATTERNS.some((re) => re.test(mt));
 }
 
-// Не export — усі роути йдуть через uploadSingle() нижче, "сирий" multer-інстанс нікому назовні не потрібен.
+// Not exported — every route goes through uploadSingle() below, no one needs the "raw" multer instance externally.
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024 },
-  // Рання відмова невідповідного типу файлу — чіткий 400 замість того, щоб пропустити
-  // довільний файл далі й отримати незрозумілу помилку глибоко в парсері (mammoth/pdfjs/adm-zip).
-  // Параметри типізуються контекстно від multer.Options — уникаємо явного `Request` з "express",
-  // бо @types/multer досі тягне @types/express@4 (той самий конфлікт, що й у uploadSingle нижче).
+  // Early rejection of a mismatched file type — a clear 400 instead of letting an arbitrary
+  // file through and getting a confusing error deep inside the parser (mammoth/pdfjs/adm-zip).
+  // Parameters are typed contextually from multer.Options — we avoid an explicit `Request`
+  // from "express", since @types/multer still pulls in @types/express@4 (the same conflict as in uploadSingle below).
   fileFilter: (_req, file, cb) => {
     if (isAllowedFile(file.originalname, file.mimetype)) {
       cb(null, true);
       return;
     }
-    cb(new HttpError(400, "Непідтримуваний тип файлу. Дозволено: PDF, DOCX, DOC, TXT, ZIP."));
+    cb(new HttpError(400, "Unsupported file type. Allowed: PDF, DOCX, DOC, TXT, ZIP."));
   },
 });
 
 /**
- * Типізована обгортка над `upload.single()`. `@types/multer` досі тягне за собою
- * `@types/express@4` (DefinitelyTyped ще не оновили пакет під Express 5), тож "сирий"
- * `upload.single(...)` не проходить перевірку типів у `router.post(path, upload.single(...), ...)`
- * на Express 5, хоча рантайм-поведінка middleware не змінилась. Каст ізольовано в одному
- * місці, щоб не розкидати `as unknown as RequestHandler` по кожному роуту.
+ * Typed wrapper around `upload.single()`. `@types/multer` still pulls in `@types/express@4`
+ * (DefinitelyTyped hasn't updated the package for Express 5 yet), so the "raw"
+ * `upload.single(...)` fails type checking in `router.post(path, upload.single(...), ...)`
+ * on Express 5, even though the middleware's runtime behavior hasn't changed. The cast is
+ * isolated in one place so `as unknown as RequestHandler` doesn't have to be scattered across every route.
  */
 export function uploadSingle(field: string): RequestHandler {
   return upload.single(field) as unknown as RequestHandler;

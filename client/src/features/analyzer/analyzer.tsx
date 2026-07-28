@@ -20,7 +20,7 @@ export function Analyzer() {
     try {
       setRes(await api.analyzeVacancy(text));
     } catch {
-      /* toast у store для мутацій; тут аналіз без мутації */
+      /* toast lives in the store for mutations; this analysis doesn't use a mutation */
     } finally {
       setBusy(false);
     }
@@ -37,23 +37,23 @@ export function Analyzer() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Аналіз вакансії"
-        subtitle="Встав текст вакансії — визначу стек, рівень і прогалини під твій профіль. Додані/спарсені навички одразу підуть у радар, роудмапу й аналітику."
+        title="Vacancy analysis"
+        subtitle="Paste a vacancy's text — I'll detect the stack, level, and gaps against your profile. Added/parsed skills immediately flow into the radar, roadmap, and analytics."
       />
 
       <Card>
-        <div className="text-sm font-semibold mb-1 text-slate-700">🔗 Автопарсинг за посиланнями</div>
+        <div className="text-sm font-semibold mb-1 text-slate-700">🔗 Auto-parse by links</div>
         <p className="text-xs text-slate-500 mb-2">
-          Пройдеться по всіх доданих вакансіях, завантажить текст за посиланням і оновить стек/рівень/fit. Дані миттєво зʼявляться у
-          Skill-radar, Аналітиці та Роудмапі.
+          Goes through every added vacancy, fetches the text from its link, and updates the stack/level/fit. Data shows up immediately in
+          Skill radar, Analytics, and Roadmap.
         </p>
         <Btn onClick={fetchAll} loading={batchBusy}>
-          {batchBusy ? "Парсю всі вакансії…" : "🔗 Спарсити й проаналізувати всі вакансії"}
+          {batchBusy ? "Analyzing all vacancies…" : "🔗 Analyze all vacancies"}
         </Btn>
         {batch && (
           <div className="mt-3 text-sm">
             <div className="text-slate-600 mb-2">
-              Оброблено: <b>{batch.processed}</b>
+              Processed: <b>{batch.processed}</b>
             </div>
             <div className="space-y-1 max-h-64 overflow-auto">
               {batch.results.map((r) => (
@@ -77,12 +77,12 @@ export function Analyzer() {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          aria-label="Текст вакансії для аналізу"
-          placeholder="Встав текст вакансії…"
+          aria-label="Vacancy text to analyze"
+          placeholder="Paste the vacancy's text…"
           className="w-full h-40 bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
         />
         <Btn className="mt-2" onClick={run} loading={busy} disabled={!text}>
-          {busy ? "Аналізую…" : "Проаналізувати"}
+          {busy ? "Analyzing…" : "Analyze"}
         </Btn>
       </Card>
 
@@ -94,12 +94,12 @@ export function Analyzer() {
             {res.level && <Chip>{res.level}</Chip>}
             {res.semanticFit != null && (
               <Chip tone={res.semanticFit >= 0.75 ? "emerald" : res.semanticFit >= 0.5 ? "amber" : "rose"}>
-                🧠 Семантична схожість з CV: {Math.round(res.semanticFit * 100)}%
+                🧠 Semantic similarity to CV: {Math.round(res.semanticFit * 100)}%
               </Chip>
             )}
           </div>
           <div>
-            <div className="text-xs text-slate-500 mb-1">✅ Збіг із твоїм стеком</div>
+            <div className="text-xs text-slate-500 mb-1">✅ Match with your stack</div>
             <div className="flex flex-wrap gap-1">
               {res.match.length ? (
                 res.match.map((t) => (
@@ -113,7 +113,7 @@ export function Analyzer() {
             </div>
           </div>
           <div>
-            <div className="text-xs text-slate-500 mb-1">⚠️ Прогалини (що підтягнути)</div>
+            <div className="text-xs text-slate-500 mb-1">⚠️ Gaps (what to pick up)</div>
             <div className="flex flex-wrap gap-1">
               {res.gap.length ? (
                 res.gap.map((t) => (
@@ -122,7 +122,7 @@ export function Analyzer() {
                   </Chip>
                 ))
               ) : (
-                <span className="text-slate-400 text-sm">Немає — ти покриваєш стек!</span>
+                <span className="text-slate-400 text-sm">None — you cover the stack!</span>
               )}
             </div>
           </div>
@@ -131,10 +131,10 @@ export function Analyzer() {
             variant="ghost"
             loading={addVacancyMutation.isPending}
             onClick={() =>
-              addVacancyMutation.mutate({ company: "З аналізу", position: "", stack: res.techs, fit: res.fit, level: res.level })
+              addVacancyMutation.mutate({ company: "From analysis", position: "", stack: res.techs, fit: res.fit, level: res.level })
             }
           >
-            + Додати цю вакансію у трекер
+            + Add this vacancy to the tracker
           </Btn>
         </Card>
       )}

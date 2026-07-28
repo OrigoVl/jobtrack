@@ -3,10 +3,10 @@ import type { Toast, ToastType } from "./types";
 import { ToastContext } from "./toast-context";
 
 /**
- * Легкий, ізольований від даних контекст для toast-повідомлень. Раніше жив усередині
- * "великого" StoreContext разом з усіма даними застосунку — будь-який toast викликав
- * ре-рендер кожного споживача useStore(). Винесений окремо, щоб toasts не зачіпали
- * компоненти, які працюють лише з даними (вакансії/профіль/аналітика тощо).
+ * A lightweight context for toast messages, isolated from app data. It used to live inside
+ * the "big" StoreContext along with all the app's data — any toast triggered a re-render of
+ * every useStore() consumer. Split out separately so toasts don't affect components that only
+ * work with data (vacancies/profile/analytics, etc.).
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);

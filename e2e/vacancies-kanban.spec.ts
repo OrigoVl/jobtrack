@@ -1,26 +1,26 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Наскрізний тест ключового флоу: додавання вакансії + клавіатурне переміщення картки
- * в Kanban-режимі (альтернатива drag-and-drop, критична для доступності — див. vacancies.tsx).
+ * End-to-end test of the key flow: adding a vacancy + moving its card via keyboard
+ * in Kanban view (an alternative to drag-and-drop, critical for accessibility — see vacancies.tsx).
  */
 test("adds a vacancy and moves its card via keyboard in Kanban view", async ({ page }) => {
   await page.goto("/vacancies");
 
-  await page.getByRole("button", { name: "+ Додати вакансію" }).click();
+  await page.getByRole("button", { name: "+ Add vacancy" }).click();
 
-  // Перемикаємось на Kanban-режим, де живе клавіатурна навігація.
-  await page.getByRole("button", { name: "🗂 Канбан" }).click();
+  // Switch to Kanban view, where keyboard navigation lives.
+  await page.getByRole("button", { name: "🗂 Kanban" }).click();
 
-  const card = page.getByRole("button", { name: /Нова компанія, Позиція\. Статус: Хочу подати\./ }).first();
+  const card = page.getByRole("button", { name: /New company, Position\. Status: Want to apply\./ }).first();
   await expect(card).toBeVisible();
 
   await card.focus();
   await page.keyboard.press("ArrowRight");
 
-  // Після переміщення картка повинна опинитись у наступній колонці зі статусом
-  // "Відправив CV" (наступний елемент масиву STATUSES) — і фокус лишається на ній.
-  const movedCard = page.getByRole("button", { name: /Нова компанія, Позиція\. Статус: Відправив CV\./ }).first();
+  // After the move, the card should end up in the next column with status
+  // "Applied" (the next element in the STATUSES array) — and focus stays on it.
+  const movedCard = page.getByRole("button", { name: /New company, Position\. Status: Applied\./ }).first();
   await expect(movedCard).toBeVisible();
   await expect(movedCard).toBeFocused();
 });

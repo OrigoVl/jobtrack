@@ -1,9 +1,9 @@
-// tryAutoEnrichStack() — best-effort автозбагачення стеку вакансії за посиланням (викликається
-// автоматично при створенні/оновленні вакансії з URL і при імпорті — див. vacancies.routes.ts).
-// Ключовий контракт: НІКОЛИ не кидає й не блокує виклик — заблокований SSRF-захистом хост,
-// мережева помилка чи порожня сторінка мають тихо повертати null. SSRF-блок (внутрішні/локальні
-// адреси) тестуємо тут окремо від assertSafeVacancyUrl (validation.test.ts), бо саме
-// tryAutoEnrichStack гарантує "без мережі".
+// tryAutoEnrichStack() — best-effort auto-enrichment of a vacancy's stack from its link (called
+// automatically when creating/updating a vacancy from a URL and on import — see vacancies.routes.ts).
+// Key contract: it NEVER throws or blocks the caller — a host blocked by SSRF protection, a
+// network error, or an empty page must all silently return null. We test the SSRF block
+// (internal/local addresses) here separately from assertSafeVacancyUrl (validation.test.ts),
+// because it's specifically tryAutoEnrichStack that guarantees "no network call".
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../db/index.js", () => ({
@@ -49,13 +49,13 @@ describe("tryAutoEnrichStack()", () => {
     const result = await tryAutoEnrichStack("https://169.254.169.254/latest/meta-data/");
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
-    // SSRF-блок — очікуваний, "тихий" по духу випадок: лише debug, не warn/error (не шумимо).
+    // An SSRF block is an expected, deliberately "quiet" case: only debug, not warn/error (no noise).
     expect(mockLog.debug).toHaveBeenCalledOnce();
     expect(mockLog.warn).not.toHaveBeenCalled();
   });
 
   it("fetches and analyzes the page text for a dou.ua vacancy url", async () => {
-    const html = `<html><body>${"Шукаємо Senior React TypeScript розробника, Docker буде плюсом. ".repeat(5)}</body></html>`;
+    const html = `<html><body>${"Looking for a Senior React TypeScript developer, Docker will be a plus. ".repeat(5)}</body></html>`;
     fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(html) });
 
     const result = await tryAutoEnrichStack("https://jobs.dou.ua/companies/acme/vacancies/1/");
@@ -66,9 +66,10 @@ describe("tryAutoEnrichStack()", () => {
     expect(result?.match).toContain("React");
   });
 
-  // Найважливіший тест для цієї зміни: раніше НЕ-dou.ua хост блокувався allowlist'ом ще до
-  // мережевого запиту (assertSafeVacancyUrl) — тепер довільний публічний хост (тут: умовний
-  // LinkedIn) успішно проходить SSRF-перевірку й аналізується так само, як jobs.dou.ua.
+  // The most important test for this change: a non-dou.ua host used to be blocked by the
+  // allowlist before the network request even happened (assertSafeVacancyUrl) — now an
+  // arbitrary public host (here: a stand-in for LinkedIn) passes the SSRF check successfully
+  // and is analyzed the same way as jobs.dou.ua.
   it("fetches and analyzes the page text for an arbitrary public (non-dou.ua) vacancy url", async () => {
     const html = `<html><body>${"Looking for a Senior React TypeScript engineer, Docker is a plus. ".repeat(5)}</body></html>`;
     fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(html) });

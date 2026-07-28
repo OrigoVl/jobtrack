@@ -32,8 +32,8 @@ describe("computeFit", () => {
     const demand = { React: 20, COBOL: 1 };
     const withDemand = computeFit(["React"], ["COBOL"], demand);
     const withoutDemand = computeFit(["React"], ["COBOL"]);
-    // Без мапи попиту 1 match / 1 gap — це рівно 50/50 (med); з мапою попиту React (типова,
-    // високопопитна навичка) переважує нішевий COBOL-геп — оцінка стає вищою (high).
+    // Without a demand map, 1 match / 1 gap is exactly 50/50 (med); with a demand map, React
+    // (a common, high-demand skill) outweighs the niche COBOL gap — the score becomes higher (high).
     expect(withoutDemand).toBe("med");
     expect(withDemand).toBe("high");
   });

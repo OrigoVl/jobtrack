@@ -4,10 +4,10 @@ import { chatJson, llmAvailable } from "../../llm/index.js";
 import { getKvJson, setKvJson, type Profile } from "../../db/index.js";
 import { hashString } from "../../shared/hash.js";
 
-// focus.nullable().catch(null) (не .catch("")) — DynamicKnowledge.focus типізовано як
-// `string | null` нижче: null означає "модель нічого персонального не дала", на відміну
-// від порожнього рядка (мала що сказати, але сказала "нічого") — та сама різниця, що й
-// у старій ручній перевірці `typeof out?.focus === "string" ? out.focus : null`.
+// focus.nullable().catch(null) (not .catch("")) — DynamicKnowledge.focus is typed as
+// `string | null` below: null means "the model gave nothing personal", as opposed to an
+// empty string (had something to say, but said "nothing") — the same distinction as the
+// old manual check `typeof out?.focus === "string" ? out.focus : null`.
 const DynamicKnowledgeSchema = z.object({
   focus: z.string().nullable().catch(null),
   learn: z.array(z.string()),
@@ -17,15 +17,15 @@ const DynamicKnowledgeSchema = z.object({
     .default([]),
 });
 
-// Динамічна база знань: LLM генерує ПЕРСОНАЛЬНИЙ навчальний фокус під конкретного
-// кандидата (враховуючи його наявні навички з CV і попит вакансій). Кешується в БД.
-// Якщо LLM недоступний — прозорий fallback на статичну knowledge-base.ts.
+// Dynamic knowledge base: the LLM generates a PERSONAL learning focus for the specific
+// candidate (accounting for their existing skills from the CV and vacancy demand). Cached in
+// the DB. If the LLM is unavailable — a transparent fallback to the static knowledge-base.ts.
 function hashSkills(skills: string[]): string {
   return hashString([...skills].sort((a, b) => a.localeCompare(b)).join(","));
 }
 
-// Перевірка «живості» посилання (щоб LLM не підсунув битий/вигаданий URL).
-// SSRF-безпека: лише https, без localhost/приватних хостів.
+// Checks that a link is "alive" (so the LLM can't slip in a broken/made-up URL).
+// SSRF safety: https only, no localhost/private hosts.
 async function isReachableUrl(rawUrl: string): Promise<boolean> {
   let url: URL;
   try {
@@ -53,7 +53,7 @@ async function isReachableUrl(rawUrl: string): Promise<boolean> {
   }
 }
 
-// Валідуємо AI-посилання паралельно й лишаємо тільки живі, дедуплікуючи з курованими.
+// Validate AI-suggested links in parallel and keep only the live ones, deduped against the curated set.
 async function validateResources(curated: Resource[], aiResources: { t: string; u: string }[]): Promise<Resource[]> {
   const curatedUrls = new Set(curated.map((r) => r.u));
   const candidates = aiResources.filter((r) => !curatedUrls.has(r.u)).slice(0, 4);
@@ -84,7 +84,7 @@ interface CachedKnowledgePayload {
   resources: Resource[];
 }
 
-/** Повертає навчальний контент для технології, персоналізований під кандидата. */
+/** Returns learning content for a technology, personalized for the candidate. */
 export async function getDynamicKnowledge(tech: string, { profile, demand }: DynamicKnowledgeContext): Promise<DynamicKnowledge> {
   const base = kbFor(tech);
   const shared = { tech, drills: base.drills, cards: base.cards };
@@ -105,16 +105,16 @@ export async function getDynamicKnowledge(tech: string, { profile, demand }: Dyn
     };
   }
   const count = demand[tech] || 0;
-  const role = profile.domain || "фахівець";
+  const role = profile.domain || "professional";
   const out = await chatJson(
-    `Ти ментор для ролі «${role}». Відповідай ЛИШЕ валідним JSON українською.`,
-    `Кандидат уже знає: ${skills.join(", ") || "—"}.\n` +
-      `Йому треба підтягнути «${tech}»${count ? ` (потрібно у ${count} вакансіях зі списку)` : ""}.\n` +
-      `Наводь мости від знайомого стеку до нового; не дублюй те, що він уже знає.\n` +
-      `Поверни JSON строго такого формату (без markdown):\n` +
-      `{"focus":"1-2 речення персональної поради саме для цього кандидата",` +
-      `"learn":["5-7 конкретних тем від простого до складного, орієнтованих на співбесіду"],` +
-      `"resources":[{"t":"назва","u":"https-URL офіційної документації або відомого туторіалу"}]}`,
+    `You are a mentor for the role "${role}". Respond with ONLY valid JSON in English.`,
+    `The candidate already knows: ${skills.join(", ") || "—"}.\n` +
+      `They need to pick up "${tech}"${count ? ` (required in ${count} vacancies from the list)` : ""}.\n` +
+      `Build bridges from their familiar stack to the new one; don't duplicate what they already know.\n` +
+      `Return JSON strictly in this format (no markdown):\n` +
+      `{"focus":"1-2 sentences of personal advice specifically for this candidate",` +
+      `"learn":["5-7 concrete topics from easy to advanced, interview-oriented"],` +
+      `"resources":[{"t":"name","u":"https URL of official docs or a well-known tutorial"}]}`,
     DynamicKnowledgeSchema,
     { maxTokens: 650, temperature: 0.4, tier: "smart" },
   );

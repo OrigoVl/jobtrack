@@ -4,18 +4,19 @@ export interface RunResult {
   ms: number;
 }
 
-// Максимальний час виконання коду в пісочниці, перш ніж її форсовано вбити (worker.terminate()).
-// Потрібен насамперед НЕ проти зловмисного коду (це однокористувацький локальний застосунок),
-// а проти нескінченного циклу — власного чи згенерованого LLM (LLM іноді помиляється й видає
-// `sol` з багом типу `while (i < arr.length)` без i++). Раніше (new Function на головному потоці,
-// без жодного реального таймауту) така помилка вішала всю вкладку без порятунку крім force-quit.
+// Maximum execution time for code in the sandbox, before it's forcibly killed (worker.terminate()).
+// This isn't primarily a defense against malicious code (this is a single-user local app), but
+// against an infinite loop — either our own or LLM-generated (the LLM occasionally makes a
+// mistake and emits a `sol` with a bug like `while (i < arr.length)` with no i++). Previously
+// (new Function on the main thread, with no real timeout at all) an error like that hung the
+// whole tab with no way out but a force-quit.
 const EXECUTION_TIMEOUT_MS = 3000;
 
-// Код воркера — рядок, а не окремий файл: пісочниця запускається одноразово на клік і має бути
-// максимально простою (без окремого запису у Vite-збірку статичного worker-бандла). Worker —
-// ІЗОЛЬОВАНИЙ контекст: немає window/document/localStorage/cookies головної сторінки, тож навіть
-// код із LLM-згенерованого завдання (яке ми НЕ переглядаємо перед показом користувачу) не може
-// прочитати чи змінити стан застосунку — лише порахувати щось і повернути console.log-виведення.
+// The worker's code is a string, not a separate file: the sandbox is spun up once per click and
+// should be as simple as possible (no separate static worker-bundle entry in the Vite build).
+// The Worker is an ISOLATED context: no window/document/localStorage/cookies from the main page,
+// so even code from an LLM-generated task (which we do NOT review before showing it to the user)
+// can't read or change the app's state — it can only compute something and return console.log output.
 const WORKER_SOURCE = `
 self.onmessage = (e) => {
   const logs = [];
@@ -41,10 +42,10 @@ self.onmessage = (e) => {
 `;
 
 /**
- * Запускає довільний JS-код у справжній пісочниці (Web Worker — окремий потік/контекст без
- * доступу до DOM/window/localStorage головної сторінки) з жорстким таймаутом: якщо код не
- * завершився за EXECUTION_TIMEOUT_MS (напр. нескінченний цикл), воркер форсовано вбивається
- * (`terminate()`) і повертається помилка — замість підвішування вкладки.
+ * Runs arbitrary JS code in a real sandbox (a Web Worker — a separate thread/context with no
+ * access to the main page's DOM/window/localStorage) with a hard timeout: if the code doesn't
+ * finish within EXECUTION_TIMEOUT_MS (e.g. an infinite loop), the worker is forcibly killed
+ * (`terminate()`) and an error is returned — instead of hanging the tab.
  */
 export function runJs(code: string): Promise<RunResult> {
   return new Promise((resolve) => {
@@ -54,7 +55,7 @@ export function runJs(code: string): Promise<RunResult> {
     let settled = false;
 
     const finish = (result: RunResult): void => {
-      if (settled) return; // не даємо onmessage і onTimeout обом резолвнути результат
+      if (settled) return; // prevent both onmessage and onTimeout from resolving the result
       settled = true;
       clearTimeout(timeoutId);
       worker.terminate();
@@ -65,15 +66,15 @@ export function runJs(code: string): Promise<RunResult> {
     const timeoutId = setTimeout(() => {
       finish({
         logs: [],
-        error: `⏱ Перевищено ліміт часу виконання (${EXECUTION_TIMEOUT_MS} мс) — можливо, нескінченний цикл.`,
+        error: `⏱ Execution time limit exceeded (${EXECUTION_TIMEOUT_MS} ms) — possibly an infinite loop.`,
         ms: Math.round(performance.now() - start),
       });
     }, EXECUTION_TIMEOUT_MS);
 
     worker.onmessage = (e: MessageEvent<RunResult>) => finish(e.data);
-    // onerror — синтаксична помилка ПРИ КОМПІЛЯЦІЇ коду воркера самого чи неперехоплений
-    // виняток поза try/catch воркера (напр. помилка в самому WORKER_SOURCE) — теоретично
-    // не повинно траплятись, але без обробника такий випадок завис би до таймауту мовчки.
+    // onerror — a syntax error WHILE COMPILING the worker's own code, or an uncaught exception
+    // outside the worker's try/catch (e.g. a bug in WORKER_SOURCE itself) — shouldn't happen in
+    // theory, but without a handler a case like this would hang silently until the timeout.
     worker.onerror = (e: ErrorEvent) => finish({ logs: [], error: `${e.message}`, ms: Math.round(performance.now() - start) });
 
     worker.postMessage(code);

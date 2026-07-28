@@ -1,14 +1,14 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Наскрізний тест ключового флоу: клік по кружечку статусу навички в Роудмапі циклічно
- * міняє статус (не почато → вчу → знаю → не почато) і зберігає його на бекенді
- * (features/roadmap/roadmap.tsx -> POST /api/roadmap/status).
+ * End-to-end test of a key flow: clicking a skill's status circle in the Roadmap cyclically
+ * changes its status (not started → learning → know it → not started) and persists it on the
+ * backend (features/roadmap/roadmap.tsx -> POST /api/roadmap/status).
  *
- * Прив'язуємось до КОНКРЕТНОЇ навички за назвою (а не до "першого" вузла за позицією):
- * порядок вузлів у групі сортується за попитом (demand), який може змінитись між кроками
- * цього тесту через інші E2E-специфікації, що паралельно додають вакансії (спільна БД
- * для всіх тестів у прогоні) — позиційний локатор був би нестабільним після reload.
+ * We key on a SPECIFIC skill by name (not the "first" node by position): node order within a
+ * group is sorted by demand, which can change between steps of this test because other E2E
+ * specs concurrently add vacancies (a shared DB across all tests in the run) — a positional
+ * locator would be unstable after a reload.
  */
 test("toggles a roadmap node status and persists it across reload", async ({ page }) => {
   await page.goto("/roadmap");
@@ -18,11 +18,12 @@ test("toggles a roadmap node status and persists it across reload", async ({ pag
   const techName = (await nodeCard.locator("span.font-semibold").first().textContent())?.trim() ?? "";
   expect(techName).not.toBe("");
 
-  const statusButton = nodeCard.locator('button[title^="Клік — змінити статус"]');
+  const statusButton = nodeCard.locator('button[title^="Click to change status"]');
   const before = await statusButton.textContent();
-  // Мутація оптимістична (UI оновлюється миттєво, до відповіді сервера) — чекаємо саме
-  // на мережеву відповідь PUT /api/roadmap/progress, інакше reload() нижче може перервати
-  // ще не завершений запит, і сервер так і не збереже зміну (флейкі тест).
+  // The mutation is optimistic (the UI updates instantly, before the server responds) — we
+  // wait for the actual network response to PUT /api/roadmap/progress, otherwise the reload()
+  // below could interrupt a request that hasn't finished yet, and the server would never save
+  // the change (a flaky test).
   const [response] = await Promise.all([
     page.waitForResponse((res) => res.url().includes("/api/roadmap/progress") && res.request().method() === "PUT"),
     statusButton.click(),
@@ -34,5 +35,5 @@ test("toggles a roadmap node status and persists it across reload", async ({ pag
   await page.reload();
 
   const nodeCardAfterReload = page.locator("div.relative.pl-8").filter({ has: page.getByText(techName, { exact: true }) });
-  await expect(nodeCardAfterReload.locator('button[title^="Клік — змінити статус"]')).toHaveText(after ?? "");
+  await expect(nodeCardAfterReload.locator('button[title^="Click to change status"]')).toHaveText(after ?? "");
 });

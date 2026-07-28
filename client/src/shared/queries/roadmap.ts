@@ -28,7 +28,7 @@ interface RoadmapCtx {
   previous?: RoadmapData;
 }
 
-/** Оптимістичне перемикання статусу навички з відкатом при помилці мережі. */
+/** Optimistic toggling of skill status with rollback on network error. */
 export function useSetRoadmapStatus() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -42,7 +42,7 @@ export function useSetRoadmapStatus() {
     },
     onError: (e, _vars, ctx) => {
       if (ctx?.previous) qc.setQueryData(queryKeys.roadmap, ctx.previous);
-      toast(e instanceof Error ? e.message : "Сталася помилка", "error");
+      toast(e instanceof Error ? e.message : "An error occurred", "error");
     },
   });
 }

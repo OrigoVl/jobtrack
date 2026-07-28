@@ -19,7 +19,7 @@ describe("buildIdf()", () => {
       ["react", "go"],
     ];
     const idf = buildIdf(docs);
-    // "react" з'являється в усіх 3 документах — низька IDF; "docker" — лише в одному — вища.
+    // "react" appears in all 3 documents — low IDF; "docker" — in only one — higher.
     expect(idf.get("docker")!).toBeGreaterThan(idf.get("react")!);
   });
 });
@@ -58,10 +58,10 @@ describe("jobDocument()", () => {
 });
 
 describe("rankByTfidf() — the actual fix for DOU jobs never being ranked", () => {
-  // Реальний випадок, який зараз ламається: DOU-вакансії ЗАВЖДИ мають tags:[] (сирий
-  // XML-фід не містить тегів) — старе сортування за matchCount (тегами) не могло їх
-  // ранжувати взагалі. TF-IDF рахує документ з POSITION теж — тож DOU-вакансія з
-  // релевантним заголовком тепер отримує реальний score, не завжди 0.
+  // A real case this fixes: DOU vacancies ALWAYS have tags:[] (the raw XML feed has no
+  // tags) — the old matchCount (tag-based) sorting couldn't rank them at all. TF-IDF also
+  // builds the document from POSITION — so a DOU vacancy with a relevant title now gets
+  // a real score, not always 0.
   it("ranks a DOU-style job (no tags) above an irrelevant job purely from its title text", () => {
     const relevantDou = { position: "Senior React TypeScript Developer", tags: [] as string[] };
     const irrelevant = { position: "Java Backend Engineer", tags: [] as string[] };

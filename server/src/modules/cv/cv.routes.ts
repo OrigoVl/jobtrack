@@ -21,7 +21,7 @@ r.put("/profile", (req, res) => {
   res.json(getProfile());
 });
 
-// ---------- аналіз CV відносно попиту ринку ----------
+// ---------- CV analysis against market demand ----------
 r.post(
   "/cv/analyze",
   aiLimiter,
@@ -35,22 +35,23 @@ r.post(
   aiLimiter,
   uploadSingle("file"),
   asyncHandler(async (req, res) => {
-    if (!req.file) throw new HttpError(400, "Файл не отримано");
+    if (!req.file) throw new HttpError(400, "No file received");
     const text = await extractText(req.file.buffer, req.file.originalname, req.file.mimetype);
     if (!text || text.trim().length < 20) {
-      throw new HttpError(422, "Не вдалося витягти текст із файлу (можливо, це скан/зображення).");
+      throw new HttpError(422, "Couldn't extract text from the file (it might be a scan or image).");
     }
     const profile = getProfile();
-    // extractSkills і detectDomain — незалежні LLM-виклики над тим самим текстом (жоден не
-    // читає результат іншого), тож запускаємо їх паралельно замість послідовного очікування —
-    // майже вдвічі швидше для юзера на завантаженні CV.
+    // extractSkills and detectDomain are independent LLM calls over the same text (neither
+    // reads the other's result), so we run them in parallel instead of waiting sequentially —
+    // almost twice as fast for the user when uploading a CV.
     const [cvTechs, domain] = await Promise.all([extractSkills(text), detectDomain(text)]);
     profile.cvText = text.slice(0, 8000);
     profile.skills = Array.from(new Set([...profile.skills, ...cvTechs]));
     if (domain) profile.domain = domain;
     setProfile(profile);
-    // cvAnalysis (порада з попиту ринку) і parseCvDocFromText (парсинг у структуру конструктора)
-    // теж незалежні одне від одного — обидва лише читають уже збережений profile.cvText.
+    // cvAnalysis (advice based on market demand) and parseCvDocFromText (parsing into the
+    // builder structure) are also independent of each other — both only read the already
+    // saved profile.cvText.
     const [analysis, cvDoc] = await Promise.all([
       cvAnalysis(text),
       llmAvailable() ? parseCvDocFromText(profile.cvText) : Promise.resolve(null),
@@ -67,12 +68,12 @@ r.post(
     const done = strs(req.body?.completed);
     const profile = getProfile();
     const merged = Array.from(new Set([...profile.skills, ...done]));
-    const role = profile.domain || "фахівець";
+    const role = profile.domain || "specialist";
     let text = `Skills: ${merged.join(", ")}`;
     if (llmAvailable()) {
       const llm = await chat(
-        "Ти пишеш ATS-friendly секцію навичок для резюме.",
-        `Згенеруй секцію ключових навичок, згруповану за логічними темами, для ролі «${role}» з навичками: ${merged.join(", ")}. Стисло, буллети, мовою резюме.`,
+        "You write an ATS-friendly skills section for a resume.",
+        `Generate a key skills section, grouped by logical topics, for the role "${role}" with skills: ${merged.join(", ")}. Concise, bullet points, in the resume's language.`,
         { maxTokens: 400, cache: true },
       );
       if (llm) text = llm;
@@ -81,18 +82,18 @@ r.post(
   }),
 );
 
-// ---------- глибокий рев'ю CV (структуровані, дієві поради) ----------
+// ---------- in-depth CV review (structured, actionable advice) ----------
 r.post(
   "/cv/review",
   aiLimiter,
   asyncHandler(async (req, res) => {
     const cvText = String(req.body?.cvText || getProfile().cvText || "").slice(0, 8000);
-    if (cvText.trim().length < 30) throw new HttpError(400, "Замало тексту CV для рев'ю");
+    if (cvText.trim().length < 30) throw new HttpError(400, "Not enough CV text to review");
     res.json(await reviewCv(cvText));
   }),
 );
 
-// ---------- порівняння CV з конкретною вакансією ----------
+// ---------- comparing a CV against a specific vacancy ----------
 r.post(
   "/cv/match",
   aiLimiter,
@@ -100,13 +101,13 @@ r.post(
     const cvText = String(req.body?.cvText || getProfile().cvText || "").slice(0, 8000);
     const jobTitle = String(req.body?.jobTitle || "").slice(0, 200);
     const jobText = String(req.body?.jobText || "").slice(0, 4000);
-    if (cvText.trim().length < 30) throw new HttpError(400, "Замало тексту CV для порівняння");
-    if (!jobTitle.trim() && !jobText.trim()) throw new HttpError(400, "Немає даних вакансії для порівняння");
+    if (cvText.trim().length < 30) throw new HttpError(400, "Not enough CV text to compare");
+    if (!jobTitle.trim() && !jobText.trim()) throw new HttpError(400, "No vacancy data to compare against");
     res.json(await matchCv(cvText, jobTitle, jobText));
   }),
 );
 
-// ---------- конструктор CV (структуроване резюме) ----------
+// ---------- CV builder (structured resume) ----------
 r.get("/cv/doc", (_q, res) => {
   const stored = getKvJson("cvDoc");
   res.json(stored ? CvDocSchema.parse(stored) : emptyCvDoc());
@@ -128,15 +129,15 @@ r.post(
   "/cv/linkedin-import",
   uploadSingle("file"),
   asyncHandler(async (req, res) => {
-    if (!req.file) throw new HttpError(400, "Файл не отримано");
+    if (!req.file) throw new HttpError(400, "No file received");
     let parsed;
     try {
       parsed = parseLinkedInArchive(req.file.buffer);
     } catch {
-      throw new HttpError(422, "Не вдалося прочитати архів. Це має бути .zip експорт LinkedIn (Settings → Get a copy of your data).");
+      throw new HttpError(422, "Couldn't read the archive. It must be a .zip export from LinkedIn (Settings → Get a copy of your data).");
     }
     if (!parsed.name && !parsed.experience.length && !parsed.skills.length) {
-      throw new HttpError(422, "У архіві не знайдено Profile.csv / Positions.csv / Skills.csv.");
+      throw new HttpError(422, "No Profile.csv / Positions.csv / Skills.csv found in the archive.");
     }
     const doc = CvDocSchema.parse(parsed);
     setKvJson("cvDoc", doc);
@@ -165,16 +166,16 @@ r.post(
   asyncHandler(async (req, res) => {
     const text = String(req.body?.text || "").trim();
     const kind = String(req.body?.kind || "bullet");
-    if (text.length < 3) throw new HttpError(400, "Порожній текст");
+    if (text.length < 3) throw new HttpError(400, "Empty text");
     if (!llmAvailable()) return res.json({ text, offline: true });
-    const role = getProfile().domain || "фахівець";
+    const role = getProfile().domain || "specialist";
     const guide =
       kind === "summary"
-        ? "Перепиши це резюме-самарі (2-3 речення): чіпляюче, з фокусом на результатах і ключових навичках."
-        : "Перепиши цей пункт досвіду за формулою «сильне дієслово → що зробив → технологія → вимірюваний результат». Одне речення, без води.";
+        ? "Rewrite this resume summary (2-3 sentences): engaging, with a focus on results and key skills."
+        : 'Rewrite this experience bullet using the formula "strong verb → what you did → technology → measurable result". One sentence, no fluff.';
     const out = await chat(
-      `Ти редактор резюме для ролі «${role}». Пиши стисло, з фокусом на результат, мовою оригіналу.`,
-      `${guide}\n\nОригінал: ${text.slice(0, 600)}`,
+      `You are a resume editor for the role "${role}". Write concisely, with a focus on results, in the original language.`,
+      `${guide}\n\nOriginal: ${text.slice(0, 600)}`,
       { maxTokens: 200, temperature: 0.5, cache: true, tier: "smart" },
     );
     res.json({ text: out || text });

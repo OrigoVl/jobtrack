@@ -1,16 +1,16 @@
-// Contract-тести офлайн-фолбеку LLM-клієнта: незалежно від того, що просить викликач,
-// без сконфігурованого ключа провайдера `chat()` МАЄ повертати null, а не кидати виняток
-// чи намагатись достукатись до мережі. Це основний контракт, на який покладаються всі
-// сервіси (writing, knowledge, cv-analysis тощо) для graceful-деградації без API-ключа.
+// Contract tests for the LLM client's offline fallback: regardless of what the caller asks for,
+// without a configured provider key `chat()` MUST return null instead of throwing
+// or trying to reach the network. This is the core contract that all
+// services (writing, knowledge, cv-analysis, etc.) rely on for graceful degradation without an API key.
 //
-// process.env стабиться на undefined (а не "") — порожній рядок не проходить
-// `.trim().min(1).optional()` у config/env.ts і завалить процес валідації (той самий
-// нюанс, що й у playwright.config.ts для e2e). vi.resetModules() + динамічний import
-// потрібні, бо env.ts читає process.env один раз при імпорті (модуль кешується).
+// process.env is stubbed to undefined (not "") — an empty string doesn't pass
+// `.trim().min(1).optional()` in config/env.ts and would fail the validation process (the same
+// nuance as in playwright.config.ts for e2e). vi.resetModules() + a dynamic import
+// are needed because env.ts reads process.env once at import time (the module is cached).
 //
-// db/index.js мокнуто, бо client.ts імпортує звідти getKvJson/setKvJson лише для
-// опційного кешу відповідей — реальний модуль тягне node:sqlite, який vite/vitest не
-// вміє трансформувати при динамічному реімпорті (тест мусить лишатись ізольованим від БД).
+// db/index.js is mocked because client.ts imports getKvJson/setKvJson from there only for
+// the optional response cache — the real module pulls in node:sqlite, which vite/vitest can't
+// transform on a dynamic re-import (the test must stay isolated from the db).
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/index.js", () => ({
@@ -20,11 +20,11 @@ vi.mock("../db/index.js", () => ({
 
 describe("chat() / llmAvailable() offline fallback", () => {
   beforeAll(async () => {
-    // "dotenv/config" — зовнішній пакет (не файл з src/), тож vi.resetModules() не чіпає
-    // його кеш: side-effect (заповнення process.env) виконується лише ОДИН РАЗ за час
-    // життя процесу. Прогріваємо його тут, до першого vi.stubEnv нижче — інакше перший
-    // dynamic import у тестах спровокує відкладений dotenv.config(), який перезапише щойно
-    // видалену змінну реальним значенням із server/.env.
+    // "dotenv/config" is an external package (not a file under src/), so vi.resetModules() doesn't touch
+    // its cache: the side effect (populating process.env) runs only ONCE for the
+    // lifetime of the process. We warm it up here, before the first vi.stubEnv below — otherwise the first
+    // dynamic import in the tests would trigger a deferred dotenv.config(), which would overwrite the just-
+    // deleted variable with the real value from server/.env.
     await import("dotenv/config");
   });
 
@@ -62,11 +62,11 @@ describe("chat() / llmAvailable() offline fallback", () => {
   });
 });
 
-// Регресія: провайдер, що відповідає НЕ-2xx статусом (недійсний ключ, rate limit, тимчасова
-// помилка), раніше не перевірявся через r.ok — callProvider тихо намагався прочитати тіло помилки
-// як успішну відповідь (d?.choices?.[0]?.message?.content не існує → text=""), і викликачі
-// (reviewCv/matchCv тощо) не могли відрізнити "провайдер повернув помилку" від "легітимної
-// порожньої відповіді" — обидва варіанти виглядали як null без жодного логу причини.
+// Regression: a provider responding with a non-2xx status (invalid key, rate limit, temporary
+// error) was previously not checked via r.ok — callProvider would silently try to read the error body
+// as a successful response (d?.choices?.[0]?.message?.content doesn't exist → text=""), and callers
+// (reviewCv/matchCv etc.) couldn't tell "the provider returned an error" apart from "a legitimate
+// empty response" — both cases looked like null with no log of the reason.
 describe("chat() surfaces provider failures instead of a silent null", () => {
   beforeAll(async () => {
     await import("dotenv/config");
@@ -85,8 +85,8 @@ describe("chat() surfaces provider failures instead of a silent null", () => {
   });
 
   it("returns null (not a thrown error) when the provider keeps responding with a non-2xx status", async () => {
-    // 429 — retryable, тож mockResolvedValue (без .Once) означає, що ОБИДВІ спроби (оригінал +
-    // 1 retry) отримають той самий 429 — і в результаті все одно null, а не виняток.
+    // 429 is retryable, so mockResolvedValue (without .Once) means BOTH attempts (original +
+    // 1 retry) get the same 429 — and the result is still null, not a thrown error.
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: false,
       status: 429,
@@ -98,14 +98,14 @@ describe("chat() surfaces provider failures instead of a silent null", () => {
   });
 
   it("returns null in json mode when the response is HTTP-ok but truncated/invalid JSON", async () => {
-    // Симулює найпоширенішу причину мовчазного провалу: генерація обірвалась по maxTokens
-    // ДО завершення JSON (response_format:json_object гарантує валідність лише БЕЗ обриву) —
-    // HTTP 200/ok, тож r.ok-перевірка це не ловить, і раніше це виглядало як звичайний null.
+    // Simulates the most common cause of silent failure: generation was cut off by maxTokens
+    // BEFORE the JSON closed (response_format:json_object only guarantees validity WITHOUT a cutoff) —
+    // HTTP 200/ok, so the r.ok check doesn't catch it, and previously this looked like a plain null.
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       status: 200,
       json: async () => ({
-        choices: [{ message: { content: '{"score":80,"summary":"Незакінчений рядок обірваний посере' }, finish_reason: "length" }],
+        choices: [{ message: { content: '{"score":80,"summary":"An unfinished string cut off mid-sente' }, finish_reason: "length" }],
       }),
     } as Response);
     const { chat } = await import("./client.js");
@@ -114,8 +114,8 @@ describe("chat() surfaces provider failures instead of a silent null", () => {
   });
 
   it("retries once on a transient 429 and succeeds if the second attempt is ok", async () => {
-    // Симулює короткочасне перевантаження провайдера: перша спроба 429, друга — успішна.
-    // callProvider() має розпізнати 429 як "варте повтору" і зробити РІВНО один retry.
+    // Simulates a transient provider overload: first attempt 429, second — successful.
+    // callProvider() must recognize 429 as "worth a retry" and make EXACTLY one retry.
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce({
@@ -160,10 +160,10 @@ describe("chat() surfaces provider failures instead of a silent null", () => {
   });
 });
 
-// Регресія/фіча: раніше client.ts мав жорстко один провайдер (env.LLM_PROVIDER) — короткочасний
-// outage/rate-limit цього ЄДИНОГО провайдера клав усі AI-фічі в офлайн, навіть якщо власник
-// випадково мав налаштований і ДРУГИЙ ключ. Тепер, якщо задано ОБИДВА ключі, primary-провайдер,
-// що повністю провалився (після власної спроби+retry), автоматично пробується через secondary.
+// Regression/feature: previously client.ts hard-coded a single provider (env.LLM_PROVIDER) — a short
+// outage/rate-limit of that ONE provider put all AI features offline, even if the owner
+// happened to also have a SECOND key configured. Now, if BOTH keys are set, a primary provider
+// that fails completely (after its own attempt+retry) is automatically retried via the secondary.
 describe("callProvider() falls back to the secondary provider", () => {
   beforeAll(async () => {
     await import("dotenv/config");
@@ -194,7 +194,7 @@ describe("callProvider() falls back to the secondary provider", () => {
     const { chat } = await import("./client.js");
     const result = await chat("system", "user");
     expect(result).toBe("answer from anthropic");
-    // openai: 1 виклик (401 не retryable, без внутрішнього retry) + anthropic: 1 виклик = 2 всього.
+    // openai: 1 call (401 is not retryable, no internal retry) + anthropic: 1 call = 2 total.
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(String(fetchSpy.mock.calls[0]![0])).toContain("openai.com");
     expect(String(fetchSpy.mock.calls[1]![0])).toContain("anthropic.com");
@@ -214,7 +214,7 @@ describe("callProvider() falls back to the secondary provider", () => {
     const { chat } = await import("./client.js");
     const result = await chat("system", "user");
     expect(result).toBe("answer from anthropic");
-    // openai: 2 виклики (оригінал + 1 retry на 429) + anthropic: 1 виклик = 3 всього.
+    // openai: 2 calls (original + 1 retry on 429) + anthropic: 1 call = 3 total.
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 
@@ -240,12 +240,12 @@ describe("callProvider() falls back to the secondary provider", () => {
     const { chat } = await import("./client.js");
     const result = await chat("system", "user");
     expect(result).toBeNull();
-    expect(fetchSpy).toHaveBeenCalledTimes(2); // одна спроба на кожного (обидва 401 — не retryable)
+    expect(fetchSpy).toHaveBeenCalledTimes(2); // one attempt each (both 401 — not retryable)
   });
 });
 
-// Видимість вартості: нормалізація usage-полів провайдера (prompt_tokens/completion_tokens
-// для OpenAI, input_tokens/output_tokens для Anthropic) в ОДНУ форму для логів/агрегації.
+// Cost visibility: normalizes the provider's usage fields (prompt_tokens/completion_tokens
+// for OpenAI, input_tokens/output_tokens for Anthropic) into ONE shape for logs/aggregation.
 describe("normalizeUsage()", () => {
   it("maps OpenAI's prompt_tokens/completion_tokens/total_tokens as-is", async () => {
     const { normalizeUsage } = await import("./client.js");
@@ -265,8 +265,8 @@ describe("normalizeUsage()", () => {
   });
 });
 
-// chatJson(): chat() у json-режимі + zod-валідація + один self-repair retry — заміняє ручний
-// typeof/Array.isArray-розбір, що раніше дублювався в ~11 місцях по всьому серверу.
+// chatJson(): chat() in json mode + zod validation + one self-repair retry — replaces the manual
+// typeof/Array.isArray parsing that used to be duplicated in ~11 places across the server.
 describe("chatJson()", () => {
   beforeAll(async () => {
     await import("dotenv/config");
@@ -300,7 +300,7 @@ describe("chatJson()", () => {
     const { z } = await import("zod");
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      // Перша спроба: "score" — рядок замість числа (типова помилка LLM-виводу).
+      // First attempt: "score" is a string instead of a number (a typical LLM output error).
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -317,7 +317,7 @@ describe("chatJson()", () => {
     expect(result).toEqual({ score: 80 });
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     const repairBody = JSON.parse(String(fetchSpy.mock.calls[1]![1]?.body));
-    expect(repairBody.messages[1].content).toMatch(/відповідала потрібній структурі/);
+    expect(repairBody.messages[1].content).toMatch(/did NOT match the required structure/);
   });
 
   it("returns null when the repair retry ALSO fails schema validation", async () => {
@@ -344,6 +344,6 @@ describe("chatJson()", () => {
     const schema = z.object({ score: z.number() });
     const result = await chatJson("system", "user", schema);
     expect(result).toBeNull();
-    expect(fetchSpy).toHaveBeenCalledTimes(1); // жоден repair-виклик, коли базового результату взагалі немає
+    expect(fetchSpy).toHaveBeenCalledTimes(1); // no repair call at all when there's no base result to begin with
   });
 });

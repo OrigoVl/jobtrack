@@ -15,7 +15,7 @@ const MockEvalSchema = z.object({
   tip: z.string().catch(""),
 });
 
-// ---------- Мок-інтерв'ю: LLM-оцінка відповіді кандидата ----------
+// ---------- Mock interview: LLM evaluation of the candidate's answer ----------
 r.post(
   "/mock/evaluate",
   aiLimiter,
@@ -23,24 +23,24 @@ r.post(
     const question = String(req.body?.question || "").slice(0, 2000);
     const answer = String(req.body?.answer || "").trim();
     const reference = String(req.body?.reference || "").slice(0, 2000);
-    if (answer.length < 2) throw new HttpError(400, "Порожня відповідь");
+    if (answer.length < 2) throw new HttpError(400, "Empty answer");
     if (!llmAvailable())
-      return res.json({ offline: true, score: null, verdict: "AI офлайн — увімкни ключ у server/.env для оцінки відповідей." });
-    const role = getProfile().domain || "фахівець";
+      return res.json({ offline: true, score: null, verdict: "AI offline — set a key in server/.env to evaluate answers." });
+    const role = getProfile().domain || "professional";
     const out = await chatJson(
-      `Ти доброзичливий, але вимогливий інтерв'юер для ролі «${role}». Оцінюєш відповідь кандидата чесно. Відповідай ЛИШЕ валідним JSON українською.`,
-      `Питання: ${question}\n` +
-        `Еталон-орієнтир: ${reference || "—"}\n` +
-        `Відповідь кандидата: ${answer.slice(0, 2000)}\n\n` +
-        `Оціни відповідь. Поверни JSON строго: {"score":<0-100>,"verdict":"1 речення підсумку","good":["що добре, 1-3"],"missed":["що пропущено/неточно, 1-3"],"tip":"1 конкретна порада"}`,
+      `You are a friendly but demanding interviewer for the role "${role}". You evaluate the candidate's answer honestly. Respond with ONLY valid JSON in English.`,
+      `Question: ${question}\n` +
+        `Reference answer: ${reference || "—"}\n` +
+        `Candidate's answer: ${answer.slice(0, 2000)}\n\n` +
+        `Evaluate the answer. Return JSON strictly: {"score":<0-100>,"verdict":"1 sentence summary","good":["what's good, 1-3"],"missed":["what was missed/inaccurate, 1-3"],"tip":"1 concrete tip"}`,
       MockEvalSchema,
       { maxTokens: 500, temperature: 0.3, cache: true, tier: "smart" },
     );
     if (!out) {
-      // offline:true — LLM-виклик не дав валідної оцінки навіть після repair-retry в chatJson
-      // (помилка провайдера/таймаут/неправильний JSON), тож це такий самий "не справжній
-      // AI-результат" стан, як і llmAvailable()===false вище.
-      return res.json({ offline: true, score: null, verdict: "Не вдалося оцінити — спробуй ще раз." });
+      // offline:true — the LLM call didn't produce a valid evaluation even after chatJson's
+      // repair-retry (provider error/timeout/malformed JSON), so this is the same "not a real
+      // AI result" state as llmAvailable()===false above.
+      return res.json({ offline: true, score: null, verdict: "Couldn't evaluate — try again." });
     }
     res.json({
       score: Math.max(0, Math.min(100, Math.round(out.score))),

@@ -1,6 +1,6 @@
-// Дрібні спільні компоненти, що використовуються у кількох view-файлах.
+// Small shared components used across several view files.
 
-/** Простий текстовий інпут з лейблом — використовується у CV (перегляд) та Конструкторі CV. */
+/** A simple labeled text input — used in CV (view) and the CV Builder. */
 export function Field({
   label,
   value,

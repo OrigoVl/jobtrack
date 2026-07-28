@@ -58,7 +58,7 @@ describe("useSetRoadmapStatus", () => {
       result.current.mutate({ tech: "React", status: "done" });
     });
 
-    // Оптимістичне оновлення застосовується синхронно, ще до відповіді сервера.
+    // The optimistic update is applied synchronously, before the server responds.
     await waitFor(() => {
       const cached = queryClient.getQueryData<RoadmapData>(queryKeys.roadmap);
       expect(cached?.groups[0].nodes[0].status).toBe("done");

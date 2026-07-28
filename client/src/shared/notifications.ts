@@ -1,7 +1,7 @@
-// Легкі браузерні нагадування (Web Notifications API) про прострочені/сьогоднішні кроки по
-// вакансіях. Без service worker і push — лише foreground-нагадування при відкритті застосунку,
-// не частіше раз на день, і тільки якщо користувач сам увімкнув їх (permission — явна дія юзера,
-// браузер все одно не дозволить request без user gesture).
+// Lightweight browser reminders (Web Notifications API) about overdue/due-today vacancy
+// follow-up steps. No service worker or push — just a foreground reminder when the app opens,
+// at most once a day, and only if the user has enabled them themselves (permission is an
+// explicit user action — the browser won't allow a request without a user gesture anyway).
 const LS_ENABLED_KEY = "jobtrack.notifications.enabled";
 const LS_LAST_CHECK_KEY = "jobtrack.notifications.lastCheck";
 
@@ -13,7 +13,7 @@ export function notificationsEnabled(): boolean {
   return notificationsSupported() && Notification.permission === "granted" && localStorage.getItem(LS_ENABLED_KEY) === "1";
 }
 
-/** Запитує дозвіл (має викликатись з обробника кліку — user gesture). */
+/** Requests permission (must be called from a click handler — user gesture). */
 export async function enableNotifications(): Promise<boolean> {
   if (!notificationsSupported()) return false;
   const permission = await Notification.requestPermission();
@@ -29,8 +29,8 @@ export function disableNotifications(): void {
 }
 
 /**
- * Показує нагадування про прострочені/сьогоднішні кроки, максимум раз на календарний день
- * (щоб не спамити щоразу, коли користувач просто відкриває вкладку дашборду).
+ * Shows a reminder about overdue/due-today steps, at most once per calendar day
+ * (so it doesn't spam the user every time they just open the dashboard tab).
  */
 export function maybeNotifyFollowUps(overdueCount: number, dueTodayCount: number): void {
   if (!notificationsEnabled()) return;
@@ -39,7 +39,7 @@ export function maybeNotifyFollowUps(overdueCount: number, dueTodayCount: number
   localStorage.setItem(LS_LAST_CHECK_KEY, today);
   if (overdueCount === 0 && dueTodayCount === 0) return;
   const parts: string[] = [];
-  if (overdueCount > 0) parts.push(`${overdueCount} прострочен${overdueCount === 1 ? "ий крок" : "их кроки"}`);
-  if (dueTodayCount > 0) parts.push(`${dueTodayCount} на сьогодні`);
-  new Notification("JobTrack — не втрачай контакт", { body: `У тебе ${parts.join(" і ")}. Перевір вкладку «Вакансії».` });
+  if (overdueCount > 0) parts.push(`${overdueCount} overdue ${overdueCount === 1 ? "step" : "steps"}`);
+  if (dueTodayCount > 0) parts.push(`${dueTodayCount} due today`);
+  new Notification("JobTrack — stay on top of it", { body: `You have ${parts.join(" and ")}. Check the "Vacancies" tab.` });
 }

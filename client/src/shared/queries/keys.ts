@@ -1,5 +1,5 @@
-// Єдине джерело правди для ключів кешу TanStack Query — щоб уникнути одруківок
-// і мати типізовану автопідказку при invalidateQueries/setQueryData.
+// Single source of truth for TanStack Query cache keys — to avoid typos
+// and get typed autocomplete when calling invalidateQueries/setQueryData.
 export const queryKeys = {
   health: ["health"] as const,
   vacancies: ["vacancies"] as const,

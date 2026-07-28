@@ -12,7 +12,7 @@ const VARIANT: Record<Variant, string> = {
 };
 const SIZE: Record<Size, string> = { sm: "px-2.5 py-1.5 text-xs", md: "px-3.5 py-2 text-sm" };
 
-/** Невеликий SVG-спінер (Tailwind `animate-spin`) — для кнопок і inline-індикаторів "зберігаю/завантажую". */
+/** A small SVG spinner (Tailwind `animate-spin`) — for buttons and inline "saving/loading" indicators. */
 export function Spinner({ className = "h-3.5 w-3.5" }: { className?: string }) {
   return (
     <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none" aria-hidden="true">

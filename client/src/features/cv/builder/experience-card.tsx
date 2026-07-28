@@ -14,15 +14,15 @@ interface ExperienceCardProps {
   onImproveBullets: (i: number) => void;
 }
 
-/** Список записів досвіду з drag-and-drop реордером і AI-покращенням пунктів (bullets). */
+/** A list of experience entries with drag-and-drop reordering and AI improvement of bullets. */
 export function ExperienceCard({ experience, onAdd, onRemove, onSet, onMove, llm, busyKey, onImproveBullets }: ExperienceCardProps) {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   return (
     <Card className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-slate-700">Досвід</span>
+        <span className="text-sm font-semibold text-slate-700">Experience</span>
         <Btn size="sm" variant="ghost" onClick={onAdd}>
-          + Додати
+          + Add
         </Btn>
       </div>
       {experience.map((e, i) => (
@@ -40,12 +40,12 @@ export function ExperienceCard({ experience, onAdd, onRemove, onSet, onMove, llm
               draggable
               onDragStart={() => setDragIdx(i)}
               onDragEnd={() => setDragIdx(null)}
-              title="Перетягни, щоб змінити порядок"
+              title="Drag to reorder"
               className="cursor-grab active:cursor-grabbing select-none text-slate-400 hover:text-slate-600 text-lg leading-none"
             >
               ⠿
             </span>
-            <span className="text-xs text-slate-400">Запис {i + 1}</span>
+            <span className="text-xs text-slate-400">Entry {i + 1}</span>
             <div className="ml-auto flex gap-1">
               <Btn size="sm" variant="subtle" onClick={() => onMove(i, i - 1)} disabled={i === 0}>
                 ↑
@@ -56,13 +56,13 @@ export function ExperienceCard({ experience, onAdd, onRemove, onSet, onMove, llm
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <Field label="Роль" value={e.role} onChange={(v) => onSet(i, { role: v })} maxLength={160} />
-            <Field label="Компанія" value={e.company} onChange={(v) => onSet(i, { company: v })} maxLength={160} />
-            <Field label="Період" value={e.period} onChange={(v) => onSet(i, { period: v })} placeholder="2022 — зараз" maxLength={60} />
+            <Field label="Role" value={e.role} onChange={(v) => onSet(i, { role: v })} maxLength={160} />
+            <Field label="Company" value={e.company} onChange={(v) => onSet(i, { company: v })} maxLength={160} />
+            <Field label="Period" value={e.period} onChange={(v) => onSet(i, { period: v })} placeholder="2022 — present" maxLength={60} />
           </div>
           <label className="block">
             <span className="text-xs font-semibold text-slate-500 flex items-center gap-2">
-              Пункти (по одному на рядок)
+              Bullets (one per line)
               <Btn
                 size="sm"
                 variant="ghost"
@@ -70,7 +70,7 @@ export function ExperienceCard({ experience, onAdd, onRemove, onSet, onMove, llm
                 loading={busyKey === `b${i}`}
                 disabled={!llm || e.bullets.filter(Boolean).length === 0}
               >
-                ✨ результат-фокус
+                ✨ result-focus
               </Btn>
             </span>
             <textarea
@@ -80,7 +80,7 @@ export function ExperienceCard({ experience, onAdd, onRemove, onSet, onMove, llm
             />
           </label>
           <Btn size="sm" variant="danger" onClick={() => onRemove(i)}>
-            Видалити
+            Delete
           </Btn>
         </div>
       ))}

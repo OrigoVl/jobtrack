@@ -48,7 +48,7 @@ function formatPeriod(start: string | undefined, end: string | undefined): strin
   const from = (start || "").trim();
   const to = (end || "").trim();
   if (!from && !to) return "";
-  return `${from || "?"} – ${to || "дотепер"}`;
+  return `${from || "?"} – ${to || "present"}`;
 }
 
 function toBullets(description: string | undefined): string[] {

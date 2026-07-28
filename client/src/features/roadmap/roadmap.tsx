@@ -6,9 +6,9 @@ import { useHealth, useRoadmap, useSetRoadmapStatus } from "../../shared/queries
 import type { KnowledgeData, RoadmapNode, RoadmapStatus } from "../../shared/types";
 
 const STATUS_META: Record<RoadmapStatus, { label: string; text: string; badge: string; icon: string }> = {
-  done: { label: "Знаю", text: "text-emerald-700", badge: "bg-emerald-500 text-white", icon: "✓" },
-  learning: { label: "Вчу", text: "text-amber-700", badge: "bg-amber-500 text-white", icon: "…" },
-  todo: { label: "Не почато", text: "text-slate-400", badge: "bg-white", icon: "" },
+  done: { label: "Know it", text: "text-emerald-700", badge: "bg-emerald-500 text-white", icon: "✓" },
+  learning: { label: "Learning", text: "text-amber-700", badge: "bg-amber-500 text-white", icon: "…" },
+  todo: { label: "Not started", text: "text-slate-400", badge: "bg-white", icon: "" },
 };
 const NEXT: Record<RoadmapStatus, RoadmapStatus> = { todo: "learning", learning: "done", done: "todo" };
 
@@ -36,7 +36,7 @@ function Node({ node }: { node: RoadmapNode }) {
     <div className="relative pl-8">
       <button
         onClick={() => setRoadmapStatusMutation.mutate({ tech: node.tech, status: NEXT[node.status] })}
-        title="Клік — змінити статус (не почато → вчу → знаю)"
+        title="Click to change status (not started → learning → know it)"
         className={`absolute left-0 top-2 z-10 w-6 h-6 rounded-full border-2 ${border} ${meta.badge} flex items-center justify-center text-xs font-bold transition-colors`}
       >
         {meta.icon}
@@ -44,8 +44,8 @@ function Node({ node }: { node: RoadmapNode }) {
       <div className="rounded-xl border border-slate-200 bg-white hover:border-indigo-300 transition-colors">
         <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
           <span className="font-semibold text-slate-800">{node.tech}</span>
-          {node.demand > 0 && <Chip tone="indigo">{node.demand} вак.</Chip>}
-          {node.known && <Chip tone="emerald">у профілі</Chip>}
+          {node.demand > 0 && <Chip tone="indigo">{node.demand} vac.</Chip>}
+          {node.known && <Chip tone="emerald">in profile</Chip>}
           {node.drillsTotal > 0 && (
             <Chip tone={node.drillsSolved === node.drillsTotal ? "emerald" : "slate"}>
               ⌨ {node.drillsSolved}/{node.drillsTotal}
@@ -56,16 +56,16 @@ function Node({ node }: { node: RoadmapNode }) {
         </button>
         {open && (
           <div className="px-3 pb-3 border-t border-slate-100 pt-3 space-y-3">
-            {loadingDyn && <div className="text-xs text-slate-400">✨ Персоналізую під твій стек…</div>}
+            {loadingDyn && <div className="text-xs text-slate-400">✨ Personalizing to your stack…</div>}
             {dyn?.focus && (
               <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-2.5 text-sm text-indigo-900">
-                <span className="font-semibold">✨ Персональний фокус:</span> {dyn.focus}
+                <span className="font-semibold">✨ Personal focus:</span> {dyn.focus}
               </div>
             )}
             <div>
               <div className="text-xs font-semibold text-slate-500 mb-1 flex items-center gap-1.5">
-                Що вивчити
-                {dyn?.source === "ai" && <Chip tone="indigo">AI під тебе</Chip>}
+                What to learn
+                {dyn?.source === "ai" && <Chip tone="indigo">AI for you</Chip>}
               </div>
               <ul className="list-disc pl-5 text-sm text-slate-700 space-y-1">
                 {learn.map((l, i) => (
@@ -76,15 +76,15 @@ function Node({ node }: { node: RoadmapNode }) {
             {node.drillsTotal > 0 && (
               <div>
                 <div className="text-xs font-semibold text-slate-500 mb-1">
-                  Практичні задачі: {node.drillsSolved}/{node.drillsTotal} розвʼязано
+                  Practice problems: {node.drillsSolved}/{node.drillsTotal} solved
                 </div>
                 <ProgressBar value={node.drillsSolved} max={node.drillsTotal} tone="emerald" />
-                <div className="text-xs text-slate-400 mt-1">Тренуй у вкладці «Тренування» → фільтр за темою.</div>
+                <div className="text-xs text-slate-400 mt-1">Practice in the "Practice" tab → filter by topic.</div>
               </div>
             )}
             {resources.length > 0 && (
               <div>
-                <div className="text-xs font-semibold text-slate-500 mb-1">Ресурси</div>
+                <div className="text-xs font-semibold text-slate-500 mb-1">Resources</div>
                 <div className="flex flex-wrap gap-2">
                   {resources.map((r) => (
                     <a
@@ -121,24 +121,24 @@ export function Roadmap() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Роудмапа навичок"
-        subtitle="Персональна дорожня карта з реальних навичок твоїх вакансій і CV. Клікай кружечок, щоб позначати прогрес — усе зберігається."
+        title="Skill roadmap"
+        subtitle="A personal roadmap built from the real skills in your vacancies and CV. Click the circle to mark progress — it's all saved."
       />
 
       <Card>
         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
           <div className="text-sm font-semibold text-slate-700">
-            Прогрес: <span className="text-emerald-600">{done}</span> / {total} навичок
+            Progress: <span className="text-emerald-600">{done}</span> / {total} skills
           </div>
           <div className="flex items-center gap-3 text-xs text-slate-500">
             <span className="inline-flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-emerald-500" /> знаю
+              <span className="w-3 h-3 rounded-full bg-emerald-500" /> know it
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-amber-500" /> вчу ({learning})
+              <span className="w-3 h-3 rounded-full bg-amber-500" /> learning ({learning})
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full border-2 border-slate-300 bg-white" /> не почато
+              <span className="w-3 h-3 rounded-full border-2 border-slate-300 bg-white" /> not started
             </span>
           </div>
         </div>
@@ -149,7 +149,7 @@ export function Roadmap() {
             onChange={(e) => setGroup(e.target.value)}
             className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm text-slate-700"
           >
-            <option value="all">Усі напрями</option>
+            <option value="all">All areas</option>
             {roadmap.groups.map((g) => (
               <option key={g.group} value={g.group}>
                 {g.group}
@@ -157,7 +157,7 @@ export function Roadmap() {
             ))}
           </select>
           <Btn variant={onlyGaps ? "primary" : "ghost"} size="sm" onClick={() => setOnlyGaps(!onlyGaps)}>
-            {onlyGaps ? "✓ Лише прогалини" : "Лише прогалини"}
+            {onlyGaps ? "✓ Gaps only" : "Gaps only"}
           </Btn>
         </div>
       </Card>

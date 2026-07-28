@@ -1,6 +1,6 @@
-// Підключення до SQLite (вбудований node:sqlite) + схема + первинний сід порожньої БД.
-// Це єдине місце, де відбувається `new DatabaseSync(...)` — решта коду працює через
-// default-експорт цього модуля або через хелпери з db/kv.ts.
+// SQLite connection (built-in node:sqlite) + schema + initial seed for an empty DB.
+// This is the only place where `new DatabaseSync(...)` happens — the rest of the code
+// works through this module's default export or through the helpers in db/kv.ts.
 import { DatabaseSync } from "node:sqlite";
 import { env } from "../config/env.js";
 import { contextLogger } from "../core/logger.js";
@@ -13,7 +13,7 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS vacancies (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   company TEXT, position TEXT, level TEXT, url TEXT,
-  status TEXT DEFAULT 'Хочу подати', fit TEXT DEFAULT 'med',
+  status TEXT DEFAULT 'Want to apply', fit TEXT DEFAULT 'med',
   applied TEXT, next TEXT, notes TEXT, stack TEXT DEFAULT '[]',
   created TEXT DEFAULT (date('now'))
 );
@@ -35,10 +35,10 @@ CREATE TABLE IF NOT EXISTS vacancy_status_history (
 CREATE INDEX IF NOT EXISTS idx_vacancy_status_history_vacancy ON vacancy_status_history(vacancy_id);
 `);
 
-// Міграція: додає колонку, якщо її ще немає в існуючій БД. SQLite не підтримує
-// "ALTER TABLE ... ADD COLUMN IF NOT EXISTS" (на відміну від Postgres), тож перевіряємо
-// наявність колонки вручну через PRAGMA table_info — інакше повторний запуск на вже
-// змігрованій БД впав би з "duplicate column name".
+// Migration: adds a column if it isn't already present in an existing DB. SQLite doesn't
+// support "ALTER TABLE ... ADD COLUMN IF NOT EXISTS" (unlike Postgres), so we check for the
+// column manually via PRAGMA table_info — otherwise re-running on an already-migrated DB
+// would fail with "duplicate column name".
 function addColumnIfMissing(table: string, column: string, ddl: string): void {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
   if (!cols.some((c) => c.name === column)) {
@@ -46,11 +46,12 @@ function addColumnIfMissing(table: string, column: string, ddl: string): void {
   }
 }
 
-// FSRS (замінив спрощений SM-2, що жив лише на ease/interval) потребує difficulty/stability
-// (D/S — два з трьох компонентів моделі пам'яті FSRS) і дату останнього огляду (щоб рахувати
-// elapsed days для retrievability). Старі колонки ease/interval лишаються в таблиці (не
-// видаляємо — SQLite ALTER TABLE DROP COLUMN вимагає повного перестворення таблиці, а сенсу
-// це виправдовує лише для великих таблиц) і просто більше не читаються новим кодом планування.
+// FSRS (replaced the simplified SM-2 that lived solely on ease/interval) needs
+// difficulty/stability (D/S — two of the three components of the FSRS memory model) and the
+// date of the last review (to compute elapsed days for retrievability). The old ease/interval
+// columns stay in the table (not dropped — SQLite's ALTER TABLE DROP COLUMN requires a full
+// table rebuild, only worth it for large tables) and are simply no longer read by the new
+// scheduling code.
 addColumnIfMissing("srs", "difficulty", "difficulty REAL");
 addColumnIfMissing("srs", "stability", "stability REAL");
 addColumnIfMissing("srs", "lastReview", "lastReview TEXT");
@@ -66,13 +67,13 @@ function seedVacanciesIfEmpty(): void {
   if (Number(c) > 0) return;
   const insert = db.prepare("INSERT INTO vacancies (company,position,level,url,status,fit,stack) VALUES (?,?,?,?,?,?,?)");
   for (const [company, position, level, url, fit, stack] of SEED_VACANCIES) {
-    insert.run(company, position, level, url, "Відправив CV", fit, JSON.stringify(stack));
+    insert.run(company, position, level, url, "Applied", fit, JSON.stringify(stack));
   }
 }
 
-// Бекфіл історії статусів для вакансій, створених до появи vacancy_status_history
-// (сідові дані чи старі рядки БД) — інакше "скільки вакансій колись досягли етапу X"
-// в аналітиці був би порожнім для всього, що існувало на момент цієї міграції.
+// Backfills status history for vacancies created before vacancy_status_history existed
+// (seed data or old DB rows) — otherwise "how many vacancies ever reached stage X" in the
+// analytics would be empty for everything that existed at the time of this migration.
 function backfillStatusHistory(): void {
   const rows = db
     .prepare(
@@ -89,20 +90,20 @@ seedProfileIfEmpty();
 seedVacanciesIfEmpty();
 backfillStatusHistory();
 
-/** Легка перевірка, що з'єднання з БД живе й може виконати запит (для /api/health). */
+/** Lightweight check that the DB connection is alive and can run a query (for /api/health). */
 export function pingDb(): boolean {
   try {
     db.prepare("SELECT 1").get();
     return true;
   } catch (e) {
-    // /api/health показує лише {ok:false} — без цього логу причина падіння БД (locked file,
-    // permission, disk full, corruption) лишилась би невідомою до ручного відтворення.
+    // /api/health only shows {ok:false} — without this log, the reason the DB check failed
+    // (locked file, permission, disk full, corruption) would stay unknown until manually reproduced.
     contextLogger().error({ err: e }, "Database health check failed");
     return false;
   }
 }
 
-/** Закриває з'єднання з SQLite (WAL checkpoint + звільнення файлу) — викликається при graceful shutdown. */
+/** Closes the SQLite connection (WAL checkpoint + releases the file) — called on graceful shutdown. */
 export function closeDb(): void {
   db.close();
 }

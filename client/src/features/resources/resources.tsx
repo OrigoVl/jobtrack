@@ -33,14 +33,14 @@ export function Resources() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Ресурси й довідники"
-        subtitle="Найкращі гайди, майданчики для практики, шпаргалки й чек-лист підготовки — усе в одному місці."
+        title="Resources & references"
+        subtitle="The best guides, practice platforms, cheat sheets, and a prep checklist — all in one place."
       />
       <div className="flex gap-2 flex-wrap">
         {T("bp", "⭐ Best practices")}
-        {T("plat", "💻 Майданчики")}
-        {T("cheat", "🗒 Шпаргалка")}
-        {T("check", `✅ Чек-лист (${checkN}/${d.checklist.length})`)}
+        {T("plat", "💻 Platforms")}
+        {T("cheat", "🗒 Cheat sheet")}
+        {T("check", `✅ Checklist (${checkN}/${d.checklist.length})`)}
       </div>
 
       {sub === "bp" && (

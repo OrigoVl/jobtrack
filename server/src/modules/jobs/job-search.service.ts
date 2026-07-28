@@ -1,4 +1,4 @@
-// Пошук вакансій у зовнішніх агрегаторах (Remotive, Arbeitnow, DOU) — без API-ключів.
+// Job search across external aggregators (Remotive, Arbeitnow, DOU) — no API keys needed.
 import { contextLogger } from "../../core/logger.js";
 
 export interface RawJob {
@@ -15,9 +15,9 @@ async function fetchRemote(url: string, ms = 8000): Promise<Response | null> {
   const to = setTimeout(() => ac.abort(), ms);
   try {
     const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (JobTrack)" }, signal: ac.signal });
-    // Раніше тихо повертали null на будь-яку не-2xx відповідь — якщо агрегатор (Remotive/
-    // Arbeitnow/DOU) поміняє схему, почне блокувати чи впаде, /jobs/search просто мовчки
-    // повертав менше результатів (або offline:true), і не було ЖОДНОГО логу, звідки копати.
+    // Used to silently return null on any non-2xx response — if an aggregator (Remotive/
+    // Arbeitnow/DOU) changes its schema, starts blocking, or goes down, /jobs/search would
+    // just silently return fewer results (or offline:true), with NO log to dig into.
     if (!res.ok) {
       contextLogger().warn({ url, status: res.status }, "Job aggregator responded with non-2xx status");
       return null;
@@ -116,6 +116,8 @@ function decodeXml(s: string): string {
     .replace(/&#160;/g, " ")
     .replace(/&amp;/g, "&");
 }
+// DOU titles are real Ukrainian text from their RSS feed ("Position в Company, Location") —
+// the " в " (Ukrainian "at/in") separator below is functional parsing, not translatable text.
 function splitDouTitle(title: string): { position: string; company: string; location: string } {
   const idx = title.lastIndexOf(" в ");
   if (idx < 0) return { position: title, company: "—", location: "" };
@@ -140,7 +142,7 @@ export async function fetchDou(query: string): Promise<RawJob[]> {
     const link = (item.match(/<link>([\s\S]*?)<\/link>/)?.[1] || "").trim();
     if (!title || !link) continue;
     const { position, company, location } = splitDouTitle(title);
-    jobs.push({ company, position, url: link, location: location || "Україна", tags: [], source: "DOU" });
+    jobs.push({ company, position, url: link, location: location || "Ukraine", tags: [], source: "DOU" });
   }
   return jobs;
 }

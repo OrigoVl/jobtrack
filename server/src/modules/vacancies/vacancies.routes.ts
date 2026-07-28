@@ -21,8 +21,8 @@ import { fetchVacancyText, computeFit, quickAnalyze, tryAutoEnrichStack } from "
 const r = express.Router();
 
 // ---------- vacancies ----------
-// Без ?limit/?offset — весь список (поточна поведінка, потрібна Kanban-дошці для групування
-// за статусом). З ?limit — обмежена сторінка, на випадок якщо список виросте.
+// Without ?limit/?offset — the full list (current behavior, needed by the Kanban board for grouping
+// by status). With ?limit — a bounded page, in case the list grows.
 r.get("/vacancies", (req, res) => {
   const { limit, offset } = parsePagination(req.query);
   const rows = (limit != null
@@ -39,9 +39,9 @@ r.post(
       .run(b.company!, b.position!, b.level!, b.url!, b.status!, b.fit!, b.applied!, b.next!, b.notes!, JSON.stringify(b.stack));
     const id = Number(info.lastInsertRowid);
     recordStatusChange(id, b.status!);
-    // Автозбагачення: якщо додають вакансію одразу з посиланням і без явного стеку — спробувати
-    // стягнути стек/рівень/fit з тексту вакансії (будь-який публічний https-хост, best-effort —
-    // див. tryAutoEnrichStack).
+    // Auto-enrichment: if a vacancy is added right away with a URL and no explicit stack — try
+    // pulling the stack/level/fit from the vacancy text (any public https host, best-effort —
+    // see tryAutoEnrichStack).
     if (b.url && b.stack!.length === 0) {
       const enrichment = await tryAutoEnrichStack(b.url);
       if (enrichment) {
@@ -60,11 +60,11 @@ r.post(
 r.put(
   "/vacancies/:id",
   asyncHandler(async (req, res) => {
-    // Express 5: req.params.* типізовано як string | string[] (повторювані сегменти шляху),
-    // хоча для "/:id" рантайм завжди повертає string.
+    // Express 5: req.params.* is typed as string | string[] (repeated path segments),
+    // though for "/:id" the runtime always returns a string.
     const id = String(req.params.id);
     const cur = db.prepare("SELECT * FROM vacancies WHERE id=?").get(id) as unknown as VacancyRow | undefined;
-    if (!cur) throw new HttpError(404, "Вакансію не знайдено");
+    if (!cur) throw new HttpError(404, "Vacancy not found");
     const patch = parseVacancyInput(req.body, { partial: true });
     const m = {
       company: patch.company ?? cur.company,
@@ -78,9 +78,9 @@ r.put(
       notes: patch.notes ?? cur.notes,
       stack: patch.stack ?? j(cur.stack),
     };
-    // Автозбагачення: URL щойно з'явився/змінився і в цьому ж запиті стек не редагували
-    // вручну — стягнути свіжий стек/рівень/fit із посилання (best-effort, будь-який публічний
-    // https-хост).
+    // Auto-enrichment: the URL just appeared/changed and this same request didn't manually
+    // edit the stack — pull a fresh stack/level/fit from the link (best-effort, any public
+    // https host).
     if (patch.url !== undefined && patch.url !== cur.url && patch.stack === undefined && m.url) {
       const enrichment = await tryAutoEnrichStack(m.url);
       if (enrichment) {
@@ -102,8 +102,8 @@ r.put(
       JSON.stringify(m.stack),
       id,
     );
-    // Історія статусів — журналюємо лише реальну зміну (не кожен PUT: більшість оновлень
-    // редагують інші поля, напр. нотатки чи дату наступного кроку, без зміни статусу).
+    // Status history — we only log an actual change (not every PUT: most updates
+    // edit other fields, e.g. notes or the next-step date, without changing the status).
     if (m.status !== cur.status) recordStatusChange(Number(id), m.status);
     res.json(withStack(db.prepare("SELECT * FROM vacancies WHERE id=?").get(id) as unknown as VacancyRow));
   }),
@@ -115,15 +115,15 @@ r.delete("/vacancies/:id", (req, res) => {
   res.json({ ok: true, deleted: Number(info.changes) });
 });
 
-// спарсити ОДНУ вакансію за посиланням і оновити стек
+// parse ONE vacancy by its URL and update the stack
 r.post(
   "/vacancies/:id/fetch",
   aiLimiter,
   asyncHandler(async (req, res) => {
     const id = String(req.params.id);
     const v = db.prepare("SELECT * FROM vacancies WHERE id=?").get(id) as unknown as VacancyRow | undefined;
-    if (!v) throw new HttpError(404, "Вакансію не знайдено");
-    if (!v.url) throw new HttpError(400, "У вакансії немає посилання");
+    if (!v) throw new HttpError(404, "Vacancy not found");
+    if (!v.url) throw new HttpError(400, "This vacancy has no URL");
     const text = await fetchVacancyText(v.url);
     const a = await quickAnalyze(text);
     db.prepare("UPDATE vacancies SET stack=?,level=?,fit=? WHERE id=?").run(JSON.stringify(a.techs), a.level || v.level, a.fit, v.id);
@@ -131,23 +131,22 @@ r.post(
   }),
 );
 
-// стягнути "сирий" текст сторінки вакансії за будь-яким посиланням, без прив'язки до збереженої
-// вакансії (для форм, де хочеться просто вставити URL і отримати текст — напр. cover letter).
-// На відміну від tryAutoEnrichStack (best-effort, ніколи не кидає), тут кидаємо реальну помилку:
-// користувач явно чекає на результат конкретної дії, тож "тихий null" лише сплутав би.
+// fetch the "raw" text of a vacancy page from any URL, without tying it to a saved
+// vacancy (for forms where the user just wants to paste a URL and get the text — e.g. a cover letter).
+// Unlike tryAutoEnrichStack (best-effort, never throws), here we throw a real error:
+// the user is explicitly waiting for the result of a specific action, so a "silent null" would only confuse them.
 r.post(
   "/vacancies/fetch-url",
   aiLimiter,
   asyncHandler(async (req, res) => {
     const url = parseText(req.body, "url", { min: 5, max: 2000 });
     const text = await fetchVacancyText(url);
-    if (text.length < 50)
-      throw new HttpError(422, "Не вдалося витягти текст зі сторінки (можливо, вона порожня або захищена від парсингу).");
+    if (text.length < 50) throw new HttpError(422, "Could not extract text from the page (it may be empty or protected against scraping).");
     res.json({ text: text.slice(0, 8000) });
   }),
 );
 
-// спарсити ВСІ вакансії з посиланнями
+// parse ALL vacancies that have a URL
 r.post(
   "/vacancies/fetch-all",
   aiLimiter,
@@ -158,7 +157,7 @@ r.post(
       try {
         const text = await fetchVacancyText(v.url);
         if (text.length < 200) {
-          results.push({ id: v.id, company: v.company, error: "порожньо/недоступно" });
+          results.push({ id: v.id, company: v.company, error: "empty/unavailable" });
           continue;
         }
         const a = await quickAnalyze(text);
@@ -167,33 +166,33 @@ r.post(
       } catch (e) {
         results.push({ id: v.id, company: v.company, error: (e as Error).message });
       }
-      await new Promise((resolve) => setTimeout(resolve, 400)); // ввічлива пауза
+      await new Promise((resolve) => setTimeout(resolve, 400)); // polite pause
     }
     const failed = results.filter((r) => r.error).length;
-    // Юзер бачить помилки лише по кожній вакансії в results; агрегатний лог потрібен, щоб
-    // помітити систематичну проблему (напр. джерело почало блокувати парсинг масово),
-    // а не гадати за окремими рядками в UI.
+    // The user only sees errors per individual vacancy in results; an aggregate log is needed to
+    // notice a systemic problem (e.g. a source started blocking scraping en masse),
+    // rather than guessing from individual rows in the UI.
     if (failed > 0) contextLogger().warn({ processed: results.length, failed }, "Bulk vacancy re-parse: some URLs failed");
     res.json({ processed: results.length, results });
   }),
 );
 
-// аналіз тексту вакансії (офлайн словник + опційно LLM)
+// analysis of vacancy text (offline dictionary + optionally LLM)
 r.post(
   "/vacancies/analyze",
   aiLimiter,
   asyncHandler(async (req, res) => {
     const text = parseText(req.body, "text");
     const profile = getProfile();
-    // extractSkills (екстракція стеку), summary (оцінка відповідності текстом) і semanticFit
-    // (embeddings-схожість CV↔вакансія) — три незалежні виклики над тим самим текстом; жоден
-    // не потребує результату іншого — паралельно.
+    // extractSkills (stack extraction), summary (a text-based fit assessment), and semanticFit
+    // (embeddings similarity between CV↔vacancy) are three independent calls over the same text; none
+    // needs the others' result — run in parallel.
     const [techs, summary, semanticFit] = await Promise.all([
       extractSkills(text),
       llmAvailable()
         ? chat(
-            "Ти рекрутер. Стисло українською.",
-            `Ось текст вакансії. Виділи 5-8 ключових вимог одним списком і 1 реченням оціни, чи підходить кандидат з навичками: ${profile.skills.join(", ")}.\n\n${text.slice(0, 4000)}`,
+            "You are a recruiter. Be concise, in English.",
+            `Here is the vacancy text. List 5-8 key requirements as one list, and in 1 sentence assess whether a candidate with these skills fits: ${profile.skills.join(", ")}.\n\n${text.slice(0, 4000)}`,
             { maxTokens: 500, cache: true },
           )
         : Promise.resolve(null),
@@ -206,9 +205,9 @@ r.post(
   }),
 );
 
-// імпорт вакансій з DOU-експорту (HTML/текст) — витягуємо посилання й одразу автозбагачуємо
-// стек кожної нової вакансії з її сторінки (best-effort, з ввічливою паузою між запитами —
-// як у /vacancies/fetch-all), тож окремий ручний клік "Спарсити всі" після імпорту не потрібен.
+// Import vacancies from a DOU export (HTML/text) — extract links and immediately auto-enrich
+// the stack of each new vacancy from its page (best-effort, with a polite pause between requests —
+// as in /vacancies/fetch-all), so a separate manual "Analyze all" click after import isn't needed.
 r.post(
   "/vacancies/import",
   aiLimiter,
@@ -228,9 +227,9 @@ r.post(
       if (db.prepare("SELECT id FROM vacancies WHERE url=?").get(url)) continue;
       const info = db
         .prepare("INSERT INTO vacancies (company,position,url,status) VALUES (?,?,?,?)")
-        .run(company, "(імпортовано)", url, "Хочу подати");
+        .run(company, "(imported)", url, "Want to apply");
       const id = Number(info.lastInsertRowid);
-      recordStatusChange(id, "Хочу подати");
+      recordStatusChange(id, "Want to apply");
       newIds.push({ id, url });
       added.push({ company, url });
     }
@@ -244,16 +243,16 @@ r.post(
           id,
         );
       }
-      await new Promise((resolve) => setTimeout(resolve, 400)); // ввічлива пауза
+      await new Promise((resolve) => setTimeout(resolve, 400)); // polite pause
     }
     res.json({ added: added.length, items: added });
   }),
 );
 
-// ---------- імпорт/експорт у форматі зовнішнього трекера (напр. job-tracker.json) ----------
-// Формат: масив {company, pos, level, fit, status, applied, next, notes, url} — сумісний із
-// файлом, який користувач сам веде поза застосунком (напр. інший AI-чат/таблиця), щоб можна
-// було "скинути" оновлений файл і синхронізувати дані без ручного передрукування.
+// ---------- import/export in an external tracker's format (e.g. job-tracker.json) ----------
+// Format: an array of {company, pos, level, fit, status, applied, next, notes, url} — compatible
+// with a file the user maintains themselves outside the app (e.g. another AI chat/spreadsheet),
+// so they can "drop" the updated file and sync data without manually retyping it.
 function upsertJsonVacancy(item: JsonVacancyItem): { result: "added" | "updated"; id: number } {
   let existing = item.url
     ? (db.prepare("SELECT * FROM vacancies WHERE url=?").get(item.url) as unknown as VacancyRow | undefined)
@@ -297,8 +296,8 @@ r.post(
       : Array.isArray((body as { items?: unknown })?.items)
         ? (body as { items: unknown[] }).items
         : null;
-    if (!items) throw new HttpError(400, "Очікується масив вакансій (або {items:[...]})");
-    if (items.length > 1000) throw new HttpError(400, "Забагато елементів за один імпорт (максимум 1000)");
+    if (!items) throw new HttpError(400, "Expected an array of vacancies (or {items:[...]})");
+    if (items.length > 1000) throw new HttpError(400, "Too many items in one import (max 1000)");
     let added = 0;
     let updated = 0;
     const errors: { index: number; message: string }[] = [];
@@ -308,9 +307,10 @@ r.post(
         const { result, id } = upsertJsonVacancy(item);
         if (result === "added") added++;
         else updated++;
-        // Автозбагачення лише для НОВИХ вакансій із посиланням: формат job-tracker.json не
-        // містить stack, а для вже наявних (updated) не чіпаємо стек при кожній ресинхронізації,
-        // щоб не перезаписувати те, що, можливо, вже уточнили вручну в застосунку.
+        // Auto-enrichment only for NEW vacancies with a link: the job-tracker.json format
+        // doesn't include a stack, and for existing ones (updated) we don't touch the stack on
+        // every resync, so we don't overwrite something that may have already been fine-tuned
+        // manually in the app.
         if (result === "added" && item.url) {
           const enrichment = await tryAutoEnrichStack(item.url);
           if (enrichment) {
@@ -323,7 +323,7 @@ r.post(
           }
         }
       } catch (e) {
-        errors.push({ index, message: e instanceof HttpError ? e.message : "Невідома помилка" });
+        errors.push({ index, message: e instanceof HttpError ? e.message : "Unknown error" });
       }
     }
     if (errors.length > 0) {

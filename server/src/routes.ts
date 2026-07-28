@@ -1,5 +1,5 @@
-// Комбінує всі доменні роутери (modules/*) в один Express Router, змонтований
-// у app.ts на /api. Кожен модуль відповідає за один домен API (див. README для мапи ендпоінтів).
+// Combines all domain routers (modules/*) into a single Express Router, mounted
+// at /api in app.ts. Each module owns one API domain (see the README for the endpoint map).
 import express from "express";
 import health from "./modules/health/health.routes.js";
 import vacancies from "./modules/vacancies/vacancies.routes.js";

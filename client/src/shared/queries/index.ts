@@ -1,4 +1,4 @@
-// Барель для зручного імпорту: import { useVacancies, useAddVacancy } from "../../shared/queries";
+// Barrel file for convenient imports: import { useVacancies, useAddVacancy } from "../../shared/queries";
 export * from "./health";
 export * from "./vacancies";
 export * from "./profile";

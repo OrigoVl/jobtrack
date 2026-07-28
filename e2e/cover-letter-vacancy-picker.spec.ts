@@ -1,46 +1,48 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Наскрізний тест нового UX cover letter на сторінці CV: раніше єднине джерело тексту вакансії
- * було ручне textarea; тепер додано (1) вибір ІСНУЮЧОЇ вакансії з трекера (автозаповнює textarea
- * позицією/компанією/стеком/нотатками — client/src/features/cv/cv.tsx vacancyToText) і
- * (2) поле для посилання з кнопкою "Завантажити" (server/src/modules/vacancies/vacancies.routes.ts
- * POST /vacancies/fetch-url, той самий SSRF-захист, що і в автозбагаченні стеку).
+ * End-to-end test of the cover-letter UX on the CV page: previously the only source of vacancy
+ * text was a manual textarea; now added (1) picking an EXISTING vacancy from the tracker
+ * (auto-fills the textarea with position/company/stack/notes — client/src/features/cv/cv.tsx
+ * vacancyToText) and (2) a link field with a "Load" button (server/src/modules/vacancies/
+ * vacancies.routes.ts POST /vacancies/fetch-url, the same SSRF protection as in stack
+ * auto-enrichment).
  *
- * Тест (1) створює вакансію з дефолтними "Позиція"/"Нова компанія" й одразу обирає її в
- * дропдауні на сторінці CV — вона першою в списку (GET /vacancies повертає ORDER BY id DESC,
- * а щойно додана має найбільший id). Тест (2) навмисно використовує приватну/внутрішню адресу
- * (169.254.169.254 — блокується SSRF-захистом ще до мережевого запиту), щоб лишатись
- * офлайн/детермінованим (див. коментар у playwright.config.ts) і водночас перевірити, що
- * помилка показується користувачу toast'ом, а не тихо висить/ламає сторінку.
+ * Test (1) creates a vacancy with the defaults "Position"/"New company" and immediately selects
+ * it in the dropdown on the CV page — it's first in the list (GET /vacancies returns
+ * ORDER BY id DESC, and the just-added one has the highest id). Test (2) deliberately uses a
+ * private/internal address (169.254.169.254 — blocked by SSRF protection before any network
+ * call), to stay offline/deterministic (see the comment in playwright.config.ts) while also
+ * checking that the error is shown to the user as a toast, rather than silently hanging or
+ * breaking the page.
  */
 test("selecting a vacancy from the tracker fills the cover-letter textarea and enables the generate button", async ({ page }) => {
   await page.goto("/vacancies");
   const [addResponse] = await Promise.all([
     page.waitForResponse((r) => /\/api\/vacancies$/.test(r.url()) && r.request().method() === "POST"),
-    page.getByRole("button", { name: "+ Додати вакансію" }).click(),
+    page.getByRole("button", { name: "+ Add vacancy" }).click(),
   ]);
   expect(addResponse.ok()).toBeTruthy();
 
   await page.goto("/cv");
-  const select = page.getByLabel("Обрати вакансію з трекера для cover letter");
+  const select = page.getByLabel("Select a vacancy from the tracker for the cover letter");
   await expect(select).toBeVisible();
-  // index 0 — плейсхолдер "— обрати вакансію —", index 1 — найновіша вакансія (найбільший id).
+  // index 0 — the placeholder "— select a vacancy from the tracker —", index 1 — the newest vacancy (highest id).
   await select.selectOption({ index: 1 });
 
-  const textarea = page.getByPlaceholder("…або встав текст вакансії вручну");
-  await expect(textarea).toHaveValue(/Позиція.*Нова компанія/s);
+  const textarea = page.getByPlaceholder("…or paste the vacancy text manually");
+  await expect(textarea).toHaveValue(/Position.*New company/s);
 
-  const generateBtn = page.getByRole("button", { name: "Згенерувати лист" });
+  const generateBtn = page.getByRole("button", { name: "Generate letter" });
   await expect(generateBtn).toBeEnabled();
 });
 
 test("fetching a cover-letter vacancy text from a private/internal url is blocked with a clear error toast", async ({ page }) => {
   await page.goto("/cv");
 
-  await page.getByPlaceholder("…або встав посилання на вакансію").fill("https://169.254.169.254/latest/meta-data/");
-  await page.getByRole("button", { name: "Завантажити" }).click();
+  await page.getByPlaceholder("…or paste a vacancy link").fill("https://169.254.169.254/latest/meta-data/");
+  await page.getByRole("button", { name: "Load" }).click();
 
-  await expect(page.getByText(/Дозволені лише https-посилання|приватну IP-адресу|локальний\/внутрішній ресурс/)).toBeVisible();
-  await expect(page.getByPlaceholder("…або встав текст вакансії вручну")).toHaveValue("");
+  await expect(page.getByText(/Only https links are allowed|private IP address|local\/internal resource/)).toBeVisible();
+  await expect(page.getByPlaceholder("…or paste the vacancy text manually")).toHaveValue("");
 });

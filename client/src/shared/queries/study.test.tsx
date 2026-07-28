@@ -37,13 +37,13 @@ describe("useSetDrillStatus", () => {
       result.current.mutate({ id: "drill-1", status: "solved" });
     });
 
-    // Оптимістично картка позначається розв'язаною ще до відповіді сервера.
+    // The card is optimistically marked solved before the server responds.
     await waitFor(() => {
       expect(queryClient.getQueryData<StudyState>(queryKeys.study)?.drillProgress["drill-1"]).toBe("solved");
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    // Роудмапа показує лічильник розв'язаних drill'ів — теж має інвалідуватись.
+    // The roadmap shows a counter of solved drills — that needs to be invalidated too.
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.roadmap });
   });
 

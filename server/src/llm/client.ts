@@ -1,4 +1,4 @@
-// LLM-шар з graceful fallback: якщо немає ключа — офлайн-режим (шаблони/словник).
+// LLM layer with graceful fallback: without a key — offline mode (templates/dictionary).
 import type { ZodType } from "zod";
 import { getKvJson, setKvJson } from "../db/index.js";
 import { contextLogger } from "../core/logger.js";
@@ -12,7 +12,7 @@ export interface ChatOptions {
   json?: boolean;
   maxTokens?: number;
   temperature?: number;
-  /** Кешувати відповідь у kv-сховищі за хешем (system+user+model) — для стабільних/дорогих запитів. */
+  /** Cache the response in the kv store by hash (system+user+model) — for stable/expensive requests. */
   cache?: boolean;
   tier?: LlmTier;
 }
@@ -28,10 +28,10 @@ function modelForProvider(provider: LlmProvider, tier: LlmTier): string {
   return tier === "smart" ? env.llm.openaiModelSmart : env.llm.openaiModel;
 }
 
-// Порядок провайдерів для одного logічного виклику chat(): спершу вибраний (env.LLM_PROVIDER),
-// і ЛИШЕ якщо в конфізі також є ключ ДРУГОГО провайдера — додаємо його як fallback. Без другого
-// ключа список — рівно один елемент, тож поведінка для типової (одноключевої) конфігурації
-// НЕ змінюється: жодного зайвого мережевого виклику чи іншої логіки порівняно з попередньою версією.
+// Provider order for a single logical chat() call: the selected one first (env.LLM_PROVIDER),
+// and ONLY if the config also has a key for the SECOND provider — add it as a fallback. Without a
+// second key the list is exactly one element, so behavior for a typical (single-key) configuration
+// is UNCHANGED: no extra network call or other logic compared to the previous version.
 function availableProviders(): LlmProvider[] {
   const primary: LlmProvider = env.llm.provider;
   const secondary: LlmProvider = primary === "anthropic" ? "openai" : "anthropic";
@@ -40,13 +40,13 @@ function availableProviders(): LlmProvider[] {
 }
 
 /**
- * Викликає LLM (OpenAI/Anthropic) з graceful offline-fallback (повертає null без ключа).
- * Форма відповіді залежить від промпту (json:true) — тип результату визначається
- * прапорцем `json` через перевантаження нижче; для json-режиму викликач може передати
- * власний generic-тип очікуваної структури (за замовчуванням — довільний об'єкт).
- * Кожен виклик все одно валідує поля вручну (typeof/Array.isArray) — LLM не гарантує
- * відповідність типу в рантаймі, лише декларує очікувану форму для компілятора.
- * Для структурованого JSON із АВТОМАТИЧНОЮ zod-валідацією + self-repair retry дивись chatJson() нижче.
+ * Calls the LLM (OpenAI/Anthropic) with graceful offline fallback (returns null without a key).
+ * The shape of the response depends on the prompt (json:true) — the result type is determined
+ * by the `json` flag via the overload below; for json mode the caller can pass its own generic
+ * type for the expected structure (defaults to an arbitrary object).
+ * Each call still validates fields manually (typeof/Array.isArray) — the LLM does not guarantee
+ * type conformance at runtime, it only declares the expected shape for the compiler.
+ * For structured JSON with AUTOMATIC zod validation + self-repair retry, see chatJson() below.
  */
 export async function chat(system: string, user: string, options?: ChatOptions & { json?: false }): Promise<string | null>;
 export async function chat<T extends object = Record<string, unknown>>(
@@ -58,11 +58,11 @@ export async function chat(system: string, user: string, options: ChatOptions = 
   const { json = false, maxTokens = 900, temperature = 0.4, cache = false, tier = "fast" } = options;
   if (!llmAvailable()) return null;
   const mode = json ? "json" : "text";
-  // Кеш-ключ свідомо включає `tier` (не конкретну модель/провайдера) — для того самого
-  // system+user+tier очікується той самий "клас якості" відповіді незалежно від того, який
-  // саме провайдер (primary чи fallback) зрештою відповів; при цьому зміна OPENAI_MODEL/
-  // ANTHROPIC_MODEL у .env для того самого tier все ще коректно НЕ інвалідує старий кеш
-  // (як і раніше) — це прийнятний тредофф, той самий, що був до fallback-логіки.
+  // The cache key deliberately includes `tier` (not the specific model/provider) — for the same
+  // system+user+tier, the same "quality class" of response is expected regardless of which
+  // provider (primary or fallback) ultimately answered; and changing OPENAI_MODEL/
+  // ANTHROPIC_MODEL in .env for the same tier still correctly does NOT invalidate the old cache
+  // (as before) — this is an acceptable tradeoff, the same one that existed before the fallback logic.
   const cacheKey = cache ? "llm:" + hashString([tier, mode, system, user].join("|")) : null;
   if (cacheKey) {
     const hit = getKvJson<{ value: LlmResult }>(cacheKey);
@@ -73,7 +73,7 @@ export async function chat(system: string, user: string, options: ChatOptions = 
   return result;
 }
 
-/** Форма "сирого" результату виклику провайдера, до того як викликач звузить її до T через generic-перевантаження `chat`. */
+/** The shape of the "raw" provider call result, before the caller narrows it to T via `chat`'s generic overload. */
 type LlmResult = string | Record<string, unknown> | null;
 
 interface CallProviderOptions {
@@ -91,22 +91,22 @@ interface CallProviderOnceOptions {
   timeoutMs: number;
 }
 
-// HTTP-статуси провайдера, варті одного повтору: короткочасні збої інфраструктури
-// (5xx) або перевантаження (429). Інші (400/401/404 тощо) — постійні помилки конфігурації/
-// запиту, повтор їх не виправить, тож не витрачаємо на них зайвий раунд-тріп (в межах ОДНОГО
-// провайдера — постійна помилка primary все одно вартий спроби secondary, якщо він налаштований).
+// Provider HTTP statuses worth a single retry: transient infrastructure failures
+// (5xx) or overload (429). Others (400/401/404 etc.) are permanent config/request errors —
+// a retry won't fix them, so we don't spend an extra round trip on them (within a SINGLE
+// provider — a permanent failure of the primary is still worth trying the secondary, if configured).
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
-// Короткий фіксований backoff перед єдиним повтором — досить, щоб пережити мікро-збій
-// провайдера, але не настільки довго, щоб суттєво зіпсувати відчуття швидкості для юзера.
+// A short fixed backoff before the single retry — enough to ride out a provider micro-outage,
+// but not so long that it noticeably hurts the user's perceived speed.
 const RETRY_DELAY_MS = 400;
 
 /**
- * Перебирає провайдерів у порядку availableProviders() (звичайно — один; два, лише якщо
- * налаштовані ОБИДВА ключі): для кожного — до 2 спроб (оригінал + 1 retry на транзієнтну
- * помилку), і якщо провайдер повністю провалився (постійна помилка, обидві спроби
- * невдалі, чи мережевий збій) — переходить до наступного, а не одразу здається. Це
- * прибирає single point of failure для власників ОБОХ ключів: короткочасний outage/
- * rate-limit одного провайдера не кладе AI-фічі застосунку повністю в офлайн.
+ * Iterates over providers in availableProviders() order (usually one; two only if
+ * BOTH keys are configured): for each — up to 2 attempts (original + 1 retry on a transient
+ * error), and if the provider fails completely (permanent error, both attempts
+ * failed, or a network failure) — moves on to the next one instead of giving up immediately. This
+ * removes the single point of failure for owners of BOTH keys: a short outage/
+ * rate limit on one provider does not put the app's AI features fully offline.
  */
 async function callProvider(system: string, user: string, { json, maxTokens, temperature, tier }: CallProviderOptions): Promise<LlmResult> {
   const providers = availableProviders();
@@ -122,7 +122,7 @@ async function callProvider(system: string, user: string, { json, maxTokens, tem
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
         continue;
       }
-      break; // цей провайдер вичерпав спроби — переходимо до наступного (якщо є) поза внутрішнім циклом
+      break; // this provider has exhausted its attempts — move to the next one (if any) outside the inner loop
     }
     if (!isLastProvider) {
       contextLogger().warn(
@@ -140,13 +140,13 @@ async function callProviderOnce(
   user: string,
   { json, maxTokens, temperature, model, timeoutMs }: CallProviderOnceOptions,
 ): Promise<{ result: LlmResult; retryable: boolean }> {
-  // AbortSignal.timeout — щоб зависла відповідь провайдера не тримала запит користувача
-  // (і з'єднання з сервером) необмежено довго; помилка потрапляє в catch нижче й
-  // повертається як graceful offline-фолбек, а не 500/зависання.
+  // AbortSignal.timeout — so a stuck provider response doesn't hold the user's request
+  // (and the server connection) indefinitely; the error is caught below and
+  // returned as a graceful offline fallback, not a 500/hang.
   const signal = AbortSignal.timeout(timeoutMs);
   try {
     if (provider === "anthropic") {
-      if (!env.llm.anthropicApiKey) return { result: null, retryable: false }; // ключа немає — немає сенсу навіть намагатись
+      if (!env.llm.anthropicApiKey) return { result: null, retryable: false }; // no key — no point even trying
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         signal,
@@ -163,11 +163,11 @@ async function callProviderOnce(
           messages: [{ role: "user", content: user }],
         }),
       });
-      // Раніше тут не перевірявся r.ok: провайдер, що відповів 401/404/429/500 з JSON-тілом
-      // ФОРМИ {"error": {...}} (а не {"content": [...]}), тихо давав text="" (d?.content?.[0]?.text
-      // не існує) — і callProvider повертав null так само, як при легітимній порожній відповіді.
-      // Викликачі (reviewCv/matchCv тощо) не могли відрізнити "провайдер недоступний/помилка API"
-      // від "відповідь не розпарсилась", і мовчки йшли в offline-евристику БЕЗ жодного логу причини.
+      // Previously r.ok was not checked here: a provider that responded 401/404/429/500 with a JSON body
+      // SHAPED like {"error": {...}} (rather than {"content": [...]}) silently produced text="" (d?.content?.[0]?.text
+      // doesn't exist) — and callProvider returned null exactly as it would for a legitimate empty response.
+      // Callers (reviewCv/matchCv etc.) couldn't tell "provider unavailable/API error" apart
+      // from "response failed to parse", and silently fell back to the offline heuristic WITHOUT any log of the reason.
       if (!r.ok) {
         const body = await r.text().catch(() => "");
         contextLogger().error({ status: r.status, body: body.slice(0, 500), model, provider }, "LLM API error response");
@@ -211,12 +211,12 @@ async function callProviderOnce(
     return { result, retryable: false };
   } catch (e) {
     const timedOut = e instanceof Error && e.name === "TimeoutError";
-    // contextLogger() підхоплює reqId поточного HTTP-запиту (якщо він є) через AsyncLocalStorage —
-    // дозволяє зкорелювати цю помилку з конкретним запитом користувача в access-логах pino-http.
+    // contextLogger() picks up the current HTTP request's reqId (if any) via AsyncLocalStorage —
+    // this lets us correlate this error with a specific user request in the pino-http access logs.
     contextLogger().error({ err: e, model, provider }, timedOut ? "LLM timeout" : "LLM error");
-    // Мережеві помилки/таймаут — теж варті одного повтору (можуть бути мікро-збоєм з'єднання),
-    // окрім явного таймауту нашого ж бюджету: якщо провайдер не встиг за timeoutMs один раз,
-    // повторний виклик з тим самим бюджетом навряд встигне швидше — не витрачаємо на це раунд-тріп.
+    // Network errors/timeouts are also worth one retry (could be a connection micro-glitch),
+    // except for an explicit timeout of our own budget: if the provider didn't make it within timeoutMs once,
+    // a retry with the same budget is unlikely to be faster — we don't spend a round trip on that.
     return { result: null, retryable: !timedOut };
   }
 }
@@ -229,13 +229,13 @@ export interface LlmUsage {
   totalTokens: number;
 }
 
-// Видимість вартості: жоден виклик раніше не логував скільки токенів реально спожито,
-// тож не було способу оцінити $-вартість використання без сторонього биллінг-дашборду
-// провайдера. Чиста функція (без побічного логування всередині) — легко тестувати
-// нормалізацію напряму, не воюючи з тим, який саме інстанс pino-логера бачить тест після
-// vi.resetModules() у client.test.ts. OpenAI: prompt_tokens/completion_tokens/total_tokens.
-// Anthropic: input_tokens/output_tokens (без total — рахуємо самі). Нормалізуємо в одну
-// форму, щоб агрегація по логах не залежала від того, який провайдер відповів.
+// Cost visibility: no call previously logged how many tokens were actually consumed,
+// so there was no way to estimate the $ cost of usage without the provider's third-party
+// billing dashboard. A pure function (no side-effect logging inside) — easy to test the
+// normalization directly, without fighting over which pino logger instance the test sees after
+// vi.resetModules() in client.test.ts. OpenAI: prompt_tokens/completion_tokens/total_tokens.
+// Anthropic: input_tokens/output_tokens (no total — we compute it ourselves). We normalize into one
+// shape so log aggregation doesn't depend on which provider answered.
 export function normalizeUsage(provider: LlmProvider, model: string, usage: Record<string, number> | undefined): LlmUsage | null {
   if (!usage) return null;
   const inputTokens = usage.prompt_tokens ?? usage.input_tokens ?? 0;
@@ -244,9 +244,9 @@ export function normalizeUsage(provider: LlmProvider, model: string, usage: Reco
   return { provider, model, inputTokens, outputTokens, totalTokens };
 }
 
-// info-рівень (не debug) — навмисно: має бути видимим у продакшн-логах за замовчуванням
-// (LOG_LEVEL="info" — див. config/env.ts) без додаткового налаштування, щоб pino-агрегатор
-// (див. README "Логування") міг рахувати суми/тренди витрат по моделі.
+// info level (not debug) — deliberately: this must be visible in production logs by default
+// (LOG_LEVEL="info" — see config/env.ts) without extra configuration, so the pino aggregator
+// (see README "Logging") can compute cost totals/trends per model.
 function logUsage(provider: LlmProvider, model: string, usage: Record<string, number> | undefined): void {
   const normalized = normalizeUsage(provider, model, usage);
   if (normalized) contextLogger().info(normalized, "LLM usage");
@@ -269,14 +269,14 @@ function safeJson(text: string): Record<string, unknown> | null {
 }
 
 /**
- * safeJson() + логування причини провалу. Раніше невдалий парсинг JSON-режиму (response_format
- * json_object в OpenAI гарантує синтаксичну валідність ЛИШЕ якщо генерація не обрізана) проходив
- * повністю мовчки: HTTP 200, r.ok===true, тож гілка помилки в callProvider не спрацьовувала, і
- * викликачі (reviewCv/matchCv тощо) просто тихо йшли в офлайн-евристику без жодного логу причини.
- * Найчастіша причина — generation обірвалась по `maxTokens` ДО завершення JSON (finish_reason /
- * stop_reason === "length"/"max_tokens") — модель охоче генерує довші strengths/issues/rewrites,
- * ніж закладений бюджет токенів. Логуємо finishReason і хвіст тексту (де і видно обрив), щоб таку
- * причину можна було діагностувати з логів, а не гадати за response time.
+ * safeJson() + logging the failure reason. Previously a failed JSON-mode parse (response_format
+ * json_object in OpenAI guarantees syntactic validity ONLY if the generation wasn't cut off) went
+ * completely silently: HTTP 200, r.ok===true, so the error branch in callProvider never fired, and
+ * callers (reviewCv/matchCv etc.) simply fell back to the offline heuristic without any log of the reason.
+ * The most common cause — generation was cut off by `maxTokens` BEFORE the JSON closed (finish_reason /
+ * stop_reason === "length"/"max_tokens") — the model readily generates longer strengths/issues/rewrites
+ * than the allotted token budget. We log the finishReason and the tail of the text (where the cutoff is
+ * visible) so this cause can be diagnosed from the logs instead of guessing from response time.
  */
 function parseJsonOrLog(text: string, ctx: { model: string; provider: LlmProvider; stopReason?: string }): Record<string, unknown> | null {
   const parsed = safeJson(text);
@@ -290,19 +290,19 @@ function parseJsonOrLog(text: string, ctx: { model: string; provider: LlmProvide
 }
 
 /**
- * chat() у json-режимі + АВТОМАТИЧНА zod-валідація структури + один self-repair retry.
+ * chat() in json mode + AUTOMATIC zod schema validation + one self-repair retry.
  *
- * Раніше кожен викликач (reviewCv, matchCv, getDynamicKnowledge, /study/*, /analytics ...)
- * вручну звужував тип відповіді через typeof/Array.isArray/.filter — та сама логіка писалась
- * наново в ~11 місцях, трохи по-своєму щоразу, і жодне з них не пробувало ПОПРОСИТИ модель
- * виправити невалідну структуру — лише падали в офлайн-евристику одразу. chatJson() рухає цю
- * відповідальність в один шар: якщо перша відповідь не проходить schema.safeParse(), робимо
- * ЩЕ ОДИН виклик (у дусі того самого "рівно один retry", що вже є в callProvider() для мережевих
- * збоїв) — з поясненням, які саме поля не збіглись, і просимо модель виправити. Кеш свідомо
- * вимикається для repair-спроби (cache:false) — інакше по тому самому промпту в кеш міг би
- * потрапити невалідний RAW-результат (chat() кешує лише УСПІШНИЙ non-null результат, тож сам
- * по собі risk кешування "поламаного" JSON відсутній — але repair-запит все одно семантично
- * інший, ніж оригінальний, тож не повинен претендувати на той самий кеш-ключ).
+ * Previously every caller (reviewCv, matchCv, getDynamicKnowledge, /study/*, /analytics ...)
+ * manually narrowed the response type via typeof/Array.isArray/.filter — the same logic was
+ * rewritten in ~11 places, each slightly differently, and none of them tried to ASK the model
+ * to fix an invalid structure — they just fell back to the offline heuristic immediately. chatJson() moves
+ * that responsibility into one layer: if the first response doesn't pass schema.safeParse(), we make
+ * ONE MORE call (in the spirit of the same "exactly one retry" that already exists in callProvider() for
+ * network failures) — explaining exactly which fields didn't match, and asking the model to fix them. Caching
+ * is deliberately disabled for the repair attempt (cache:false) — otherwise an invalid RAW result could
+ * end up in the cache for the same prompt (chat() only caches a SUCCESSFUL non-null result, so there's
+ * no actual risk of caching "broken" JSON by itself — but the repair request is still semantically
+ * different from the original, so it shouldn't claim the same cache key).
  */
 export async function chatJson<T>(
   system: string,
@@ -320,10 +320,10 @@ export async function chatJson<T>(
   );
   const repairUser =
     `${user}\n\n---\n` +
-    `Твоя попередня відповідь НЕ відповідала потрібній структурі. Помилки валідації:\n` +
-    parsed.error.issues.map((i) => `- ${i.path.join(".") || "(корінь)"}: ${i.message}`).join("\n") +
-    `\n\nПопередня відповідь:\n${JSON.stringify(raw).slice(0, 1500)}\n\n` +
-    `Виправ і поверни ЛИШЕ валідний JSON у точно такому ж форматі, як просилось вище.`;
+    `Your previous response did NOT match the required structure. Validation errors:\n` +
+    parsed.error.issues.map((i) => `- ${i.path.join(".") || "(root)"}: ${i.message}`).join("\n") +
+    `\n\nPrevious response:\n${JSON.stringify(raw).slice(0, 1500)}\n\n` +
+    `Fix it and return ONLY valid JSON in exactly the same format as requested above.`;
   const repaired = await chat<Record<string, unknown>>(system, repairUser, { ...options, json: true, cache: false });
   if (repaired == null) return null;
   const parsedRepaired = schema.safeParse(repaired);

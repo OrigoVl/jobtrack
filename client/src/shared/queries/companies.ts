@@ -15,8 +15,8 @@ export function useSaveCompany() {
     mutationFn: (c: Partial<Company>) => api.saveCompany(c),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.companies });
-      toast("Збережено", "success");
+      toast("Saved", "success");
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "Сталася помилка", "error"),
+    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
   });
 }

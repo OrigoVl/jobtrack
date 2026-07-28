@@ -1,5 +1,5 @@
-// Збирає Express-застосунок: middleware → /api роутер → статика фронтенду → error handler.
-// Винесено окремо від index.ts, щоб app можна було імпортувати в тестах без app.listen().
+// Assembles the Express app: middleware → /api router → frontend static files → error handler.
+// Kept separate from index.ts so app can be imported in tests without app.listen().
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -17,45 +17,50 @@ import routes from "./routes.js";
 
 export const app = express();
 
-// За замовчуванням вимкнено (env.trustProxy === false) — довіряти проксі можна лише свідомо
-// через TRUST_PROXY, інакше express-rate-limit і req.ip бачитимуть чужий/спільний IP.
+// Disabled by default (env.trustProxy === false) — trusting the proxy must be an explicit
+// opt-in via TRUST_PROXY, otherwise express-rate-limit and req.ip would see a shared/foreign IP.
 app.set("trust proxy", env.trustProxy);
 
-// CSP: застосунок сам віддає свій SPA з того ж origin (Vite білдить зовнішні <script type="module">,
-// inline-скриптів немає), тож можна тримати сувору політику. Єдиний зовнішній ресурс — Google Fonts
-// (стилі + шрифти), решта (script/connect/img/frame) обмежені 'self'.
-// style-src розділено на дві CSP3-директиви замість одного спільного 'unsafe-inline':
-//   - styleSrcElem (елементи <style>/<link>) — суворо БЕЗ 'unsafe-inline'. Це головний XSS-вектор
-//     (інжект цілого <style>-блоку/@import), і ми його повністю блокуємо.
-//   - styleSrcAttr (атрибут style="…") — 'unsafe-inline' лишається свідомо: у клієнті ~9 місць
-//     з динамічним style={{ width: `${pct}%` }} (progress bars), яких без CSS-nonce на кожен рендер
-//     інакше не зробити; ризик значно менший (не можна підключити зовнішній CSS чи @import).
+// CSP: the app serves its own SPA from the same origin (Vite builds external
+// <script type="module"> tags, there are no inline scripts), so we can keep a strict policy.
+// The only external resource is Google Fonts (styles + fonts); everything else
+// (script/connect/img/frame) is restricted to 'self'.
+// style-src is split into two CSP3 directives instead of one shared 'unsafe-inline':
+//   - styleSrcElem (<style>/<link> elements) — strictly WITHOUT 'unsafe-inline'. This is the
+//     main XSS vector (injecting a whole <style> block/@import), and we block it entirely.
+//   - styleSrcAttr (the style="…" attribute) — 'unsafe-inline' is kept deliberately: the client
+//     has ~9 places with dynamic style={{ width: `${pct}%` }} (progress bars) that can't be done
+//     any other way without a CSS nonce on every render; the risk is much smaller (no way to
+//     load external CSS or @import).
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        // 'unsafe-eval' — свідомий, вузько-скопований виняток ЛИШЕ для `new Function(...)` у
-        // features/study/runner.ts (пісочниця "запустити JS-код" для drill-практики) — без нього
-        // CSP блокує сам eval-виклик навіть УСЕРЕДИНІ Web Worker (worker успадковує script-src
-        // сторінки, окремої "worker-only eval" директиви в CSP не існує). Залишковий ризик
-        // прийнятний: (1) код виконується в ІЗОЛЬОВАНОМУ Worker — немає доступу до window/
-        // document/localStorage/cookies головної сторінки, лише console.log-перехоплення;
-        // (2) 'unsafe-eval' сам по собі НЕ дозволяє завантажити зовнішній скрипт (той факт, що
-        // немає dangerouslySetInnerHTML/innerHTML в клієнті — див. аудит — означає немає й іншого
-        // XSS-вектора, яким цей eval міг би зловживатись).
+        // 'unsafe-eval' — a deliberate, narrowly-scoped exception ONLY for `new Function(...)` in
+        // features/study/runner.ts (the "run JS code" sandbox for drill practice) — without it
+        // CSP blocks the eval call itself even INSIDE a Web Worker (the worker inherits the
+        // page's script-src; there's no separate "worker-only eval" CSP directive). The residual
+        // risk is acceptable: (1) the code runs in an ISOLATED Worker — no access to the main
+        // page's window/document/localStorage/cookies, only console.log interception;
+        // (2) 'unsafe-eval' by itself does NOT allow loading an external script (the fact that
+        // there's no dangerouslySetInnerHTML/innerHTML in the client — see the audit — means
+        // there's no other XSS vector this eval could be abused through).
         scriptSrc: ["'self'", "'unsafe-eval'"],
-        // worker-src не успадковує 'self' від script-src для blob: (відома особливість CSP:
-        // 'self' звіряє СХЕМУ+ORIGIN, а blob:/data: — спеціальні "локальні" схеми, які потрібно
-        // дозволяти явно навіть якщо blob: створено тим самим origin) — без цього рядка
-        // `new Worker(blobUrl)` у runner.ts блокується CSP ("worker-src не задано, фолбек на
-        // script-src... заблоковано") іще ДО того, як код усередині встигає хоч раз виконатись.
+        // worker-src doesn't inherit 'self' from script-src for blob: (a known CSP quirk:
+        // 'self' matches SCHEME+ORIGIN, while blob:/data: are special "local" schemes that must
+        // be allowed explicitly even when the blob: was created by the same origin) — without
+        // this line `new Worker(blobUrl)` in runner.ts is blocked by CSP ("worker-src not set,
+        // falling back to script-src... blocked") before the code inside ever gets to run.
         workerSrc: ["'self'", "blob:"],
         styleSrcElem: ["'self'", "https://fonts.googleapis.com"],
         styleSrcAttr: ["'unsafe-inline'"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         imgSrc: ["'self'", "data:", "blob:"],
-        connectSrc: ["'self'"],
+        // Sentry ingest hosts, allowed unconditionally: harmless when client Sentry (VITE_SENTRY_DSN)
+        // is unset (nothing ever calls them), and avoids a CSP violation silently dropping every
+        // client-side error event the moment someone does configure it.
+        connectSrc: ["'self'", "https://*.ingest.sentry.io", "https://*.ingest.us.sentry.io", "https://*.ingest.de.sentry.io"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
         frameAncestors: ["'self'"],
@@ -63,10 +68,11 @@ app.use(
     },
   }),
 );
-// Same-origin в проді (сервер сам роздає client/dist) — CORS потрібен лише для dev
-// (Vite на іншому порту) та потенційних зовнішніх інтеграцій. Без CORS_ORIGIN у .env — дозволені
-// всі origin (без credentials: кук/сесій немає, застосунок однокористувацький, auth не потрібен).
-// Задай CORS_ORIGIN, якщо потрібно явно обмежити список дозволених доменів.
+// Same-origin in prod (the server serves client/dist itself) — CORS is only needed for dev
+// (Vite on a different port) and potential external integrations. Without CORS_ORIGIN in
+// .env, all origins are allowed (no credentials: there are no cookies/sessions, the app is
+// single-user, auth isn't needed). Set CORS_ORIGIN if you need to explicitly restrict the
+// list of allowed domains.
 app.use(cors(env.corsOrigins ? { origin: env.corsOrigins } : {}));
 app.use(express.json({ limit: "4mb" }));
 app.use(
@@ -75,25 +81,25 @@ app.use(
     autoLogging: { ignore: (req: IncomingMessage) => req.url === "/api/health" },
   }),
 );
-// Прокидуємо reqId (виданий pino-http вище) через AsyncLocalStorage, щоб код без прямого
-// доступу до `req` (LLM-клієнт, глибокі сервіси) міг долучити його до своїх логів через
-// core/logger.ts#contextLogger() — наскрізна кореляція одного запиту в логах.
+// Thread the reqId (issued by pino-http above) through AsyncLocalStorage so that code without
+// direct access to `req` (the LLM client, deep services) can attach it to its own logs via
+// core/logger.ts#contextLogger() — end-to-end correlation of a single request across logs.
 app.use((req, _res, next) => {
   runWithRequestContext(req.id != null ? String(req.id) : randomUUID(), next);
 });
 
 app.use("/api", apiLimiter, routes);
-// невідомий API-ендпоінт → JSON 404 (а не HTML SPA)
-app.use("/api", (_q, res) => res.status(404).json({ error: "Ендпоінт не знайдено" }));
+// unknown API endpoint → JSON 404 (not the HTML SPA)
+app.use("/api", (_q, res) => res.status(404).json({ error: "Endpoint not found" }));
 
-// віддаємо зібраний фронтенд, якщо є
+// serve the built frontend if it exists
 if (fs.existsSync(env.clientDistPath)) {
   app.use(express.static(env.clientDistPath));
-  // Express 5 (path-to-regexp v8): голий "*" більше не працює як catch-all — потрібен
-  // іменований splat-параметр ("/*name"). SPA-фолбек: усе, що не /api і не статичний файл,
-  // віддає index.html (маршрутизація — на клієнті, React Router).
+  // Express 5 (path-to-regexp v8): a bare "*" no longer works as a catch-all — a named
+  // splat parameter is required ("/*name"). SPA fallback: anything that's not /api and not
+  // a static file gets index.html (routing happens on the client, via React Router).
   app.get("/*splat", (_q, res) => res.sendFile(path.join(env.clientDistPath, "index.html")));
 }
 
-// єдиний обробник помилок — консистентний формат {error, details}
+// single error handler — consistent {error, details} format
 app.use(errorHandler);

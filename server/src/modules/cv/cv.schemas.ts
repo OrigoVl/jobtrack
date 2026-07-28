@@ -1,6 +1,6 @@
-// Zod-схеми для структурованого CV (конструктор). На відміну від shared/validation.ts
-// (яка кидає 400 на невалідний вхід), тут інша семантика: вхід НІКОЛИ не відхиляється —
-// будь-яке сміття тихо приводиться до безпечних значень за замовчуванням.
+// Zod schemas for the structured CV (builder). Unlike shared/validation.ts
+// (which throws 400 on invalid input), the semantics here differ: input is NEVER rejected —
+// any garbage is silently coerced to safe default values.
 import { z } from "zod";
 
 export const CV_TEMPLATES = ["classic", "compact", "academic", "twocol"] as const;
@@ -8,10 +8,10 @@ export const CV_FONTS = ["sans", "serif"] as const;
 export const CV_SECTIONS = ["summary", "skills", "experience", "projects", "education", "languages"] as const;
 export type CvSection = (typeof CV_SECTIONS)[number];
 
-// Zod v4: `.any()`/`.unknown()`, коли є ОБОВʼЯЗКОВИМ полем `z.object({...})`, більше не
-// приймає мовчки відсутній ключ/undefined (кидає ZodError "expected nonoptional") — на
-// відміну від v3. Додаємо `.optional()` одразу після `.any()`, щоб .transform() все одно
-// відпрацював на undefined і повернув безпечний дефолт (семантика файлу не змінюється).
+// Zod v4: `.any()`/`.unknown()`, when it's a REQUIRED field in `z.object({...})`, no longer
+// silently accepts a missing key/undefined (throws ZodError "expected nonoptional") — unlike
+// v3. We add `.optional()` right after `.any()` so .transform() still runs on undefined and
+// returns a safe default (the file's semantics don't change).
 const str = (max: number) =>
   z
     .any()

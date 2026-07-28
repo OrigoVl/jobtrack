@@ -7,10 +7,10 @@ import { hashString } from "./hash.js";
 const SkillsSchema = z.object({ skills: z.array(z.string()) });
 const DomainSchema = z.object({ domain: z.string().catch("") });
 
-// Універсальна екстракція навичок і детекція професії.
-// Працює для БУДЬ-ЯКОЇ галузі через LLM; офлайн — fallback на словник технологій (IT).
-// Кешується за хешем тексту, щоб не платити двічі за те саме резюме/вакансію.
-// Спільна для модулів vacancies і cv — тому лежить у shared/, а не в одному з них.
+// Universal skill extraction and profession detection.
+// Works for ANY industry via the LLM; offline — falls back to the tech dictionary (IT).
+// Cached by the text's hash, so we don't pay twice for the same CV/vacancy.
+// Shared between the vacancies and cv modules — hence it lives in shared/, not in either one.
 
 function dedupe(values: string[]): string[] {
   const seen = new Map<string, string>();
@@ -21,7 +21,7 @@ function dedupe(values: string[]): string[] {
   return [...seen.values()];
 }
 
-/** Витягує ключові навички/інструменти з тексту вакансії або CV. */
+/** Extracts key skills/tools from vacancy or CV text. */
 export async function extractSkills(text: string): Promise<string[]> {
   const regex = extractTechs(text).map((t) => t.name);
   if (!llmAvailable() || !text || text.trim().length < 30) return regex;
@@ -29,9 +29,9 @@ export async function extractSkills(text: string): Promise<string[]> {
   const cached = getKvJson<{ skills: string[] }>(cacheKey);
   if (cached) return cached.skills;
   const out = await chatJson(
-    "Ти асистент з добору персоналу. Витягуєш ключові професійні навички, інструменти та технології з тексту будь-якої галузі. Відповідай ЛИШЕ валідним JSON.",
-    `Текст (вакансія або резюме):\n${text.slice(0, 4000)}\n\n` +
-      `Поверни JSON: {"skills":["8-15 нормалізованих коротких назв навичок/інструментів/технологій"]}`,
+    "You are a recruiting assistant. You extract key professional skills, tools, and technologies from text in any industry. Respond ONLY with valid JSON.",
+    `Text (vacancy or CV):\n${text.slice(0, 4000)}\n\n` +
+      `Return JSON: {"skills":["8-15 normalized short names of skills/tools/technologies"]}`,
     SkillsSchema,
     { maxTokens: 400, temperature: 0.2 },
   );
@@ -42,16 +42,16 @@ export async function extractSkills(text: string): Promise<string[]> {
   return skills;
 }
 
-/** Визначає професію/роль кандидата за резюме (для персоналізації промптів). */
+/** Determines the candidate's profession/role from their CV (for personalizing prompts). */
 export async function detectDomain(cvText: string): Promise<string> {
   if (!llmAvailable() || !cvText || cvText.trim().length < 30) return "";
   const cacheKey = `domain:${hashString(cvText)}`;
   const cached = getKvJson<{ domain: string }>(cacheKey);
   if (cached) return cached.domain;
   const out = await chatJson(
-    "Ти визначаєш професію кандидата за резюме. Відповідай ЛИШЕ валідним JSON українською.",
-    `Резюме:\n${cvText.slice(0, 3000)}\n\n` +
-      `Поверни JSON: {"domain":"коротка назва ролі, напр.: Frontend-розробник, UX-дизайнер, Бухгалтер, Маркетолог, Data Analyst"}`,
+    "You determine a candidate's profession from their CV. Respond ONLY with valid JSON in English.",
+    `CV:\n${cvText.slice(0, 3000)}\n\n` +
+      `Return JSON: {"domain":"short role name, e.g.: Frontend Developer, UX Designer, Accountant, Marketer, Data Analyst"}`,
     DomainSchema,
     { maxTokens: 60, temperature: 0.2 },
   );

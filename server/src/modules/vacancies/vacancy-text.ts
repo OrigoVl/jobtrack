@@ -1,5 +1,5 @@
-// Чисті текстові утиліти без I/O (без БД/мережі) — винесені окремо від vacancy-analysis.service.ts,
-// щоб їх можна було юніт-тестити без завантаження db/* (а отже й node:sqlite).
+// Pure text utilities with no I/O (no DB/network) — split out from vacancy-analysis.service.ts
+// so they can be unit-tested without loading db/* (and therefore node:sqlite).
 import type { Fit } from "../../shared/validation.js";
 
 export function stripHtml(htmlStr: string): string {
@@ -14,34 +14,35 @@ export function stripHtml(htmlStr: string): string {
   return s.replace(/\s+/g, " ").trim();
 }
 
-// Вага навички для розрахунку fit: навички, що частіше зустрічаються в реальних вакансіях
-// (за мапою попиту `demand`), важать більше — пропустити типову/базову вимогу гірше для
-// fit, ніж пропустити нішеву. Без мапи попиту (демо/тест без БД) усі навички рівноважні (1).
+// A skill's weight for computing fit: skills that appear more often in real vacancies (per the
+// `demand` map) weigh more — missing a common/baseline requirement hurts fit more than missing a
+// niche one. Without a demand map (demo/test without a DB), all skills weigh equally (1).
 function skillWeight(skill: string, demand: Record<string, number>, maxDemand: number): number {
   if (maxDemand <= 0) return 1;
   return 1 + (demand[skill] || 0) / maxDemand;
 }
 
 /**
- * Ймовірнісна оцінка відповідності кандидата вакансії за списком збігів (`match`) і прогалин
- * (`gap`) у стеку. Замінює попередню грубу евристику (`match.length >= gap.length ? "high" :
- * gap.length <= 2 ? "med" : "low"`), яка мала два реальні дефекти:
- *   1. Рахувала АБСОЛЮТНУ кількість, не частку — 5 match / 5 gap (50%) визнавались "high".
- *   2. `gap.length <= 2` не враховував match — 0 match / 2 gap (0% відповідності!) все одно
- *      ставало "med".
- * Тепер: частка (`matchScore / (matchScore+gapScore)`, зважена попитом навички на ринку,
- * якщо мапа попиту передана) проходить крізь логістичну функцію навколо 50% — м'якший,
- * симетричний перехід між high/med/low замість різких порогів, і 0 match ГАРАНТОВАНО не
- * може дати вище за "low" (ratio=0 → probability≈0.047, завжди < будь-якого розумного порогу).
+ * A probabilistic fit score for the candidate against a vacancy, from a list of stack matches
+ * (`match`) and gaps (`gap`). Replaces the previous crude heuristic (`match.length >= gap.length
+ * ? "high" : gap.length <= 2 ? "med" : "low"`), which had two real defects:
+ *   1. It counted ABSOLUTE counts, not a ratio — 5 match / 5 gap (50%) was judged "high".
+ *   2. `gap.length <= 2` ignored match entirely — 0 match / 2 gap (0% fit!) still
+ *      became "med".
+ * Now: a ratio (`matchScore / (matchScore+gapScore)`, weighted by market demand for the skill
+ * if a demand map is passed) is run through a logistic function centered at 50% — a softer,
+ * symmetric transition between high/med/low instead of sharp thresholds, and 0 match is
+ * GUARANTEED to never score above "low" (ratio=0 → probability≈0.047, always below any
+ * reasonable threshold).
  */
 export function computeFit(match: string[], gap: string[], demand: Record<string, number> = {}): Fit {
-  if (!match.length && !gap.length) return "high"; // немає жодних відомих вимог — немає підстав знижувати оцінку
+  if (!match.length && !gap.length) return "high"; // no known requirements at all — no basis to lower the score
   const maxDemand = Math.max(0, ...Object.values(demand));
   const matchScore = match.reduce((sum, s) => sum + skillWeight(s, demand, maxDemand), 0);
   const gapScore = gap.reduce((sum, s) => sum + skillWeight(s, demand, maxDemand), 0);
   const ratio = matchScore / (matchScore + gapScore);
-  // Логістична крутизна (k=6): ratio=0.5 (50/50) дає ~0.5 (межа high/med), ratio=0/1 дає
-  // майже 0/1 — плавний, але впевнений перехід без "магічних" абсолютних лічильників.
+  // Logistic steepness (k=6): ratio=0.5 (50/50) gives ~0.5 (the high/med boundary), ratio=0/1
+  // gives almost 0/1 — a smooth but confident transition without "magic" absolute counters.
   const probability = 1 / (1 + Math.exp(-6 * (ratio - 0.5)));
   return probability >= 0.65 ? "high" : probability >= 0.35 ? "med" : "low";
 }

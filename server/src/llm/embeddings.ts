@@ -1,29 +1,29 @@
-// Векторні embeddings (OpenAI `text-embedding-3-small`) для СЕМАНТИЧНОЇ схожості CV↔вакансія —
-// доповнення до точного/fuzzy tech-словника (tech-dict.ts): словник ловить ЗБІГИ КЛЮЧОВИХ СЛІВ
-// ("React", "Docker"), embeddings ловлять смислову близькість навіть без жодного спільного
-// терміну зі словника (напр. "будував REST API на Node.js" і "backend-розробник з досвідом
-// побудови масштабованих сервісів" — семантично близькі, спільних tech-термінів немає).
+// Vector embeddings (OpenAI `text-embedding-3-small`) for SEMANTIC similarity between CV↔vacancy —
+// a complement to the exact/fuzzy tech dictionary (tech-dict.ts): the dictionary catches KEYWORD
+// MATCHES ("React", "Docker"), embeddings catch semantic closeness even without any shared
+// dictionary term (e.g. "built a REST API on Node.js" and "backend developer with experience
+// building scalable services" — semantically close, no shared tech terms).
 //
-// Дешевше й швидше за LLM chat-запит на порівняння: ембединг тексту рахується ОДИН раз і
-// кешується (кожен наступний запит з тим самим текстом — 0 додаткових API-викликів), а
-// порівняння двох текстів — це просто косинусна схожість двох масивів чисел (мілісекунди,
-// без мережі), а не окремий LLM-виклик на кожну пару CV+вакансія.
+// Cheaper and faster than an LLM chat call for comparison: the text embedding is computed ONCE and
+// cached (every subsequent request with the same text — 0 additional API calls), and
+// comparing two texts is just the cosine similarity of two number arrays (milliseconds,
+// no network), not a separate LLM call for every CV+vacancy pair.
 //
-// Доступно лише для OpenAI-провайдера — Anthropic не має публічного embeddings API в цьому
-// застосунку. Якщо провайдер anthropic або немає ключа, embeddingsAvailable() === false і
-// semanticSimilarity/embed тихо повертають null (graceful — той самий підхід, що й у chat()
-// з llmAvailable()) — викликач (quickAnalyze) трактує null як "сигналу немає", не як "0%".
+// Available only for the OpenAI provider — Anthropic has no public embeddings API in this
+// app. If the provider is anthropic or there's no key, embeddingsAvailable() === false and
+// semanticSimilarity/embed quietly return null (graceful — the same approach as chat()'s
+// llmAvailable()) — the caller (quickAnalyze) treats null as "no signal", not as "0%".
 import { getKvJson, setKvJson } from "../db/index.js";
 import { contextLogger } from "../core/logger.js";
 import { hashString } from "../shared/hash.js";
 import { env } from "../config/env.js";
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
-// Той самий бюджет часу, що й "fast"-рівень чат-запитів (llm/client.ts) — короткий текстовий
-// ембединг не повинен чекати довше за швидку LLM-екстракцію.
+// The same time budget as the "fast" tier of chat requests (llm/client.ts) — a short text
+// embedding shouldn't wait longer than a fast LLM extraction.
 const TIMEOUT_MS = env.llm.timeoutMsFast;
-// Той самий ліміт, що й для CV/вакансій у промптах по всьому застосунку (llm/client.ts,
-// writing.routes.ts тощо) — недорого й передбачувано по вхідних токенах.
+// The same limit used for CVs/vacancies in prompts across the app (llm/client.ts,
+// writing.routes.ts, etc.) — cheap and predictable in terms of input tokens.
 const MAX_INPUT_CHARS = 8000;
 
 export function embeddingsAvailable(): boolean {
@@ -31,9 +31,9 @@ export function embeddingsAvailable(): boolean {
 }
 
 /**
- * Ембединг тексту або null при недоступності провайдера/порожньому вході/помилці API —
- * НІКОЛИ не кидає (graceful, як chat()). Кешується за хешем тексту+моделі в kv-сховищі:
- * той самий CV/вакансія повторно не оплачує API-виклик.
+ * Embeds text, or returns null if the provider is unavailable/the input is empty/the API call fails —
+ * NEVER throws (graceful, like chat()). Cached by a hash of text+model in the kv store:
+ * the same CV/vacancy doesn't pay for an API call again.
  */
 export async function embed(text: string): Promise<number[] | null> {
   if (!embeddingsAvailable()) return null;
@@ -67,7 +67,7 @@ export async function embed(text: string): Promise<number[] | null> {
   }
 }
 
-/** Косинусна схожість двох векторів однакової довжини: 1 = той самий напрямок, 0 = ортогональні. */
+/** Cosine similarity of two vectors of equal length: 1 = same direction, 0 = orthogonal. */
 export function cosineSimilarity(a: readonly number[], b: readonly number[]): number {
   if (!a.length || a.length !== b.length) return 0;
   let dot = 0;
@@ -85,9 +85,9 @@ export function cosineSimilarity(a: readonly number[], b: readonly number[]): nu
 }
 
 /**
- * Семантична схожість двох текстів у діапазоні [0,1] (косинусна схожість ембедингів
- * OpenAI для природньої мови практично завжди невід'ємна — clamp лише запобіжник).
- * null — embeddings недоступні або запит до API не вдався для будь-якого з текстів.
+ * Semantic similarity of two texts in the [0,1] range (cosine similarity of OpenAI
+ * embeddings for natural language is practically always non-negative — the clamp is just a safeguard).
+ * null — embeddings are unavailable, or the API request failed for either text.
  */
 export async function semanticSimilarity(textA: string, textB: string): Promise<number | null> {
   const [vecA, vecB] = await Promise.all([embed(textA), embed(textB)]);

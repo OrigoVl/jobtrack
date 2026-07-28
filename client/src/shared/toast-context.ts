@@ -1,5 +1,5 @@
-// Контекст і типи для toast-системи — винесені окремо від toast.tsx (компонент) і
-// use-toast.ts (хук), щоб react-refresh міг однозначно визначити, який файл є "лише компонент".
+// Context and types for the toast system — kept separate from toast.tsx (component) and
+// use-toast.ts (hook), so react-refresh can unambiguously tell which file is "component-only".
 import { createContext } from "react";
 import type { Toast, ToastType } from "./types";
 

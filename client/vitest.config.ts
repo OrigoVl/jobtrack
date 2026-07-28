@@ -13,10 +13,10 @@ export default defineConfig({
       reporter: ["text", "html", "lcov"],
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/**/*.test.{ts,tsx}", "src/main.tsx", "src/test/**"],
-      // Baseline-пороги від поточної реальної покривності (4.39/46.98/36.11/4.39%) з невеликим
-      // запасом — regression-гейт, а не мета. Statements/lines навмисно низькі: юніт-тести
-      // покривають лише shared/queries/* (хуки мутацій з оптимістичними оновленнями), а не UI
-      // компоненти (*.tsx сторінки) — їх покривають ключові флоу в e2e/ (Playwright), не vitest.
+      // Baseline thresholds from actual current coverage (4.39/46.98/36.11/4.39%) with a small
+      // buffer — a regression gate, not a target. Statements/lines are intentionally low: unit
+      // tests only cover shared/queries/* (mutation hooks with optimistic updates), not UI
+      // components (*.tsx pages) — those are covered by key flows in e2e/ (Playwright), not vitest.
       thresholds: {
         statements: 4,
         branches: 42,

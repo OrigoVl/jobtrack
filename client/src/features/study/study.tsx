@@ -19,7 +19,7 @@ const RUNNABLE_CATS = new Set(["JavaScript", "Algorithms"]);
 
 /* ---------- Study ---------- */
 function DrillSandbox({ drill }: { drill: Drill }) {
-  const starter = useMemo(() => `${drill.sol}\n\n// Виклич функцію і виведи результат: console.log(...)\n`, [drill.sol]);
+  const starter = useMemo(() => `${drill.sol}\n\n// Call the function and print the result: console.log(...)\n`, [drill.sol]);
   const [code, setCode] = useState(starter);
   const [result, setResult] = useState<{ logs: string[]; error: string | null; ms: number } | null>(null);
   const [running, setRunning] = useState(false);
@@ -27,14 +27,14 @@ function DrillSandbox({ drill }: { drill: Drill }) {
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} className="mt-3 text-sm text-indigo-600 font-medium hover:underline self-start">
-        🧪 Відкрити пісочницю (запустити код)
+        🧪 Open sandbox (run code)
       </button>
     );
   }
   return (
     <div className="mt-3 border border-slate-200 rounded-lg overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border-b border-slate-200">
-        <span className="text-xs font-semibold text-slate-500">🧪 Пісочниця JS</span>
+        <span className="text-xs font-semibold text-slate-500">🧪 JS Sandbox</span>
         <div className="ml-auto flex gap-1">
           <Btn
             size="sm"
@@ -48,7 +48,7 @@ function DrillSandbox({ drill }: { drill: Drill }) {
               }
             }}
           >
-            ▶ Запустити
+            ▶ Run
           </Btn>
           <Btn
             size="sm"
@@ -58,7 +58,7 @@ function DrillSandbox({ drill }: { drill: Drill }) {
               setResult(null);
             }}
           >
-            Скинути
+            Reset
           </Btn>
         </div>
       </div>
@@ -80,9 +80,9 @@ function DrillSandbox({ drill }: { drill: Drill }) {
               </div>
             ))
           ) : (
-            <div className="text-slate-400">Готово (немає console.log). Час: {result.ms} мс</div>
+            <div className="text-slate-400">Done (no console.log). Time: {result.ms} ms</div>
           )}
-          {!result.error && result.logs.length > 0 && <div className="text-slate-500 mt-1">⏱ {result.ms} мс</div>}
+          {!result.error && result.logs.length > 0 && <div className="text-slate-500 mt-1">⏱ {result.ms} ms</div>}
         </div>
       )}
     </div>
@@ -148,7 +148,7 @@ export function Study() {
       setLoadingHint(true);
       try {
         const res = await api.drillHint(drill.id);
-        setHints(res.offline || res.hints.length === 0 ? ["AI офлайн — увімкни ключ у server/.env для підказок."] : res.hints);
+        setHints(res.offline || res.hints.length === 0 ? ["AI is offline — enable a key in server/.env for hints."] : res.hints);
         setHintsShown(1);
       } finally {
         setLoadingHint(false);
@@ -179,8 +179,8 @@ export function Study() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Тренування"
-        subtitle="Розумні флеш-картки з інтервальним повторенням (як в Anki) + drill-режим із практичними задачами."
+        title="Practice"
+        subtitle="Smart flashcards with spaced repetition (like Anki) + a drill mode with hands-on problems."
         actions={
           <div className="flex gap-1">
             <Btn
@@ -192,7 +192,7 @@ export function Study() {
                 setShow(false);
               }}
             >
-              🃏 Флеш-картки
+              🃏 Flashcards
             </Btn>
             <Btn
               variant={mode === "drill" ? "primary" : "ghost"}
@@ -212,10 +212,10 @@ export function Study() {
         <span>
           ⏱ {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, "0")}
         </span>
-        {mode === "srs" && <span>До повторення сьогодні: {due.length}</span>}
+        {mode === "srs" && <span>Due for review today: {due.length}</span>}
         {mode === "drill" && (
           <span>
-            Розвʼязано: {solvedCount} / {drills.length}
+            Solved: {solvedCount} / {drills.length}
           </span>
         )}
         {mode === "srs" && cardTopic && (
@@ -226,9 +226,9 @@ export function Study() {
             onClick={onGenerateCards}
             loading={generatingCards}
             disabled={!llm}
-            title={llm ? "" : "Потрібен LLM-ключ"}
+            title={llm ? "" : "An LLM key is required"}
           >
-            ✨ Ще картки під «{cardTopic}»
+            ✨ More cards for "{cardTopic}"
           </Btn>
         )}
       </div>
@@ -241,20 +241,20 @@ export function Study() {
             {show && <div className="mt-3 pt-3 border-t border-slate-100 text-slate-700">{card.a}</div>}
             <div className="mt-auto pt-4 flex flex-wrap gap-2">
               {!show ? (
-                <Btn onClick={() => setShow(true)}>👁 Показати відповідь</Btn>
+                <Btn onClick={() => setShow(true)}>👁 Show answer</Btn>
               ) : (
                 <>
                   <Btn variant="ghost" className="!bg-rose-50 !text-rose-700 !border-rose-200" onClick={() => grade(1)}>
-                    🔁 Знову
+                    🔁 Again
                   </Btn>
                   <Btn variant="ghost" className="!bg-amber-50 !text-amber-700 !border-amber-200" onClick={() => grade(2)}>
-                    😓 Важко
+                    😓 Hard
                   </Btn>
                   <Btn variant="ghost" className="!bg-emerald-50 !text-emerald-700 !border-emerald-200" onClick={() => grade(3)}>
-                    ✅ Добре
+                    ✅ Good
                   </Btn>
                   <Btn variant="ghost" className="!bg-sky-50 !text-sky-700 !border-sky-200" onClick={() => grade(4)}>
-                    🚀 Легко
+                    🚀 Easy
                   </Btn>
                 </>
               )}
@@ -264,8 +264,8 @@ export function Study() {
           <Card>
             <EmptyState
               icon="🎉"
-              title="Усі картки на сьогодні пройдено!"
-              hint="Повертайся завтра — інтервали розраховані автоматично за алгоритмом SRS."
+              title="All cards for today are done!"
+              hint="Come back tomorrow — the intervals are calculated automatically by the SRS algorithm."
             />
           </Card>
         ))}
@@ -284,7 +284,7 @@ export function Study() {
             >
               {cats.map((c) => (
                 <option key={c} value={c}>
-                  {c === "all" ? "Усі теми" : c}
+                  {c === "all" ? "All topics" : c}
                 </option>
               ))}
             </select>
@@ -297,7 +297,7 @@ export function Study() {
               }}
               className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700"
             >
-              <option value="all">Будь-яка складність</option>
+              <option value="all">Any difficulty</option>
               <option value="easy">easy</option>
               <option value="med">medium</option>
               <option value="hard">hard</option>
@@ -312,7 +312,7 @@ export function Study() {
                   setShow(false);
                 }}
               />
-              лише непройдені
+              unsolved only
             </label>
             <div className="ml-auto flex items-center gap-2">
               {genTech && (
@@ -322,12 +322,12 @@ export function Study() {
                   onClick={onGenerate}
                   loading={generating}
                   disabled={!llm}
-                  title={llm ? "" : "Потрібен LLM-ключ"}
+                  title={llm ? "" : "An LLM key is required"}
                 >
-                  ✨ Ще задачі під «{genTech}»
+                  ✨ More problems for "{genTech}"
                 </Btn>
               )}
-              <span className="text-xs text-slate-400">{filteredDrills.length} задач</span>
+              <span className="text-xs text-slate-400">{filteredDrills.length} problems</span>
             </div>
           </div>
           {drill ? (
@@ -335,10 +335,10 @@ export function Study() {
               <div className="flex items-center gap-2">
                 <span className="text-xs uppercase tracking-wide text-indigo-600 font-bold">{drill.cat}</span>
                 <Chip>{drill.lvl}</Chip>
-                {drill.generated && <Chip tone="indigo">✨ AI під тебе</Chip>}
+                {drill.generated && <Chip tone="indigo">✨ AI tailored for you</Chip>}
                 {drillProgress[drill.id] === "solved" && (
                   <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
-                    ✓ розвʼязано
+                    ✓ solved
                   </span>
                 )}
                 <span className="text-xs text-slate-400 ml-auto">
@@ -353,7 +353,7 @@ export function Study() {
                       key={`${drill.id}-hint-${idx}`}
                       className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5"
                     >
-                      💡 <b>Підказка {idx + 1}:</b> {h}
+                      💡 <b>Hint {idx + 1}:</b> {h}
                     </div>
                   ))}
                 </div>
@@ -368,15 +368,15 @@ export function Study() {
               )}
               {RUNNABLE_CATS.has(drill.cat) && <DrillSandbox key={drill.id} drill={drill} />}
               <div className="mt-auto pt-4 flex flex-wrap gap-2">
-                {!show && <Btn onClick={() => setShow(true)}>👁 Показати розвʼязок</Btn>}
+                {!show && <Btn onClick={() => setShow(true)}>👁 Show solution</Btn>}
                 {!show && (
                   <Btn variant="ghost" onClick={revealHint} loading={loadingHint} disabled={hints.length > 0 && hintsShown >= hints.length}>
-                    {hintsShown === 0 ? "💡 Підказка" : hintsShown < hints.length ? "💡 Ще підказка" : "💡 Підказки вичерпано"}
+                    {hintsShown === 0 ? "💡 Hint" : hintsShown < hints.length ? "💡 Another hint" : "💡 No more hints"}
                   </Btn>
                 )}
                 {drillProgress[drill.id] === "solved" ? (
                   <Btn variant="ghost" onClick={() => setDrillStatusMutation.mutate({ id: drill.id, status: "todo" })}>
-                    ↩︎ Скинути
+                    ↩︎ Reset
                   </Btn>
                 ) : (
                   <Btn
@@ -384,7 +384,7 @@ export function Study() {
                     className="!bg-emerald-50 !text-emerald-700 !border-emerald-200"
                     onClick={() => setDrillStatusMutation.mutate({ id: drill.id, status: "solved" })}
                   >
-                    ✅ Зроблено
+                    ✅ Done
                   </Btn>
                 )}
                 <Btn
@@ -394,7 +394,7 @@ export function Study() {
                     setShow(false);
                   }}
                 >
-                  ← Попередня
+                  ← Previous
                 </Btn>
                 <Btn
                   variant="ghost"
@@ -403,7 +403,7 @@ export function Study() {
                     setShow(false);
                   }}
                 >
-                  Наступна →
+                  Next →
                 </Btn>
               </div>
             </Card>
@@ -411,8 +411,8 @@ export function Study() {
             <Card>
               <EmptyState
                 icon="🔍"
-                title="Немає задач за цим фільтром"
-                hint="Спробуй іншу тему, складність або вимкни «лише непройдені»."
+                title="No problems match this filter"
+                hint='Try a different topic, difficulty, or turn off "unsolved only".'
               />
             </Card>
           )}

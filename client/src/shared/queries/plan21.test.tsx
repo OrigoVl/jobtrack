@@ -17,9 +17,9 @@ const plan21Fixture: Plan21Data = {
   phases: [
     {
       id: "phase-1",
-      title: "Фаза 1",
+      title: "Phase 1",
       range: "1-7",
-      days: [{ id: "day-1", day: 1, theory: "Основи", practice: "Практика" }],
+      days: [{ id: "day-1", day: 1, theory: "Basics", practice: "Practice" }],
     },
   ],
   progress: { "day-1": false },

@@ -7,9 +7,9 @@ import { aiLimiter } from "../../core/rate-limit.js";
 import { demandMap } from "../../shared/demand.js";
 import { allCards } from "../study/content-store.js";
 
-// `.catch("")` (не .optional()) на `why` — LLM іноді пропускає поле замість повертати "": схема
-// все одно приймає відповідь (не йде в repair-retry за це), просто нормалізує до порожнього рядка,
-// як і робила стара ручна typeof-перевірка нижче.
+// `.catch("")` (not .optional()) on `why` — the LLM sometimes omits the field instead of
+// returning "": the schema still accepts the response (no repair-retry over this), just
+// normalizes it to an empty string, the same as the old manual typeof check used to.
 const FocusActionsSchema = z.object({
   actions: z.array(z.object({ title: z.string(), why: z.string().catch("") })).max(3),
 });
@@ -27,11 +27,12 @@ interface VacancyStatusNextRow {
   applied: string;
 }
 
-// Скільки днів тиші після подачі вважати "затихлою" вакансією, вартою поштовху рекрутеру.
+// How many days of silence after applying counts as a "gone quiet" vacancy worth nudging the recruiter about.
 const STALE_APPLICATION_DAYS = 14;
-// Статуси, де кандидат реально чекає на реакцію іншої сторони (на відміну від "Хочу подати" —
-// ще не подано, і термінальних "Оффер"/"Відмова"/"Пауза" — очікування вже завершене свідомо).
-const WAITING_STATUSES = ["Відправив CV", "Скринінг", "Тех.співбесіда", "Тестове завдання", "Фінал"];
+// Statuses where the candidate is genuinely waiting on a response from the other side (as
+// opposed to "Want to apply" — not yet submitted, and the terminal "Offer"/"Rejected"/"Paused" —
+// the waiting has deliberately already ended).
+const WAITING_STATUSES = ["Applied", "Screening", "Tech interview", "Take-home task", "Final"];
 
 function isStaleApplication(v: VacancyStatusNextRow, nowMs: number): boolean {
   if (!WAITING_STATUSES.includes(v.status) || !v.applied) return false;
@@ -41,11 +42,12 @@ function isStaleApplication(v: VacancyStatusNextRow, nowMs: number): boolean {
 }
 
 // ---------- analytics ----------
-// "Відмова" свідомо НЕ входить у funnelOrder нижче для конверсії/тривалості: це термінальний
-// "вихід" з майже будь-якого етапу, а не наступний КРОК воронки — включення дало б хибний
-// сигнал типу "конверсія Фінал→Відмова 40%", хоча Відмова могла статись і з попередніх етапів.
-const FUNNEL_ORDER = ["Хочу подати", "Відправив CV", "Скринінг", "Тех.співбесіда", "Тестове завдання", "Фінал", "Оффер", "Відмова"];
-const FUNNEL_PROGRESSION_ORDER = FUNNEL_ORDER.filter((s) => s !== "Відмова");
+// "Rejected" is deliberately NOT included in funnelOrder below for conversion/duration: it's a
+// terminal "exit" from almost any stage, not the next STEP of the funnel — including it would
+// give a false signal like "Final→Rejected conversion 40%", even though Rejected could have
+// happened from earlier stages too.
+const FUNNEL_ORDER = ["Want to apply", "Applied", "Screening", "Tech interview", "Take-home task", "Final", "Offer", "Rejected"];
+const FUNNEL_PROGRESSION_ORDER = FUNNEL_ORDER.filter((s) => s !== "Rejected");
 
 r.get("/analytics", (_q, res) => {
   const rows = db.prepare("SELECT status, created, applied FROM vacancies").all() as unknown as VacancyStatusRow[];
@@ -58,10 +60,11 @@ r.get("/analytics", (_q, res) => {
     const d = v.created || "";
     if (d) byDate[d] = (byDate[d] || 0) + 1;
   });
-  // funnel — лише ПОТОЧНИЙ розподіл (знімок "де вакансія зараз"): вакансія, відхилена на
-  // "Тех.співбесіді", там більше не рахується, бо статус перезаписано на "Відмова" — виглядає,
-  // ніби вона туди й не доходила. funnelReached — скільки вакансій КОЛИ-НЕБУДЬ мали кожен статус
-  // (з vacancy_status_history), тобто чесна воронка проходження етапів незалежно від фіналу.
+  // funnel is only the CURRENT distribution (a snapshot of "where the vacancy is now"): a
+  // vacancy rejected at the "Tech interview" stage no longer counts there, because the status
+  // was overwritten to "Rejected" — it looks like it never got there. funnelReached is how many
+  // vacancies EVER had each status (from vacancy_status_history), i.e. an honest funnel of
+  // stage progression regardless of the final outcome.
   const reached = getReachedCounts();
   const funnelReached: Record<string, number> = {};
   funnelOrder.forEach((s) => (funnelReached[s] = reached[s] || 0));
@@ -76,7 +79,7 @@ r.get("/analytics", (_q, res) => {
       you: profile.skills.includes(tech) ? cnt : 0,
     }));
   const conversion = getFunnelConversion(FUNNEL_PROGRESSION_ORDER);
-  const stageDurations = getAvgDaysInStage().filter((d) => d.count >= 2); // count===1 — статистично незначуще, лише шум в UI
+  const stageDurations = getAvgDaysInStage().filter((d) => d.count >= 2); // count===1 is statistically insignificant, just noise in the UI
   res.json({ funnel, funnelReached, byDate, demand, radar, conversion, stageDurations });
 });
 
@@ -97,32 +100,35 @@ interface FocusAction {
   why: string;
 }
 
-// ---------- «Фокус тижня»: LLM аналізує весь стан і дає 3 конкретні дії ----------
+// ---------- "Focus of the week": the LLM analyzes the whole state and gives 3 concrete actions ----------
 function heuristicFocus(s: FocusSummary): FocusAction[] {
   const actions: FocusAction[] = [];
   if (s.overdue > 0)
     actions.push({
-      title: `Онови ${s.overdue} прострочених кроків`,
-      why: "Є вакансії з датою «наступний крок» у минулому — не втрачай контакт.",
+      title: `Update ${s.overdue} overdue steps`,
+      why: 'There are vacancies with a "next step" date in the past — don\'t lose the contact.',
     });
   if (s.interviews > 0)
     actions.push({
-      title: "Готуйся до співбесід",
-      why: `${s.interviews} вакансій на етапі співбесіди — пройди «Мок-інтерв'ю» й повтори картки.`,
+      title: "Prepare for interviews",
+      why: `${s.interviews} vacancies at the interview stage — do a "Mock interview" and review your cards.`,
     });
   if (s.gaps.length > 0)
-    actions.push({ title: `Закрий прогалину «${s.gaps[0]}»`, why: "Найзатребуваніша технологія зі списку, якої немає у твоєму профілі." });
+    actions.push({
+      title: `Close the "${s.gaps[0]}" gap`,
+      why: "The most in-demand technology on the list that's missing from your profile.",
+    });
   if (s.totalVac < 3)
-    actions.push({ title: "Додай більше вакансій", why: "Мала вибірка — імпортуй вакансії, щоб аналітика й роудмапа були точнішими." });
+    actions.push({ title: "Add more vacancies", why: "A small sample — import vacancies so the analytics and roadmap are more accurate." });
   if (s.dueCards > 0)
     actions.push({
-      title: `Повтори ${s.dueCards} карток`,
-      why: "Є картки до повторення сьогодні — тримай знання свіжими за алгоритмом SRS.",
+      title: `Review ${s.dueCards} cards`,
+      why: "There are cards due for review today — keep your knowledge fresh with the SRS algorithm.",
     });
   if (s.staleApplications > 0)
     actions.push({
-      title: `Поштовхни ${s.staleApplications} вакансій без відповіді`,
-      why: `Понад ${STALE_APPLICATION_DAYS} днів тиші після подачі — напиши рекрутеру фолоу-ап або познач "Відмова", якщо вже неактуально.`,
+      title: `Nudge ${s.staleApplications} vacancies with no response`,
+      why: `More than ${STALE_APPLICATION_DAYS} days of silence after applying — send the recruiter a follow-up or mark it "Rejected" if it's no longer relevant.`,
     });
   return actions.slice(0, 3);
 }
@@ -146,7 +152,7 @@ r.get(
     const srs = getSrsStateByCard();
     const summary: FocusSummary = {
       totalVac: rows.length,
-      interviews: rows.filter((v) => ["Тех.співбесіда", "Тестове завдання", "Фінал"].includes(v.status)).length,
+      interviews: rows.filter((v) => ["Tech interview", "Take-home task", "Final"].includes(v.status)).length,
       overdue: rows.filter((v) => v.next && v.next < today).length,
       upcoming: rows.filter((v) => v.next && v.next >= today).length,
       funnel,
@@ -159,21 +165,21 @@ r.get(
       staleApplications: rows.filter((v) => isStaleApplication(v, nowMs)).length,
     };
     if (!llmAvailable()) return res.json({ offline: true, actions: heuristicFocus(summary) });
-    const role = profile.domain || "фахівець";
+    const role = profile.domain || "professional";
     const out = await chatJson(
-      `Ти кар'єрний ментор для кандидата (${role}) у пошуку роботи. Аналізуєш його стан і даєш 3 найважливіші конкретні дії на цей тиждень. Відповідай ЛИШЕ валідним JSON українською.`,
-      `Стан пошуку (JSON): ${JSON.stringify(summary)}.\n` +
-        `Дай рівно 3 пріоритетні дії з поясненням чому саме зараз. Формат строго: {"actions":[{"title":"коротка дія","why":"1 речення чому"}]}`,
+      `You are a career mentor for a candidate (${role}) job-hunting. You analyze their state and give the 3 most important concrete actions for this week. Reply with ONLY valid JSON in English.`,
+      `Search state (JSON): ${JSON.stringify(summary)}.\n` +
+        `Give exactly 3 priority actions with an explanation of why now. Format strictly: {"actions":[{"title":"short action","why":"1 sentence why"}]}`,
       FocusActionsSchema,
-      // "fast": пріоритизація 3 дій зі структурованого стану воронки — легка задача,
-      // не потребує "smart"-рівня; дешевше й швидше для картки, яку юзер бачить щодня.
+      // "fast": prioritizing 3 actions from a structured funnel state — a light task, doesn't
+      // need "smart"-tier; cheaper and faster for a card the user sees every day.
       { maxTokens: 500, temperature: 0.5, cache: true, tier: "fast" },
     );
     const actions: FocusAction[] = out?.actions ?? [];
-    // offline:true, коли LLM не дав валідних дій (помилка провайдера/таймаут/поганий JSON навіть
-    // після repair-retry в chatJson) і ми показуємо той самий героустичний фолбек, що й при
-    // llmAvailable()===false вище — без цього прапорця клієнт (FocusWeekCard) не міг відрізнити
-    // персональний AI-аналіз від generic-порад.
+    // offline:true when the LLM didn't give valid actions (provider error/timeout/bad JSON even
+    // after chatJson's repair-retry) and we show the same heuristic fallback as when
+    // llmAvailable()===false above — without this flag the client (FocusWeekCard) couldn't tell
+    // a personal AI analysis apart from generic advice.
     res.json(actions.length ? { actions } : { offline: true, actions: heuristicFocus(summary) });
   }),
 );

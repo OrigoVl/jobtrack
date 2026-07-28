@@ -5,13 +5,13 @@ import { HttpError } from "../../core/http.js";
 
 const r = express.Router();
 
-// ---------- pet-проєкти ----------
+// ---------- pet projects ----------
 r.get("/projects", (_q, res) => res.json({ projects: PROJECTS, progress: getChecklistProgress("projectProgress") }));
 r.put("/projects/progress", (req, res) => {
   const itemId = String(req.body?.itemId || "");
   const done = Boolean(req.body?.done);
   const valid = PROJECTS.some((p) => p.dod.some((d) => d.id === itemId));
-  if (!valid) throw new HttpError(400, `Невідомий пункт: "${itemId}"`);
+  if (!valid) throw new HttpError(400, `Unknown item: "${itemId}"`);
   res.json({ ok: true, progress: toggleChecklistItem("projectProgress", itemId, done) });
 });
 

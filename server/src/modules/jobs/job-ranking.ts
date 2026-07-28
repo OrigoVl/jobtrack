@@ -1,18 +1,20 @@
-// TF-IDF ранжування зовнішніх вакансій (Remotive/Arbeitnow/DOU) за релевантністю до навичок
-// кандидата. Раніше `/jobs/search` сортував лише за `matchCount` — простим числом тегів
-// вакансії, що збігаються з навичками профілю. Дві проблеми з цим:
-//   1. DOU не віддає теги взагалі (RawJob.tags завжди []) — DOU-вакансії ЗАВЖДИ мали
-//      matchCount=0 і фактично не сортувались за релевантністю, лише за порядком фіда.
-//   2. Усі збіги важать однаково: збіг по "JavaScript" (зустрічається майже в кожній
-//      вакансії) важить стільки ж, скільки збіг по рідкісній нішевій навичці.
-// TF-IDF рахує документ вакансії з ПОЗИЦІЇ+тегів (а не лише тегів) — тож і DOU-вакансії
-// тепер отримують сигнал релевантності з тексту заголовка — і важить рідкісні терміни
-// вище за часті (класична IDF: log(N / (1 + к-сть документів з терміном))).
+// TF-IDF ranking of external vacancies (Remotive/Arbeitnow/DOU) by relevance to the candidate's
+// skills. `/jobs/search` used to sort only by `matchCount` — a plain count of vacancy tags that
+// match the profile's skills. Two problems with that:
+//   1. DOU doesn't return tags at all (RawJob.tags is always []) — DOU vacancies ALWAYS had
+//      matchCount=0 and effectively weren't sorted by relevance at all, just feed order.
+//   2. All matches weigh the same: a match on "JavaScript" (present in almost every vacancy)
+//      weighs the same as a match on a rare niche skill.
+// TF-IDF builds the vacancy's document from its POSITION+tags (not just tags) — so DOU vacancies
+// now also get a relevance signal from the title text — and weighs rare terms higher than
+// frequent ones (classic IDF: log(N / (1 + number of documents containing the term))).
 export interface RankableJob {
   position: string;
   tags: string[];
 }
 
+// The character class deliberately includes Cyrillic letters (а-я, і, ї, є, ґ) — vacancy titles
+// on Ukrainian boards can be in Ukrainian even though the app's UI is English.
 export function tokenize(text: string): string[] {
   return text
     .toLowerCase()
@@ -25,7 +27,7 @@ export function jobDocument(job: RankableJob): string[] {
   return tokenize(`${job.position} ${job.tags.join(" ")}`);
 }
 
-/** IDF-таблиця по корпусу документів (одна вакансія = один документ). */
+/** The IDF table over the document corpus (one vacancy = one document). */
 export function buildIdf(documents: string[][]): Map<string, number> {
   const docCount = documents.length || 1;
   const containing = new Map<string, number>();
@@ -36,17 +38,17 @@ export function buildIdf(documents: string[][]): Map<string, number> {
   }
   const idf = new Map<string, number>();
   for (const [term, n] of containing) {
-    // +1 у знаменнику (стандартне smoothing) — уникає ділення на нуль і надто різкого
-    // зростання IDF для термінів, що зустрічаються рівно в одному документі корпусу.
+    // +1 in the denominator (standard smoothing) — avoids division by zero and too sharp a
+    // rise in IDF for terms that appear in exactly one document of the corpus.
     idf.set(term, Math.log(docCount / (1 + n)) + 1);
   }
   return idf;
 }
 
 /**
- * TF-IDF score вакансії відносно набору термінів-запитів (навички кандидата, вже
- * токенізовані/у нижньому регістрі). Термін Frequency (TF) — скільки разів термін
- * зустрічається в документі вакансії; множимо на IDF цього терміну з корпусу.
+ * A vacancy's TF-IDF score relative to a set of query terms (the candidate's skills, already
+ * tokenized/lowercased). Term Frequency (TF) — how many times the term appears in the vacancy's
+ * document; multiplied by that term's IDF from the corpus.
  */
 export function tfidfScore(job: RankableJob, queryTerms: string[], idf: Map<string, number>): number {
   if (!queryTerms.length) return 0;
@@ -64,9 +66,9 @@ export function tfidfScore(job: RankableJob, queryTerms: string[], idf: Map<stri
 }
 
 /**
- * Ранжує список вакансій за релевантністю до навичок кандидата. IDF рахується по
- * ОБ'ЄДНАНОМУ корпусу всіх джерел (переданих у `documents`), щоб "рідкість" терміну
- * оцінювалась відносно всього, що зараз показуємо, а не лише одного джерела.
+ * Ranks a list of vacancies by relevance to the candidate's skills. IDF is computed over the
+ * COMBINED corpus of all sources (passed in `documents`), so a term's "rarity" is judged against
+ * everything currently being shown, not just one source.
  */
 export function rankByTfidf<T extends RankableJob>(jobs: T[], allDocuments: string[][], skills: string[]): (T & { _score: number })[] {
   const idf = buildIdf(allDocuments);

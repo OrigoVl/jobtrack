@@ -1,44 +1,56 @@
-// Точка входу: піднімає HTTP-сервер поверх зібраного застосунку (app.ts).
+// Entry point: starts the HTTP server on top of the assembled app (app.ts).
+// core/sentry.js — deliberately the FIRST import: Sentry initialization is a side effect of
+// the import itself (see the comment in that file), so it must run before app.ts and
+// everything it pulls in is evaluated — otherwise an error during app startup wouldn't
+// reach Sentry.
+import { captureException, flushSentry } from "./core/sentry.js";
+
 import { app } from "./app.js";
 import { env } from "./config/env.js";
 import logger from "./core/logger.js";
 import { closeDb } from "./db/index.js";
 
-// Без цих двох обробників несподіваний виняток поза Express-запитом (напр. throw у
-// setTimeout/фоновому таймері, або unhandled Promise-rejection з коду, який ніхто не await'нув)
-// або впав би з неструктурованим стек-трейсом просто у stderr (Node's default), або — в
-// новіших версіях Node — обірвав би процес одразу без жодного шансу залогувати причину
-// структуровано (з reqId/контекстом, як усе інше в застосунку йде через pino).
+// Without these two handlers, an unexpected exception outside an Express request (e.g. a
+// throw in setTimeout/a background timer, or an unhandled Promise rejection from code nobody
+// awaited) would either fall through with an unstructured stack trace straight to stderr
+// (Node's default), or — on newer Node versions — kill the process immediately without any
+// chance to log the cause in a structured way (with reqId/context, like everything else in
+// the app does via pino).
 process.on("unhandledRejection", (reason) => {
   logger.error({ err: reason }, "Unhandled promise rejection");
+  captureException(reason);
 });
 process.on("uncaughtException", (err) => {
-  // uncaughtException — сигнал, що стан процесу вже може бути непередбачуваним (пошкоджені
-  // замикання/ресурси). Best practice Node: залогувати з максимальним контекстом і ЗАВЕРШИТИ
-  // процес (а не "лікувати" й жити далі) — supervisor (Docker/pm2/systemd) підніме новий.
+  // uncaughtException — a signal that process state may already be unpredictable (corrupted
+  // closures/resources). Node best practice: log with maximum context and TERMINATE the
+  // process (rather than "healing" and continuing) — a supervisor (Docker/pm2/systemd) will
+  // start a new one. Flush before exit — otherwise the Sentry event never makes it out
+  // (the process exits first).
   logger.fatal({ err }, "Uncaught exception — shutting down");
-  process.exit(1);
+  captureException(err);
+  void flushSentry().finally(() => process.exit(1));
 });
 
 const server = app.listen(env.port, () =>
-  logger.info(`✅ JobTrack API на http://localhost:${env.port} (LLM: ${env.llm.isAvailable ? "on" : "off — офлайн-режим"})`),
+  logger.info(`✅ JobTrack API on http://localhost:${env.port} (LLM: ${env.llm.isAvailable ? "on" : "off — offline mode"})`),
 );
 
-// Graceful shutdown: без обробника SIGTERM (напр. `docker stop`) Node вбиває процес одразу,
-// обриваючи запити в льоту й лишаючи SQLite-з'єднання незакритим. Тут — даємо http.Server
-// доопрацювати вже прийняті запити (server.close() більше не приймає нові з'єднання), потім
-// акуратно закриваємо БД і виходимо. forceExitTimer — запобіжник, якщо якийсь запит зависне.
+// Graceful shutdown: without a SIGTERM handler (e.g. from `docker stop`) Node kills the
+// process immediately, cutting off in-flight requests and leaving the SQLite connection
+// unclosed. Here we let http.Server finish requests it already accepted (server.close() stops
+// accepting new connections), then cleanly close the DB and exit. forceExitTimer is a safety
+// net in case some request hangs.
 function shutdown(signal: string): void {
-  logger.info(`${signal} отримано — graceful shutdown…`);
+  logger.info(`${signal} received — graceful shutdown…`);
   const forceExitTimer = setTimeout(() => {
-    logger.warn("Graceful shutdown не завершився за 10с — примусовий вихід");
+    logger.warn("Graceful shutdown did not complete within 10s — forcing exit");
     process.exit(1);
   }, 10_000);
   forceExitTimer.unref();
   server.close((err) => {
-    if (err) logger.error({ err }, "Помилка при закритті HTTP-сервера");
+    if (err) logger.error({ err }, "Error while closing the HTTP server");
     closeDb();
-    process.exit(err ? 1 : 0);
+    void flushSentry().finally(() => process.exit(err ? 1 : 0));
   });
 }
 

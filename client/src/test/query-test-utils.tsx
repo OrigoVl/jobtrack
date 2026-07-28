@@ -1,5 +1,5 @@
-// Спільна обгортка для тестів TanStack Query хуків: власний QueryClient (без
-// retry/gcTime "шуму" в тестах) + ToastProvider, бо useToast() кидає без нього.
+// Shared wrapper for TanStack Query hook tests: its own QueryClient (without
+// retry/gcTime "noise" in tests) + ToastProvider, since useToast() throws without it.
 import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ToastProvider } from "../shared/toast";

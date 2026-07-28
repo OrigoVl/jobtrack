@@ -34,19 +34,19 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
     >
       <summary className="cursor-pointer px-4 py-3 flex items-center gap-2 select-none">
         <span className="font-semibold text-slate-800">{gap.tech}</span>
-        <Chip tone="rose">{gap.count} вак.</Chip>
-        {dyn?.source === "ai" && <Chip tone="indigo">AI під тебе</Chip>}
-        <span className="ml-auto text-slate-400 text-sm">розгорнути</span>
+        <Chip tone="rose">{gap.count} vac.</Chip>
+        {dyn?.source === "ai" && <Chip tone="indigo">AI for you</Chip>}
+        <span className="ml-auto text-slate-400 text-sm">expand</span>
       </summary>
       <div className="px-4 pb-4 border-t border-slate-100 space-y-3">
-        {loading && <div className="text-xs text-slate-400 mt-3">✨ Персоналізую теми під твій стек…</div>}
+        {loading && <div className="text-xs text-slate-400 mt-3">✨ Personalizing topics to your stack…</div>}
         {dyn?.focus && (
           <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-2.5 text-sm text-indigo-900 mt-3">
-            <span className="font-semibold">✨ Персональний фокус:</span> {dyn.focus}
+            <span className="font-semibold">✨ Personal focus:</span> {dyn.focus}
           </div>
         )}
         <div>
-          <div className="text-xs text-slate-500 mt-3 mb-1">Що вчити</div>
+          <div className="text-xs text-slate-500 mt-3 mb-1">What to learn</div>
           <ul className="list-disc pl-5 text-sm text-slate-700 space-y-1">
             {topics.map((l, i) => (
               <li key={i}>{l}</li>
@@ -54,7 +54,7 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
           </ul>
         </div>
         <div>
-          <div className="text-xs text-slate-500 mb-1">Ресурси</div>
+          <div className="text-xs text-slate-500 mb-1">Resources</div>
           <div className="flex flex-wrap gap-2">
             {resources.map((r) => (
               <a
@@ -71,7 +71,7 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
         </div>
         {gap.drills.length > 0 && (
           <div>
-            <div className="text-xs text-slate-500 mb-1">Практичні задачі (вкладка «Тренування»)</div>
+            <div className="text-xs text-slate-500 mb-1">Practice problems (the "Practice" tab)</div>
             <ul className="list-disc pl-5 text-sm text-slate-600 space-y-1">
               {gap.drills.map((d, i) => (
                 <li key={i}>
@@ -95,7 +95,7 @@ export function LearnPlan({ llm }: { llm: boolean }) {
       const r = await api.learnPlan();
       setPlan(
         r.offline
-          ? "Персональний AI-план доступний лише з увімкненим LLM (впиши ключ у server/.env). Нижче — матеріали за пріоритетом попиту."
+          ? "A personal AI plan is only available with the LLM enabled (set a key in server/.env). Below are materials prioritized by demand."
           : r.plan || "",
       );
     } finally {
@@ -107,17 +107,17 @@ export function LearnPlan({ llm }: { llm: boolean }) {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="План навчання"
-        subtitle={`Будується динамічно з ${learn.totalVacancies} доданих вакансій, порівняних із твоїм профілем. Закривай прогалини зверху вниз.`}
+        title="Learning plan"
+        subtitle={`Built dynamically from ${learn.totalVacancies} added vacancies, compared against your profile. Close gaps top to bottom.`}
         actions={
           <Btn onClick={genPlan} loading={busy} disabled={!llm}>
-            🤖 Персональний план (AI)
+            🤖 Personal plan (AI)
           </Btn>
         }
       />
       {learn.strengths.length > 0 && (
         <Card>
-          <div className="text-xs text-slate-500 mb-1">✅ Твої сильні сторони під попит</div>
+          <div className="text-xs text-slate-500 mb-1">✅ Your strengths against demand</div>
           <div className="flex flex-wrap gap-1">
             {learn.strengths.slice(0, 12).map((s) => (
               <Chip key={s.tech} tone="emerald">
@@ -129,15 +129,15 @@ export function LearnPlan({ llm }: { llm: boolean }) {
       )}
       {plan && (
         <Card>
-          <div className="text-sm font-semibold mb-2 text-slate-700">🤖 Твій персональний план</div>
+          <div className="text-sm font-semibold mb-2 text-slate-700">🤖 Your personal plan</div>
           <div className="text-sm text-slate-700 whitespace-pre-wrap">{plan}</div>
         </Card>
       )}
 
-      <div className="text-sm text-slate-500">⚠️ Прогалини за пріоритетом ({learn.gaps.length}):</div>
+      <div className="text-sm text-slate-500">⚠️ Gaps by priority ({learn.gaps.length}):</div>
       {learn.gaps.length === 0 && (
         <Card>
-          <div className="text-emerald-600 font-medium">🎉 Ти покриваєш увесь стек доданих вакансій!</div>
+          <div className="text-emerald-600 font-medium">🎉 You cover the entire stack of added vacancies!</div>
         </Card>
       )}
       {learn.gaps.map((g, idx) => (

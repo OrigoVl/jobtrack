@@ -7,9 +7,9 @@ export function Companies() {
   const { data: companies = [], isLoading } = useCompanies();
   const saveCompanyMutation = useSaveCompany();
   const [name, setName] = useUi("companies.name", "");
-  // Один mutation-хук обслуговує і кнопку "+ Додати" (без id — новий запис), і onBlur-автозбереження
-  // нотаток/питань кожної картки (з id) — скоупимо isPending за variables, щоб не блимати спінером
-  // одразу всюди.
+  // One mutation hook serves both the "+ Add" button (no id — a new record) and each card's
+  // onBlur autosave of notes/questions (with id) — scope isPending by variables so the
+  // spinner doesn't flash everywhere at once.
   const isAdding = saveCompanyMutation.isPending && !saveCompanyMutation.variables?.id;
   const add = () => {
     if (!name) return;
@@ -20,26 +20,26 @@ export function Companies() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Компанії"
-        subtitle="Веди нотатки про компанії та банк питань «що спитали тут» — щоб готуватись прицільно."
+        title="Companies"
+        subtitle="Keep notes on companies and a bank of 'what they asked here' questions — so you can prep with focus."
         actions={
           <div className="flex gap-2">
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              aria-label="Назва компанії"
-              placeholder="Назва компанії"
+              aria-label="Company name"
+              placeholder="Company name"
               className="bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
             <Btn loading={isAdding} onClick={add}>
-              + Додати
+              + Add
             </Btn>
           </div>
         }
       />
       {companies.length === 0 ? (
         <Card>
-          <EmptyState icon="🏢" title="Ще немає компаній" hint="Додай компанію, щоб вести нотатки й банк питань зі співбесід." />
+          <EmptyState icon="🏢" title="No companies yet" hint="Add a company to keep notes and a bank of interview questions." />
         </Card>
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
@@ -51,22 +51,22 @@ export function Companies() {
                   <div className="font-semibold text-slate-800">{c.name}</div>
                   {isSaving && (
                     <span className="flex items-center gap-1 text-[11px] text-indigo-500">
-                      <Spinner className="h-3 w-3" /> зберігаю…
+                      <Spinner className="h-3 w-3" /> saving…
                     </span>
                   )}
                 </div>
                 <textarea
                   defaultValue={c.notes}
                   onBlur={(e) => saveCompanyMutation.mutate({ ...c, notes: e.target.value })}
-                  aria-label={`Нотатки про ${c.name}`}
-                  placeholder="Нотатки (стек, люди, зарплата, враження)…"
+                  aria-label={`Notes about ${c.name}`}
+                  placeholder="Notes (stack, people, salary, impressions)…"
                   className="w-full h-20 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
                 <textarea
                   defaultValue={c.questions.join("\n")}
                   onBlur={(e) => saveCompanyMutation.mutate({ ...c, questions: e.target.value.split("\n").filter(Boolean) })}
-                  aria-label={`Питання, що ставили в ${c.name}`}
-                  placeholder="Питання, що ставили (по одному на рядок)…"
+                  aria-label={`Questions asked at ${c.name}`}
+                  placeholder="Questions they asked (one per line)…"
                   className="w-full h-20 mt-2 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
               </Card>

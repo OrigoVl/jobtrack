@@ -29,10 +29,10 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
   return (
     <Card className="!bg-gradient-to-br !from-indigo-50 !to-white !border-indigo-200">
       <div className="flex items-center gap-2 mb-2">
-        <span className="font-semibold text-indigo-900">🎯 Фокус тижня</span>
+        <span className="font-semibold text-indigo-900">🎯 Focus of the week</span>
         {data && !data.offline && llm && <Chip tone="indigo">AI</Chip>}
       </div>
-      {loading && <div className="text-sm text-slate-400">✨ Аналізую твій стан пошуку…</div>}
+      {loading && <div className="text-sm text-slate-400">✨ Analyzing your search status…</div>}
       {!loading && data && data.actions.length > 0 && (
         <ol className="space-y-2">
           {data.actions.map((a, i) => (
@@ -48,10 +48,10 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
         </ol>
       )}
       {!loading && (!data || data.actions.length === 0) && (
-        <div className="text-sm text-slate-500">Додай кілька вакансій — і тут зʼявляться персональні пріоритети на тиждень.</div>
+        <div className="text-sm text-slate-500">Add a few vacancies — and personalized priorities for the week will show up here.</div>
       )}
       {data?.offline && (
-        <div className="text-xs text-slate-400 mt-2">Базові поради (AI офлайн). Увімкни ключ у server/.env для персонального аналізу.</div>
+        <div className="text-xs text-slate-400 mt-2">Basic tips (AI offline). Set a key in server/.env for personalized analysis.</div>
       )}
     </Card>
   );
@@ -71,24 +71,24 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
   const dueTodayCount = vacancies.filter((x) => x.next === today).length;
   useEffect(() => {
     if (vacancies.length > 0) maybeNotifyFollowUps(overdueCount, dueTodayCount);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- нагадування раз на день незалежно від подальших ререндерів
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once a day reminder, regardless of further re-renders
   }, [vacancies.length]);
   const onEnableNotifications = async () => {
     const ok = await enableNotifications();
     setNotifOn(ok);
     toast(
-      ok ? "Нагадування увімкнено — перевіримо прострочені кроки при наступному відкритті" : "Дозвіл на сповіщення не надано",
+      ok ? "Reminders enabled — we'll check for overdue steps next time you open the app" : "Notification permission was not granted",
       ok ? "success" : "error",
     );
   };
   const onDisableNotifications = () => {
     disableNotifications();
     setNotifOn(false);
-    toast("Нагадування вимкнено", "success");
+    toast("Reminders disabled", "success");
   };
   if (loadingVacancies) return <CardsSkeleton count={4} />;
-  const active = vacancies.filter((x) => !["Відмова", "Пауза", "Хочу подати"].includes(x.status)).length;
-  const iv = vacancies.filter((x) => ["Тех.співбесіда", "Тестове завдання", "Фінал"].includes(x.status)).length;
+  const active = vacancies.filter((x) => !["Rejected", "Paused", "Want to apply"].includes(x.status)).length;
+  const iv = vacancies.filter((x) => ["Tech interview", "Take-home task", "Final"].includes(x.status)).length;
   const upcoming = vacancies
     .filter((x) => x.next)
     .sort((a, b) => (a.next > b.next ? 1 : -1))
@@ -102,35 +102,35 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Дашборд"
-        subtitle="Твій штаб пошуку роботи: прогрес по вакансіях, найближчі кроки й швидкий доступ до всього."
+        title="Dashboard"
+        subtitle="Your job-search HQ: vacancy progress, upcoming steps, and quick access to everything."
         actions={profile?.domain ? <Chip tone="indigo">🎯 {profile.domain}</Chip> : undefined}
       />
 
       {vacancies.length <= 1 && (
         <Card className="!bg-indigo-50 !border-indigo-200">
-          <div className="font-semibold text-indigo-900">👋 З чого почати</div>
+          <div className="font-semibold text-indigo-900">👋 Getting started</div>
           <ol className="text-sm text-indigo-900/80 mt-2 space-y-1 list-decimal pl-5">
-            <li>Додай кілька вакансій або імпортуй їх на вкладці «Вакансії».</li>
-            <li>Натисни «Спарсити всі» — застосунок сам визначить стек кожної вакансії.</li>
-            <li>Дивись «Роудмапу» та «Skill-radar» — вони покажуть, що підтягнути під ринок.</li>
+            <li>Add a few vacancies or import them on the "Vacancies" tab.</li>
+            <li>Click "Analyze all" — the app will detect each vacancy's stack itself.</li>
+            <li>Check the "Roadmap" and "Skill radar" — they'll show what to pick up for the market.</li>
           </ol>
           <div className="flex gap-2 mt-3">
             <Btn size="sm" onClick={() => go("vacancies")}>
-              Додати вакансії
+              Add vacancies
             </Btn>
             <Btn size="sm" variant="ghost" onClick={() => go("roadmap")}>
-              Відкрити роудмапу
+              Open the roadmap
             </Btn>
           </div>
         </Card>
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {stat(vacancies.length, "Усього вакансій")}
-        {stat(active, "Активні", "text-indigo-600")}
-        {stat(iv, "На співбесідах", "text-amber-600")}
-        {stat(`${study?.learned ?? 0}/${study?.total ?? 0}`, "Карток вивчено", "text-emerald-600")}
+        {stat(vacancies.length, "Total vacancies")}
+        {stat(active, "Active", "text-indigo-600")}
+        {stat(iv, "In interviews", "text-amber-600")}
+        {stat(`${study?.learned ?? 0}/${study?.total ?? 0}`, "Cards learned", "text-emerald-600")}
       </div>
 
       {vacancies.length > 0 && <FocusWeekCard llm={llm} />}
@@ -138,18 +138,18 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
       {roadmap && (
         <Card>
           <div className="flex items-center justify-between mb-2">
-            <div className="font-semibold text-slate-800">🗺️ Прогрес роудмапи</div>
+            <div className="font-semibold text-slate-800">🗺️ Roadmap progress</div>
             <button onClick={() => go("roadmap")} className="text-sm text-indigo-600 hover:underline">
-              Відкрити →
+              Open →
             </button>
           </div>
           <ProgressBar value={roadmap.progress.done} max={roadmap.progress.total} tone="emerald" />
           <div className="text-xs text-slate-500 mt-2">
-            Опановано {roadmap.progress.done} із {roadmap.progress.total} навичок
+            Mastered {roadmap.progress.done} of {roadmap.progress.total} skills
             {learn && learn.gaps.length > 0 && (
               <>
                 {" "}
-                · пріоритетна прогалина: <b className="text-slate-700">{learn.gaps[0].tech}</b>
+                · top-priority gap: <b className="text-slate-700">{learn.gaps[0].tech}</b>
               </>
             )}
           </div>
@@ -159,24 +159,24 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
           <div className="flex items-center justify-between mb-2">
-            <div className="font-semibold text-slate-800">📅 Найближчі кроки</div>
+            <div className="font-semibold text-slate-800">📅 Upcoming steps</div>
             {notificationsSupported() &&
               (notifOn ? (
                 <button
                   onClick={onDisableNotifications}
-                  title="Вимкнути нагадування"
+                  title="Disable reminders"
                   className="text-[11px] text-emerald-600 hover:text-rose-600 hover:underline"
                 >
-                  🔔 Нагадування увімкнено (вимкнути)
+                  🔔 Reminders enabled (turn off)
                 </button>
               ) : (
                 <button onClick={onEnableNotifications} className="text-[11px] text-indigo-600 hover:underline">
-                  🔔 Увімкнути нагадування
+                  🔔 Enable reminders
                 </button>
               ))}
           </div>
           {upcoming.length === 0 ? (
-            <div className="text-slate-400 text-sm">Немає запланованих — додай дату «наступний крок» у вакансіях.</div>
+            <div className="text-slate-400 text-sm">Nothing scheduled — add a "next step" date on your vacancies.</div>
           ) : (
             upcoming.map((u) => (
               <div key={u.id} className="flex justify-between text-sm py-1.5 border-b border-slate-100 last:border-0">
@@ -189,21 +189,21 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
           )}
         </Card>
         <Card>
-          <div className="font-semibold mb-2 text-slate-800">⚡ Швидкі дії</div>
+          <div className="font-semibold mb-2 text-slate-800">⚡ Quick actions</div>
           <div className="flex flex-wrap gap-2">
-            <Btn onClick={() => go("analyzer")}>🔍 Аналіз вакансії</Btn>
+            <Btn onClick={() => go("analyzer")}>🔍 Vacancy analysis</Btn>
             <Btn variant="ghost" onClick={() => go("roadmap")}>
-              🗺️ Роудмапа
+              🗺️ Roadmap
             </Btn>
             <Btn variant="ghost" onClick={() => go("study")}>
-              🧠 Повторення
+              🧠 Review
             </Btn>
             <Btn variant="ghost" onClick={() => go("cv")}>
-              📄 Аналіз CV
+              📄 CV analysis
             </Btn>
           </div>
           <div className="text-xs text-slate-400 mt-3">
-            Карток до повторення сьогодні: <b className="text-slate-600">{study?.due.length ?? 0}</b>
+            Cards due for review today: <b className="text-slate-600">{study?.due.length ?? 0}</b>
           </div>
         </Card>
       </div>

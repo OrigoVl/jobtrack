@@ -1,5 +1,5 @@
-// Початкові дані для порожньої БД: дефолтний профіль кандидата + приклад вакансій (DOU),
-// щоб застосунок одразу мав з чим працювати після першого запуску.
+// Initial data for an empty DB: a default candidate profile + sample vacancies (DOU),
+// so the app has something to work with right after the first run.
 import type { Profile } from "./types.js";
 
 export const DEFAULT_PROFILE: Profile = {
@@ -21,8 +21,8 @@ export const DEFAULT_PROFILE: Profile = {
     "TailwindCSS",
   ],
   cvText:
-    "Full-Stack Developer, 7 років. Vue.js (Options/Composition), Nuxt, Node.js, NestJS, MongoDB, Azure, Docker (basic), AI-інтеграція (Cursor). English B2.",
-  domain: "Full-Stack розробник",
+    "Full-Stack Developer, 7 years of experience. Vue.js (Options/Composition), Nuxt, Node.js, NestJS, MongoDB, Azure, Docker (basic), AI integration (Cursor). English B2.",
+  domain: "Full-Stack Developer",
 };
 
 export type SeedVacancy = [company: string, position: string, level: string, url: string, fit: string, stack: string[]];

@@ -15,11 +15,11 @@ const BASE_DOC: CvDoc = {
 
 describe("buildCvHtml", () => {
   it("disables the browser print header/footer (date, title, URL, page number)", () => {
-    // Без `@page{margin:0}` Chrome/Edge малюють системний заголовок (назва документа + дата)
-    // і підвал (URL + номер сторінки) на КОЖНІЙ сторінці друку — саме на це скаржився юзер
-    // ("Michael Voloshin.pdf ... на кожній сторінці зверху дата і автор"). Ці елементи
-    // рендеряться в полях сторінки, зарезервованих під друк, тож `margin:0` лишає для них
-    // місця; додатковий відступ від краю паперу задаємо власним `padding` у body.
+    // Without `@page{margin:0}` Chrome/Edge draw a system header (document title + date) and
+    // footer (URL + page number) on EVERY printed page — exactly what a user complained about
+    // ("Michael Voloshin.pdf ... date and author at the top of every page"). These elements
+    // render in the page margins reserved for printing, so `margin:0` leaves no room for them;
+    // we set our own spacing from the paper edge via `padding` on body instead.
     const html = buildCvHtml(BASE_DOC);
     expect(html).toContain("@page{margin:0}");
     expect(html).toMatch(/@media print\{body\{margin:0;max-width:none;padding:14mm 12mm\}\}/);
