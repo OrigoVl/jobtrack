@@ -20,14 +20,18 @@ export function recencyWeight(createdIso: string, now: Date = new Date()): numbe
 }
 
 /**
- * Map of "skill -> weighted demand" across all added vacancies. The value is rounded to an
+ * Map of "skill -> weighted demand" from a set of vacancy rows. The value is rounded to an
  * integer — code and LLM prompts throughout the app (roadmap/analytics/knowledge tips) treat
  * this number as "how many vacancies mention it" (e.g. `needed in ${count} vacancies`), so
  * the rounded number stays readable in the same spirit — old vacancies now just contribute
  * fractions (0.5, 0.25...) instead of exactly 1, so fresh demand outweighs stale demand.
+ *
+ * Pure and DB-free on purpose (no import of db/index.js) — split out from demandMap() below so
+ * it can be unit-tested directly with plain arrays, without mocking the database module. This
+ * is also the shape the future async repository layer will call once demandMap() itself starts
+ * reading from Postgres instead of node:sqlite.
  */
-export function demandMap(now: Date = new Date()): Record<string, number> {
-  const rows = db.prepare("SELECT stack, created FROM vacancies").all() as { stack: string; created: string }[];
+export function computeDemand(rows: { stack: string; created: string }[], now: Date = new Date()): Record<string, number> {
   const weighted: Record<string, number> = {};
   rows.forEach((v) => {
     const weight = recencyWeight(v.created, now);
@@ -36,4 +40,10 @@ export function demandMap(now: Date = new Date()): Record<string, number> {
   const map: Record<string, number> = {};
   for (const [tech, sum] of Object.entries(weighted)) map[tech] = Math.round(sum);
   return map;
+}
+
+/** Convenience wrapper: reads every vacancy row and delegates the math to computeDemand(). */
+export function demandMap(now: Date = new Date()): Record<string, number> {
+  const rows = db.prepare("SELECT stack, created FROM vacancies").all() as { stack: string; created: string }[];
+  return computeDemand(rows, now);
 }
