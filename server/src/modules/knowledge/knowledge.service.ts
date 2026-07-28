@@ -97,9 +97,12 @@ export async function getDynamicKnowledge(
     return { ...shared, focus: null, learn: base.learn, resources: base.resources, source: "static" };
   }
   const skills = profile.skills || [];
-  // Deliberately NOT scoped by userId yet — same note as llm/client.ts's chat(): one of the 5
-  // known cross-tenant-leak-risk caches (this one keyed on a derived skill-set hash, not full
-  // content — an even higher existence-oracle risk), fixed in phase 4.
+  // Unlike the 4 caches in db/llm-cache.ts (deliberately global, safe only because they're
+  // keyed on a hash of the FULL input text), this one is keyed on a hash of a DERIVED attribute
+  // (the candidate's sorted skill set) — an existence-oracle risk if it were shared across
+  // tenants. It isn't: getKvJson/setKvJson below write to the per-user `user_kv` table (real
+  // `(user_id, k)` primary key), so this cache is already fully isolated per user regardless of
+  // the hash algorithm.
   const cacheKey = `kb:${tech}:${hashSkills(skills)}`;
   const cached = await getKvJson<CachedKnowledgePayload>(userId, cacheKey);
   if (cached) {

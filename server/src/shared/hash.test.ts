@@ -10,10 +10,9 @@ describe("hashString", () => {
     expect(hashString("react")).not.toBe(hashString("vue"));
   });
 
-  it("returns a non-negative numeric string", () => {
+  it("returns a 64-character lowercase hex string (SHA-256)", () => {
     const h = hashString("some arbitrary cache key");
-    expect(h).toMatch(/^\d+$/);
-    expect(Number(h)).toBeGreaterThanOrEqual(0);
+    expect(h).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it("handles empty strings and unicode without throwing", () => {

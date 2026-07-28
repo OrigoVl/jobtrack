@@ -99,12 +99,12 @@ export const userKv = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.k] })],
 );
 
-// LLM response cache — deliberately GLOBAL (no user_id). The cache key is a hash of the full
-// prompt text (system+user+tier), so a cache hit requires a byte-identical prompt: there is no
-// path by which user B's cache hit returns content derived from user A's different input. See
-// server/src/llm/client.ts for where this is written/read, and shared/hash.ts for why the hash
-// itself must move from djb2 (32-bit, collision-prone) to SHA-256 before this is safe to share
-// across real tenants (phase 4).
+// LLM response cache — deliberately GLOBAL (no user_id). The cache key is a SHA-256 hash of the
+// full prompt text (system+user+tier), so a cache hit requires a byte-identical prompt AND a
+// practically-impossible hash collision (shared/hash.ts — upgraded from djb2, a 32-bit hash that
+// made a collision plausible at scale, exactly because this table is shared across all tenants):
+// there is no path by which user B's cache hit returns content derived from user A's different
+// input. See server/src/llm/client.ts for where this is written/read.
 export const llmCache = pgTable(
   "llm_cache",
   {
