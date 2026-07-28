@@ -81,98 +81,107 @@ if (dryRun) {
 }
 
 const url = process.env.DATABASE_URL || "postgres://jobtrack:jobtrack@localhost:5432/jobtrack";
-const client = new pg.Client({ connectionString: url });
 
-try {
-  await client.connect();
+// Обгорнуто в функцію (а не top-level try/catch), бо .mjs — це ES-модуль: top-level `return`
+// тут синтаксично неможливий, а process.exit() усередині try/catch пропускає finally —
+// з'єднання з Postgres лишалося б відкритим (resource leak) при ранньому виході чи помилці.
+// process.exitCode + return з середини функції — finally (client.end()) виконується завжди.
+async function migrate() {
+  const client = new pg.Client({ connectionString: url });
+  try {
+    await client.connect();
 
-  const {
-    rows: [{ c: existingVacancies }],
-  } = await client.query("SELECT COUNT(*) c FROM vacancies WHERE user_id = $1", [BOOTSTRAP_USER_ID]);
-  if (Number(existingVacancies) > 0 && !force) {
-    log(
-      `\n❌ Postgres already has ${existingVacancies} vacancies for ${BOOTSTRAP_USER_ID} — ` +
-        `aborting to avoid duplicating data. Pass --force to migrate anyway (this WILL create duplicates).`,
-    );
-    process.exit(1);
-  }
-
-  await client.query("BEGIN");
-
-  const vacancyIdMap = new Map(); // old SQLite id -> new Postgres id
-  for (const v of vacancies) {
     const {
-      rows: [{ id: newId }],
-    } = await client.query(
-      `INSERT INTO vacancies (user_id, company, position, level, url, status, fit, applied, next, notes, stack, created)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
-      [
+      rows: [{ c: existingVacancies }],
+    } = await client.query("SELECT COUNT(*) c FROM vacancies WHERE user_id = $1", [BOOTSTRAP_USER_ID]);
+    if (Number(existingVacancies) > 0 && !force) {
+      log(
+        `\n❌ Postgres already has ${existingVacancies} vacancies for ${BOOTSTRAP_USER_ID} — ` +
+          `aborting to avoid duplicating data. Pass --force to migrate anyway (this WILL create duplicates).`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+
+    await client.query("BEGIN");
+
+    const vacancyIdMap = new Map(); // old SQLite id -> new Postgres id
+    for (const v of vacancies) {
+      const {
+        rows: [{ id: newId }],
+      } = await client.query(
+        `INSERT INTO vacancies (user_id, company, position, level, url, status, fit, applied, next, notes, stack, created)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+        [
+          BOOTSTRAP_USER_ID,
+          v.company ?? "",
+          v.position ?? "",
+          v.level ?? "",
+          v.url ?? "",
+          translateStatus(v.status ?? "Want to apply"),
+          v.fit ?? "med",
+          v.applied ?? "",
+          v.next ?? "",
+          v.notes ?? "",
+          JSON.stringify(JSON.parse(v.stack || "[]")),
+          v.created ?? new Date().toISOString().slice(0, 10),
+        ],
+      );
+      vacancyIdMap.set(v.id, newId);
+    }
+
+    for (const c of companies) {
+      await client.query(
+        `INSERT INTO companies (user_id, name, notes, questions) VALUES ($1,$2,$3,$4) ON CONFLICT (user_id, name) DO NOTHING`,
+        [BOOTSTRAP_USER_ID, c.name, c.notes ?? "", JSON.stringify(JSON.parse(c.questions || "[]"))],
+      );
+    }
+
+    for (const s of srsRows) {
+      await client.query(
+        `INSERT INTO srs (user_id, card_id, interval_days, due, reps, difficulty, stability, last_review)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         ON CONFLICT (user_id, card_id) DO UPDATE SET
+           interval_days=excluded.interval_days, due=excluded.due, reps=excluded.reps,
+           difficulty=excluded.difficulty, stability=excluded.stability, last_review=excluded.last_review`,
+        [BOOTSTRAP_USER_ID, s.cardId, s.interval ?? 0, s.due, s.reps ?? 0, s.difficulty, s.stability, s.lastReview],
+      );
+    }
+
+    for (const row of kvToMigrate) {
+      await client.query(
+        `INSERT INTO user_kv (user_id, k, v) VALUES ($1,$2,$3)
+         ON CONFLICT (user_id, k) DO UPDATE SET v=excluded.v, updated_at=now()`,
+        [BOOTSTRAP_USER_ID, row.k, row.v],
+      );
+    }
+
+    for (const h of historyRows) {
+      const newVacancyId = vacancyIdMap.get(h.vacancy_id);
+      if (newVacancyId == null) continue; // history for a vacancy that (somehow) wasn't migrated
+      await client.query(`INSERT INTO vacancy_status_history (user_id, vacancy_id, status, changed_at) VALUES ($1,$2,$3,$4)`, [
         BOOTSTRAP_USER_ID,
-        v.company ?? "",
-        v.position ?? "",
-        v.level ?? "",
-        v.url ?? "",
-        translateStatus(v.status ?? "Want to apply"),
-        v.fit ?? "med",
-        v.applied ?? "",
-        v.next ?? "",
-        v.notes ?? "",
-        JSON.stringify(JSON.parse(v.stack || "[]")),
-        v.created ?? new Date().toISOString().slice(0, 10),
-      ],
+        newVacancyId,
+        translateStatus(h.status),
+        // SQLite's datetime('now') was UTC with no timezone marker — appending 'Z' before parsing
+        // avoids the silent local-timezone-shift bug documented on vacancy_status_history.changedAt
+        // in db/schema/app.ts.
+        new Date(h.changed_at.replace(" ", "T") + "Z").toISOString(),
+      ]);
+    }
+
+    await client.query("COMMIT");
+    log(
+      `\n✅ Migrated ${vacancies.length} vacancies, ${srsRows.length} SRS reviews, ${kvToMigrate.length} kv entries, ${historyRows.length} history rows.`,
     );
-    vacancyIdMap.set(v.id, newId);
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    // eslint-disable-next-line no-console -- one-shot CLI script, no logger set up
+    console.error(`❌ Migration failed and was rolled back — is Postgres running at ${url}?`, e);
+    process.exitCode = 1;
+  } finally {
+    await client.end();
   }
-
-  for (const c of companies) {
-    await client.query(
-      `INSERT INTO companies (user_id, name, notes, questions) VALUES ($1,$2,$3,$4) ON CONFLICT (user_id, name) DO NOTHING`,
-      [BOOTSTRAP_USER_ID, c.name, c.notes ?? "", JSON.stringify(JSON.parse(c.questions || "[]"))],
-    );
-  }
-
-  for (const s of srsRows) {
-    await client.query(
-      `INSERT INTO srs (user_id, card_id, interval_days, due, reps, difficulty, stability, last_review)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-       ON CONFLICT (user_id, card_id) DO UPDATE SET
-         interval_days=excluded.interval_days, due=excluded.due, reps=excluded.reps,
-         difficulty=excluded.difficulty, stability=excluded.stability, last_review=excluded.last_review`,
-      [BOOTSTRAP_USER_ID, s.cardId, s.interval ?? 0, s.due, s.reps ?? 0, s.difficulty, s.stability, s.lastReview],
-    );
-  }
-
-  for (const row of kvToMigrate) {
-    await client.query(
-      `INSERT INTO user_kv (user_id, k, v) VALUES ($1,$2,$3)
-       ON CONFLICT (user_id, k) DO UPDATE SET v=excluded.v, updated_at=now()`,
-      [BOOTSTRAP_USER_ID, row.k, row.v],
-    );
-  }
-
-  for (const h of historyRows) {
-    const newVacancyId = vacancyIdMap.get(h.vacancy_id);
-    if (newVacancyId == null) continue; // history for a vacancy that (somehow) wasn't migrated
-    await client.query(`INSERT INTO vacancy_status_history (user_id, vacancy_id, status, changed_at) VALUES ($1,$2,$3,$4)`, [
-      BOOTSTRAP_USER_ID,
-      newVacancyId,
-      translateStatus(h.status),
-      // SQLite's datetime('now') was UTC with no timezone marker — appending 'Z' before parsing
-      // avoids the silent local-timezone-shift bug documented on vacancy_status_history.changedAt
-      // in db/schema/app.ts.
-      new Date(h.changed_at.replace(" ", "T") + "Z").toISOString(),
-    ]);
-  }
-
-  await client.query("COMMIT");
-  log(
-    `\n✅ Migrated ${vacancies.length} vacancies, ${srsRows.length} SRS reviews, ${kvToMigrate.length} kv entries, ${historyRows.length} history rows.`,
-  );
-} catch (e) {
-  await client.query("ROLLBACK").catch(() => {});
-  // eslint-disable-next-line no-console -- one-shot CLI script, no logger set up
-  console.error(`❌ Migration failed and was rolled back — is Postgres running at ${url}?`, e);
-  process.exit(1);
-} finally {
-  await client.end();
 }
+
+await migrate();
