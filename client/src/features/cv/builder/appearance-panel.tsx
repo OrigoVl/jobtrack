@@ -9,6 +9,9 @@ const TEMPLATES: [CvTheme["template"], string][] = [
   ["compact", "Compact"],
   ["academic", "Academic"],
   ["twocol", "Two columns"],
+  ["minimal", "Minimal"],
+  ["sidebar", "Sidebar"],
+  ["timeline", "Timeline"],
 ];
 
 interface AppearancePanelProps {

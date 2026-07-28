@@ -1,52 +1,49 @@
-import { Btn, Card } from "../../../shared/ui";
+import { Btn } from "../../../shared/ui";
 import { Field } from "../../../shared/view-kit";
 import type { CvLanguage } from "../../../shared/types";
 
 const LANGUAGE_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2", "Native", "Conversational"];
 
-interface ProjectsEducationCardProps {
-  projects: string[];
-  education: string[];
-  onChangeProjects: (v: string) => void;
-  onChangeEducation: (v: string) => void;
-}
-
-/** Projects and education — simple text lists (one item per line). */
-export function ProjectsEducationCard({ projects, education, onChangeProjects, onChangeEducation }: ProjectsEducationCardProps) {
+/** Projects — one item per line. Its own accordion section (previously bundled with Education). */
+export function ProjectsSection({ projects, onChange }: { projects: string[]; onChange: (v: string) => void }) {
   return (
-    <Card className="space-y-2">
-      <label className="block">
-        <span className="text-xs font-semibold text-slate-500">Projects (one per line)</span>
-        <textarea
-          value={projects.join("\n")}
-          onChange={(e) => onChangeProjects(e.target.value)}
-          className="w-full mt-0.5 h-16 bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-        />
-      </label>
-      <label className="block">
-        <span className="text-xs font-semibold text-slate-500">Education (one per line)</span>
-        <textarea
-          value={education.join("\n")}
-          onChange={(e) => onChangeEducation(e.target.value)}
-          className="w-full mt-0.5 h-16 bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-        />
-      </label>
-    </Card>
+    <label className="block">
+      <span className="text-xs font-semibold text-slate-500">Projects (one per line)</span>
+      <textarea
+        value={projects.join("\n")}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full mt-0.5 h-24 bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+      />
+    </label>
   );
 }
 
-interface LanguagesCardProps {
+/** Education — one item per line. Its own accordion section. */
+export function EducationSection({ education, onChange }: { education: string[]; onChange: (v: string) => void }) {
+  return (
+    <label className="block">
+      <span className="text-xs font-semibold text-slate-500">Education (one per line)</span>
+      <textarea
+        value={education.join("\n")}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full mt-0.5 h-24 bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+      />
+    </label>
+  );
+}
+
+interface LanguagesSectionProps {
   languages: CvLanguage[];
   onChange: (languages: CvLanguage[]) => void;
 }
 
-/** Languages and proficiency level — a separate section in the CV. */
-export function LanguagesCard({ languages, onChange }: LanguagesCardProps) {
+/** Languages and proficiency level — a separate accordion section. */
+export function LanguagesSection({ languages, onChange }: LanguagesSectionProps) {
   const setLang = (i: number, p: Partial<CvLanguage>) => onChange(languages.map((l, idx) => (idx === i ? { ...l, ...p } : l)));
   return (
-    <Card className="space-y-2">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-slate-700">Languages</span>
+        <span className="text-xs text-slate-400">{languages.length ? `${languages.length} added` : "None yet"}</span>
         <Btn size="sm" variant="ghost" onClick={() => onChange([...languages, { name: "", level: "B2" }])}>
           + Add a language
         </Btn>
@@ -84,6 +81,6 @@ export function LanguagesCard({ languages, onChange }: LanguagesCardProps) {
           </Btn>
         </div>
       ))}
-    </Card>
+    </div>
   );
 }

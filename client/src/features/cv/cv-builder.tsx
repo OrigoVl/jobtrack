@@ -1,18 +1,24 @@
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useToast } from "../../shared/use-toast";
 import { useApplyCvUpload, useProfile, useVacancies } from "../../shared/queries";
-import { Btn, Card, CardsSkeleton, PageHeader, Segmented, Spinner } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Dropdown, PageHeader, Section, Segmented, Spinner } from "../../shared/ui";
+import { SkillsInput } from "../../shared/view-kit";
 import type { CvDoc, CvExperience, CvMatch, CvPreset, CvReview, CvTheme } from "../../shared/types";
 import { CvMatchPanel, CvReviewPanel } from "./cv";
 import { DEFAULT_ORDER, cvDocToText, exportCvDoc, themeOf } from "./builder/cv-doc-utils";
-import { BasicInfoCard } from "./builder/basic-info-card";
+import { GeneralSection } from "./builder/basic-info-card";
+import type { SummaryStyle } from "./builder/basic-info-card";
 import { ExperienceCard } from "./builder/experience-card";
-import { LanguagesCard, ProjectsEducationCard } from "./builder/extra-sections-cards";
+import { EducationSection, LanguagesSection, ProjectsSection } from "./builder/extra-sections-cards";
 import { AppearancePanel } from "./builder/appearance-panel";
 import { LayoutPresetsPanel } from "./builder/layout-presets-panel";
 import { CvPreviewPanel } from "./builder/cv-preview-panel";
+import { ResumeCompleteness } from "./builder/resume-completeness";
+
+type SectionKey = "general" | "experience" | "skills" | "projects" | "education" | "languages" | "design";
 
 /* ---------- CV Builder ---------- */
 export function CvBuilder({ llm }: { llm: boolean }) {
@@ -36,11 +42,13 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   const [busyMatch, setBusyMatch] = useState(false);
   const [activeReport, setActiveReport] = useUi<"review" | "match">("cvbuilder.activeReport", "review");
   const [dismissedSuggest, setDismissedSuggest] = useState(false);
-  // Content and design are split across tabs (instead of stacked on top of each other in one
-  // column) — this is what keeps the preview on the right sticky and immediately visible instead
-  // of "falling" below the Appearance/Presets panels (hence the earlier "preview at the bottom
-  // right" complaint).
-  const [tab, setTab] = useUi<"content" | "design">("cvbuilder.tab", "content");
+  // Single exclusive accordion instead of the old "Content / Design" tab split with every card
+  // stacked underneath — one section open at a time, so there's never more scrolling than one
+  // section's worth of fields. "design" folds in the old Appearance + Layout/Presets panels.
+  const [activeSection, setActiveSection] = useUi<SectionKey>("cvbuilder.activeSection", "general");
+  // Which experience entry the live preview asked to focus (click sync) — applied once by
+  // ExperienceCard, not held/forced every render (see its own render-time reset guard).
+  const [expFocusIndex, setExpFocusIndex] = useState<number | null>(null);
   useEffect(() => {
     api
       .cvDoc()
@@ -221,10 +229,11 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       setBusy("");
     }
   };
-  const improveSummary = async () => {
-    setBusy("sum");
+  const busyStyle = (busy.startsWith("sum:") ? busy.slice(4) : "") as SummaryStyle | "";
+  const improveSummary = async (style: SummaryStyle) => {
+    setBusy(`sum:${style}`);
     try {
-      set({ summary: (await api.improveCv(doc.summary, "summary")).text });
+      set({ summary: (await api.improveCv(doc.summary, "summary", style)).text });
     } finally {
       setBusy("");
     }
@@ -241,6 +250,29 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     }
   };
   const langs = doc.languages ?? [];
+  // Clicking a section/entry in the live preview jumps straight to it in the editor — the
+  // preview tags each block with data-section (see cv-doc-utils.ts); "summary"/"general" both
+  // map to the General section since Name/Role/Contacts/Summary live together there.
+  const onPreviewSectionClick = (section: string) => {
+    const expMatch = /^experience-(\d+)$/.exec(section);
+    if (expMatch) {
+      setActiveSection("experience");
+      setExpFocusIndex(Number(expMatch[1]));
+      return;
+    }
+    if (section === "summary" || section === "general") {
+      setActiveSection("general");
+      return;
+    }
+    if (section === "skills" || section === "projects" || section === "education" || section === "languages") {
+      setActiveSection(section);
+    }
+  };
+  const accordion = (key: SectionKey, icon: string, title: string, hint: string | undefined, body: ReactNode) => (
+    <Section key={key} icon={icon} title={title} hint={hint} open={activeSection === key} onToggle={() => setActiveSection(key)}>
+      {body}
+    </Section>
+  );
   return (
     <div className="space-y-4">
       <PageHeader
@@ -253,7 +285,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
               onClick={() => exportCvDoc(doc)}
               title="In the browser's print dialog, the date/document title at the top of pages are disabled automatically; if they still appear — turn off «Headers and footers»"
             >
-              ⬇️ PDF
+              ⬇️ Export PDF
             </Btn>
             <Btn onClick={save} loading={busy === "save"}>
               💾 Save
@@ -261,15 +293,15 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           </>
         }
       />
-      <Card className="!py-3 space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-slate-500">Fill in:</span>
-          <label
-            className={`inline-flex items-center gap-1.5 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer transition-colors ${busy === "upload" ? "bg-indigo-300 text-white" : "bg-indigo-600 text-white hover:bg-indigo-500"}`}
-          >
+      {/* Simplified toolbar: two grouped dropdowns (Import, Vacancy) instead of a row of
+          equal-weight buttons, plus Compare/AI Assistant — Save/Export stayed above as the
+          only two primary-looking actions. */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Dropdown label="📎 Import">
+          <label className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm cursor-pointer hover:bg-slate-50">
             {busy === "upload" ? (
               <>
-                <Spinner className="h-3 w-3" /> Parsing…
+                <Spinner className="h-3.5 w-3.5" /> Parsing…
               </>
             ) : (
               "📎 From CV file"
@@ -282,12 +314,10 @@ export function CvBuilder({ llm }: { llm: boolean }) {
               onChange={(e) => uploadFile(e.target.files?.[0])}
             />
           </label>
-          <label
-            className={`inline-flex items-center gap-1.5 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer transition-colors ${busy === "li" ? "bg-slate-200 text-slate-500" : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"}`}
-          >
+          <label className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm cursor-pointer hover:bg-slate-50">
             {busy === "li" ? (
               <>
-                <Spinner className="h-3 w-3" /> Importing…
+                <Spinner className="h-3.5 w-3.5" /> Importing…
               </>
             ) : (
               "🔗 LinkedIn (.zip)"
@@ -300,48 +330,51 @@ export function CvBuilder({ llm }: { llm: boolean }) {
               onChange={(e) => importLinkedIn(e.target.files?.[0])}
             />
           </label>
-          <Btn size="sm" variant="ghost" onClick={fromText} loading={busy === "gen"} disabled={!llm}>
-            🪄 From profile text (AI)
-          </Btn>
-          <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />
-          <span className="text-xs font-semibold text-slate-500">AI analysis:</span>
-          <Btn size="sm" variant="ghost" onClick={doReview} loading={busyReview}>
-            🔎 Tips
-          </Btn>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2.5">
-          <span className="text-xs font-semibold text-slate-500">🎯 For a vacancy:</span>
+          <button
+            type="button"
+            onClick={fromText}
+            disabled={!llm || busy === "gen"}
+            className="w-full flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-left hover:bg-slate-50 disabled:opacity-40"
+          >
+            {busy === "gen" ? <Spinner className="h-3.5 w-3.5" /> : "🪄"} From profile text (AI)
+          </button>
+          <details className="text-xs text-slate-500 px-2 pt-1" data-keep-open>
+            <summary className="cursor-pointer select-none hover:text-slate-700 font-medium">Where do I get a LinkedIn .zip?</summary>
+            <div className="mt-1.5 text-slate-600">
+              LinkedIn → <b>Settings & Privacy → Data Privacy → Get a copy of your data</b> → «Want something in particular» (Profile,
+              Positions, Skills, Education) → get the archive by email → upload the <b>.zip</b> here.
+            </div>
+          </details>
+        </Dropdown>
+        <Dropdown label={matchVacId ? `🎯 ${vacancies.find((v) => v.id === matchVacId)?.position ?? "Vacancy"}` : "🎯 Vacancy"}>
+          <div className="text-xs font-semibold text-slate-500 px-1 pb-1">Compare CV against</div>
           {vacancies.length === 0 ? (
-            <span className="text-xs text-slate-400">add vacancies to the tracker to compare your CV against them</span>
+            <div className="text-xs text-slate-400 px-1 py-1">Add vacancies to the tracker first</div>
           ) : (
-            <>
-              <select
-                value={matchVacId}
-                onChange={(e) => setMatchVacId(Number(e.target.value))}
-                className="flex-1 min-w-[200px] bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              >
-                <option value={0}>— select a vacancy —</option>
-                {vacancies.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.position}
-                    {v.company ? ` — ${v.company}` : ""}
-                  </option>
-                ))}
-              </select>
-              <Btn size="sm" onClick={doMatch} loading={busyMatch} disabled={!matchVacId}>
-                Compare
-              </Btn>
-            </>
+            <select
+              data-keep-open
+              value={matchVacId}
+              onChange={(e) => setMatchVacId(Number(e.target.value))}
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            >
+              <option value={0}>— select a vacancy —</option>
+              {vacancies.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.position}
+                  {v.company ? ` — ${v.company}` : ""}
+                </option>
+              ))}
+            </select>
           )}
-        </div>
-        <details className="text-xs text-slate-500">
-          <summary className="cursor-pointer select-none hover:text-slate-700 font-medium">How do I export a .zip from LinkedIn?</summary>
-          <div className="mt-1.5 text-slate-600">
-            Go to LinkedIn → <b>Settings & Privacy → Data Privacy → Get a copy of your data</b> → choose «Want something in particular»
-            (Profile, Positions, Skills, Education) → get the archive by email → upload the <b>.zip</b> using the button above.
-          </div>
-        </details>
-      </Card>
+        </Dropdown>
+        <Btn size="sm" variant="ghost" onClick={doMatch} loading={busyMatch} disabled={!matchVacId}>
+          🎯 Compare
+        </Btn>
+        <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />
+        <Btn size="sm" variant="ghost" onClick={doReview} loading={busyReview}>
+          🤖 AI Assistant
+        </Btn>
+      </div>
       {!dismissedSuggest && llm && !!profile?.cvText?.trim() && !doc.name && !doc.summary && doc.experience.length === 0 && (
         <Card className="!py-3 bg-amber-50 border-amber-200 flex items-center gap-3">
           <span className="text-lg">💡</span>
@@ -410,45 +443,65 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           along with unrelated cards on the left, since in a single-column grid all rows share
           the same track width) up to 880px and cause horizontal scroll of the entire page. */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-4 items-start">
-        <div className="min-w-0 space-y-3">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <Segmented
-              value={tab}
-              onChange={setTab}
-              size="md"
-              options={[
-                { value: "content", label: "📝 Content" },
-                { value: "design", label: "🎨 Design" },
-              ]}
-            />
-            <span className="text-xs text-slate-400">
-              {tab === "content"
-                ? "Resume text — the preview on the right updates immediately"
-                : "Template, color, photo, section order and presets"}
-            </span>
-          </div>
-          {tab === "content" ? (
-            <>
-              <BasicInfoCard doc={doc} onChange={set} llm={llm} improvingSummary={busy === "sum"} onImproveSummary={improveSummary} />
-              <ExperienceCard
-                experience={doc.experience}
-                onAdd={() => set({ experience: [...doc.experience, { role: "", company: "", period: "", bullets: [] }] })}
-                onRemove={(i) => set({ experience: doc.experience.filter((_, idx) => idx !== i) })}
-                onSet={setExp}
-                onMove={moveExp}
-                llm={llm}
-                busyKey={busy}
-                onImproveBullets={improveBullets}
-              />
-              <ProjectsEducationCard
-                projects={doc.projects}
-                education={doc.education}
-                onChangeProjects={(v) => set({ projects: v.split("\n") })}
-                onChangeEducation={(v) => set({ education: v.split("\n") })}
-              />
-              <LanguagesCard languages={langs} onChange={(languages) => set({ languages })} />
-            </>
-          ) : (
+        <div className="min-w-0 space-y-2.5">
+          <ResumeCompleteness doc={doc} />
+          {accordion(
+            "general",
+            "🧑",
+            "General",
+            doc.name || undefined,
+            <GeneralSection doc={doc} onChange={set} llm={llm} busyStyle={busyStyle} onImproveSummary={improveSummary} />,
+          )}
+          {accordion(
+            "experience",
+            "💼",
+            "Experience",
+            doc.experience.length ? `${doc.experience.length} entries` : "empty",
+            <ExperienceCard
+              experience={doc.experience}
+              onAdd={() => set({ experience: [...doc.experience, { role: "", company: "", period: "", bullets: [] }] })}
+              onRemove={(i) => set({ experience: doc.experience.filter((_, idx) => idx !== i) })}
+              onSet={setExp}
+              onMove={moveExp}
+              llm={llm}
+              busyKey={busy}
+              onImproveBullets={improveBullets}
+              focusIndex={expFocusIndex}
+            />,
+          )}
+          {accordion(
+            "skills",
+            "🧩",
+            "Skills",
+            doc.skills.length ? `${doc.skills.length} added` : "empty",
+            <SkillsInput label="Skills" hideLabel skills={doc.skills} onChange={(skills) => set({ skills })} placeholder="Search skill…" />,
+          )}
+          {accordion(
+            "projects",
+            "🚀",
+            "Projects",
+            doc.projects.filter(Boolean).length ? `${doc.projects.filter(Boolean).length} items` : "empty",
+            <ProjectsSection projects={doc.projects} onChange={(v) => set({ projects: v.split("\n") })} />,
+          )}
+          {accordion(
+            "education",
+            "🎓",
+            "Education",
+            doc.education.filter(Boolean).length ? `${doc.education.filter(Boolean).length} items` : "empty",
+            <EducationSection education={doc.education} onChange={(v) => set({ education: v.split("\n") })} />,
+          )}
+          {accordion(
+            "languages",
+            "🌍",
+            "Languages",
+            langs.length ? `${langs.length} added` : "empty",
+            <LanguagesSection languages={langs} onChange={(languages) => set({ languages })} />,
+          )}
+          {accordion(
+            "design",
+            "🎨",
+            "Design",
+            TEMPLATE_LABELS[theme.template],
             <div className="space-y-2">
               <AppearancePanel doc={doc} theme={theme} onSetTheme={setTheme} onSetPhoto={(photo) => set({ photo })} />
               <LayoutPresetsPanel
@@ -462,16 +515,25 @@ export function CvBuilder({ llm }: { llm: boolean }) {
                 onDeletePreset={deletePreset}
                 saving={busy === "preset"}
               />
-            </div>
+            </div>,
           )}
         </div>
-        {/* Right column — preview only, nothing above it: sticky and immediately in focus
-            regardless of which tab is selected on the left (switching to "Design" still shows
-            the result). */}
+        {/* Right column — preview only, nothing above it: sticky and immediately in focus no
+            matter which accordion section is open on the left. */}
         <div className="min-w-0 lg:sticky lg:top-6">
-          <CvPreviewPanel doc={doc} onExport={() => exportCvDoc(doc)} />
+          <CvPreviewPanel doc={doc} onExport={() => exportCvDoc(doc)} onSectionClick={onPreviewSectionClick} />
         </div>
       </div>
     </div>
   );
 }
+
+const TEMPLATE_LABELS: Record<CvTheme["template"], string> = {
+  classic: "Classic",
+  compact: "Compact",
+  academic: "Academic",
+  twocol: "Two columns",
+  minimal: "Minimal",
+  sidebar: "Sidebar",
+  timeline: "Timeline",
+};

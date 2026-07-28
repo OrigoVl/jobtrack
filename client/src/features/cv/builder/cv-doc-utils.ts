@@ -37,15 +37,20 @@ export function buildCvHtml(doc: CvDoc): string {
       .map((x) => `<li>${esc(x)}</li>`)
       .join("");
   const H = (title: string) => `<h2>${esc(title)}</h2>`;
+  // Every top-level block and every individual experience entry carries a `data-section` —
+  // the preview iframe attaches a plain click listener (from the parent, via
+  // `contentDocument`, no injected <script>/CSP concerns) and reports it back so clicking
+  // "Experience #2" in the live preview can open exactly that entry in the editor.
+  const wrap = (key: string, html: string) => (html ? `<div class="sec-block" data-section="${key}">${html}</div>` : "");
   const exp = doc.experience
     .map(
-      (e) =>
-        `<div class="exp"><div class="row"><span class="role">${esc(e.role)}</span><span class="period">${esc(e.period)}</span></div>` +
+      (e, i) =>
+        `<div class="exp" data-section="experience-${i}"><div class="row"><span class="role">${esc(e.role)}</span><span class="period">${esc(e.period)}</span></div>` +
         `<div class="company">${esc(e.company)}</div>${e.bullets.filter(Boolean).length ? `<ul>${list(e.bullets)}</ul>` : ""}</div>`,
     )
     .join("");
   const photoImg = doc.photo && t.showPhoto !== false ? `<img class="photo" src="${doc.photo}" alt="Photo"/>` : "";
-  const hmeta = `<div class="hmeta"><h1>${esc(doc.name)}</h1><div class="title">${esc(doc.title)}</div><div class="contact">${esc(doc.contact)}</div></div>`;
+  const hmeta = `<div class="hmeta" data-section="general"><h1>${esc(doc.name)}</h1><div class="title">${esc(doc.title)}</div><div class="contact">${esc(doc.contact)}</div></div>`;
   const langs = (doc.languages || []).filter((l) => l && l.name);
   const useInline = t.template === "compact" || t.template === "academic";
   const secSkillsChips = doc.skills.length
@@ -53,14 +58,17 @@ export function buildCvHtml(doc: CvDoc): string {
     : "";
   const secSkillsInline = doc.skills.length ? `${H("Skills")}<p>${doc.skills.map(esc).join(" · ")}</p>` : "";
   const sec: Record<string, string> = {
-    summary: doc.summary ? `${H("Profile")}<p>${esc(doc.summary)}</p>` : "",
-    skills: useInline ? secSkillsInline : secSkillsChips,
+    summary: wrap("summary", doc.summary ? `${H("Profile")}<p>${esc(doc.summary)}</p>` : ""),
+    skills: wrap("skills", useInline ? secSkillsInline : secSkillsChips),
     experience: doc.experience.length ? `${H("Experience")}${exp}` : "",
-    projects: doc.projects.filter(Boolean).length ? `${H("Projects")}<ul>${list(doc.projects)}</ul>` : "",
-    education: doc.education.filter(Boolean).length ? `${H("Education")}<ul>${list(doc.education)}</ul>` : "",
-    languages: langs.length
-      ? `${H("Languages")}<ul>${langs.map((l) => `<li>${esc(l.name)}${l.level ? ` — <span class="lvl">${esc(l.level)}</span>` : ""}</li>`).join("")}</ul>`
-      : "",
+    projects: wrap("projects", doc.projects.filter(Boolean).length ? `${H("Projects")}<ul>${list(doc.projects)}</ul>` : ""),
+    education: wrap("education", doc.education.filter(Boolean).length ? `${H("Education")}<ul>${list(doc.education)}</ul>` : ""),
+    languages: wrap(
+      "languages",
+      langs.length
+        ? `${H("Languages")}<ul>${langs.map((l) => `<li>${esc(l.name)}${l.level ? ` — <span class="lvl">${esc(l.level)}</span>` : ""}</li>`).join("")}</ul>`
+        : "",
+    ),
   };
   const order = (t.order && t.order.length ? t.order : ["summary", "skills", "experience", "projects", "education", "languages"]).filter(
     (k) => k in sec,
@@ -77,11 +85,11 @@ export function buildCvHtml(doc: CvDoc): string {
   const px = (n: number) => `${n.toFixed(1)}px`;
   let layout = "";
   let extraCss = "";
-  const headerRow = `<header class="hrow">${photoImg}${hmeta}</header>`;
+  const headerRow = `<header class="hrow" data-section="general">${photoImg}${hmeta}</header>`;
   if (t.template === "twocol") {
     const aside = `${photoImg}${pick(["skills", "languages", "education"])}`;
     const main = pick(["summary", "experience", "projects"]);
-    layout = `<header class="hrow">${hmeta}</header><div class="cols"><aside>${aside}</aside><main>${main}</main></div>`;
+    layout = `<header class="hrow" data-section="general">${hmeta}</header><div class="cols"><aside>${aside}</aside><main>${main}</main></div>`;
     extraCss =
       ".cols{display:flex;gap:26px" +
       (t.photoPos === "right" ? ";flex-direction:row-reverse" : "") +
@@ -90,12 +98,48 @@ export function buildCvHtml(doc: CvDoc): string {
       ";height:" +
       px(fs * 7) +
       "}";
+  } else if (t.template === "sidebar") {
+    // Unlike "twocol" (plain two columns, same white background), the aside here is a tinted
+    // color block holding identity + skills/languages/education — a distinct, more visual
+    // "modern resume" look rather than twocol's understated split.
+    const aside =
+      `${photoImg}<div class="s-name">${esc(doc.name)}</div>` +
+      `${doc.title ? `<div class="s-title">${esc(doc.title)}</div>` : ""}` +
+      `${doc.contact ? `<div class="s-contact">${esc(doc.contact)}</div>` : ""}` +
+      pick(["skills", "languages", "education"]);
+    const main = pick(["summary", "experience", "projects"]);
+    layout = `<div class="cols sidebar-layout"><aside class="side-panel" data-section="general">${aside}</aside><main>${main}</main></div>`;
+    extraCss =
+      `.sidebar-layout{display:flex;gap:22px${t.photoPos === "right" ? ";flex-direction:row-reverse" : ""}}` +
+      `.side-panel{width:34%;background:${t.accent}0d;border-radius:14px;padding:20px 16px;box-sizing:border-box}` +
+      `.side-panel h2{color:${t.accent};border-bottom-color:${t.accent}33}` +
+      `.side-panel .photo{display:block;margin:0 auto 14px;width:${px(fs * 6)};height:${px(fs * 6)}}` +
+      `.s-name{font-size:${px(fs * 1.4)};font-weight:800;color:#0f172a;text-align:center}` +
+      `.s-title{color:${t.accent};font-weight:600;text-align:center;margin-top:2px;font-size:${px(fs * 0.95)}}` +
+      `.s-contact{color:#64748b;font-size:${px(fs * 0.82)};text-align:center;margin:6px 0 18px;word-break:break-word}` +
+      `main{flex:1;min-width:0}`;
   } else if (t.template === "academic") {
     layout = `${headerRow}${pick(["summary", "experience", "projects", "education", "skills", "languages"])}`;
     extraCss =
       "header.hrow{flex-direction:column;text-align:center;border-bottom:2px solid " +
       t.accent +
       "22;padding-bottom:12px}header .photo{margin:0 auto 6px}";
+  } else if (t.template === "minimal") {
+    // Same single-column order as classic, just a much quieter palette — no accent color on
+    // headings/chips, thin hairline instead of a bold colored underline, generous whitespace.
+    layout = `${headerRow}${pick(order)}`;
+    extraCss =
+      `h1{font-weight:600}.title{color:#475569;font-weight:500}` +
+      `h2{color:#94a3b8;border-bottom:1px solid #e2e8f0;font-weight:600;letter-spacing:.08em}` +
+      `.chip{background:#f8fafc;color:#334155;border-color:#e2e8f0}` +
+      `.photo{border-color:#e2e8f0}`;
+  } else if (t.template === "timeline") {
+    // Same layout as classic, but experience entries sit on a vertical rail with dot markers —
+    // a more visual "career progression" read for the Experience section specifically.
+    layout = `${headerRow}${pick(order)}`;
+    extraCss =
+      `.exp{position:relative;padding-left:16px;border-left:2px solid ${t.accent}40}` +
+      `.exp::before{content:"";position:absolute;left:-5px;top:3px;width:8px;height:8px;border-radius:50%;background:${t.accent}}`;
   } else {
     layout = `${headerRow}${pick(order)}`;
   }
@@ -114,6 +158,11 @@ export function buildCvHtml(doc: CvDoc): string {
     `.role{font-weight:700;color:#0f172a}.period{color:#94a3b8;font-size:${px(fs * 0.85)};white-space:nowrap}` +
     `.company{color:#64748b;font-size:${px(fs * 0.9)}}ul{margin:4px 0;padding-left:18px}li{margin:2px 0}` +
     `.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{background:${t.accent}14;color:${t.accent};border:1px solid ${t.accent}33;border-radius:6px;padding:2px 8px;font-size:${px(fs * 0.85)}}` +
+    // Clickable-in-preview affordance for the interactive preview → editor sync — cursor +
+    // hover outline on anything carrying data-section (whole sections, or one experience
+    // entry). @media print strips it back off so it never shows up in the exported PDF.
+    `[data-section]{cursor:pointer}[data-section]:hover{outline:1px dashed ${t.accent}66;outline-offset:2px;border-radius:6px}` +
+    `@media print{[data-section]:hover{outline:none}}` +
     extraCss +
     // `@page{margin:0}` — removes the browser's system header/footer (date, document title,
     // URL, page number) on every printed page: in Chrome/Edge they render in the page margins

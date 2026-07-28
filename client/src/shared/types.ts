@@ -289,7 +289,7 @@ export interface CvExperience {
 export type CvSection = "summary" | "skills" | "experience" | "projects" | "education" | "languages";
 
 export interface CvTheme {
-  template: "classic" | "compact" | "academic" | "twocol";
+  template: "classic" | "compact" | "academic" | "twocol" | "minimal" | "sidebar" | "timeline";
   accent: string;
   font: "sans" | "serif";
   scale: number;

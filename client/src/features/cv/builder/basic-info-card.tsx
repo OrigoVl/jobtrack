@@ -1,19 +1,28 @@
-import { Btn, Card } from "../../../shared/ui";
-import { Field, SkillsInput } from "../../../shared/view-kit";
+import { Field } from "../../../shared/view-kit";
 import type { CvDoc } from "../../../shared/types";
 
-interface BasicInfoCardProps {
+export type SummaryStyle = "improve" | "shorter" | "ats" | "technical" | "leadership";
+const SUMMARY_CHIPS: [SummaryStyle, string][] = [
+  ["improve", "✨ Improve"],
+  ["shorter", "✂️ Shorter"],
+  ["ats", "🎯 ATS"],
+  ["technical", "🛠 Technical"],
+  ["leadership", "🧭 Leadership"],
+];
+
+interface GeneralSectionProps {
   doc: CvDoc;
   onChange: (p: Partial<CvDoc>) => void;
   llm: boolean;
-  improvingSummary: boolean;
-  onImproveSummary: () => void;
+  busyStyle: SummaryStyle | "";
+  onImproveSummary: (style: SummaryStyle) => void;
 }
 
-/** Name, role, contacts, summary (with AI improvement), and skills. */
-export function BasicInfoCard({ doc, onChange, llm, improvingSummary, onImproveSummary }: BasicInfoCardProps) {
+/** "General" accordion section: name, role, contacts, summary — with AI rewrite chips.
+ * Skills live in their own section now (see the "Skills" accordion item in CvBuilder). */
+export function GeneralSection({ doc, onChange, llm, busyStyle, onImproveSummary }: GeneralSectionProps) {
   return (
-    <Card className="space-y-2">
+    <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
         <Field label="Name" value={doc.name} onChange={(v) => onChange({ name: v })} placeholder="Michael Voloshyn" maxLength={120} />
         <Field
@@ -32,19 +41,28 @@ export function BasicInfoCard({ doc, onChange, llm, improvingSummary, onImproveS
         maxLength={400}
       />
       <label className="block">
-        <span className="text-xs font-semibold text-slate-500 flex items-center gap-2">
-          Summary
-          <Btn size="sm" variant="ghost" onClick={onImproveSummary} loading={improvingSummary} disabled={!llm || !doc.summary.trim()}>
-            ✨ improve
-          </Btn>
-        </span>
+        <span className="text-xs font-semibold text-slate-500">Summary</span>
         <textarea
           value={doc.summary}
           onChange={(e) => onChange({ summary: e.target.value })}
           className="w-full mt-0.5 h-20 bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
         />
       </label>
-      <SkillsInput label="Skills" skills={doc.skills} onChange={(skills) => onChange({ skills })} placeholder="React, Node, TypeScript…" />
-    </Card>
+      {/* Small action chips instead of one "improve" button — each rewrites the summary with a
+          different emphasis (kept short so the row never wraps awkwardly on a narrow column). */}
+      <div className="flex flex-wrap gap-1.5">
+        {SUMMARY_CHIPS.map(([style, label]) => (
+          <button
+            key={style}
+            type="button"
+            onClick={() => onImproveSummary(style)}
+            disabled={!llm || !doc.summary.trim() || !!busyStyle}
+            className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {busyStyle === style ? "⏳" : null} {label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

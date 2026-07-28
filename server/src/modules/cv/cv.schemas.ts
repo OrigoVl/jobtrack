@@ -3,7 +3,7 @@
 // any garbage is silently coerced to safe default values.
 import { z } from "zod";
 
-export const CV_TEMPLATES = ["classic", "compact", "academic", "twocol"] as const;
+export const CV_TEMPLATES = ["classic", "compact", "academic", "twocol", "minimal", "sidebar", "timeline"] as const;
 export const CV_FONTS = ["sans", "serif"] as const;
 export const CV_SECTIONS = ["summary", "skills", "experience", "projects", "education", "languages"] as const;
 export type CvSection = (typeof CV_SECTIONS)[number];

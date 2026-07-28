@@ -46,11 +46,17 @@ function ScaledFrame({
   zoom,
   maxHeight,
   onContentHeight,
+  onSectionClick,
 }: {
   html: string;
   zoom: number;
   maxHeight: string;
   onContentHeight: (h: number) => void;
+  /** Fired when a `[data-section]` element inside the preview is clicked (see cv-doc-utils.ts) —
+   * lets the editor jump straight to the section/entry that was clicked. Attached directly to
+   * `contentDocument` rather than via an injected <script>+postMessage: a `srcdoc` iframe is
+   * scriptable from the parent just like same-origin content, so this needs no CSP changes. */
+  onSectionClick?: (section: string) => void;
 }) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(PAGE_WIDTH);
@@ -69,14 +75,24 @@ function ScaledFrame({
   return (
     <div ref={viewportRef} className="overflow-auto bg-slate-100" style={{ maxHeight }}>
       <div className="flex justify-center py-4">
-        <div style={{ width: PAGE_WIDTH * scale, height: contentHeight * scale, overflow: "hidden" }} className="shadow-md shrink-0">
+        <div
+          style={{ width: PAGE_WIDTH * scale, height: contentHeight * scale, overflow: "hidden" }}
+          className="shadow-xl ring-1 ring-slate-900/5 shrink-0 rounded-sm"
+        >
           <iframe
             title="CV preview"
             srcDoc={html}
             onLoad={(e) => {
-              const h = e.currentTarget.contentDocument?.documentElement.scrollHeight ?? 1200;
+              const doc = e.currentTarget.contentDocument;
+              const h = doc?.documentElement.scrollHeight ?? 1200;
               setContentHeight(h);
               onContentHeight(h);
+              if (doc && onSectionClick) {
+                doc.addEventListener("click", (ev) => {
+                  const el = (ev.target as HTMLElement).closest("[data-section]");
+                  if (el) onSectionClick(el.getAttribute("data-section") || "");
+                });
+              }
             }}
             style={{
               width: PAGE_WIDTH,
@@ -112,14 +128,17 @@ function PreviewToolbar({
   return (
     <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-slate-100 flex-wrap">
       <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Preview (as in PDF)</span>
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Preview</span>
+        <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full border border-slate-200 bg-slate-50 text-slate-500 whitespace-nowrap">
+          A4
+        </span>
         <span
           title="Approximate number of pages when printed to PDF — actual printing may differ slightly"
           className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full border whitespace-nowrap ${
             pages > 1 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
           }`}
         >
-          {pages > 1 ? `⚠ ~${pages} pg.` : "✓ 1 pg."}
+          {pages > 1 ? `⚠ Page 1 / ${pages}` : "✓ 1 page"}
         </span>
       </div>
       <div className="flex items-center gap-2">
@@ -145,7 +164,15 @@ function PreviewToolbar({
 /** CV preview: an accurate (undistorted) rendering at any sidebar width, zoom, page-count badge,
  * an empty-sections hint, and fullscreen mode (also the entry point on mobile, where the sticky
  * preview column only comes after all the editing cards). */
-export function CvPreviewPanel({ doc, onExport }: { doc: CvDoc; onExport: () => void }) {
+export function CvPreviewPanel({
+  doc,
+  onExport,
+  onSectionClick,
+}: {
+  doc: CvDoc;
+  onExport: () => void;
+  onSectionClick?: (section: string) => void;
+}) {
   const [zoom, setZoom] = useUi("cvbuilder.previewZoom", 1);
   const [fullscreen, setFullscreen] = useState(false);
   const [contentHeight, setContentHeight] = useState(1200);
@@ -166,7 +193,14 @@ export function CvPreviewPanel({ doc, onExport }: { doc: CvDoc; onExport: () => 
         {/* Now the only element in the sticky column (Appearance/Presets moved to the "Design"
             tab on the left) — the preview can be given more visible height than when it was
             squeezed under other panels. */}
-        <ScaledFrame html={html} zoom={zoom} maxHeight="calc(100vh - 11rem)" onContentHeight={setContentHeight} />
+        <ScaledFrame
+          html={html}
+          zoom={zoom}
+          maxHeight="calc(100vh - 11rem)"
+          onContentHeight={setContentHeight}
+          onSectionClick={onSectionClick}
+        />
+        <div className="px-4 py-1.5 text-[11px] text-slate-400 border-t border-slate-100">💡 Click a section in the preview to edit it</div>
         {empties.length > 0 && (
           <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100">
             Empty sections (won't appear in the PDF): {empties.join(", ")}
@@ -208,7 +242,13 @@ export function CvPreviewPanel({ doc, onExport }: { doc: CvDoc; onExport: () => 
               </button>
             </div>
             <PreviewToolbar pages={pages} zoom={zoom} onZoomChange={setZoom} onExport={onExport} />
-            <ScaledFrame html={html} zoom={zoom} maxHeight="calc(90vh - 96px)" onContentHeight={setContentHeight} />
+            <ScaledFrame
+              html={html}
+              zoom={zoom}
+              maxHeight="calc(90vh - 96px)"
+              onContentHeight={setContentHeight}
+              onSectionClick={onSectionClick}
+            />
           </div>
         </div>
       )}

@@ -179,18 +179,31 @@ r.post(
     res.json({ doc });
   }),
 );
+// Summary rewrite "flavors" for the AI action chips in the builder's General section — same
+// endpoint/model, just a different instruction. Keys are also validated client-side but never
+// trusted here: an unknown/missing style silently falls back to the plain "improve" guide.
+const SUMMARY_STYLE_GUIDES: Record<string, string> = {
+  improve: "Rewrite this resume summary (2-3 sentences): engaging, with a focus on results and key skills.",
+  shorter: "Rewrite this resume summary in 1-2 concise sentences — cut all filler, keep only the strongest points.",
+  ats: "Rewrite this resume summary to maximize ATS (resume-scanner) keyword match for the role — dense with relevant hard-skill keywords, still natural to read, 2-3 sentences.",
+  technical:
+    "Rewrite this resume summary with a stronger technical/engineering focus — name concrete technologies, architecture decisions, and scale (2-3 sentences).",
+  leadership:
+    "Rewrite this resume summary with a stronger leadership/ownership focus — mentoring, decision-making, cross-team impact (2-3 sentences).",
+};
 r.post(
   "/cv/improve",
   aiLimiter,
   authed(async (userId, req, res) => {
     const text = String(req.body?.text || "").trim();
     const kind = String(req.body?.kind || "bullet");
+    const style = String(req.body?.style || "improve");
     if (text.length < 3) throw new HttpError(400, "Empty text");
     if (!llmAvailable()) return res.json({ text, offline: true });
     const role = (await getProfile(userId)).domain || "specialist";
     const guide =
       kind === "summary"
-        ? "Rewrite this resume summary (2-3 sentences): engaging, with a focus on results and key skills."
+        ? (SUMMARY_STYLE_GUIDES[style] ?? SUMMARY_STYLE_GUIDES.improve)
         : 'Rewrite this experience bullet using the formula "strong verb → what you did → technology → measurable result". One sentence, no fluff.';
     const out = await chat(
       userId,

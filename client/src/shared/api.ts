@@ -70,8 +70,8 @@ export const api = {
   saveCvPresets: (presets: CvPreset[]) => req<{ presets: CvPreset[] }>("/cv/presets", { method: "PUT", body: JSON.stringify({ presets }) }),
   generateCvDoc: (cvText: string) =>
     req<{ offline?: boolean; doc: CvDoc }>("/cv/doc/generate", { method: "POST", body: JSON.stringify({ cvText }) }),
-  improveCv: (text: string, kind: "bullet" | "summary") =>
-    req<{ text: string; offline?: boolean }>("/cv/improve", { method: "POST", body: JSON.stringify({ text, kind }) }),
+  improveCv: (text: string, kind: "bullet" | "summary", style?: "improve" | "shorter" | "ats" | "technical" | "leadership") =>
+    req<{ text: string; offline?: boolean }>("/cv/improve", { method: "POST", body: JSON.stringify({ text, kind, style }) }),
   searchJobs: (q: string, region = "all") => req<JobSearchResult>(`/jobs/search?q=${encodeURIComponent(q)}&region=${region}`),
   importLinkedIn: async (file: File) => {
     const fd = new FormData();

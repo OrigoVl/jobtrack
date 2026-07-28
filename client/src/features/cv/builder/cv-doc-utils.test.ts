@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CvDoc } from "../../../shared/types";
+import type { CvDoc, CvTheme } from "../../../shared/types";
 import { buildCvHtml } from "./cv-doc-utils";
 
 const BASE_DOC: CvDoc = {
@@ -34,5 +34,28 @@ describe("buildCvHtml", () => {
   it("uses the CV owner's name as the document title (for the default 'Save as PDF' filename)", () => {
     const html = buildCvHtml(BASE_DOC);
     expect(html).toContain("<title>Michael Voloshyn</title>");
+  });
+
+  it("renders every template variant without throwing, each producing non-empty markup", () => {
+    const templates: CvTheme["template"][] = ["classic", "compact", "academic", "twocol", "minimal", "sidebar", "timeline"];
+    for (const template of templates) {
+      const html = buildCvHtml({ ...BASE_DOC, theme: { template, accent: "#4f46e5", font: "sans", scale: 1 } });
+      expect(html).toContain(BASE_DOC.name);
+    }
+  });
+
+  it("tags sections and each experience entry with data-section, for the interactive preview → editor click sync", () => {
+    const html = buildCvHtml({
+      ...BASE_DOC,
+      experience: [
+        { role: "Dev", company: "Acme", period: "2022—now", bullets: ["Shipped X"] },
+        { role: "Dev", company: "Beta", period: "2020—2022", bullets: [] },
+      ],
+    });
+    expect(html).toContain('data-section="general"');
+    expect(html).toContain('data-section="summary"');
+    expect(html).toContain('data-section="skills"');
+    expect(html).toContain('data-section="experience-0"');
+    expect(html).toContain('data-section="experience-1"');
   });
 });

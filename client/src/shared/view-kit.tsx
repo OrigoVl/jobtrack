@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
+import { SKILL_SUGGESTIONS } from "./skill-suggestions";
 
 // Small shared components used across several view files.
 
@@ -47,13 +48,30 @@ export function SkillsInput({
   skills,
   onChange,
   placeholder,
+  hideLabel = false,
 }: {
   label: string;
   skills: string[];
   onChange: (skills: string[]) => void;
   placeholder?: string;
+  /** Omit the label — used when the parent already shows a title (e.g. an accordion header). */
+  hideLabel?: boolean;
 }) {
   const [draft, setDraft] = useState("");
+  const [focused, setFocused] = useState(false);
+
+  const selectedLower = new Set(skills.map((s) => s.toLowerCase()));
+  const q = draft.trim().toLowerCase();
+  // Empty query → a handful of popular defaults; typing → filtered matches. Either way capped
+  // at 8 so this never turns into a giant wall of chips (the point is quick-add, not a catalog).
+  const suggestions = SKILL_SUGGESTIONS.filter((s) => !selectedLower.has(s.toLowerCase()) && (!q || s.toLowerCase().includes(q))).slice(
+    0,
+    8,
+  );
+  const addSuggestion = (s: string) => {
+    if (!selectedLower.has(s.toLowerCase())) onChange([...skills, s]);
+    setDraft("");
+  };
 
   const commit = (raw: string) => {
     const seen = new Set(skills.map((s) => s.toLowerCase()));
@@ -96,7 +114,7 @@ export function SkillsInput({
 
   return (
     <label className="block">
-      <span className="text-xs font-semibold text-slate-500">{label}</span>
+      {!hideLabel && <span className="text-xs font-semibold text-slate-500">{label}</span>}
       <div className="mt-0.5 flex flex-wrap items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-lg p-1.5 focus-within:ring-2 focus-within:ring-indigo-400">
         {skills.map((s, i) => (
           <span
@@ -119,11 +137,34 @@ export function SkillsInput({
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
-          onBlur={onBlur}
-          placeholder={skills.length ? "add another…" : placeholder}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false);
+            onBlur();
+          }}
+          placeholder={skills.length ? "Search skill…" : (placeholder ?? "Search skill…")}
           className="flex-1 min-w-[120px] bg-transparent text-sm outline-none py-0.5"
         />
       </div>
+      {focused && suggestions.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-slate-400">Suggestions</span>
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              // Prevent the default focus-shift on mousedown so the input never blurs before
+              // onClick fires — otherwise the suggestions list would disappear right as it's
+              // clicked (blur happens before click in the event order).
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => addSuggestion(s)}
+              className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200"
+            >
+              + {s}
+            </button>
+          ))}
+        </div>
+      )}
     </label>
   );
 }

@@ -286,6 +286,7 @@ export function Vacancies() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-slate-500 text-xs text-left bg-slate-50 border-b border-slate-200">
+                  <th className="p-3 w-10 text-right">#</th>
                   <th className="p-3">Company / Position</th>
                   <th className="p-3">Stack</th>
                   <th className="p-3">Fit</th>
@@ -296,7 +297,7 @@ export function Vacancies() {
                 </tr>
               </thead>
               <tbody>
-                {vacancies.map((row) => {
+                {vacancies.map((row, i) => {
                   // updateVacancyMutation is one hook for the whole table, so scope "saving" to
                   // exactly the row whose id matches the last call's variables (React Query holds
                   // variables while isPending) — otherwise the spinner would flash on every row at once.
@@ -304,6 +305,7 @@ export function Vacancies() {
                   const isDeletingRow = deleteVacancyMutation.isPending && deleteVacancyMutation.variables === row.id;
                   return (
                     <tr key={row.id} className="border-t border-slate-100 align-top hover:bg-slate-50/60">
+                      <td className="p-3 text-right text-slate-400 text-xs tabular-nums">{i + 1}</td>
                       <td className="p-3">
                         <input
                           defaultValue={row.company}

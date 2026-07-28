@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 
 type Variant = "primary" | "ghost" | "danger" | "subtle";
@@ -132,23 +132,35 @@ export function Section({
   title,
   icon,
   defaultOpen = false,
+  open: openProp,
+  onToggle,
   hint,
+  bare = false,
   children,
 }: {
   title: string;
   icon?: string;
   defaultOpen?: boolean;
+  /** Controlled open state (e.g. for an exclusive accordion group) — omit to let the section
+   * manage its own open/closed state internally (the original, independent-toggle behavior). */
+  open?: boolean;
+  onToggle?: (open: boolean) => void;
   hint?: string;
+  /** Lighter look (no border/shadow-bearing card, just spacing) — for nesting inside another
+   * bordered container (e.g. one top-level accordion item) instead of stacking borders. */
+  bare?: boolean;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [openState, setOpenState] = useState(defaultOpen);
+  const open = openProp ?? openState;
+  const toggle = () => (onToggle ? onToggle(!open) : setOpenState((v) => !v));
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+    <div className={bare ? "" : "rounded-xl border border-slate-200 bg-white overflow-hidden"}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         aria-expanded={open}
-        className="w-full flex items-center gap-2 px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+        className={`w-full flex items-center gap-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${bare ? "py-2" : "px-3.5 py-2.5"}`}
       >
         {icon && <span aria-hidden>{icon}</span>}
         <span>{title}</span>
@@ -157,7 +169,54 @@ export function Section({
           ›
         </span>
       </button>
-      {open && <div className="px-3.5 pb-3.5 pt-1 space-y-3 border-t border-slate-100">{children}</div>}
+      {open && <div className={`space-y-3 ${bare ? "pb-3 pt-1" : "px-3.5 pb-3.5 pt-1 border-t border-slate-100"}`}>{children}</div>}
+    </div>
+  );
+}
+
+/** A button that opens an absolutely-positioned panel below it — closes on outside click/Escape.
+ * Used to group several related actions under one header button (e.g. "Import ▾") instead of a
+ * row of equal-weight buttons. */
+export function Dropdown({ label, align = "left", children }: { label: ReactNode; align?: "left" | "right"; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDocDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <div ref={ref} className="relative inline-block">
+      <Btn size="sm" variant="ghost" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        {label} <span className={`text-[10px] transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
+      </Btn>
+      {open && (
+        // This div is a plain click-delegation wrapper — it has no interactive semantics of
+        // its own (the actual buttons/links/inputs inside it already have their own keyboard
+        // support); it only auto-closes the panel once *any* of those is activated, like a
+        // native <select> closing after picking an option.
+        // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
+        <div
+          className={`absolute z-20 mt-1 min-w-[220px] rounded-xl bg-white border border-slate-200 shadow-lg p-2 space-y-1 ${align === "right" ? "right-0" : "left-0"}`}
+          onClick={(e) => {
+            // Let items opt out via data-keep-open (e.g. a text input) — anything else inside
+            // the panel closes the dropdown once clicked, same as a native <select>.
+            if (!(e.target as HTMLElement).closest("[data-keep-open]")) setOpen(false);
+          }}
+        >
+          {children}
+        </div>
+      )}
     </div>
   );
 }
