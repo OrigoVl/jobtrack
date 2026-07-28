@@ -112,7 +112,7 @@ function LlmCostTab({ days }: { days: number }) {
         <div style={{ height: Math.max(160, data.byFeature.length * 40) }}>
           <ResponsiveContainer>
             <BarChart data={data.byFeature} layout="vertical">
-              <XAxis type="number" tick={{ fill: AXIS }} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
+              <XAxis type="number" tick={{ fill: AXIS }} tickFormatter={(v: number) => money(v)} />
               <YAxis type="category" dataKey="feature" width={140} tick={{ fill: AXIS, fontSize: 11 }} />
               <Tooltip cursor={{ fill: "rgba(99,102,241,0.06)" }} contentStyle={TOOLTIP} formatter={(v: unknown) => money(Number(v))} />
               <Bar dataKey="costUsd" radius={[0, 6, 6, 0]}>
@@ -130,7 +130,7 @@ function LlmCostTab({ days }: { days: number }) {
           <ResponsiveContainer>
             <BarChart data={data.byDay}>
               <XAxis dataKey="day" tick={{ fill: AXIS, fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis tick={{ fill: AXIS }} tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
+              <YAxis tick={{ fill: AXIS }} tickFormatter={(v: number) => money(v)} />
               <Tooltip contentStyle={TOOLTIP} formatter={(v: unknown) => money(Number(v))} />
               <Bar dataKey="costUsd" radius={[4, 4, 0, 0]} fill="#10b981" />
             </BarChart>

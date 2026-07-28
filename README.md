@@ -132,7 +132,8 @@ jobtrack/
 │       ├── core/            # http (HttpError/asyncHandler, authed()/requireAdmin()), logger, error-handler
 │       ├── auth/             # better-auth instance (email+password, Google OAuth, admin plugin), email sending
 │       ├── db/               # Postgres client (migrate-on-boot), schema/ (Drizzle), kv, bootstrap, llm-cache
-│       ├── llm/              # OpenAI/Anthropic client with graceful fallback + response cache
+│       ├── llm/              # OpenAI/Anthropic client with graceful fallback + response cache + cost estimation (pricing.ts)
+│       ├── telemetry/        # fire-and-forget llm_usage/product_events inserts (see admin module)
 │       ├── shared/           # tech-dict, skill-extraction, validation (DTO+SSRF), demand, hash, slug, upload
 │       └── modules/         # one folder per API domain:
 │           ├── vacancies/   # job CRUD + job-text analysis
@@ -142,6 +143,7 @@ jobtrack/
 │           ├── roadmap/     # roadmap.sh-style skill map built from real data
 │           ├── plan21/      # dynamic 21-day intensive (gaps: job postings − CV)
 │           ├── study/       # SRS cards + drills (static + LLM-generated)
+│           ├── admin/       # users/activity, LLM cost, product analytics — behind requireAdmin()
 │           └── projects/, resources/, companies/, analytics/, writing/, mock/, health/
 └── client/                  # React + Vite + TS + Router + TanStack Query
     └── src/
@@ -160,7 +162,8 @@ jobtrack/
             ├── knowledge/           # study plan (learn.tsx)
             ├── roadmap/, plan21/, projects/, resources/, mock/
             ├── study/               # SRS + drills (study.tsx) + JS sandbox (runner.ts)
-            └── analytics/           # Skill radar + charts (charts.tsx, code-split)
+            ├── analytics/           # Skill radar + charts (charts.tsx, code-split)
+            └── admin/               # users/activity, LLM cost, product analytics — nav item + route gated on session.user.role
 ```
 
 Data and mutations flow through **TanStack Query** (`shared/queries/*`) — each domain has its own hook with a typed cache key; toggle mutations do an optimistic update with rollback on network error. There's no global "god context" — pages subscribe only to the data they actually need.
@@ -172,10 +175,10 @@ Data and mutations flow through **TanStack Query** (`shared/queries/*`) — each
 - Store an embedding for every added job posting and build semantic search/recommendations across the whole DB (worth considering `sqlite-vec` instead of a brute-force cosine similarity in JS).
 - The offline fallback for `POST /cv/match` still doesn't use `semanticFit` — only token overlap.
 
-### Multi-tenancy migration (in progress)
+### Multi-tenancy
 
-The data layer runs on Postgres/Drizzle, every table/repository function is scoped by an explicit `userId` parameter (see `db/schema/`, `db/user-id.ts`, `core/http.ts#authed`), and real auth (better-auth) provides that `userId` from a session. What's still open: (1) closing the LLM/embeddings/skill-extraction response caches, which are still deliberately global (see `db/llm-cache.ts`) since they're keyed on a hash of the full input text, not a per-user attribute; (2) an automated cross-tenant-leak test now that real distinct users exist.
+The data layer runs on Postgres/Drizzle, every table/repository function is scoped by an explicit `userId` parameter (see `db/schema/`, `db/user-id.ts`, `core/http.ts#authed`), and real auth (better-auth) provides that `userId` from a session. The LLM/embeddings/skill-extraction response caches (`db/llm-cache.ts`) stay deliberately global — safe because they're keyed on a SHA-256 hash of the full input text (`shared/hash.ts`), not a per-user attribute — and `security/cross-tenant-isolation.test.ts` exercises two real registered users end-to-end over real HTTP to prove no cross-tenant leak, including admin-only routes (a logged-in non-admin gets 403, not 200).
 
-**Admin accounts.** There's no signup checkbox or env-var toggle for this — grant it directly, after the person has registered: `node server/scripts/make-admin.mjs <email>`. Deliberately not automatic (e.g. an `ADMIN_EMAIL` env var matched on login) — that would be a standing, always-on privilege-escalation path reachable from the normal login flow, instead of an explicit, out-of-band action.
+**Admin accounts.** There's no signup checkbox or env-var toggle for this — grant it directly, after the person has registered: `node server/scripts/make-admin.mjs <email>`. Deliberately not automatic (e.g. an `ADMIN_EMAIL` env var matched on login) — that would be a standing, always-on privilege-escalation path reachable from the normal login flow, instead of an explicit, out-of-band action. Once granted, the "Admin" nav item and `/admin` page (users/activity, LLM cost, product analytics, and a link to your external error tracker via the optional `LOGS_DASHBOARD_URL`) show up automatically — nothing else to configure.
 
 **Legacy personal data.** If you have real data in an old `server/jobtrack.db` (from before this migration), migrate it with `node server/scripts/migrate-sqlite-data.mjs --dry-run` (preview), then without the flag to actually write it into Postgres under the `bootstrap-user` id. Run it **before** starting the app against a fresh Postgres — otherwise the startup bootstrap step seeds sample data first and the migration script's own duplicate-guard refuses to run without `--force`. Once you've registered a real account, claim that data with `node server/scripts/claim-bootstrap-data.mjs <email>` — it reassigns everything from `bootstrap-user` onto your real account (replacing the fresh default profile registration seeded for you, since the bootstrap data is the real one).
