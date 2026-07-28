@@ -101,7 +101,7 @@ For aggregating logs in production (JSON to stdout, compatible with any collecto
 GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR to `main`:
 
 1. **Lint · Typecheck · Test · Build** — for client and server, with baseline test-coverage thresholds.
-2. **E2E (Playwright)** — key end-to-end flows against the production build, LLM in offline mode (deterministic, no paid APIs), run sequentially (`workers: 1`).
+2. **E2E (Playwright)** — key end-to-end flows against the production build (registers + logs in a real test user first, see `e2e/auth.setup.ts`), LLM in offline mode (deterministic, no paid APIs), run sequentially (`workers: 1`). Locally, `pnpm test:e2e` points at a separate `jobtrack_e2e` database on the same Postgres instance (not the one `pnpm dev` uses) — create it once with `createdb jobtrack_e2e` (or any Postgres client) if it doesn't exist yet; `pretest:e2e` drops every table in it before each run.
 
 Locally, `husky` + `lint-staged` automatically run Prettier before every commit.
 Dependabot (`.github/dependabot.yml`) proposes npm/Docker/Actions updates weekly.

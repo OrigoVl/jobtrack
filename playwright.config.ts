@@ -3,14 +3,22 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = 4173;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
+const AUTH_FILE = "e2e/.auth/user.json";
+
 /**
  * E2E config: spins up a production server build (build + node dist/index.js), which
  * itself serves the built frontend (client/dist) — we test the real build, not the dev
  * mode with a separate Vite proxy. Needs a real reachable Postgres at DATABASE_URL — locally
  * that's `docker compose up -d postgres` (see docker-compose.yml); CI runs one as a service
- * container. `pretest:e2e` (server/scripts/reset-e2e-db.mjs) drops all app tables first so
- * every run starts from a clean, freshly re-migrated + re-seeded (bootstrapUser) DB — the
- * Postgres equivalent of the old SQLite setup's `rm -f e2e/.tmp/e2e.db*`.
+ * container. Defaults to a SEPARATE `jobtrack_e2e` database on that same Postgres instance
+ * (not the `jobtrack` one your own `pnpm dev` uses) — `pretest:e2e`
+ * (server/scripts/reset-e2e-db.mjs) drops all its tables before every run, so it must never
+ * point at a database with data you care about. `createdb jobtrack_e2e` (or any Postgres client)
+ * once, if it doesn't already exist.
+ *
+ * Auth: the "setup" project (e2e/auth.setup.ts) registers one test user and saves its session
+ * as storageState once; the "chromium" project depends on it and reuses that session for every
+ * spec, so specs don't each pay for their own login.
  *
  * workers: 1 (not fullyParallel) — all E2E specs share ONE DB from a single running
  * server (no per-test data isolation). Roadmap/Plan21 are built dynamically from the
@@ -31,7 +39,10 @@ export default defineConfig({
     baseURL: BASE_URL,
     trace: "on-first-retry",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    { name: "chromium", use: { ...devices["Desktop Chrome"], storageState: AUTH_FILE }, dependencies: ["setup"] },
+  ],
   webServer: {
     // E2E must be fast, deterministic, and free — force offline mode
     // (dictionary-based analysis instead of real paid OpenAI/Anthropic calls), regardless
@@ -44,7 +55,12 @@ export default defineConfig({
     env: {
       PORT: String(PORT),
       NODE_ENV: "production",
-      DATABASE_URL: process.env.DATABASE_URL || "postgres://jobtrack:jobtrack@localhost:5432/jobtrack",
+      DATABASE_URL: process.env.DATABASE_URL || "postgres://jobtrack:jobtrack@localhost:5432/jobtrack_e2e",
+      BETTER_AUTH_SECRET: "e2e-test-secret-do-not-use-in-production",
+      // Must match BASE_URL exactly (same scheme+host+port) — better-auth rejects requests
+      // whose Origin doesn't match baseURL/trustedOrigins, and "localhost" vs "127.0.0.1" count
+      // as different origins even though they're the same machine.
+      BETTER_AUTH_URL: BASE_URL,
     },
   },
 });
