@@ -11,3 +11,13 @@ export function useHealth() {
     retry: 2,
   });
 }
+
+/** Whether Google OAuth is configured — gates the "Continue with Google" button on the login/register pages. */
+export function useAuthConfig() {
+  return useQuery({
+    queryKey: queryKeys.authConfig,
+    queryFn: api.authConfig,
+    staleTime: Infinity,
+    retry: 2,
+  });
+}

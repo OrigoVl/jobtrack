@@ -27,12 +27,24 @@ import type {
 } from "./types";
 
 const base = "/api";
+const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
+
+// A 401 here means the session expired/was revoked mid-use (the initial route gate in
+// app/App.tsx already keeps a signed-out user from reaching these calls at all) — a hard
+// reload to /login is deliberate: it clears the TanStack Query cache and any in-memory state as
+// a side effect, the same guarantee an explicit logout gives, without duplicating that logic here.
+function handleUnauthorized(): void {
+  if (!PUBLIC_PATHS.includes(window.location.pathname)) {
+    window.location.href = "/login";
+  }
+}
 
 async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const res = await fetch(base + path, {
     headers: { "content-type": "application/json" },
     ...opts,
   });
+  if (res.status === 401) handleUnauthorized();
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(body.error || `HTTP ${res.status}`);
@@ -42,6 +54,7 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
 
 export const api = {
   health: () => req<{ ok: boolean; db: boolean; llm: boolean }>("/health"),
+  authConfig: () => req<{ googleEnabled: boolean }>("/auth-config"),
 
   vacancies: () => req<Vacancy[]>("/vacancies"),
   addVacancy: (v: Partial<Vacancy>) => req<Vacancy>("/vacancies", { method: "POST", body: JSON.stringify(v) }),
@@ -80,6 +93,7 @@ export const api = {
     const fd = new FormData();
     fd.append("file", file);
     const res = await fetch(`${base}/cv/linkedin-import`, { method: "POST", body: fd });
+    if (res.status === 401) handleUnauthorized();
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       throw new Error(body.error || `HTTP ${res.status}`);
@@ -90,6 +104,7 @@ export const api = {
     const fd = new FormData();
     fd.append("file", file);
     const res = await fetch(`${base}/cv/upload`, { method: "POST", body: fd });
+    if (res.status === 401) handleUnauthorized();
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       throw new Error(body.error || `HTTP ${res.status}`);

@@ -2,6 +2,7 @@
 // and get typed autocomplete when calling invalidateQueries/setQueryData.
 export const queryKeys = {
   health: ["health"] as const,
+  authConfig: ["authConfig"] as const,
   vacancies: ["vacancies"] as const,
   profile: ["profile"] as const,
   analytics: ["analytics"] as const,

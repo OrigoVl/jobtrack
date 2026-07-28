@@ -57,6 +57,11 @@ try {
     counts[table] = rowCount;
   }
 
+  // The placeholder `user` row migrate-sqlite-data.mjs created to satisfy the FK is now empty
+  // (every table above was just reassigned away from it) — remove it. A no-op if it never
+  // existed (e.g. claiming with no prior SQLite migration).
+  await client.query('DELETE FROM "user" WHERE id = $1', [BOOTSTRAP_USER_ID]);
+
   await client.query("COMMIT");
   console.log(`✅ Claimed bootstrap data for ${target.email} (id: ${target.id}):`);
   for (const [table, count] of Object.entries(counts)) console.log(`  ${table}: ${count} rows`);

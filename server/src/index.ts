@@ -9,8 +9,6 @@ import { app } from "./app.js";
 import { env } from "./config/env.js";
 import logger from "./core/logger.js";
 import { closeDb } from "./db/index.js";
-import { bootstrapUser } from "./db/bootstrap.js";
-import { BOOTSTRAP_USER_ID } from "./db/user-id.js";
 
 // Without these two handlers, an unexpected exception outside an Express request (e.g. a
 // throw in setTimeout/a background timer, or an unhandled Promise rejection from code nobody
@@ -33,11 +31,11 @@ process.on("uncaughtException", (err) => {
   void flushSentry().finally(() => process.exit(1));
 });
 
-// Phase 2 of the multi-tenant migration: there's no real registration flow yet (phase 3 adds
-// better-auth), so the one bootstrap user is seeded explicitly here, before the server starts
-// accepting requests — instead of the old node:sqlite version's import-time side effect against
-// a single shared file, which doesn't generalize to "seed if this user has nothing yet".
-await bootstrapUser(BOOTSTRAP_USER_ID);
+// Phase 2's startup call to bootstrapUser(BOOTSTRAP_USER_ID) lived here before real auth
+// existed — removed now that it does: `BOOTSTRAP_USER_ID` was never a real row in better-auth's
+// `user` table, so calling it here would violate the FK every table's user_id now has (see
+// schema/app.ts). Every real registration seeds its own default profile via
+// auth/auth.ts's `databaseHooks.user.create.after` instead — see db/bootstrap.ts's top comment.
 
 const server = app.listen(env.port, () =>
   logger.info(`✅ JobTrack API on http://localhost:${env.port} (LLM: ${env.llm.isAvailable ? "on" : "off — offline mode"})`),

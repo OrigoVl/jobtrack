@@ -5,9 +5,12 @@
 // `seedProfileIfEmpty` alone is hooked into real user registration (auth/auth.ts's
 // `databaseHooks.user.create.after`) — every new account needs at least a profile row, or
 // getProfile() throws and most features break on first use. `bootstrapUser` (profile + the full
-// sample vacancy set) is reserved for the special BOOTSTRAP_USER_ID at server startup
-// (server/src/index.ts) — seeding a brand-new real user with fake demo vacancies is a separate,
-// still-open product decision (see the phase-4 plan notes), not something registration does by default.
+// sample vacancy set) is NOT wired into registration — seeding a brand-new real user with fake
+// demo vacancies is a separate, still-open product decision (see the phase-4 plan notes). It's
+// kept here, tested, for that future decision; nothing in the running app calls it today. (It
+// used to run once at server startup for the phase-2 BOOTSTRAP_USER_ID constant — removed once
+// real auth landed, since that id was never a real row in better-auth's `user` table and every
+// app table's user_id is now a real FK to it.)
 import { and, eq } from "drizzle-orm";
 import db from "./client.js";
 import { userKv, vacancies } from "./schema/index.js";

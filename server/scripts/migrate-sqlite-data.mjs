@@ -81,14 +81,25 @@ if (dryRun) {
 
 const url = process.env.DATABASE_URL || "postgres://jobtrack:jobtrack@localhost:5432/jobtrack";
 
-// Обгорнуто в функцію (а не top-level try/catch), бо .mjs — це ES-модуль: top-level `return`
-// тут синтаксично неможливий, а process.exit() усередині try/catch пропускає finally —
-// з'єднання з Postgres лишалося б відкритим (resource leak) при ранньому виході чи помилці.
-// process.exitCode + return з середини функції — finally (client.end()) виконується завжди.
+// Wrapped in a function (not a top-level try/catch): this is an ES module, so a top-level
+// `return` isn't syntactically valid, and process.exit() inside a try/catch would skip its
+// finally block — the Postgres connection would stay open (a resource leak) on an early exit or
+// error. process.exitCode + a `return` from inside the function means the finally (client.end())
+// always runs.
 async function migrate() {
   const client = new pg.Client({ connectionString: url });
   try {
     await client.connect();
+
+    // `bootstrap-user` was never a real row in better-auth's `user` table — every app table's
+    // user_id is a real FK to it (schema/app.ts), so a placeholder row is required before any of
+    // the inserts below can succeed. claim-bootstrap-data.mjs deletes this placeholder once its
+    // data has been reassigned to a real registered account.
+    await client.query(
+      `INSERT INTO "user" (id, name, email, email_verified) VALUES ($1, 'Bootstrap (unclaimed)', 'bootstrap-user@local.invalid', false)
+       ON CONFLICT (id) DO NOTHING`,
+      [BOOTSTRAP_USER_ID],
+    );
 
     const {
       rows: [{ c: existingVacancies }],

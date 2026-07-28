@@ -1,11 +1,17 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import { BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { ToastProvider } from "../shared/toast";
 import { useToast } from "../shared/use-toast";
 import { useHealth, useRoadmap } from "../shared/queries";
-import { CardsSkeleton, ProgressBar } from "../shared/ui";
+import { CardsSkeleton, ProgressBar, Btn } from "../shared/ui";
 import { ErrorBoundary } from "../shared/error-boundary";
+import { useSession, signOut } from "../shared/auth-client";
+
+const Login = lazy(() => import("../features/auth/login").then((m) => ({ default: m.Login })));
+const Register = lazy(() => import("../features/auth/register").then((m) => ({ default: m.Register })));
+const ForgotPassword = lazy(() => import("../features/auth/forgot-password").then((m) => ({ default: m.ForgotPassword })));
+const ResetPassword = lazy(() => import("../features/auth/reset-password").then((m) => ({ default: m.ResetPassword })));
 
 // Each feature page is its own route-based chunk: the user only loads what they actually
 // navigate to, instead of one big eager bundle with all 14 pages at once.
@@ -155,13 +161,45 @@ function RootRedirect() {
   return <Navigate to={target} replace />;
 }
 
+/** Wraps /login, /register, /forgot-password, /reset-password — bounces an already-signed-in user to the app instead of showing them a login form. */
+function PublicRoute({ children }: { children: ReactNode }) {
+  const { data: session, isPending } = useSession();
+  if (isPending) return null;
+  if (session) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+/** Everything under "/" — redirects a signed-out visitor to /login instead of rendering the app shell. */
+function AuthGate() {
+  const { data: session, isPending } = useSession();
+  const location = useLocation();
+  if (isPending) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <CardsSkeleton count={1} />
+      </div>
+    );
+  }
+  if (!session) return <Navigate to="/login" state={{ from: location }} replace />;
+  return <Shell />;
+}
+
 function Shell() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const { isError: connectionError } = useHealth();
+  const queryClient = useQueryClient();
   useRememberLastPath();
   const go = (t: string) => navigate(`/${t}`);
+
+  async function logOut() {
+    await signOut();
+    // Clears every cached query (vacancies, profile, etc.) — otherwise the next person to sign
+    // in on this device/browser would briefly see the previous account's cached data.
+    queryClient.clear();
+    navigate("/login", { replace: true });
+  }
 
   // Each page now owns its own loading/empty state via its own query hooks (instead of one
   // global "wait for everything"), so all that's left here is a notification for a complete
@@ -187,6 +225,9 @@ function Shell() {
           ))}
         </nav>
         <SidebarProgress />
+        <Btn variant="ghost" size="sm" onClick={logOut}>
+          Log out
+        </Btn>
       </aside>
 
       {/* Mobile top nav */}
@@ -194,8 +235,11 @@ function Shell() {
         <header className="lg:hidden sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200">
           <div className="px-4 py-3 flex items-center gap-3">
             <Brand />
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
               <AiBadge />
+              <Btn variant="ghost" size="sm" onClick={logOut}>
+                Log out
+              </Btn>
             </div>
           </div>
           <nav className="flex gap-1 overflow-x-auto px-3 pb-2 no-scrollbar">{ALL_ITEMS.map((it) => navBtn(it, true))}</nav>
@@ -264,7 +308,43 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <BrowserRouter>
-          <Shell />
+          <Suspense fallback={null}>
+            <Routes>
+              <Route
+                path="/login"
+                element={
+                  <PublicRoute>
+                    <Login />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/register"
+                element={
+                  <PublicRoute>
+                    <Register />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/forgot-password"
+                element={
+                  <PublicRoute>
+                    <ForgotPassword />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/reset-password"
+                element={
+                  <PublicRoute>
+                    <ResetPassword />
+                  </PublicRoute>
+                }
+              />
+              <Route path="/*" element={<AuthGate />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </ToastProvider>
     </QueryClientProvider>
