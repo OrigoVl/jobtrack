@@ -14,39 +14,56 @@ const isProduction = process.env.NODE_ENV === "production";
 
 // Validate the "raw" process.env right at startup — better to fail with a clear message
 // (e.g. a typo'd LLM_PROVIDER) than silently fall back to a default and break somewhere deep.
-const RawEnvSchema = z.object({
-  NODE_ENV: z.string().default("development"),
-  PORT: z.coerce.number().int().positive().max(65535).default(3001),
-  DB_PATH: z.string().trim().min(1).optional(),
-  // Comma-separated list of allowed origins (e.g. "https://app.example.com,https://admin.example.com").
-  // Not set → CORS is open to all origins (the app has no auth/cookies, it only serves its own /api).
-  CORS_ORIGIN: z.string().trim().min(1).optional(),
-  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).optional(),
-  LLM_PROVIDER: z.enum(["openai", "anthropic"]).default("openai"),
-  OPENAI_API_KEY: z.string().trim().min(1).optional(),
-  OPENAI_MODEL: z.string().trim().min(1).default("gpt-4o-mini"),
-  OPENAI_MODEL_SMART: z.string().trim().min(1).default("gpt-4o"),
-  ANTHROPIC_API_KEY: z.string().trim().min(1).optional(),
-  ANTHROPIC_MODEL: z.string().trim().min(1).default("claude-haiku-4-5-20251001"),
-  ANTHROPIC_MODEL_SMART: z.string().trim().min(1).default("claude-sonnet-4-5-20250929"),
-  // How long to wait for a response from the LLM provider before giving up — so a hung
-  // OpenAI/Anthropic response doesn't hold the user's request (and connection) forever.
-  // Two-tier timeout: "fast" (extraction/hints) fails faster than "smart" (complex
-  // structured generation, which needs more time) — a quicker fallback to the offline
-  // heuristic for simple tasks that shouldn't "hang" for long.
-  LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
-  LLM_TIMEOUT_MS_FAST: z.coerce.number().int().positive().default(15_000),
-  // Express "trust proxy" — should only be enabled if the app actually sits behind a
-  // reverse proxy/LB (nginx, Cloudflare, etc.), otherwise req.ip and rate-limit would see
-  // the proxy's IP instead of the client's. Disabled by default (the app listens directly).
-  // Example values: "false" (default), "1" (trust the first hop), "loopback".
-  TRUST_PROXY: z.string().trim().default("false"),
-  // Sentry (optional) — not set → error tracking is disabled, the app keeps logging only
-  // through pino (the same "offline by default" approach as the LLM keys above).
-  SENTRY_DSN: z.string().trim().min(1).optional(),
-  // Build version for grouping errors in Sentry by release ("release health"). Empty in dev.
-  APP_VERSION: z.string().trim().min(1).optional(),
-});
+const RawEnvSchema = z
+  .object({
+    NODE_ENV: z.string().default("development"),
+    PORT: z.coerce.number().int().positive().max(65535).default(3001),
+    DB_PATH: z.string().trim().min(1).optional(),
+    // Postgres connection string (Drizzle). Optional here — required only in production, enforced
+    // below via superRefine — so `env.test.ts` and every dev machine that hasn't migrated to
+    // Postgres yet don't fail validation just by importing this module. Defaults to the same
+    // credentials as the `postgres` service in docker-compose.yml.
+    DATABASE_URL: z.string().trim().min(1).optional(),
+    DB_POOL_MAX: z.coerce.number().int().positive().default(10),
+    DB_MIGRATE_ON_BOOT: z
+      .string()
+      .trim()
+      .default("true")
+      .transform((v) => v !== "false"),
+    // Comma-separated list of allowed origins (e.g. "https://app.example.com,https://admin.example.com").
+    // Not set → CORS is open to all origins (the app has no auth/cookies, it only serves its own /api).
+    CORS_ORIGIN: z.string().trim().min(1).optional(),
+    LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).optional(),
+    LLM_PROVIDER: z.enum(["openai", "anthropic"]).default("openai"),
+    OPENAI_API_KEY: z.string().trim().min(1).optional(),
+    OPENAI_MODEL: z.string().trim().min(1).default("gpt-4o-mini"),
+    OPENAI_MODEL_SMART: z.string().trim().min(1).default("gpt-4o"),
+    ANTHROPIC_API_KEY: z.string().trim().min(1).optional(),
+    ANTHROPIC_MODEL: z.string().trim().min(1).default("claude-haiku-4-5-20251001"),
+    ANTHROPIC_MODEL_SMART: z.string().trim().min(1).default("claude-sonnet-4-5-20250929"),
+    // How long to wait for a response from the LLM provider before giving up — so a hung
+    // OpenAI/Anthropic response doesn't hold the user's request (and connection) forever.
+    // Two-tier timeout: "fast" (extraction/hints) fails faster than "smart" (complex
+    // structured generation, which needs more time) — a quicker fallback to the offline
+    // heuristic for simple tasks that shouldn't "hang" for long.
+    LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+    LLM_TIMEOUT_MS_FAST: z.coerce.number().int().positive().default(15_000),
+    // Express "trust proxy" — should only be enabled if the app actually sits behind a
+    // reverse proxy/LB (nginx, Cloudflare, etc.), otherwise req.ip and rate-limit would see
+    // the proxy's IP instead of the client's. Disabled by default (the app listens directly).
+    // Example values: "false" (default), "1" (trust the first hop), "loopback".
+    TRUST_PROXY: z.string().trim().default("false"),
+    // Sentry (optional) — not set → error tracking is disabled, the app keeps logging only
+    // through pino (the same "offline by default" approach as the LLM keys above).
+    SENTRY_DSN: z.string().trim().min(1).optional(),
+    // Build version for grouping errors in Sentry by release ("release health"). Empty in dev.
+    APP_VERSION: z.string().trim().min(1).optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.NODE_ENV === "production" && !v.DATABASE_URL) {
+      ctx.addIssue({ code: "custom", path: ["DATABASE_URL"], message: "DATABASE_URL is required in production" });
+    }
+  });
 
 const parsedEnv = RawEnvSchema.safeParse(process.env);
 if (!parsedEnv.success) {
@@ -78,6 +95,15 @@ export const env = {
       : /^\d+$/.test(raw.TRUST_PROXY)
         ? Number(raw.TRUST_PROXY)
         : raw.TRUST_PROXY) as boolean | number | string,
+
+  db: {
+    // Falls back to the docker-compose `postgres` service's own credentials in dev — matches
+    // `server/drizzle.config.ts`'s default so `drizzle-kit generate` and the running app agree
+    // on where the database is without extra .env setup for local development.
+    url: raw.DATABASE_URL || "postgres://jobtrack:jobtrack@localhost:5432/jobtrack",
+    poolMax: raw.DB_POOL_MAX,
+    migrateOnBoot: raw.DB_MIGRATE_ON_BOOT,
+  },
 
   sentry: {
     dsn: raw.SENTRY_DSN,
