@@ -1,25 +1,31 @@
 import { usePlan21, useSetPlanDay } from "../../shared/queries";
 import { Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
+import { plural } from "../../shared/format";
 
-/* ---------- Fast-track 21-day plan ---------- */
+/* ---------- Fast-track intensive plan (day count is dynamic — driven by the candidate's
+   actual skill gaps, not a fixed number, so the name/copy here deliberately avoid promising
+   a specific day count like "21-Day") ---------- */
 export function Plan21() {
   const { data: plan21, isLoading } = usePlan21();
   const setPlanDayMutation = useSetPlanDay();
   if (isLoading || !plan21) return <CardsSkeleton count={3} />;
   const allDays = plan21.phases.flatMap((p) => p.days);
   const done = allDays.filter((d) => plan21.progress[d.id]).length;
+  const pct = allDays.length ? Math.round((done / allDays.length) * 100) : 0;
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Personal intensive"
+        title="Intensive plan"
         subtitle="The plan builds itself automatically from your gaps: demand from your vacancy list minus skills from your CV/profile. Add a vacancy or update your CV — phases rebuild to match the current gaps."
-        actions={
-          <Chip tone="emerald">
-            {done} / {allDays.length} days
-          </Chip>
-        }
+        actions={<Chip tone="emerald">{plural(allDays.length, "day")} total</Chip>}
       />
       <Card>
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span className="font-semibold text-slate-700">
+            {plural(done, "day")} done of {allDays.length}
+          </span>
+          <span className="text-slate-400">{pct}%</span>
+        </div>
         <ProgressBar value={done} max={allDays.length} tone="emerald" />
       </Card>
       {plan21.phases.map((ph) => (

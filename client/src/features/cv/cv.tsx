@@ -4,6 +4,7 @@ import { useUi } from "../../shared/ui-state";
 import { useToast } from "../../shared/use-toast";
 import { useApplyCvUpload, useProfile, useSaveProfile, useVacancies } from "../../shared/queries";
 import { Btn, Card, Chip, PageHeader, Segmented, Spinner } from "../../shared/ui";
+import { Markdown } from "../../shared/markdown";
 import type { CvAnalysis, CvMatch, CvReview, Vacancy } from "../../shared/types";
 import { Field, SkillsInput } from "../../shared/view-kit";
 
@@ -20,8 +21,11 @@ function vacancyToText(v: Vacancy): string {
     .join("\n");
 }
 
-/** Export text to PDF via the browser's print dialog (Save as PDF). */
+/** Export text to PDF via the browser's print dialog (Save as PDF). Strips the light markdown
+ * (**bold**, #headings) that LLM-generated text (e.g. the cover letter) may contain — the print
+ * output is plain text via <pre>, so literal asterisks/hashes would otherwise show up on paper. */
 function exportPdf(title: string, body: string): void {
+  const plain = body.replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#{1,4}\s+/gm, "");
   const w = window.open("", "_blank");
   if (!w) {
     alert("Allow pop-ups to export the PDF.");
@@ -34,7 +38,7 @@ function exportPdf(title: string, body: string): void {
       `h1{font-size:22px;margin:0 0 16px}pre{white-space:pre-wrap;word-wrap:break-word;font-family:inherit;font-size:14px}` +
       // @page{margin:0} removes the browser's print header/footer (date, title,
       // page number) — see the detailed comment next to the same property in cv-doc-utils.ts.
-      `@page{margin:0}@media print{body{margin:0;padding:14mm 12mm}}</style></head><body><h1>${esc(title)}</h1><pre>${esc(body)}</pre></body></html>`,
+      `@page{margin:0}@media print{body{margin:0;padding:14mm 12mm}}</style></head><body><h1>${esc(title)}</h1><pre>${esc(plain)}</pre></body></html>`,
   );
   w.document.close();
   w.focus();
@@ -70,7 +74,7 @@ export function CvReviewPanel({
           <div className={`h-full ${tone} rounded-full transition-all`} style={{ width: `${review.score}%` }} />
         </div>
       )}
-      {review.summary && <p className="text-sm text-slate-600">{review.summary}</p>}
+      {review.summary && <Markdown text={review.summary} className="text-sm text-slate-600 space-y-2" />}
       {review.strengths.length > 0 && (
         <div>
           <div className="text-xs font-semibold text-emerald-600 mb-1">✓ Strengths</div>
@@ -161,7 +165,7 @@ export function CvMatchPanel({
       <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
         <div className={`h-full ${tone} rounded-full transition-all`} style={{ width: `${match.score}%` }} />
       </div>
-      {match.verdict && <p className="text-sm text-slate-600">{match.verdict}</p>}
+      {match.verdict && <Markdown text={match.verdict} className="text-sm text-slate-600 space-y-2" />}
       {match.matched.length > 0 && (
         <div>
           <div className="text-xs font-semibold text-emerald-600 mb-1">✓ Already covered</div>
@@ -211,7 +215,7 @@ export function CvMatchPanel({
       {match.tailoredSummary && (
         <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-2.5 space-y-1.5">
           <div className="text-xs font-semibold text-indigo-600">✍️ Summary for this vacancy</div>
-          <p className="text-sm text-slate-700">{match.tailoredSummary}</p>
+          <Markdown text={match.tailoredSummary} className="text-sm text-slate-700 space-y-2" />
           {onApplySummary && (
             <Btn size="sm" onClick={() => onApplySummary(match.tailoredSummary)}>
               Apply to summary
@@ -429,7 +433,7 @@ export function CVView({ llm }: { llm: boolean }) {
                 </button>
                 {current === "analysis" && analysis ? (
                   <Card>
-                    <div className="text-sm whitespace-pre-wrap text-slate-700">{analysis.advice}</div>
+                    <Markdown text={analysis.advice} />
                   </Card>
                 ) : (
                   review && <CvReviewPanel review={review} />
@@ -445,9 +449,9 @@ export function CVView({ llm }: { llm: boolean }) {
             Generate
           </Btn>
           {skillsOut && (
-            <pre className="mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs whitespace-pre-wrap text-slate-700">
-              {skillsOut}
-            </pre>
+            <div className="mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+              <Markdown text={skillsOut} className="text-xs text-slate-700 space-y-2" />
+            </div>
           )}
         </Card>
         <Card className="space-y-2">
@@ -502,9 +506,9 @@ export function CVView({ llm }: { llm: boolean }) {
             )}
           </div>
           {cover && (
-            <pre className="mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs whitespace-pre-wrap text-slate-700">
-              {cover}
-            </pre>
+            <div className="mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+              <Markdown text={cover} className="text-xs text-slate-700 space-y-2" />
+            </div>
           )}
         </Card>
       </div>

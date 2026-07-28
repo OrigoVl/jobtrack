@@ -57,6 +57,11 @@ const RawEnvSchema = z
     SENTRY_DSN: z.string().trim().min(1).optional(),
     // Build version for grouping errors in Sentry by release ("release health"). Empty in dev.
     APP_VERSION: z.string().trim().min(1).optional(),
+    // Link shown on the admin panel's "Logs & Errors" page (Phase 6) — deliberately NOT a
+    // Sentry-specific name: the Phase 5 plan decision was to keep logs/errors in the external
+    // tracker (Sentry today, possibly Axiom/Better Stack per Phase 7) rather than a Postgres
+    // table, so this is just a configurable link, not a data source the admin API queries.
+    LOGS_DASHBOARD_URL: z.string().trim().url().optional(),
 
     // better-auth: signs/encrypts session cookies and tokens — required in production
     // (enforced below), with an obviously-insecure dev-only fallback so a fresh local checkout
@@ -138,6 +143,8 @@ export const env = {
       return !!env.sentry.dsn;
     },
   },
+
+  logsDashboardUrl: raw.LOGS_DASHBOARD_URL ?? null,
 
   auth: {
     // INSECURE dev-only fallback — never used in production (BETTER_AUTH_SECRET is required

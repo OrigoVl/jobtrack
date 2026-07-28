@@ -12,4 +12,8 @@ export const queryKeys = {
   projects: ["projects"] as const,
   plan21: ["plan21"] as const,
   companies: ["companies"] as const,
+  adminOverview: ["adminOverview"] as const,
+  adminUsers: ["adminUsers"] as const,
+  adminLlmUsage: ["adminLlmUsage"] as const,
+  adminProductEvents: ["adminProductEvents"] as const,
 };

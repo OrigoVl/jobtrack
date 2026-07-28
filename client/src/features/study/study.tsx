@@ -13,6 +13,8 @@ import {
 } from "../../shared/queries";
 import { runJs } from "./runner";
 import { Btn, Card, Chip, EmptyState, PageHeader } from "../../shared/ui";
+import { MockInterview } from "../mock/mock";
+import { plural } from "../../shared/format";
 import type { Drill } from "../../shared/types";
 
 const RUNNABLE_CATS = new Set(["JavaScript", "Algorithms"]);
@@ -98,7 +100,10 @@ export function Study() {
   const setDrillStatusMutation = useSetDrillStatus();
   const generateDrillsMutation = useGenerateDrills();
   const generateCardsMutation = useGenerateCards();
-  const [mode, setMode] = useUi<"srs" | "drill">("study.mode", "srs");
+  // "Mock interview" used to be its own sidebar page — merged in here as a third mode, so
+  // interview-prep functionality (flashcards, drills, mock interview) lives in one place instead
+  // of being scattered across the sidebar (see App.tsx's NAV — /mock now redirects here).
+  const [mode, setMode] = useUi<"srs" | "drill" | "mock">("study.mode", "srs");
   const [i, setI] = useUi("study.index", 0);
   const [show, setShow] = useUi("study.show", false);
   const [drillCat, setDrillCat] = useUi("study.drillCat", "all");
@@ -205,33 +210,40 @@ export function Study() {
             >
               ⌨️ Drill
             </Btn>
+            <Btn variant={mode === "mock" ? "primary" : "ghost"} size="sm" onClick={() => setMode("mock")}>
+              🎤 Mock interview
+            </Btn>
           </div>
         }
       />
-      <div className="text-xs text-slate-400 flex gap-4 items-center">
-        <span>
-          ⏱ {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, "0")}
-        </span>
-        {mode === "srs" && <span>Due for review today: {due.length}</span>}
-        {mode === "drill" && (
+      {mode !== "mock" && (
+        <div className="text-xs text-slate-400 flex gap-4 items-center">
           <span>
-            Solved: {solvedCount} / {drills.length}
+            ⏱ {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, "0")}
           </span>
-        )}
-        {mode === "srs" && cardTopic && (
-          <Btn
-            size="sm"
-            variant="ghost"
-            className="ml-auto"
-            onClick={onGenerateCards}
-            loading={generatingCards}
-            disabled={!llm}
-            title={llm ? "" : "An LLM key is required"}
-          >
-            ✨ More cards for "{cardTopic}"
-          </Btn>
-        )}
-      </div>
+          {mode === "srs" && <span>Due for review today: {due.length}</span>}
+          {mode === "drill" && (
+            <span>
+              Solved: {plural(solvedCount, "problem")} of {drills.length}
+            </span>
+          )}
+          {mode === "srs" && cardTopic && (
+            <Btn
+              size="sm"
+              variant="ghost"
+              className="ml-auto"
+              onClick={onGenerateCards}
+              loading={generatingCards}
+              disabled={!llm}
+              title={llm ? "" : "An LLM key is required"}
+            >
+              ✨ More cards for "{cardTopic}"
+            </Btn>
+          )}
+        </div>
+      )}
+
+      {mode === "mock" && <MockInterview embedded />}
 
       {mode === "srs" &&
         (card ? (
@@ -327,7 +339,7 @@ export function Study() {
                   ✨ More problems for "{genTech}"
                 </Btn>
               )}
-              <span className="text-xs text-slate-400">{filteredDrills.length} problems</span>
+              <span className="text-xs text-slate-400">{plural(filteredDrills.length, "problem")}</span>
             </div>
           </div>
           {drill ? (

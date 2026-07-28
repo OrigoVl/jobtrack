@@ -15,6 +15,7 @@ import plan21 from "./modules/plan21/plan21.routes.js";
 import companies from "./modules/companies/companies.routes.js";
 import writing from "./modules/writing/writing.routes.js";
 import mock from "./modules/mock/mock.routes.js";
+import admin from "./modules/admin/admin.routes.js";
 
 const r = express.Router();
 
@@ -32,5 +33,6 @@ r.use(plan21);
 r.use(companies);
 r.use(writing);
 r.use(mock);
+r.use(admin);
 
 export default r;

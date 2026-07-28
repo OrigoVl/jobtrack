@@ -4,8 +4,8 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
-    proxy: { "/api": "http://localhost:3001" },
+    port: Number(process.env.DEV_CLIENT_PORT) || 5173,
+    proxy: { "/api": process.env.DEV_API_PROXY_TARGET || "http://localhost:3001" },
   },
   build: {
     // "hidden" — source maps are generated (needed so client-side Sentry shows a real stack

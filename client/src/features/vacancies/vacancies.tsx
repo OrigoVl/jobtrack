@@ -11,6 +11,7 @@ import {
 import { api } from "../../shared/api";
 import { useToast } from "../../shared/use-toast";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Spinner } from "../../shared/ui";
+import { plural } from "../../shared/format";
 import { STATUSES, type Fit, type Vacancy, type VacancyStatus } from "../../shared/types";
 import { fitTone, fitText } from "../../shared/fit-tone";
 import {
@@ -83,7 +84,7 @@ function VacancyBoard() {
           <div
             key={status}
             role="list"
-            aria-label={`Column "${status}", ${items.length} vacancies`}
+            aria-label={`Column "${status}", ${plural(items.length, "vacancy", "vacancies")}`}
             onDragOver={(e) => {
               e.preventDefault();
               setOver(status);
@@ -387,6 +388,10 @@ export function Vacancies() {
                       <td className="p-3">
                         <input
                           type="date"
+                          // Browsers render native date inputs in the OS/browser locale, not the
+                          // page's <html lang>, so a non-English OS shows dd.mm.yyyy even in this
+                          // English-only UI. lang="en-US" pins THIS input's own rendering locale.
+                          lang="en-US"
                           defaultValue={row.applied}
                           onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { applied: e.target.value } })}
                           aria-label={`Applied date — ${row.company}`}
@@ -410,6 +415,7 @@ export function Vacancies() {
                       <td className="p-3">
                         <input
                           type="date"
+                          lang="en-US"
                           defaultValue={row.next}
                           onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { next: e.target.value } })}
                           aria-label={`Next step date — ${row.company}`}

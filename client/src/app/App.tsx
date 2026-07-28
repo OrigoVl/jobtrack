@@ -7,6 +7,7 @@ import { useHealth, useRoadmap } from "../shared/queries";
 import { CardsSkeleton, ProgressBar, Btn } from "../shared/ui";
 import { ErrorBoundary } from "../shared/error-boundary";
 import { useSession, signOut } from "../shared/auth-client";
+import { CommandPalette } from "./command-palette";
 
 const Login = lazy(() => import("../features/auth/login").then((m) => ({ default: m.Login })));
 const Register = lazy(() => import("../features/auth/register").then((m) => ({ default: m.Register })));
@@ -27,10 +28,9 @@ const LearnPlan = lazy(() => import("../features/knowledge/learn").then((m) => (
 const Resources = lazy(() => import("../features/resources/resources").then((m) => ({ default: m.Resources })));
 const Projects = lazy(() => import("../features/projects/projects").then((m) => ({ default: m.Projects })));
 const Plan21 = lazy(() => import("../features/plan21/plan21").then((m) => ({ default: m.Plan21 })));
-const MockInterview = lazy(() => import("../features/mock/mock").then((m) => ({ default: m.MockInterview })));
 const Roadmap = lazy(() => import("../features/roadmap/roadmap").then((m) => ({ default: m.Roadmap })));
-const SkillRadar = lazy(() => import("../features/analytics/charts").then((m) => ({ default: m.SkillRadar })));
 const Analytics = lazy(() => import("../features/analytics/charts").then((m) => ({ default: m.Analytics })));
+const Admin = lazy(() => import("../features/admin/admin").then((m) => ({ default: m.Admin })));
 
 type NavItem = { path: string; icon: string; label: string };
 const NAV: { section: string; items: NavItem[] }[] = [
@@ -48,13 +48,14 @@ const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: "Growth",
     items: [
+      // Roadmap includes the former "Skill Radar" page as a tab, and Practice includes the
+      // former "Mock Interview" page as a mode — related screens grouped instead of scattered
+      // across the sidebar (old /radar and /mock links still work, see the redirects below).
       { path: "/roadmap", icon: "🗺️", label: "Roadmap" },
-      { path: "/plan21", icon: "📅", label: "21-Day Intensive" },
+      { path: "/plan21", icon: "📅", label: "Intensive plan" },
       { path: "/learn", icon: "📚", label: "Learning Plan" },
       { path: "/study", icon: "🧠", label: "Practice" },
-      { path: "/mock", icon: "🎤", label: "Mock Interview" },
       { path: "/projects", icon: "🧩", label: "Pet Projects" },
-      { path: "/radar", icon: "🎯", label: "Skill Radar" },
       { path: "/resources", icon: "📖", label: "Resources" },
     ],
   },
@@ -67,8 +68,8 @@ const NAV: { section: string; items: NavItem[] }[] = [
   },
 ];
 const ALL_ITEMS = NAV.flatMap((g) => g.items);
+const ADMIN_ITEM: NavItem = { path: "/admin", icon: "🛡️", label: "Admin" };
 const DEFAULT_PATH = "/dashboard";
-const KNOWN_PATHS = new Set(ALL_ITEMS.map((it) => it.path));
 
 function ToastHost() {
   const { toasts, dismissToast } = useToast();
@@ -119,8 +120,8 @@ function SidebarProgress() {
   const { data: roadmap } = useRoadmap();
   if (!roadmap) return null;
   return (
-    <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-      <div className="text-xs font-medium text-slate-600 mb-1.5">
+    <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5">
+      <div className="text-xs font-medium text-slate-600 mb-1">
         Roadmap: {roadmap.progress.done}/{roadmap.progress.total}
       </div>
       <ProgressBar value={roadmap.progress.done} max={roadmap.progress.total} tone="emerald" />
@@ -134,7 +135,7 @@ function navBtn(item: NavItem, compact = false) {
       ? `shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
           isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
         }`
-      : `w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+      : `w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
           isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
         }`;
   return (
@@ -143,22 +144,6 @@ function navBtn(item: NavItem, compact = false) {
       {item.label}
     </NavLink>
   );
-}
-
-/** Remembers the last visited tab in localStorage, so opening "/" returns the user to where they left off. */
-function useRememberLastPath() {
-  const location = useLocation();
-  useEffect(() => {
-    if (KNOWN_PATHS.has(location.pathname)) {
-      localStorage.setItem("jt-tab", location.pathname.slice(1));
-    }
-  }, [location.pathname]);
-}
-
-function RootRedirect() {
-  const saved = localStorage.getItem("jt-tab");
-  const target = saved && KNOWN_PATHS.has(`/${saved}`) ? `/${saved}` : DEFAULT_PATH;
-  return <Navigate to={target} replace />;
 }
 
 /** Wraps /login, /register, /forgot-password, /reset-password — bounces an already-signed-in user to the app instead of showing them a login form. */
@@ -184,14 +169,26 @@ function AuthGate() {
   return <Shell />;
 }
 
+/** Wraps /admin — a non-admin who navigates or types the URL directly is bounced to the
+ * dashboard instead of seeing a 403 page; the nav item itself is already hidden for them (see
+ * Shell), this is the second layer for direct navigation/bookmarks. */
+function AdminGate({ children }: { children: ReactNode }) {
+  const { data: session } = useSession();
+  if (session?.user?.role !== "admin") return <Navigate to={DEFAULT_PATH} replace />;
+  return <>{children}</>;
+}
+
 function Shell() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const { isError: connectionError } = useHealth();
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "admin";
   const queryClient = useQueryClient();
-  useRememberLastPath();
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const go = (t: string) => navigate(`/${t}`);
+  const allItems = isAdmin ? [...ALL_ITEMS, ADMIN_ITEM] : ALL_ITEMS;
 
   async function logOut() {
     await signOut();
@@ -211,18 +208,31 @@ function Shell() {
   return (
     <div className="min-h-screen lg:flex">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 shrink-0 sticky top-0 h-screen border-r border-slate-200 bg-white/70 backdrop-blur-md p-4 gap-4 overflow-y-auto">
+      <aside className="hidden lg:flex flex-col w-64 shrink-0 sticky top-0 h-screen border-r border-slate-200 bg-white/70 backdrop-blur-md p-3.5 gap-2.5 overflow-y-auto">
         <div className="flex items-center justify-between">
           <Brand />
         </div>
         <AiBadge />
-        <nav className="flex flex-col gap-4 flex-1">
+        <button
+          onClick={() => setPaletteOpen(true)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-400 hover:border-slate-300 hover:text-slate-500 transition-colors"
+        >
+          <span>🔎 Search…</span>
+          <span className="ml-auto font-mono text-[10px] bg-slate-100 rounded px-1.5 py-0.5 text-slate-500">⌘K</span>
+        </button>
+        <nav className="flex flex-col gap-2.5 flex-1">
           {NAV.map((group) => (
             <div key={group.section}>
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-1">{group.section}</div>
               <div className="flex flex-col gap-0.5">{group.items.map((it) => navBtn(it))}</div>
             </div>
           ))}
+          {isAdmin && (
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-1">Admin</div>
+              <div className="flex flex-col gap-0.5">{navBtn(ADMIN_ITEM)}</div>
+            </div>
+          )}
         </nav>
         <SidebarProgress />
         <Btn variant="ghost" size="sm" onClick={logOut}>
@@ -237,19 +247,22 @@ function Shell() {
             <Brand />
             <div className="ml-auto flex items-center gap-2">
               <AiBadge />
+              <Btn variant="ghost" size="sm" onClick={() => setPaletteOpen(true)} aria-label="Open command palette">
+                🔎
+              </Btn>
               <Btn variant="ghost" size="sm" onClick={logOut}>
                 Log out
               </Btn>
             </div>
           </div>
-          <nav className="flex gap-1 overflow-x-auto px-3 pb-2 no-scrollbar">{ALL_ITEMS.map((it) => navBtn(it, true))}</nav>
+          <nav className="flex gap-1 overflow-x-auto px-3 pb-2 no-scrollbar">{allItems.map((it) => navBtn(it, true))}</nav>
         </header>
 
         <main className="max-w-5xl mx-auto px-4 py-6">
           <ErrorBoundary key={location.pathname}>
             <Suspense fallback={<CardsSkeleton count={2} />}>
               <Routes>
-                <Route path="/" element={<RootRedirect />} />
+                <Route path="/" element={<Navigate to={DEFAULT_PATH} replace />} />
                 <Route path="/dashboard" element={<Dashboard go={go} />} />
                 <Route path="/vacancies" element={<Vacancies />} />
                 <Route path="/jobs" element={<Jobs />} />
@@ -260,12 +273,22 @@ function Shell() {
                 <Route path="/plan21" element={<Plan21 />} />
                 <Route path="/learn" element={<LearnPlanWrapper />} />
                 <Route path="/study" element={<Study />} />
-                <Route path="/mock" element={<MockInterview />} />
+                {/* Mock Interview and Skill Radar are now tabs inside Practice/Roadmap
+                    respectively (see NAV above) — old links/bookmarks still resolve. */}
+                <Route path="/mock" element={<Navigate to="/study" replace />} />
                 <Route path="/projects" element={<Projects />} />
-                <Route path="/radar" element={<SkillRadar />} />
+                <Route path="/radar" element={<Navigate to="/roadmap" replace />} />
                 <Route path="/resources" element={<Resources />} />
                 <Route path="/cv" element={<CVWrapper />} />
                 <Route path="/cvbuilder" element={<CvBuilderWrapper />} />
+                <Route
+                  path="/admin"
+                  element={
+                    <AdminGate>
+                      <Admin />
+                    </AdminGate>
+                  }
+                />
                 <Route path="*" element={<Navigate to={DEFAULT_PATH} replace />} />
               </Routes>
             </Suspense>
@@ -274,6 +297,12 @@ function Shell() {
       </div>
 
       <ToastHost />
+      <CommandPalette
+        items={allItems}
+        actions={[{ id: "logout", icon: "🚪", label: "Log out", onRun: logOut }]}
+        open={paletteOpen}
+        setOpen={setPaletteOpen}
+      />
     </div>
   );
 }

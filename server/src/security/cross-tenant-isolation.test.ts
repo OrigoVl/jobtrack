@@ -131,4 +131,21 @@ describe("cross-tenant isolation (PGlite, real HTTP)", () => {
     const noAuthProfile = await fetch(`${BASE_URL}/api/profile`);
     expect(noAuthProfile.status).toBe(401);
   });
+
+  it("admin routes (Phase 6) reject a logged-in non-admin with 403, and serve an admin with 200", async () => {
+    const regular = await registerAndSignIn("regular@example.test");
+    const forbidden = await api(regular, "/admin/overview");
+    expect(forbidden.status).toBe(403);
+
+    const admin = await registerAndSignIn("admin@example.test");
+    const { default: db } = await import("../db/client.js");
+    const { user } = await import("../db/schema/index.js");
+    const { eq } = await import("drizzle-orm");
+    await db.update(user).set({ role: "admin" }).where(eq(user.email, "admin@example.test"));
+
+    const allowed = await api(admin, "/admin/overview");
+    expect(allowed.status).toBe(200);
+    const overview = (await allowed.json()) as { totalUsers: number };
+    expect(overview.totalUsers).toBeGreaterThanOrEqual(2); // at least alice/bob from the test above, plus these two
+  });
 });

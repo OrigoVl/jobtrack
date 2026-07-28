@@ -2,8 +2,9 @@ import express from "express";
 import { getProfile } from "../../db/index.js";
 import { authed } from "../../core/http.js";
 import { fetchRemotive, fetchArbeitnow, fetchDou, type RawJob } from "./job-search.service.js";
-import { jobDocument, rankByTfidf } from "./job-ranking.js";
+import { filterWeakMatches, jobDocument, rankByTfidf } from "./job-ranking.js";
 import { dedupeBySimhash } from "./job-dedupe.js";
+import { insertProductEvent } from "../../telemetry/telemetry.repo.js";
 
 const r = express.Router();
 
@@ -42,9 +43,18 @@ r.get(
     // and weighs rare terms higher than frequent ones (see job-ranking.ts).
     const withMatchCount = all.map((j) => ({ ...j, matchCount: j.tags.filter((t) => known.has(String(t).toLowerCase())).length }));
     const ranked = rankByTfidf(withMatchCount, all.map(jobDocument), profile.skills);
+    // Drop vacancies whose relevance is far below this search's own best match (e.g. a "Remote
+    // Office Assistant" surfacing on a fullstack query with only an incidental keyword overlap) —
+    // see filterWeakMatches() for the relative-threshold/fallback logic.
+    const relevant = filterWeakMatches(ranked);
     // _score is only for sorting; the client doesn't need it (the UI shows the matchCount badge, not the raw score).
-    const jobs: JobWithMatch[] = ranked.slice(0, 200).map(({ _score, ...job }) => job);
-    res.json({ query: q, count: jobs.length, jobs, offline: !dou.length && !remotive.length && !arbeitnow.length });
+    const jobs: JobWithMatch[] = relevant.slice(0, 200).map(({ _score, ...job }) => job);
+    const offline = !dou.length && !remotive.length && !arbeitnow.length;
+    // Fire-and-forget — see telemetry.repo.ts. The gap this closes: before Phase 5, nothing
+    // recorded what candidates actually search for, so the admin's product-analytics view
+    // (Phase 6) had no search data to show at all.
+    void insertProductEvent(userId, "job_search", { query: q, region, resultCount: jobs.length, offline });
+    res.json({ query: q, count: jobs.length, jobs, offline });
   }),
 );
 

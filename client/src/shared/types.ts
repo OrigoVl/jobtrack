@@ -342,6 +342,46 @@ export interface JobResult {
   matchCount: number;
 }
 
+export interface AdminOverview {
+  totalUsers: number;
+  totalVacancies: number;
+  days: number;
+  llmCostUsd: number;
+  llmCalls: number;
+  logsDashboardUrl: string | null;
+}
+
+export interface AdminUserRow {
+  id: string;
+  name: string;
+  email: string;
+  role: string | null;
+  banned: boolean | null;
+  createdAt: string;
+  vacancyCount: number;
+  llmCallsRecent: number;
+}
+
+export interface AdminUsersResult {
+  users: AdminUserRow[];
+  total: number;
+}
+
+export interface AdminLlmUsageSummary {
+  days: number;
+  totalCalls: number;
+  totalCostUsd: number;
+  byFeature: { feature: string; calls: number; totalTokens: number; costUsd: number }[];
+  byDay: { day: string; calls: number; costUsd: number }[];
+}
+
+export interface AdminProductEventsSummary {
+  days: number;
+  byName: { name: string; count: number }[];
+  searchesByDay: { day: string; count: number }[];
+  topSearchQueries: { query: string; count: number }[];
+}
+
 export interface JobSearchResult {
   query: string;
   count: number;

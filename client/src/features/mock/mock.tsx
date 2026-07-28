@@ -3,6 +3,8 @@ import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useHealth, useStudy } from "../../shared/queries";
 import { Btn, Card, Chip, EmptyState, PageHeader } from "../../shared/ui";
+import { Markdown } from "../../shared/markdown";
+import { plural } from "../../shared/format";
 import type { MockEvaluation } from "../../shared/types";
 
 /* ---------- Mock interview ---------- */
@@ -34,7 +36,11 @@ function MockEvalCard({ ev }: { ev: MockEvaluation }) {
       <div className="flex items-center gap-2">
         <span className="text-2xl font-extrabold text-slate-800">{ev.score}</span>
         <span className="text-xs text-slate-400">/ 100</span>
-        {ev.verdict && <span className="text-sm text-slate-600 ml-1">{ev.verdict}</span>}
+        {ev.verdict && (
+          <span className="text-sm text-slate-600 ml-1">
+            <Markdown text={ev.verdict} inline />
+          </span>
+        )}
       </div>
       <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
         <div className={`h-full ${bar} rounded-full transition-all`} style={{ width: `${ev.score}%` }} />
@@ -59,11 +65,18 @@ function MockEvalCard({ ev }: { ev: MockEvaluation }) {
           </ul>
         </div>
       )}
-      {ev.tip && <div className="text-sm text-indigo-700 bg-indigo-50 border border-indigo-100 rounded p-2">💡 {ev.tip}</div>}
+      {ev.tip && (
+        <div className="text-sm text-indigo-700 bg-indigo-50 border border-indigo-100 rounded p-2">
+          💡 <Markdown text={ev.tip} inline />
+        </div>
+      )}
     </div>
   );
 }
-export function MockInterview() {
+// `embedded` skips the page's own header — used when nested as a tab inside the Practice page
+// (see study.tsx), which already has its own header/tab-switcher for the combined "Practice /
+// Mock interview" screen.
+export function MockInterview({ embedded = false }: { embedded?: boolean } = {}) {
   const { data: study } = useStudy();
   const { data: health } = useHealth();
   const llm = health?.llm ?? false;
@@ -97,7 +110,7 @@ export function MockInterview() {
     setRevealed(false);
   };
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-  const header = (
+  const header = embedded ? null : (
     <PageHeader
       title="Mock interview"
       subtitle="An interview simulation: a random selection of questions and problems with a timer. Say your answer out loud, then check yourself."
@@ -111,7 +124,7 @@ export function MockInterview() {
           <EmptyState
             icon="🎤"
             title="Ready for a practice interview?"
-            hint={`We'll give you a random selection from ${pool.length} questions and problems. Answer out loud, keep the pace, and get a summary at the end.`}
+            hint={`We'll give you a random selection from ${plural(pool.length, "question")} and problems. Answer out loud, keep the pace, and get a summary at the end.`}
             action={
               <div className="flex items-center gap-2 justify-center flex-wrap">
                 <select
@@ -143,7 +156,7 @@ export function MockInterview() {
           <EmptyState
             icon="🏁"
             title="Interview finished!"
-            hint={`You went through ${session.length} questions. The best way to reinforce this is to review the weak topics in "Practice".`}
+            hint={`You went through ${plural(session.length, "question")}. The best way to reinforce this is to review the weak topics in "Practice".`}
             action={<Btn onClick={() => setSession(null)}>🔄 New session</Btn>}
           />
         </Card>

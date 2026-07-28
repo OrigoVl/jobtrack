@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildIdf, jobDocument, rankByTfidf, tfidfScore, tokenize } from "./job-ranking.js";
+import { buildIdf, filterWeakMatches, jobDocument, rankByTfidf, tfidfScore, tokenize } from "./job-ranking.js";
 
 describe("tokenize()", () => {
   it("lowercases and splits on non-word characters, dropping single-char tokens", () => {
@@ -79,5 +79,37 @@ describe("rankByTfidf() — the actual fix for DOU jobs never being ranked", () 
     const ranked = rankByTfidf(jobs, jobs.map(jobDocument), ["x"]);
     expect(ranked).toHaveLength(2);
     expect(ranked.every((j) => typeof j._score === "number")).toBe(true);
+  });
+});
+
+describe("filterWeakMatches()", () => {
+  it("drops jobs scoring far below the top match (e.g. an irrelevant 'Office Assistant' role)", () => {
+    const ranked = [
+      { position: "Senior React Developer", _score: 0.9 },
+      { position: "React Engineer", _score: 0.6 },
+      { position: "Remote Office Assistant", _score: 0.01 },
+    ];
+    const filtered = filterWeakMatches(ranked);
+    expect(filtered.map((j) => j.position)).toEqual(["Senior React Developer", "React Engineer"]);
+  });
+
+  it("returns everything unfiltered when the top score is 0 (no relevance signal at all)", () => {
+    const ranked = [
+      { position: "A", _score: 0 },
+      { position: "B", _score: 0 },
+    ];
+    expect(filterWeakMatches(ranked)).toHaveLength(2);
+  });
+
+  it("returns everything unfiltered rather than an empty list if all scores are below the threshold", () => {
+    const ranked = [
+      { position: "A", _score: 0.001 },
+      { position: "B", _score: 0.0009 },
+    ];
+    expect(filterWeakMatches(ranked)).toHaveLength(2);
+  });
+
+  it("handles an empty list", () => {
+    expect(filterWeakMatches([])).toEqual([]);
   });
 });

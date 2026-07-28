@@ -3,6 +3,8 @@ import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useLearn } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Chip, PageHeader } from "../../shared/ui";
+import { Markdown } from "../../shared/markdown";
+import { plural } from "../../shared/format";
 import type { KnowledgeData, LearnGap } from "../../shared/types";
 
 /* ---------- Learn Plan ---------- */
@@ -42,7 +44,7 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
         {loading && <div className="text-xs text-slate-400 mt-3">✨ Personalizing topics to your stack…</div>}
         {dyn?.focus && (
           <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-2.5 text-sm text-indigo-900 mt-3">
-            <span className="font-semibold">✨ Personal focus:</span> {dyn.focus}
+            <span className="font-semibold">✨ Personal focus:</span> <Markdown text={dyn.focus} inline />
           </div>
         )}
         <div>
@@ -108,7 +110,7 @@ export function LearnPlan({ llm }: { llm: boolean }) {
     <div className="space-y-4">
       <PageHeader
         title="Learning plan"
-        subtitle={`Built dynamically from ${learn.totalVacancies} added vacancies, compared against your profile. Close gaps top to bottom.`}
+        subtitle={`Built dynamically from ${plural(learn.totalVacancies, "added vacancy", "added vacancies")}, compared against your profile. Close gaps top to bottom.`}
         actions={
           <Btn onClick={genPlan} loading={busy} disabled={!llm}>
             🤖 Personal plan (AI)
@@ -130,7 +132,7 @@ export function LearnPlan({ llm }: { llm: boolean }) {
       {plan && (
         <Card>
           <div className="text-sm font-semibold mb-2 text-slate-700">🤖 Your personal plan</div>
-          <div className="text-sm text-slate-700 whitespace-pre-wrap">{plan}</div>
+          <Markdown text={plan} />
         </Card>
       )}
 

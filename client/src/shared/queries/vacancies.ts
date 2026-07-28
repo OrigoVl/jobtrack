@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import type { Vacancy } from "../types";
 import { useToast } from "../use-toast";
+import { plural } from "../format";
 import { queryKeys } from "./keys";
 import { useInvalidateAll, useInvalidateDerived } from "./derived";
 
@@ -84,7 +85,7 @@ export function useImportVacancies() {
     mutationFn: (html: string) => api.importVacancies(html),
     onSuccess: async (res) => {
       await invalidateAll();
-      toast(res.added ? `Added ${res.added} vacancies` : "No new links found", res.added ? "success" : "info");
+      toast(res.added ? `Added ${plural(res.added, "vacancy", "vacancies")}` : "No new links found", res.added ? "success" : "info");
     },
     onError,
   });
@@ -117,7 +118,7 @@ export function useFetchAllVacancies() {
     mutationFn: () => api.fetchAllVacancies(),
     onSuccess: async (res) => {
       await invalidateAll();
-      toast(`Processed ${res.processed} vacancies — stack updated everywhere`, "success");
+      toast(`Processed ${plural(res.processed, "vacancy", "vacancies")} — stack updated everywhere`, "success");
     },
     onError,
   });

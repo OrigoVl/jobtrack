@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../shared/api";
 import { useHealth, useLearn, useProfile, useRoadmap, useStudy, useVacancies } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
+import { Markdown } from "../../shared/markdown";
 import { useToast } from "../../shared/use-toast";
 import {
   enableNotifications,
@@ -41,7 +42,10 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
                 {i + 1}
               </span>
               <span>
-                <b className="text-slate-800">{a.title}.</b> <span className="text-slate-600">{a.why}</span>
+                <b className="text-slate-800">{a.title}.</b>{" "}
+                <span className="text-slate-600">
+                  <Markdown text={a.why} inline />
+                </span>
               </span>
             </li>
           ))}
@@ -145,7 +149,9 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
           </div>
           <ProgressBar value={roadmap.progress.done} max={roadmap.progress.total} tone="emerald" />
           <div className="text-xs text-slate-500 mt-2">
-            Mastered {roadmap.progress.done} of {roadmap.progress.total} skills
+            {roadmap.progress.done} of {roadmap.progress.total} skills marked as known
+            {/* Deliberately not "mastered" — this reflects the roadmap's manual "know it" toggle,
+                not skills actually reinforced through Practice (see the separate "Cards learned" stat). */}
             {learn && learn.gaps.length > 0 && (
               <>
                 {" "}

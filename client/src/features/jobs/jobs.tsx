@@ -4,6 +4,7 @@ import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useAddVacancy, useProfile } from "../../shared/queries";
 import { Btn, Card, Chip, EmptyState, PageHeader, Segmented } from "../../shared/ui";
+import { plural } from "../../shared/format";
 import type { JobResult, JobSearchResult } from "../../shared/types";
 
 /* ---------- Job search (aggregators) ---------- */
@@ -194,7 +195,7 @@ export function Jobs() {
                   <Card key={job.url} className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-slate-800">{job.position}</span>
-                      {job.matchCount > 0 && <Chip tone="emerald">★ {job.matchCount} match</Chip>}
+                      {job.matchCount > 0 && <Chip tone="emerald">★ {plural(job.matchCount, "match", "matches")}</Chip>}
                       <Chip>{job.source}</Chip>
                       <span className="text-xs text-slate-400 ml-auto">{job.location}</span>
                     </div>

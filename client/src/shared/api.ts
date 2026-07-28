@@ -1,4 +1,8 @@
 import type {
+  AdminLlmUsageSummary,
+  AdminOverview,
+  AdminProductEventsSummary,
+  AdminUsersResult,
   Analytics,
   AnalyzeResult,
   Company,
@@ -165,4 +169,9 @@ export const api = {
 
   evaluateMock: (question: string, answer: string, reference: string) =>
     req<MockEvaluation>("/mock/evaluate", { method: "POST", body: JSON.stringify({ question, answer, reference }) }),
+
+  adminOverview: (days = 30) => req<AdminOverview>(`/admin/overview?days=${days}`),
+  adminUsers: (limit = 50, offset = 0) => req<AdminUsersResult>(`/admin/users?limit=${limit}&offset=${offset}`),
+  adminLlmUsage: (days = 30) => req<AdminLlmUsageSummary>(`/admin/llm-usage?days=${days}`),
+  adminProductEvents: (days = 30) => req<AdminProductEventsSummary>(`/admin/product-events?days=${days}`),
 };

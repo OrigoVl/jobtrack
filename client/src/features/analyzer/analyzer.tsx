@@ -3,6 +3,7 @@ import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useAddVacancy, useFetchAllVacancies } from "../../shared/queries";
 import { Btn, Card, Chip, PageHeader } from "../../shared/ui";
+import { Markdown } from "../../shared/markdown";
 import type { AnalyzeResult, Fit, FetchAllResult } from "../../shared/types";
 import { fitText } from "../../shared/fit-tone";
 
@@ -126,7 +127,12 @@ export function Analyzer() {
               )}
             </div>
           </div>
-          {res.summary && <div className="text-sm text-slate-700 whitespace-pre-wrap border-t border-slate-100 pt-3">🤖 {res.summary}</div>}
+          {res.summary && (
+            <div className="border-t border-slate-100 pt-3">
+              <div className="text-xs text-slate-500 mb-1">🤖 AI summary</div>
+              <Markdown text={res.summary} />
+            </div>
+          )}
           <Btn
             variant="ghost"
             loading={addVacancyMutation.isPending}

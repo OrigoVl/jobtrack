@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { api } from "../../shared/api";
-import { Btn, Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Chip, PageHeader, ProgressBar, Segmented } from "../../shared/ui";
+import { Markdown } from "../../shared/markdown";
 import { useUi } from "../../shared/ui-state";
 import { useHealth, useRoadmap, useSetRoadmapStatus } from "../../shared/queries";
+import { SkillRadar } from "../analytics/charts";
 import type { KnowledgeData, RoadmapNode, RoadmapStatus } from "../../shared/types";
 
 const STATUS_META: Record<RoadmapStatus, { label: string; text: string; badge: string; icon: string }> = {
@@ -59,7 +61,7 @@ function Node({ node }: { node: RoadmapNode }) {
             {loadingDyn && <div className="text-xs text-slate-400">✨ Personalizing to your stack…</div>}
             {dyn?.focus && (
               <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-2.5 text-sm text-indigo-900">
-                <span className="font-semibold">✨ Personal focus:</span> {dyn.focus}
+                <span className="font-semibold">✨ Personal focus:</span> <Markdown text={dyn.focus} inline />
               </div>
             )}
             <div>
@@ -111,6 +113,10 @@ export function Roadmap() {
   const { data: roadmap, isLoading } = useRoadmap();
   const [onlyGaps, setOnlyGaps] = useUi("roadmap.onlyGaps", false);
   const [group, setGroup] = useUi<string>("roadmap.group", "all");
+  // "Radar" used to be its own sidebar page — merged in here as a second view of the same
+  // underlying data (roadmap progress vs. market demand), so the two related screens aren't
+  // scattered across the sidebar (see App.tsx's NAV — /radar now redirects here).
+  const [view, setView] = useUi<"list" | "radar">("roadmap.view", "list");
   if (isLoading) return <CardsSkeleton count={3} />;
   if (!roadmap) return null;
   const { done, learning, total } = roadmap.progress;
@@ -123,60 +129,76 @@ export function Roadmap() {
       <PageHeader
         title="Skill roadmap"
         subtitle="A personal roadmap built from the real skills in your vacancies and CV. Click the circle to mark progress — it's all saved."
+        actions={
+          <Segmented
+            value={view}
+            onChange={setView}
+            options={[
+              { value: "list", label: "🗺️ Roadmap" },
+              { value: "radar", label: "🎯 Radar" },
+            ]}
+          />
+        }
       />
 
-      <Card>
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-          <div className="text-sm font-semibold text-slate-700">
-            Progress: <span className="text-emerald-600">{done}</span> / {total} skills
-          </div>
-          <div className="flex items-center gap-3 text-xs text-slate-500">
-            <span className="inline-flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-emerald-500" /> know it
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-amber-500" /> learning ({learning})
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full border-2 border-slate-300 bg-white" /> not started
-            </span>
-          </div>
-        </div>
-        <ProgressBar value={done} max={total} tone="emerald" />
-        <div className="flex items-center gap-2 flex-wrap mt-4">
-          <select
-            value={group}
-            onChange={(e) => setGroup(e.target.value)}
-            className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm text-slate-700"
-          >
-            <option value="all">All areas</option>
-            {roadmap.groups.map((g) => (
-              <option key={g.group} value={g.group}>
-                {g.group}
-              </option>
-            ))}
-          </select>
-          <Btn variant={onlyGaps ? "primary" : "ghost"} size="sm" onClick={() => setOnlyGaps(!onlyGaps)}>
-            {onlyGaps ? "✓ Gaps only" : "Gaps only"}
-          </Btn>
-        </div>
-      </Card>
-
-      <div className="grid md:grid-cols-2 gap-4 items-start">
-        {groups.map((g) => (
-          <Card key={g.group}>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm font-bold uppercase tracking-wide text-slate-500">{g.group}</span>
-              <span className="text-xs text-slate-400">· {g.nodes.length}</span>
+      {view === "radar" ? (
+        <SkillRadar embedded />
+      ) : (
+        <>
+          <Card>
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+              <div className="text-sm font-semibold text-slate-700">
+                Progress: <span className="text-emerald-600">{done}</span> / {total} skills
+              </div>
+              <div className="flex items-center gap-3 text-xs text-slate-500">
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-emerald-500" /> know it
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-amber-500" /> learning ({learning})
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full border-2 border-slate-300 bg-white" /> not started
+                </span>
+              </div>
             </div>
-            <div className="relative space-y-3 before:absolute before:left-3 before:top-3 before:bottom-3 before:w-px before:bg-slate-200">
-              {g.nodes.map((n) => (
-                <Node key={n.tech} node={n} />
-              ))}
+            <ProgressBar value={done} max={total} tone="emerald" />
+            <div className="flex items-center gap-2 flex-wrap mt-4">
+              <select
+                value={group}
+                onChange={(e) => setGroup(e.target.value)}
+                className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm text-slate-700"
+              >
+                <option value="all">All areas</option>
+                {roadmap.groups.map((g) => (
+                  <option key={g.group} value={g.group}>
+                    {g.group}
+                  </option>
+                ))}
+              </select>
+              <Btn variant={onlyGaps ? "primary" : "ghost"} size="sm" onClick={() => setOnlyGaps(!onlyGaps)}>
+                {onlyGaps ? "✓ Gaps only" : "Gaps only"}
+              </Btn>
             </div>
           </Card>
-        ))}
-      </div>
+
+          <div className="grid md:grid-cols-2 gap-4 items-start">
+            {groups.map((g) => (
+              <Card key={g.group}>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-sm font-bold uppercase tracking-wide text-slate-500">{g.group}</span>
+                  <span className="text-xs text-slate-400">· {g.nodes.length}</span>
+                </div>
+                <div className="relative space-y-3 before:absolute before:left-3 before:top-3 before:bottom-3 before:w-px before:bg-slate-200">
+                  {g.nodes.map((n) => (
+                    <Node key={n.tech} node={n} />
+                  ))}
+                </div>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

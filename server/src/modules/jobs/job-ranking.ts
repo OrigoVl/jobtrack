@@ -75,3 +75,22 @@ export function rankByTfidf<T extends RankableJob>(jobs: T[], allDocuments: stri
   const queryTerms = skills.flatMap((s) => tokenize(s));
   return jobs.map((job) => ({ ...job, _score: tfidfScore(job, queryTerms, idf) })).sort((a, b) => b._score - a._score);
 }
+
+const WEAK_MATCH_RELATIVE_THRESHOLD = 0.12;
+
+/**
+ * Filters out vacancies whose relevance score is far below the best match in this result set —
+ * e.g. a broad "fullstack" search pulling in a "Remote Office Assistant" with only an
+ * incidental token overlap. The cutoff is RELATIVE to this search's own top score (not a fixed
+ * absolute number), so it adapts to how strong the best matches actually are. Falls back to
+ * returning the list unfiltered if the threshold would wipe out everything (e.g. every job
+ * scored 0 because the candidate has no skills in their profile yet) — showing something
+ * unranked beats showing nothing.
+ */
+export function filterWeakMatches<T extends { _score: number }>(ranked: T[], relativeThreshold = WEAK_MATCH_RELATIVE_THRESHOLD): T[] {
+  if (!ranked.length) return ranked;
+  const top = ranked[0]!._score;
+  if (top <= 0) return ranked;
+  const kept = ranked.filter((j) => j._score >= top * relativeThreshold);
+  return kept.length ? kept : ranked;
+}
