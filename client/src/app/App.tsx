@@ -31,6 +31,7 @@ const Plan21 = lazy(() => import("../features/plan21/plan21").then((m) => ({ def
 const Roadmap = lazy(() => import("../features/roadmap/roadmap").then((m) => ({ default: m.Roadmap })));
 const Analytics = lazy(() => import("../features/analytics/charts").then((m) => ({ default: m.Analytics })));
 const Admin = lazy(() => import("../features/admin/admin").then((m) => ({ default: m.Admin })));
+const Account = lazy(() => import("../features/account/account").then((m) => ({ default: m.Account })));
 
 type NavItem = { path: string; icon: string; label: string };
 const NAV: { section: string; items: NavItem[] }[] = [
@@ -64,6 +65,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
     items: [
       { path: "/cv", icon: "📄", label: "CV" },
       { path: "/cvbuilder", icon: "🛠", label: "CV Builder" },
+      { path: "/account", icon: "⚙️", label: "Account" },
     ],
   },
 ];
@@ -281,6 +283,7 @@ function Shell() {
                 <Route path="/resources" element={<Resources />} />
                 <Route path="/cv" element={<CVWrapper />} />
                 <Route path="/cvbuilder" element={<CvBuilderWrapper />} />
+                <Route path="/account" element={<Account />} />
                 <Route
                   path="/admin"
                   element={

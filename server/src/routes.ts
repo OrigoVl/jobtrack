@@ -16,6 +16,7 @@ import companies from "./modules/companies/companies.routes.js";
 import writing from "./modules/writing/writing.routes.js";
 import mock from "./modules/mock/mock.routes.js";
 import admin from "./modules/admin/admin.routes.js";
+import account from "./modules/account/account.routes.js";
 
 const r = express.Router();
 
@@ -34,5 +35,6 @@ r.use(companies);
 r.use(writing);
 r.use(mock);
 r.use(admin);
+r.use(account);
 
 export default r;

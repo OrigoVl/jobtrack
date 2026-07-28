@@ -58,6 +58,28 @@ export const auth = betterAuth({
   // that would fail.
   socialProviders: env.auth.google ? { google: env.auth.google } : undefined,
 
+  user: {
+    // Self-service account deletion (Phase 7) — email-confirmation flow (not immediate
+    // password-confirm deletion): this is a hard, irreversible delete of the `user` row, which
+    // cascades via ON DELETE CASCADE to every one of their vacancies/companies/user_kv/srs/
+    // llm_usage/product_events (see db/schema/*.ts). The extra "click a link in your email"
+    // step is the same safety margin this app already gives password resets — appropriate for
+    // an action with no undo.
+    deleteUser: {
+      enabled: true,
+      sendDeleteAccountVerification: async ({ user, url }) => {
+        await sendEmail({
+          to: user.email,
+          subject: "Confirm deleting your JobTrack account",
+          html:
+            `<p>Click the link below to permanently delete your account and all of its data (vacancies, CV, progress). This cannot be undone.</p>` +
+            `<p><a href="${url}">${url}</a></p>` +
+            `<p>If you didn't request this, ignore this email — your account is safe.</p>`,
+        });
+      },
+    },
+  },
+
   // Bootstrapping the first admin is deliberately NOT done here (e.g. via an ADMIN_EMAIL env
   // var matched on login) — that would be a standing, always-on privilege-escalation code path
   // reachable from the normal login flow. server/scripts/make-admin.mjs flips a specific user's

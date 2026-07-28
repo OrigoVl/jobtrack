@@ -94,7 +94,15 @@ Structured JSON logging via `pino` (colorized output through `pino-pretty` in de
 - `unhandledRejection`/`uncaughtException` are logged in a structured way instead of getting lost in stderr.
 
 For aggregating logs in production (JSON to stdout, compatible with any collector),
-**[Axiom](https://axiom.co/)** or **[Better Stack Logs](https://betterstack.com/logs)** work well (both have a ready-made pino transport and a generous free tier), or a self-hosted **[Dozzle](https://dozzle.dev/)** on top of `docker logs` for personal use.
+**[Axiom](https://axiom.co/)** or **[Better Stack Logs](https://betterstack.com/logs)** work well (both have a ready-made pino transport and a generous free tier), or a self-hosted **[Dozzle](https://dozzle.dev/)** on top of `docker logs` for personal use. Wiring one in is configuration, not code — pino already emits clean JSON to stdout; point the chosen collector at the container's log stream (or add its pino transport to `core/logger.ts` if you'd rather ship logs directly from the process).
+
+## Production readiness
+
+- **Rate limiting** (`core/rate-limit.ts`) keeps its counters in the process's own memory by default — correct for a single instance. Set `REDIS_URL` (see `server/.env.example`, and the commented-out `redis` service in `docker-compose.yml`) once you run more than one replica behind a load balancer, or each replica stops sharing counters with the others.
+- **Backups.** A managed Postgres (e.g. Railway) gives you automatic backups, but a backup nobody has ever restored isn't really a backup — actually run a restore against a scratch database at least once, on whatever schedule you're comfortable with. Two complementary options that don't depend on your host's backup tooling:
+  - `pg_dump $DATABASE_URL > backup.sql` for a full, off-site, host-independent copy.
+  - **Per-user export** — `GET /api/account/export` (also exposed as an "Export my data" button on the Account page) returns one user's own profile/vacancies/companies/progress as JSON. Useful for a single person's data, not a substitute for a real database backup.
+- **Account deletion.** Self-service, via the Account page — email-confirmation flow (better-auth's `user.deleteUser`, see `auth/auth.ts`), a hard delete of the `user` row that cascades to every one of their tables (`ON DELETE CASCADE`, see `db/schema/*.ts`).
 
 ## CI and code quality
 
@@ -144,6 +152,7 @@ jobtrack/
 │           ├── plan21/      # dynamic 21-day intensive (gaps: job postings − CV)
 │           ├── study/       # SRS cards + drills (static + LLM-generated)
 │           ├── admin/       # users/activity, LLM cost, product analytics — behind requireAdmin()
+│           ├── account/     # self-service data export (better-auth's deleteUser handles deletion, no route of our own)
 │           └── projects/, resources/, companies/, analytics/, writing/, mock/, health/
 └── client/                  # React + Vite + TS + Router + TanStack Query
     └── src/
@@ -163,7 +172,8 @@ jobtrack/
             ├── roadmap/, plan21/, projects/, resources/, mock/
             ├── study/               # SRS + drills (study.tsx) + JS sandbox (runner.ts)
             ├── analytics/           # Skill radar + charts (charts.tsx, code-split)
-            └── admin/               # users/activity, LLM cost, product analytics — nav item + route gated on session.user.role
+            ├── admin/               # users/activity, LLM cost, product analytics — nav item + route gated on session.user.role
+            └── account/             # export my data + delete my account
 ```
 
 Data and mutations flow through **TanStack Query** (`shared/queries/*`) — each domain has its own hook with a typed cache key; toggle mutations do an optimistic update with rollback on network error. There's no global "god context" — pages subscribe only to the data they actually need.

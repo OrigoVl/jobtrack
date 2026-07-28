@@ -13,10 +13,20 @@ services:
       # LLM (optional) — uncomment and add a key to enable AI features:
       # OPENAI_API_KEY: ${OPENAI_API_KEY}
       # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # Redis (optional) — only needed once you run more than one `app` replica; a single
+      # instance is correct without it (see core/rate-limit.ts). Uncomment together with the
+      # `redis` service below.
+      # REDIS_URL: redis://redis:6379
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
+
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine

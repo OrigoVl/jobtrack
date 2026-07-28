@@ -1,19 +1,38 @@
 // Request rate limits. Kept separate from app.ts so modules with expensive LLM endpoints
 // can import `aiLimiter` without a circular dependency on app.ts.
 //
-// Counter storage: by default express-rate-limit keeps counters IN the process's memory
-// (no `store` below). This is a deliberately acceptable choice for the current deployment —
-// a single Node process backed by a single SQLite file (server/src/db/client.ts), so there's
-// no need for separate coordination of limits across instances. If the app ever moves to a
-// multi-instance deployment (several replicas behind an LB) — THIS file will need to change
-// first: each replica's in-memory counters would stop being shared (the effective limit would
-// become N times higher than declared, and each replica would forget other users' counters).
-// The fix at that point is to plug in an external store via the `store` option (e.g.
-// `rate-limit-redis` + `ioredis`, or any other Store compatible with express-rate-limit),
-// synced with whatever Redis/DB persistence has migrated to by then (see the "Migration to
-// Postgres" section in the README).
-import rateLimit, { type RateLimitExceededEventHandler } from "express-rate-limit";
+// Counter storage: without REDIS_URL, express-rate-limit keeps counters IN the process's own
+// memory — correct for a single instance, but each replica of a multi-instance deployment
+// would stop sharing counters with the others (the effective limit becomes N times higher than
+// declared, and each replica forgets other replicas' counters). With REDIS_URL set, both
+// limiters below share counters through Redis instead, so the declared limit holds regardless
+// of how many replicas are running.
+import rateLimit, { type RateLimitExceededEventHandler, type Store } from "express-rate-limit";
+import { RedisStore, type RedisReply } from "rate-limit-redis";
+import { Redis } from "ioredis";
+import { env } from "../config/env.js";
 import { contextLogger } from "./logger.js";
+
+// A single shared Redis connection for both limiters below (not one per limiter) — no reason
+// to open two sockets to the same server for the same purpose. `undefined` when REDIS_URL
+// isn't set, so `sharedStore()` falls back to express-rate-limit's own in-memory default.
+const redis = env.redisUrl ? new Redis(env.redisUrl) : undefined;
+
+if (redis) {
+  // Rate limiting is a best-effort protection, not a correctness guarantee — a Redis hiccup
+  // must not take the whole API down. ioredis retries connections on its own; this just stops
+  // an unhandled 'error' event from crashing the process (the default Node behavior for
+  // EventEmitter 'error' with no listener).
+  redis.on("error", (err: Error) => contextLogger().error({ err }, "Redis connection error (rate limiting)"));
+}
+
+// `prefix` keeps the two limiters' keys from colliding in the same Redis keyspace (they'd
+// otherwise both write to keys like "rl:<ip>" and corrupt each other's counts).
+function sharedStore(prefix: string): Store | undefined {
+  return redis
+    ? new RedisStore({ sendCommand: (command: string, ...args: string[]) => redis.call(command, ...args) as Promise<RedisReply>, prefix })
+    : undefined;
+}
 
 // A shared handler instead of express-rate-limit's default behavior: the default just writes
 // res.status(...).json(message) with no logging at all. Without this, a triggered limit
@@ -37,6 +56,7 @@ export const apiLimiter = rateLimit({
   skip: (req) => req.path === "/health",
   message: { error: "Too many requests. Try again in a few minutes." },
   handler: logAndReject("api"),
+  store: sharedStore("rl:api:"),
 });
 
 // A separate, stricter limit specifically for endpoints that call the LLM (OpenAI/Anthropic).
@@ -50,4 +70,5 @@ export const aiLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many AI requests. Wait a few minutes and try again." },
   handler: logAndReject("ai"),
+  store: sharedStore("rl:ai:"),
 });

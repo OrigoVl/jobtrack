@@ -62,6 +62,11 @@ const RawEnvSchema = z
     // tracker (Sentry today, possibly Axiom/Better Stack per Phase 7) rather than a Postgres
     // table, so this is just a configurable link, not a data source the admin API queries.
     LOGS_DASHBOARD_URL: z.string().trim().url().optional(),
+    // Not set — rate limiting (core/rate-limit.ts) keeps its counters in the process's own
+    // memory, correct for a single instance. Required once the app runs as more than one
+    // replica behind a load balancer, or each replica's counters stop being shared (the
+    // effective limit becomes N times higher than declared).
+    REDIS_URL: z.string().trim().min(1).optional(),
 
     // better-auth: signs/encrypts session cookies and tokens — required in production
     // (enforced below), with an obviously-insecure dev-only fallback so a fresh local checkout
@@ -145,6 +150,7 @@ export const env = {
   },
 
   logsDashboardUrl: raw.LOGS_DASHBOARD_URL ?? null,
+  redisUrl: raw.REDIS_URL,
 
   auth: {
     // INSECURE dev-only fallback — never used in production (BETTER_AUTH_SECRET is required
