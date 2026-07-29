@@ -1,6 +1,7 @@
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardsSkeleton, Chip, EmptyState, PageHeader, Segmented } from "../../shared/ui";
 import { useUi } from "../../shared/ui-state";
+import { money } from "../../shared/format";
 import { useAdminLlmUsage, useAdminOverview, useAdminProductEvents, useAdminUsers } from "../../shared/queries";
 
 const AXIS = "#64748b";
@@ -26,10 +27,6 @@ function StatCard({ label, value, hint }: { label: string; value: string; hint?:
       {hint && <div className="text-xs text-slate-400 mt-0.5">{hint}</div>}
     </Card>
   );
-}
-
-function money(v: number): string {
-  return v < 0.01 && v > 0 ? `$${v.toFixed(4)}` : `$${v.toFixed(2)}`;
 }
 
 function OverviewTab({ days }: { days: number }) {

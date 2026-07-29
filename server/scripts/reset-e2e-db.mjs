@@ -23,6 +23,8 @@ const TABLES = [
   "srs",
   "user_kv",
   "llm_cache",
+  "llm_usage",
+  "product_events",
   "session",
   "account",
   "verification",
