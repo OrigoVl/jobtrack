@@ -45,14 +45,14 @@ export function PhotoCropper({ src, onCancel, onDone }: { src: string; onCancel:
   const nudge = (dx: number, dy: number) => setOffset(clamp({ x: offset.x + dx, y: offset.y + dy }));
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4">
-      <button type="button" aria-label="Close" onClick={onCancel} className="fixed inset-0 bg-slate-900/50 cursor-default" />
+      <button type="button" aria-label="Close" onClick={onCancel} className="fixed inset-0 bg-ink/50 cursor-default" />
       <div className="relative bg-white rounded-2xl p-5 shadow-xl w-[320px] space-y-3">
-        <div className="text-sm font-semibold text-slate-800">Crop photo</div>
+        <div className="text-sm font-semibold text-ink">Crop photo</div>
         <div
           role="button"
           tabIndex={0}
           aria-label="Drag or use arrow keys to position the photo"
-          className="relative mx-auto rounded-full overflow-hidden bg-slate-100 border border-slate-200 touch-none cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+          className="relative mx-auto rounded-full overflow-hidden bg-surface-2 border border-grid touch-none cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
           style={{ width: CROP_VIEWPORT, height: CROP_VIEWPORT }}
           onPointerDown={(e) => {
             drag.current = { x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y };
@@ -84,10 +84,10 @@ export function PhotoCropper({ src, onCancel, onDone }: { src: string; onCancel:
             />
           )}
         </div>
-        <label className="block text-sm text-slate-600">
+        <label className="block text-sm text-ink-dim">
           <div className="flex justify-between">
             <span>Zoom</span>
-            <span className="text-slate-400">{Math.round(zoom * 100)}%</span>
+            <span className="text-ink-dim">{Math.round(zoom * 100)}%</span>
           </div>
           <input
             type="range"
@@ -97,10 +97,10 @@ export function PhotoCropper({ src, onCancel, onDone }: { src: string; onCancel:
             value={zoom}
             onChange={(e) => setZoom(Number(e.target.value))}
             aria-label="Photo zoom"
-            className="w-full mt-1 accent-indigo-600"
+            className="w-full mt-1 accent-signal"
           />
         </label>
-        <div className="text-[11px] text-slate-400 text-center">Drag to position</div>
+        <div className="text-[11px] text-ink-dim text-center">Drag to position</div>
         <div className="flex gap-2 justify-end">
           <Btn size="sm" variant="ghost" onClick={onCancel}>
             Cancel

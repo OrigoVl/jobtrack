@@ -8,9 +8,9 @@ import { SkillRadar } from "../analytics/charts";
 import type { KnowledgeData, RoadmapNode, RoadmapStatus } from "../../shared/types";
 
 const STATUS_META: Record<RoadmapStatus, { label: string; text: string; badge: string; icon: string }> = {
-  done: { label: "Know it", text: "text-emerald-700", badge: "bg-emerald-500 text-white", icon: "✓" },
-  learning: { label: "Learning", text: "text-amber-700", badge: "bg-amber-500 text-white", icon: "…" },
-  todo: { label: "Not started", text: "text-slate-400", badge: "bg-white", icon: "" },
+  done: { label: "Know it", text: "text-signal", badge: "bg-signal text-white", icon: "✓" },
+  learning: { label: "Learning", text: "text-alert", badge: "bg-alert text-white", icon: "…" },
+  todo: { label: "Not started", text: "text-ink-dim", badge: "bg-white", icon: "" },
 };
 const NEXT: Record<RoadmapStatus, RoadmapStatus> = { todo: "learning", learning: "done", done: "todo" };
 
@@ -33,7 +33,7 @@ function Node({ node }: { node: RoadmapNode }) {
   const learn = dyn?.learn ?? node.learn;
   const resources = dyn?.resources ?? node.resources;
   const meta = STATUS_META[node.status];
-  const border = node.status === "done" ? "border-emerald-500" : node.status === "learning" ? "border-amber-500" : "border-slate-300";
+  const border = node.status === "done" ? "border-signal" : node.status === "learning" ? "border-alert" : "border-grid";
   return (
     <div className="relative pl-8">
       <button
@@ -43,9 +43,9 @@ function Node({ node }: { node: RoadmapNode }) {
       >
         {meta.icon}
       </button>
-      <div className="rounded-xl border border-slate-200 bg-white hover:border-indigo-300 transition-colors">
+      <div className="rounded-xl border border-grid bg-white hover:border-signal/40 transition-colors">
         <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
-          <span className="font-semibold text-slate-800">{node.tech}</span>
+          <span className="font-semibold text-ink">{node.tech}</span>
           {node.demand > 0 && <Chip tone="indigo">{node.demand} vac.</Chip>}
           {node.known && <Chip tone="emerald">in profile</Chip>}
           {node.drillsTotal > 0 && (
@@ -54,22 +54,22 @@ function Node({ node }: { node: RoadmapNode }) {
             </Chip>
           )}
           <span className={`ml-auto text-xs font-medium ${meta.text}`}>{meta.label}</span>
-          <span className="text-slate-400 text-xs w-3">{open ? "▾" : "▸"}</span>
+          <span className="text-ink-dim text-xs w-3">{open ? "▾" : "▸"}</span>
         </button>
         {open && (
-          <div className="px-3 pb-3 border-t border-slate-100 pt-3 space-y-3">
-            {loadingDyn && <div className="text-xs text-slate-400">✨ Personalizing to your stack…</div>}
+          <div className="px-3 pb-3 border-t border-surface-2 pt-3 space-y-3">
+            {loadingDyn && <div className="text-xs text-ink-dim">✨ Personalizing to your stack…</div>}
             {dyn?.focus && (
-              <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-2.5 text-sm text-indigo-900">
+              <div className="rounded-lg bg-signal/10 border border-signal/20 p-2.5 text-sm text-signal">
                 <span className="font-semibold">✨ Personal focus:</span> <Markdown text={dyn.focus} inline />
               </div>
             )}
             <div>
-              <div className="text-xs font-semibold text-slate-500 mb-1 flex items-center gap-1.5">
+              <div className="text-xs font-semibold text-ink-dim mb-1 flex items-center gap-1.5">
                 What to learn
                 {dyn?.source === "ai" && <Chip tone="indigo">AI for you</Chip>}
               </div>
-              <ul className="list-disc pl-5 text-sm text-slate-700 space-y-1">
+              <ul className="list-disc pl-5 text-sm text-ink space-y-1">
                 {learn.map((l, i) => (
                   <li key={i}>{l}</li>
                 ))}
@@ -77,16 +77,16 @@ function Node({ node }: { node: RoadmapNode }) {
             </div>
             {node.drillsTotal > 0 && (
               <div>
-                <div className="text-xs font-semibold text-slate-500 mb-1">
+                <div className="text-xs font-semibold text-ink-dim mb-1">
                   Practice problems: {node.drillsSolved}/{node.drillsTotal} solved
                 </div>
                 <ProgressBar value={node.drillsSolved} max={node.drillsTotal} tone="emerald" />
-                <div className="text-xs text-slate-400 mt-1">Practice in the "Practice" tab → filter by topic.</div>
+                <div className="text-xs text-ink-dim mt-1">Practice in the "Practice" tab → filter by topic.</div>
               </div>
             )}
             {resources.length > 0 && (
               <div>
-                <div className="text-xs font-semibold text-slate-500 mb-1">Resources</div>
+                <div className="text-xs font-semibold text-ink-dim mb-1">Resources</div>
                 <div className="flex flex-wrap gap-2">
                   {resources.map((r) => (
                     <a
@@ -94,7 +94,7 @@ function Node({ node }: { node: RoadmapNode }) {
                       href={r.u}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 text-indigo-600 hover:bg-slate-200 transition-colors"
+                      className="text-xs px-2.5 py-1 rounded-lg bg-surface-2 text-signal hover:bg-grid transition-colors"
                     >
                       {r.t} ↗{r.ai ? " ✨" : ""}
                     </a>
@@ -147,18 +147,18 @@ export function Roadmap() {
         <>
           <Card>
             <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-              <div className="text-sm font-semibold text-slate-700">
-                Progress: <span className="text-emerald-600">{done}</span> / {total} skills
+              <div className="text-sm font-semibold text-ink">
+                Progress: <span className="text-signal">{done}</span> / {total} skills
               </div>
-              <div className="flex items-center gap-3 text-xs text-slate-500">
+              <div className="flex items-center gap-3 text-xs text-ink-dim">
                 <span className="inline-flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-full bg-emerald-500" /> know it
+                  <span className="w-3 h-3 rounded-full bg-signal" /> know it
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-full bg-amber-500" /> learning ({learning})
+                  <span className="w-3 h-3 rounded-full bg-alert" /> learning ({learning})
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-full border-2 border-slate-300 bg-white" /> not started
+                  <span className="w-3 h-3 rounded-full border-2 border-grid bg-white" /> not started
                 </span>
               </div>
             </div>
@@ -167,7 +167,7 @@ export function Roadmap() {
               <select
                 value={group}
                 onChange={(e) => setGroup(e.target.value)}
-                className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm text-slate-700"
+                className="bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 text-sm text-ink"
               >
                 <option value="all">All areas</option>
                 {roadmap.groups.map((g) => (
@@ -186,10 +186,10 @@ export function Roadmap() {
             {groups.map((g) => (
               <Card key={g.group}>
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="text-sm font-bold uppercase tracking-wide text-slate-500">{g.group}</span>
-                  <span className="text-xs text-slate-400">· {g.nodes.length}</span>
+                  <span className="text-sm font-bold uppercase tracking-wide text-ink-dim">{g.group}</span>
+                  <span className="text-xs text-ink-dim">· {g.nodes.length}</span>
                 </div>
-                <div className="relative space-y-3 before:absolute before:left-3 before:top-3 before:bottom-3 before:w-px before:bg-slate-200">
+                <div className="relative space-y-3 before:absolute before:left-3 before:top-3 before:bottom-3 before:w-px before:bg-grid">
                   {g.nodes.map((n) => (
                     <Node key={n.tech} node={n} />
                   ))}

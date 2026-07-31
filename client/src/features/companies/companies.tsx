@@ -29,7 +29,7 @@ export function Companies() {
               onChange={(e) => setName(e.target.value)}
               aria-label="Company name"
               placeholder="Company name"
-              className="bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
             />
             <Btn loading={isAdding} onClick={add}>
               + Add
@@ -48,9 +48,9 @@ export function Companies() {
             return (
               <Card key={c.id}>
                 <div className="flex items-center gap-1.5 mb-2">
-                  <div className="font-semibold text-slate-800">{c.name}</div>
+                  <div className="font-semibold text-ink">{c.name}</div>
                   {isSaving && (
-                    <span className="flex items-center gap-1 text-[11px] text-indigo-500">
+                    <span className="flex items-center gap-1 text-[11px] text-signal">
                       <Spinner className="h-3 w-3" /> saving…
                     </span>
                   )}
@@ -60,14 +60,14 @@ export function Companies() {
                   onBlur={(e) => saveCompanyMutation.mutate({ ...c, notes: e.target.value })}
                   aria-label={`Notes about ${c.name}`}
                   placeholder="Notes (stack, people, salary, impressions)…"
-                  className="w-full h-20 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="w-full h-20 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
                 />
                 <textarea
                   defaultValue={c.questions.join("\n")}
                   onBlur={(e) => saveCompanyMutation.mutate({ ...c, questions: e.target.value.split("\n").filter(Boolean) })}
                   aria-label={`Questions asked at ${c.name}`}
                   placeholder="Questions they asked (one per line)…"
-                  className="w-full h-20 mt-2 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="w-full h-20 mt-2 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
                 />
               </Card>
             );

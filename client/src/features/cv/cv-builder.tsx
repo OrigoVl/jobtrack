@@ -17,6 +17,7 @@ import { AppearancePanel } from "./builder/appearance-panel";
 import { LayoutPresetsPanel } from "./builder/layout-presets-panel";
 import { CvPreviewPanel } from "./builder/cv-preview-panel";
 import { ResumeCompleteness } from "./builder/resume-completeness";
+import { ShareLinkCard } from "./builder/share-link-card";
 
 type SectionKey = "general" | "experience" | "skills" | "projects" | "education" | "languages" | "design";
 
@@ -354,7 +355,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           only two primary-looking actions. */}
       <div className="flex items-center gap-2 flex-wrap">
         <Dropdown label="📎 Import">
-          <label className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm cursor-pointer hover:bg-slate-50">
+          <label className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm cursor-pointer hover:bg-surface-2">
             {busy === "upload" ? (
               <>
                 <Spinner className="h-3.5 w-3.5" /> Parsing…
@@ -370,7 +371,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
               onChange={(e) => uploadFile(e.target.files?.[0])}
             />
           </label>
-          <label className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm cursor-pointer hover:bg-slate-50">
+          <label className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm cursor-pointer hover:bg-surface-2">
             {busy === "li" ? (
               <>
                 <Spinner className="h-3.5 w-3.5" /> Importing…
@@ -390,28 +391,28 @@ export function CvBuilder({ llm }: { llm: boolean }) {
             type="button"
             onClick={fromText}
             disabled={!llm || busy === "gen"}
-            className="w-full flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-left hover:bg-slate-50 disabled:opacity-40"
+            className="w-full flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-left hover:bg-surface-2 disabled:opacity-40"
           >
             {busy === "gen" ? <Spinner className="h-3.5 w-3.5" /> : "🪄"} From profile text (AI)
           </button>
-          <details className="text-xs text-slate-500 px-2 pt-1" data-keep-open>
-            <summary className="cursor-pointer select-none hover:text-slate-700 font-medium">Where do I get a LinkedIn .zip?</summary>
-            <div className="mt-1.5 text-slate-600">
+          <details className="text-xs text-ink-dim px-2 pt-1" data-keep-open>
+            <summary className="cursor-pointer select-none hover:text-ink font-medium">Where do I get a LinkedIn .zip?</summary>
+            <div className="mt-1.5 text-ink-dim">
               LinkedIn → <b>Settings & Privacy → Data Privacy → Get a copy of your data</b> → «Want something in particular» (Profile,
               Positions, Skills, Education) → get the archive by email → upload the <b>.zip</b> here.
             </div>
           </details>
         </Dropdown>
         <Dropdown label={matchVacId ? `🎯 ${vacancies.find((v) => v.id === matchVacId)?.position ?? "Vacancy"}` : "🎯 Vacancy"}>
-          <div className="text-xs font-semibold text-slate-500 px-1 pb-1">Compare CV against</div>
+          <div className="text-xs font-semibold text-ink-dim px-1 pb-1">Compare CV against</div>
           {vacancies.length === 0 ? (
-            <div className="text-xs text-slate-400 px-1 py-1">Add vacancies to the tracker first</div>
+            <div className="text-xs text-ink-dim px-1 py-1">Add vacancies to the tracker first</div>
           ) : (
             <select
               data-keep-open
               value={matchVacId}
               onChange={(e) => setMatchVacId(Number(e.target.value))}
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full bg-surface-2 border border-grid rounded-lg p-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
             >
               <option value={0}>— select a vacancy —</option>
               {vacancies.map((v) => (
@@ -436,15 +437,15 @@ export function CvBuilder({ llm }: { llm: boolean }) {
         >
           ✨ Tailor CV
         </Btn>
-        <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />
+        <span className="mx-1 h-5 w-px bg-grid" aria-hidden />
         <Btn size="sm" variant="ghost" onClick={doReview} loading={busyReview}>
           🤖 AI Assistant
         </Btn>
       </div>
       {!dismissedSuggest && llm && !!profile?.cvText?.trim() && !doc.name && !doc.summary && doc.experience.length === 0 && (
-        <Card className="!py-3 bg-amber-50 border-amber-200 flex items-center gap-3">
+        <Card className="!py-3 bg-alert/10 border-alert/30 flex items-center gap-3">
           <span className="text-lg">💡</span>
-          <div className="text-sm text-slate-700 flex-1">
+          <div className="text-sm text-ink flex-1">
             Your profile already has CV text, but the builder is still empty. Parse it into sections automatically?
           </div>
           <Btn size="sm" onClick={fromText} loading={busy === "gen"}>
@@ -488,19 +489,17 @@ export function CvBuilder({ llm }: { llm: boolean }) {
                 />
               )}
               <div className="relative">
-                <button onClick={hide} title="Hide" className="absolute right-3 top-3 z-10 text-slate-400 hover:text-slate-600 text-sm">
+                <button onClick={hide} title="Hide" className="absolute right-3 top-3 z-10 text-ink-dim hover:text-ink-dim text-sm">
                   ✕
                 </button>
                 {current === "tailor" && tailored ? (
                   <div className="space-y-2">
-                    <Card className="!py-3.5 bg-indigo-50 border-indigo-200 space-y-2.5">
+                    <Card className="!py-3.5 bg-signal/10 border-signal/30 space-y-2.5">
                       <div className="flex items-center gap-2 flex-wrap pr-6">
-                        <span className="font-semibold text-slate-800">
-                          ✨ Tailored{tailorVac ? ` for "${vacancyLabel(tailorVac)}"` : ""}
-                        </span>
+                        <span className="font-semibold text-ink">✨ Tailored{tailorVac ? ` for "${vacancyLabel(tailorVac)}"` : ""}</span>
                         {tailored.match.offline && <Chip>offline</Chip>}
                       </div>
-                      <p className="text-sm text-slate-700">
+                      <p className="text-sm text-ink">
                         {tailorChanged
                           ? `Reordered ${tailored.reordered.skills} skill${tailored.reordered.skills === 1 ? "" : "s"} and ${tailored.reordered.bullets} bullet${tailored.reordered.bullets === 1 ? "" : "s"} to lead with what this vacancy asks for` +
                             (tailored.match.tailoredSummary ? ", and rewrote the summary." : ".")
@@ -533,6 +532,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
             </div>
           );
         })()}
+      <ShareLinkCard />
       {/* grid-cols-1 (not just "grid" with no columns) — important: Tailwind explicitly sets
           `minmax(0, 1fr)`, whereas "none" (the default implicit grid without any `grid-cols-*`)
           gives track sizing "auto", which honors the min-content of descendants. The CV preview

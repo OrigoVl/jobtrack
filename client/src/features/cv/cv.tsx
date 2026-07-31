@@ -7,6 +7,7 @@ import { Btn, Card, Chip, PageHeader, Segmented, Spinner } from "../../shared/ui
 import { Markdown } from "../../shared/markdown";
 import type { CvAnalysis, CvMatch, CvReview, Vacancy } from "../../shared/types";
 import { Field, SkillsInput } from "../../shared/view-kit";
+import { LinkedInOptimizerCard } from "./linkedin-optimizer-card";
 
 /** Composes vacancy text from fields already saved in the tracker (position/company/level/stack/notes) —
  * the same data set already shown in the vacancy table, assembled into one block for the LLM prompt. */
@@ -55,30 +56,29 @@ export function CvReviewPanel({
   onAddKeyword?: (k: string) => void;
   onApplyRewrite?: (before: string, after: string) => void;
 }) {
-  const tone =
-    review.score == null ? "bg-slate-400" : review.score >= 75 ? "bg-emerald-500" : review.score >= 50 ? "bg-amber-500" : "bg-rose-500";
+  const tone = review.score == null ? "bg-ink-dim" : review.score >= 75 ? "bg-signal" : review.score >= 50 ? "bg-alert" : "bg-rose-500";
   return (
     <Card className="space-y-3">
       <div className="flex items-center gap-2">
-        <span className="font-semibold text-slate-800">🔎 CV Review</span>
+        <span className="font-semibold text-ink">🔎 CV Review</span>
         {review.offline && <Chip>offline</Chip>}
         {review.score != null && (
-          <span className="ml-auto text-2xl font-extrabold text-slate-800">
+          <span className="ml-auto text-2xl font-extrabold text-ink">
             {review.score}
-            <span className="text-xs text-slate-400">/100</span>
+            <span className="text-xs text-ink-dim">/100</span>
           </span>
         )}
       </div>
       {review.score != null && (
-        <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+        <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
           <div className={`h-full ${tone} rounded-full transition-all`} style={{ width: `${review.score}%` }} />
         </div>
       )}
-      {review.summary && <Markdown text={review.summary} className="text-sm text-slate-600 space-y-2" />}
+      {review.summary && <Markdown text={review.summary} className="text-sm text-ink-dim space-y-2" />}
       {review.strengths.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-emerald-600 mb-1">✓ Strengths</div>
-          <ul className="list-disc pl-5 text-sm text-slate-700 space-y-0.5">
+          <div className="text-xs font-semibold text-signal mb-1">✓ Strengths</div>
+          <ul className="list-disc pl-5 text-sm text-ink space-y-0.5">
             {review.strengths.map((s, i) => (
               <li key={i}>{s}</li>
             ))}
@@ -91,7 +91,7 @@ export function CvReviewPanel({
           <div className="space-y-1.5">
             {review.issues.map((it, i) => (
               <div key={i} className="text-sm">
-                <b className="text-slate-800">{it.title}.</b> <span className="text-slate-600">{it.fix}</span>
+                <b className="text-ink">{it.title}.</b> <span className="text-ink-dim">{it.fix}</span>
               </div>
             ))}
           </div>
@@ -99,7 +99,7 @@ export function CvReviewPanel({
       )}
       {review.keywords.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-slate-500 mb-1">
+          <div className="text-xs font-semibold text-ink-dim mb-1">
             🔑 Add keywords (ATS / LinkedIn search){onAddKeyword && " — click to add to skills"}
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -108,7 +108,7 @@ export function CvReviewPanel({
                 <button
                   key={k}
                   onClick={() => onAddKeyword(k)}
-                  className="rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-0.5 text-xs font-medium hover:bg-indigo-100 transition-colors"
+                  className="rounded-full bg-signal/10 text-signal border border-signal/30 px-2.5 py-0.5 text-xs font-medium hover:bg-signal/20 transition-colors"
                 >
                   + {k}
                 </button>
@@ -123,12 +123,12 @@ export function CvReviewPanel({
       )}
       {review.rewrites.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-slate-500 mb-1">✍️ Rewrite stronger (outcome instead of process)</div>
+          <div className="text-xs font-semibold text-ink-dim mb-1">✍️ Rewrite stronger (outcome instead of process)</div>
           <div className="space-y-2">
             {review.rewrites.map((rw, i) => (
-              <div key={i} className="text-sm rounded-lg border border-slate-200 p-2 space-y-1">
+              <div key={i} className="text-sm rounded-lg border border-grid p-2 space-y-1">
                 <div className="text-rose-600">− {rw.before}</div>
-                <div className="text-emerald-700">+ {rw.after}</div>
+                <div className="text-signal">+ {rw.after}</div>
                 {onApplyRewrite && (
                   <Btn size="sm" variant="ghost" onClick={() => onApplyRewrite(rw.before, rw.after)}>
                     ↳ apply to bullet
@@ -151,24 +151,24 @@ export function CvMatchPanel({
   onAddKeyword?: (k: string) => void;
   onApplySummary?: (s: string) => void;
 }) {
-  const tone = match.score >= 75 ? "bg-emerald-500" : match.score >= 50 ? "bg-amber-500" : "bg-rose-500";
+  const tone = match.score >= 75 ? "bg-signal" : match.score >= 50 ? "bg-alert" : "bg-rose-500";
   return (
     <Card className="space-y-3">
       <div className="flex items-center gap-2">
-        <span className="font-semibold text-slate-800">🎯 Vacancy match</span>
+        <span className="font-semibold text-ink">🎯 Vacancy match</span>
         {match.offline && <Chip>offline</Chip>}
-        <span className="ml-auto text-2xl font-extrabold text-slate-800">
+        <span className="ml-auto text-2xl font-extrabold text-ink">
           {match.score}
-          <span className="text-xs text-slate-400">/100</span>
+          <span className="text-xs text-ink-dim">/100</span>
         </span>
       </div>
-      <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+      <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
         <div className={`h-full ${tone} rounded-full transition-all`} style={{ width: `${match.score}%` }} />
       </div>
-      {match.verdict && <Markdown text={match.verdict} className="text-sm text-slate-600 space-y-2" />}
+      {match.verdict && <Markdown text={match.verdict} className="text-sm text-ink-dim space-y-2" />}
       {match.matched.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-emerald-600 mb-1">✓ Already covered</div>
+          <div className="text-xs font-semibold text-signal mb-1">✓ Already covered</div>
           <div className="flex flex-wrap gap-1.5">
             {match.matched.map((k) => (
               <Chip key={k} tone="emerald">
@@ -202,20 +202,20 @@ export function CvMatchPanel({
       )}
       {match.suggestions.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-slate-500 mb-1">💡 What to do for this vacancy</div>
+          <div className="text-xs font-semibold text-ink-dim mb-1">💡 What to do for this vacancy</div>
           <div className="space-y-1.5">
             {match.suggestions.map((s, i) => (
               <div key={i} className="text-sm">
-                <b className="text-slate-800">{s.title}.</b> <span className="text-slate-600">{s.fix}</span>
+                <b className="text-ink">{s.title}.</b> <span className="text-ink-dim">{s.fix}</span>
               </div>
             ))}
           </div>
         </div>
       )}
       {match.tailoredSummary && (
-        <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-2.5 space-y-1.5">
-          <div className="text-xs font-semibold text-indigo-600">✍️ Summary for this vacancy</div>
-          <Markdown text={match.tailoredSummary} className="text-sm text-slate-700 space-y-2" />
+        <div className="rounded-lg border border-signal/30 bg-signal/10/50 p-2.5 space-y-1.5">
+          <div className="text-xs font-semibold text-signal">✍️ Summary for this vacancy</div>
+          <Markdown text={match.tailoredSummary} className="text-sm text-ink space-y-2" />
           {onApplySummary && (
             <Btn size="sm" onClick={() => onApplySummary(match.tailoredSummary)}>
               Apply to summary
@@ -349,9 +349,9 @@ export function CVView({ llm }: { llm: boolean }) {
       />
       <Card className="!py-3 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-slate-500">Upload:</span>
+          <span className="text-xs font-semibold text-ink-dim">Upload:</span>
           <label
-            className={`inline-flex items-center gap-1.5 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer transition-colors ${busy === "upload" ? "bg-indigo-300 text-white" : "bg-indigo-600 text-white hover:bg-indigo-500"}`}
+            className={`inline-flex items-center gap-1.5 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer transition-colors ${busy === "upload" ? "bg-signal/40 text-white" : "bg-signal text-white hover:opacity-90"}`}
           >
             {busy === "upload" ? (
               <>
@@ -362,8 +362,8 @@ export function CVView({ llm }: { llm: boolean }) {
             )}
             <input type="file" accept=".pdf,.docx,.txt" onChange={onFile} className="hidden" disabled={busy === "upload"} />
           </label>
-          <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />
-          <span className="text-xs font-semibold text-slate-500">AI analysis:</span>
+          <span className="mx-1 h-5 w-px bg-grid" aria-hidden />
+          <span className="text-xs font-semibold text-ink-dim">AI analysis:</span>
           <Btn size="sm" variant="ghost" onClick={analyze} loading={busyAnalysis} disabled={!cvText.trim()}>
             🔍 CV vs market
           </Btn>
@@ -371,11 +371,11 @@ export function CVView({ llm }: { llm: boolean }) {
             🔎 Deep review
           </Btn>
         </div>
-        <details className="text-xs text-slate-500 border-t border-slate-100 pt-2.5">
-          <summary className="cursor-pointer select-none hover:text-slate-700 font-medium">
+        <details className="text-xs text-ink-dim border-t border-surface-2 pt-2.5">
+          <summary className="cursor-pointer select-none hover:text-ink font-medium">
             How does this work, and how do I upload from LinkedIn?
           </summary>
-          <div className="mt-1.5 text-slate-600">
+          <div className="mt-1.5 text-ink-dim">
             One upload — and your CV works <b>everywhere</b>: market analysis, roadmap, learning plan, recommendations + auto-parsing into
             sections in <b>the CV Builder</b>. <b>LinkedIn:</b> profile → «More» → «Save to PDF» → upload it here (direct LinkedIn parsing
             is forbidden by its ToS).
@@ -391,12 +391,12 @@ export function CVView({ llm }: { llm: boolean }) {
           maxLength={120}
         />
         <label className="block">
-          <span className="text-xs font-semibold text-slate-500">CV text (you can edit or paste manually)</span>
+          <span className="text-xs font-semibold text-ink-dim">CV text (you can edit or paste manually)</span>
           <textarea
             value={cvText}
             onChange={(e) => patch({ cvText: e.target.value })}
             placeholder="Paste or edit your resume text…"
-            className="w-full mt-0.5 h-32 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full mt-0.5 h-32 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
           />
         </label>
         <SkillsInput label="Skills" skills={skills} onChange={(skills) => patch({ skills })} placeholder="React, Node, TypeScript…" />
@@ -427,7 +427,7 @@ export function CVView({ llm }: { llm: boolean }) {
                 <button
                   onClick={() => (current === "analysis" ? setAnalysis(null) : setReview(null))}
                   title="Hide"
-                  className="absolute right-3 top-3 z-10 text-slate-400 hover:text-slate-600 text-sm"
+                  className="absolute right-3 top-3 z-10 text-ink-dim hover:text-ink-dim text-sm"
                 >
                   ✕
                 </button>
@@ -444,24 +444,24 @@ export function CVView({ llm }: { llm: boolean }) {
         })()}
       <div className="grid md:grid-cols-2 gap-4 items-start">
         <Card className="space-y-2">
-          <div className="text-sm font-semibold text-slate-700">🔧 Update Skills section</div>
+          <div className="text-sm font-semibold text-ink">🔧 Update Skills section</div>
           <Btn size="sm" variant="ghost" onClick={gen} loading={busy === "skills"}>
             Generate
           </Btn>
           {skillsOut && (
-            <div className="mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5">
-              <Markdown text={skillsOut} className="text-xs text-slate-700 space-y-2" />
+            <div className="mt-1 bg-surface-2 border border-grid rounded-lg p-2.5">
+              <Markdown text={skillsOut} className="text-xs text-ink space-y-2" />
             </div>
           )}
         </Card>
         <Card className="space-y-2">
-          <div className="text-sm font-semibold text-slate-700">✉️ Cover letter for a vacancy</div>
+          <div className="text-sm font-semibold text-ink">✉️ Cover letter for a vacancy</div>
           {vacancies.length > 0 && (
             <select
               value={coverVacId}
               onChange={(e) => pickCoverVacancy(Number(e.target.value))}
               aria-label="Select a vacancy from the tracker for the cover letter"
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full bg-surface-2 border border-grid rounded-lg p-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-signal/50"
             >
               <option value={0}>— select a vacancy from the tracker —</option>
               {vacancies.map((v) => (
@@ -479,7 +479,7 @@ export function CVView({ llm }: { llm: boolean }) {
               onKeyDown={(e) => e.key === "Enter" && fetchCoverUrl()}
               aria-label="Vacancy link for the cover letter"
               placeholder="…or paste a vacancy link"
-              className="flex-1 min-w-0 bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="flex-1 min-w-0 bg-surface-2 border border-grid rounded-lg p-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-signal/50"
             />
             <Btn size="sm" variant="subtle" onClick={fetchCoverUrl} loading={busy === "cover-url"} disabled={!coverUrl.trim()}>
               Load
@@ -493,7 +493,7 @@ export function CVView({ llm }: { llm: boolean }) {
             }}
             aria-label="Vacancy text for the cover letter"
             placeholder="…or paste the vacancy text manually"
-            className="w-full h-16 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full h-16 bg-surface-2 border border-grid rounded-lg p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-signal/50"
           />
           <div className="flex gap-2 flex-wrap">
             <Btn size="sm" variant="ghost" onClick={genCover} loading={busy === "cover"} disabled={!vacText.trim()}>
@@ -506,12 +506,13 @@ export function CVView({ llm }: { llm: boolean }) {
             )}
           </div>
           {cover && (
-            <div className="mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5">
-              <Markdown text={cover} className="text-xs text-slate-700 space-y-2" />
+            <div className="mt-1 bg-surface-2 border border-grid rounded-lg p-2.5">
+              <Markdown text={cover} className="text-xs text-ink space-y-2" />
             </div>
           )}
         </Card>
       </div>
+      <LinkedInOptimizerCard />
     </div>
   );
 }

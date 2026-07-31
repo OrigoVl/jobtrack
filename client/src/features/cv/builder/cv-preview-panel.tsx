@@ -73,11 +73,11 @@ function ScaledFrame({
   }, []);
   const scale = (containerWidth / PAGE_WIDTH) * zoom;
   return (
-    <div ref={viewportRef} className="overflow-auto bg-slate-100" style={{ maxHeight }}>
+    <div ref={viewportRef} className="overflow-auto bg-surface-2" style={{ maxHeight }}>
       <div className="flex justify-center py-4">
         <div
           style={{ width: PAGE_WIDTH * scale, height: contentHeight * scale, overflow: "hidden" }}
-          className="shadow-xl ring-1 ring-slate-900/5 shrink-0 rounded-sm"
+          className="shadow-xl ring-1 ring-ink/5 shrink-0 rounded-sm"
         >
           <iframe
             title="CV preview"
@@ -126,16 +126,16 @@ function PreviewToolbar({
   fullscreenLabel?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-slate-100 flex-wrap">
+    <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-surface-2 flex-wrap">
       <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Preview</span>
-        <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full border border-slate-200 bg-slate-50 text-slate-500 whitespace-nowrap">
+        <span className="text-xs font-semibold text-ink-dim uppercase tracking-wide">Preview</span>
+        <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full border border-grid bg-surface-2 text-ink-dim whitespace-nowrap">
           A4
         </span>
         <span
           title="Approximate number of pages when printed to PDF — actual printing may differ slightly"
           className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full border whitespace-nowrap ${
-            pages > 1 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+            pages > 1 ? "bg-alert/10 text-alert border-alert/30" : "bg-signal/10 text-signal border-signal/30"
           }`}
         >
           {pages > 1 ? `⚠ Page 1 / ${pages}` : "✓ 1 page"}
@@ -200,9 +200,9 @@ export function CvPreviewPanel({
           onContentHeight={setContentHeight}
           onSectionClick={onSectionClick}
         />
-        <div className="px-4 py-1.5 text-[11px] text-slate-400 border-t border-slate-100">💡 Click a section in the preview to edit it</div>
+        <div className="px-4 py-1.5 text-[11px] text-ink-dim border-t border-surface-2">💡 Click a section in the preview to edit it</div>
         {empties.length > 0 && (
-          <div className="px-4 py-2 text-[11px] text-slate-400 border-t border-slate-100">
+          <div className="px-4 py-2 text-[11px] text-ink-dim border-t border-surface-2">
             Empty sections (won't appear in the PDF): {empties.join(", ")}
           </div>
         )}
@@ -213,11 +213,11 @@ export function CvPreviewPanel({
       <button
         type="button"
         onClick={() => setFullscreen(true)}
-        className="lg:hidden fixed bottom-5 right-5 z-30 rounded-full bg-indigo-600 text-white shadow-lg px-4 py-3 text-sm font-semibold flex items-center gap-1.5 hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2"
+        className="lg:hidden fixed bottom-5 right-5 z-30 rounded-full bg-signal text-white shadow-lg px-4 py-3 text-sm font-semibold flex items-center gap-1.5 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 focus-visible:ring-offset-2"
       >
         👁 Preview
         {pages > 1 && (
-          <span className="text-amber-300" aria-hidden>
+          <span className="text-alert/40" aria-hidden>
             ⚠
           </span>
         )}
@@ -228,15 +228,15 @@ export function CvPreviewPanel({
             type="button"
             aria-label="Close preview"
             onClick={() => setFullscreen(false)}
-            className="fixed inset-0 bg-slate-900/60 cursor-default"
+            className="fixed inset-0 bg-ink/60 cursor-default"
           />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-full overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100">
-              <span className="text-sm font-semibold text-slate-700">CV preview</span>
+            <div className="flex items-center justify-between px-4 py-2 border-b border-surface-2">
+              <span className="text-sm font-semibold text-ink">CV preview</span>
               <button
                 onClick={() => setFullscreen(false)}
                 aria-label="Close"
-                className="text-slate-400 hover:text-slate-600 text-lg leading-none px-1"
+                className="text-ink-dim hover:text-ink-dim text-lg leading-none px-1"
               >
                 ✕
               </button>

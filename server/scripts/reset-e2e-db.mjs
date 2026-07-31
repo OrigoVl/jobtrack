@@ -17,6 +17,10 @@ const url = process.env.DATABASE_URL || "postgres://jobtrack:jobtrack@localhost:
 const client = new pg.Client({ connectionString: url });
 
 const TABLES = [
+  "calendar_events",
+  "contacts",
+  "saved_searches",
+  "cv_shares",
   "vacancy_status_history",
   "vacancies",
   "companies",

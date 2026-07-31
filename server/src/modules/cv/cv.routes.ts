@@ -12,6 +12,7 @@ import { CvDocSchema, CvPresetsSchema } from "./cv.schemas.js";
 import { cvAnalysis, reviewCv, matchCv, strs } from "./cv-analysis.service.js";
 import { tailorCv } from "./cv-tailor.service.js";
 import { emptyCvDoc, parseCvDocFromText } from "./cv-document.service.js";
+import { optimizeLinkedInProfile } from "./cv-linkedin.service.js";
 
 const r = express.Router();
 
@@ -87,6 +88,16 @@ r.post(
       if (llm) text = llm;
     }
     res.json({ skills: merged, text });
+  }),
+);
+
+// ---------- LinkedIn profile optimizer (headline + About — no LinkedIn API involved, just text
+// the user copies themselves) ----------
+r.post(
+  "/cv/linkedin-optimize",
+  aiLimiter,
+  authed(async (userId, _req, res) => {
+    res.json(await optimizeLinkedInProfile(userId, await getProfile(userId)));
   }),
 );
 

@@ -17,6 +17,10 @@ import writing from "./modules/writing/writing.routes.js";
 import mock from "./modules/mock/mock.routes.js";
 import admin from "./modules/admin/admin.routes.js";
 import account from "./modules/account/account.routes.js";
+import calendar from "./modules/calendar/calendar.routes.js";
+import contacts from "./modules/contacts/contacts.routes.js";
+import cvShares from "./modules/cv-shares/cv-shares.routes.js";
+import savedSearches from "./modules/saved-searches/saved-searches.routes.js";
 
 const r = express.Router();
 
@@ -36,5 +40,9 @@ r.use(writing);
 r.use(mock);
 r.use(admin);
 r.use(account);
+r.use(calendar);
+r.use(contacts);
+r.use(cvShares);
+r.use(savedSearches);
 
 export default r;

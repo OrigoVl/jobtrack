@@ -2,8 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
+/* DevRadar type system — IBM Plex Mono (headings/data/nav, "instrument panel" feel) + IBM Plex
+   Sans (body/UI text), shared with the approved marketing landing page. Local static woff2 files
+   (client/public/fonts/, latin subset) — NOT base64-embedded (fine for a one-off marketing
+   artifact, wrong for a real app bundle) and NOT the variable-font file Google serves to a modern
+   UA by default (drizzle-kit-style pinned per-weight static files instead, for predictable
+   `font-weight` matching across browsers). */
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-sans-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-sans-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-sans-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-sans-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-700.woff2") format("woff2");
+}
+
+/* DevRadar design tokens (see tailwind.config.js — every color utility below resolves through
+   one of these). RGB triplets (not hex) so Tailwind's opacity modifiers work (bg-signal/10, etc).
+   The real, day-to-day app defaults to the LIGHT set — dense tables/forms are easier on the eyes
+   in light mode than the dramatic dark marketing-page look, even though both share the same
+   token system. `:root[data-theme="dark"]` is wired up for a future in-app dark-mode toggle. */
 :root {
   color-scheme: light;
+  --bg: 243 247 244; /* #f3f7f4 */
+  --surface: 255 255 255; /* #ffffff */
+  --surface-2: 231 239 234; /* #e7efea */
+  --grid: 212 224 216; /* #d4e0d8 */
+  --ink: 14 22 19; /* #0e1613 */
+  --ink-dim: 76 95 86; /* #4c5f56 */
+  --signal: 14 143 92; /* #0e8f5c — deepened for AA contrast on white */
+  --alert: 180 83 9; /* #b45309 — deep amber/rust */
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: 11 18 16; /* #0b1210 */
+  --surface: 18 27 23; /* #121b17 */
+  --surface-2: 26 38 32; /* #1a2620 */
+  --grid: 36 56 48; /* #243830 */
+  --ink: 234 243 238; /* #eaf3ee */
+  --ink-dim: 143 167 154; /* #8fa79a */
+  --signal: 95 227 138; /* #5fe38a — phosphor green */
+  --alert: 255 180 84; /* #ffb454 */
 }
 
 html,
@@ -13,32 +94,40 @@ body,
 }
 
 body {
-  @apply text-slate-800 antialiased;
+  @apply text-ink antialiased font-sans;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  background-color: #f6f7fb;
+  background-color: rgb(var(--bg));
   background-image:
-    radial-gradient(1100px 520px at 100% -10%, rgba(99, 102, 241, 0.1), transparent 55%),
-    radial-gradient(900px 520px at -10% 5%, rgba(16, 185, 129, 0.08), transparent 50%);
+    radial-gradient(1100px 520px at 100% -10%, rgb(var(--signal) / 0.08), transparent 55%),
+    radial-gradient(900px 520px at -10% 5%, rgb(var(--alert) / 0.06), transparent 50%);
   background-attachment: fixed;
+}
+
+/* Headings, nav/brand and data labels use the mono "instrument panel" face with tight tracking —
+   applied via a utility class (see shared/ui.tsx PageHeader, App.tsx Brand/nav) rather than
+   globally on <h1>-<h6> so it only lands where the reskin brief actually calls for it. */
+.font-display {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: -0.02em;
 }
 
 /* тонші, сучасні скролбари */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-color: rgb(var(--grid)) transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
+  background-color: rgb(var(--grid));
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background-color: #94a3b8;
+  background-color: rgb(var(--ink-dim));
 }
 
 /* горизонтальне мобільне меню без смуги прокрутки */

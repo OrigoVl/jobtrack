@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "DevRadar Job Clipper",
+  "version": "0.1.0",
+  "description": "Detects the job posting on the page you're viewing and saves it to your DevRadar tracker in one click.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Save this job to DevRadar"
+  },
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["http://localhost:3001/*"]
+}

@@ -24,8 +24,8 @@ export function Account() {
       <PageHeader title="Account" subtitle="Export your data, or permanently delete your account." />
 
       <Card>
-        <div className="text-sm font-semibold text-slate-700">Export your data</div>
-        <p className="text-xs text-slate-500 mt-1 mb-3 max-w-2xl">
+        <div className="text-sm font-semibold text-ink">Export your data</div>
+        <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">
           Downloads a JSON file with your profile, vacancies, companies, and study progress — everything you've created in JobTrack.
         </p>
         {/* A plain download link, not a fetch()+blob dance — the server already sets
@@ -38,11 +38,11 @@ export function Account() {
 
       <Card className="border-rose-200">
         <div className="text-sm font-semibold text-rose-700">Delete your account</div>
-        <p className="text-xs text-slate-500 mt-1 mb-3 max-w-2xl">
+        <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">
           Permanently deletes your account and everything in it — vacancies, companies, CV, study progress. This cannot be undone.
         </p>
         {deleteRequested ? (
-          <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+          <p className="text-sm text-signal bg-signal/10 border border-signal/30 rounded-lg px-3 py-2">
             Check your email — click the link we sent to confirm the deletion. Nothing has been deleted yet.
           </p>
         ) : (

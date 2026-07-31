@@ -25,30 +25,30 @@ function sample<T>(arr: T[], n: number): T[] {
 function MockEvalCard({ ev }: { ev: MockEvaluation }) {
   if (ev.offline || ev.score === null) {
     return (
-      <div className="mt-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+      <div className="mt-3 text-sm text-alert bg-alert/10 border border-alert/30 rounded-lg p-2.5">
         {ev.verdict || "AI is unavailable for evaluation."}
       </div>
     );
   }
-  const bar = ev.score >= 75 ? "bg-emerald-500" : ev.score >= 50 ? "bg-amber-500" : "bg-rose-500";
+  const bar = ev.score >= 75 ? "bg-signal" : ev.score >= 50 ? "bg-alert" : "bg-rose-500";
   return (
-    <div className="mt-3 rounded-lg border border-slate-200 p-3 space-y-2">
+    <div className="mt-3 rounded-lg border border-grid p-3 space-y-2">
       <div className="flex items-center gap-2">
-        <span className="text-2xl font-extrabold text-slate-800">{ev.score}</span>
-        <span className="text-xs text-slate-400">/ 100</span>
+        <span className="text-2xl font-extrabold text-ink">{ev.score}</span>
+        <span className="text-xs text-ink-dim">/ 100</span>
         {ev.verdict && (
-          <span className="text-sm text-slate-600 ml-1">
+          <span className="text-sm text-ink-dim ml-1">
             <Markdown text={ev.verdict} inline />
           </span>
         )}
       </div>
-      <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+      <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
         <div className={`h-full ${bar} rounded-full transition-all`} style={{ width: `${ev.score}%` }} />
       </div>
       {ev.good && ev.good.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-emerald-600">✓ Strengths</div>
-          <ul className="list-disc pl-5 text-sm text-slate-700">
+          <div className="text-xs font-semibold text-signal">✓ Strengths</div>
+          <ul className="list-disc pl-5 text-sm text-ink">
             {ev.good.map((g, i) => (
               <li key={i}>{g}</li>
             ))}
@@ -58,7 +58,7 @@ function MockEvalCard({ ev }: { ev: MockEvaluation }) {
       {ev.missed && ev.missed.length > 0 && (
         <div>
           <div className="text-xs font-semibold text-rose-600">△ What was missed</div>
-          <ul className="list-disc pl-5 text-sm text-slate-700">
+          <ul className="list-disc pl-5 text-sm text-ink">
             {ev.missed.map((m, i) => (
               <li key={i}>{m}</li>
             ))}
@@ -66,7 +66,7 @@ function MockEvalCard({ ev }: { ev: MockEvaluation }) {
         </div>
       )}
       {ev.tip && (
-        <div className="text-sm text-indigo-700 bg-indigo-50 border border-indigo-100 rounded p-2">
+        <div className="text-sm text-signal bg-signal/10 border border-signal/20 rounded p-2">
           💡 <Markdown text={ev.tip} inline />
         </div>
       )}
@@ -130,7 +130,7 @@ export function MockInterview({ embedded = false }: { embedded?: boolean } = {})
                 <select
                   value={count}
                   onChange={(e) => setCount(Number(e.target.value))}
-                  className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700"
+                  className="text-sm border border-grid rounded-lg px-3 py-2 bg-white text-ink"
                 >
                   {[5, 8, 10, 15].map((n) => (
                     <option key={n} value={n}>
@@ -178,7 +178,7 @@ export function MockInterview({ embedded = false }: { embedded?: boolean } = {})
   return (
     <div className="space-y-4">
       {header}
-      <div className="flex items-center gap-3 text-xs text-slate-400">
+      <div className="flex items-center gap-3 text-xs text-ink-dim">
         <span>
           Question {idx + 1} / {session.length}
         </span>
@@ -189,28 +189,28 @@ export function MockInterview({ embedded = false }: { embedded?: boolean } = {})
       </div>
       <Card className="min-h-[240px] flex flex-col">
         <div className="flex items-center gap-2">
-          <span className="text-xs uppercase tracking-wide text-indigo-600 font-bold">{item.cat}</span>
+          <span className="text-xs uppercase tracking-wide text-signal font-bold">{item.cat}</span>
           <Chip>{item.type === "card" ? "question" : "problem"}</Chip>
         </div>
-        <div className="text-lg font-semibold mt-2 text-slate-800">{item.q}</div>
+        <div className="text-lg font-semibold mt-2 text-ink">{item.q}</div>
         <div className="mt-3">
           <textarea
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
             aria-label="Your answer to the question"
             placeholder="Write your answer — AI will evaluate it and give feedback…"
-            className="w-full h-24 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full h-24 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
           />
           <div className="flex gap-2 mt-2 items-center">
             <Btn size="sm" variant="ghost" onClick={evaluate} loading={evaluating} disabled={!answer.trim()}>
               ✨ Evaluate answer (AI)
             </Btn>
-            {!llm && <span className="text-xs text-slate-400">AI offline — set a key in server/.env</span>}
+            {!llm && <span className="text-xs text-ink-dim">AI offline — set a key in server/.env</span>}
           </div>
           {evaluation && <MockEvalCard ev={evaluation} />}
         </div>
         {revealed && (
-          <pre className="mt-3 bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs md:text-sm overflow-auto text-slate-700 whitespace-pre-wrap">
+          <pre className="mt-3 bg-surface-2 border border-grid rounded-lg p-3 text-xs md:text-sm overflow-auto text-ink whitespace-pre-wrap">
             {item.a}
           </pre>
         )}

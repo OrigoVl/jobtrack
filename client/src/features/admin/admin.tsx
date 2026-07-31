@@ -4,13 +4,13 @@ import { useUi } from "../../shared/ui-state";
 import { money } from "../../shared/format";
 import { useAdminLlmUsage, useAdminOverview, useAdminProductEvents, useAdminUsers } from "../../shared/queries";
 
-const AXIS = "#64748b";
+const AXIS = "#4c5f56"; // --ink-dim
 const TOOLTIP = {
-  background: "#ffffff",
-  border: "1px solid #e2e8f0",
+  background: "#ffffff", // --surface
+  border: "1px solid #d4e0d8", // --grid
   borderRadius: 12,
-  boxShadow: "0 8px 24px -12px rgba(16,24,40,0.25)",
-  color: "#0f172a",
+  boxShadow: "0 8px 24px -12px rgba(14,22,19,0.25)",
+  color: "#0e1613", // --ink
 } as const;
 
 const DAY_RANGES = [
@@ -22,9 +22,9 @@ const DAY_RANGES = [
 function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <Card className="p-4">
-      <div className="text-xs font-semibold text-slate-500">{label}</div>
-      <div className="text-2xl font-extrabold text-slate-900 mt-1">{value}</div>
-      {hint && <div className="text-xs text-slate-400 mt-0.5">{hint}</div>}
+      <div className="text-xs font-semibold text-ink-dim">{label}</div>
+      <div className="text-2xl font-extrabold text-ink mt-1">{value}</div>
+      {hint && <div className="text-xs text-ink-dim mt-0.5">{hint}</div>}
     </Card>
   );
 }
@@ -51,7 +51,7 @@ function UsersTab() {
     <Card className="overflow-x-auto">
       <table className="w-full text-sm" role="table">
         <thead>
-          <tr className="text-left text-xs font-semibold text-slate-500 border-b border-slate-200">
+          <tr className="text-left text-xs font-semibold text-ink-dim border-b border-grid">
             <th className="py-2 pr-3">Name</th>
             <th className="py-2 pr-3">Email</th>
             <th className="py-2 pr-3">Role</th>
@@ -62,9 +62,9 @@ function UsersTab() {
         </thead>
         <tbody>
           {data.users.map((u) => (
-            <tr key={u.id} className="border-b border-slate-100 last:border-0">
-              <td className="py-2 pr-3 font-medium text-slate-800">{u.name || "—"}</td>
-              <td className="py-2 pr-3 text-slate-600">{u.email}</td>
+            <tr key={u.id} className="border-b border-surface-2 last:border-0">
+              <td className="py-2 pr-3 font-medium text-ink">{u.name || "—"}</td>
+              <td className="py-2 pr-3 text-ink-dim">{u.email}</td>
               <td className="py-2 pr-3">
                 {u.role === "admin" ? <Chip tone="indigo">admin</Chip> : <Chip>user</Chip>}
                 {u.banned && (
@@ -73,14 +73,14 @@ function UsersTab() {
                   </Chip>
                 )}
               </td>
-              <td className="py-2 pr-3 text-slate-500">{new Date(u.createdAt).toLocaleDateString()}</td>
+              <td className="py-2 pr-3 text-ink-dim">{new Date(u.createdAt).toLocaleDateString()}</td>
               <td className="py-2 pr-3 text-right">{u.vacancyCount}</td>
               <td className="py-2 text-right">{u.llmCallsRecent}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div className="text-xs text-slate-400 mt-2">
+      <div className="text-xs text-ink-dim mt-2">
         Showing {data.users.length} of {data.total}.
       </div>
     </Card>
@@ -105,16 +105,16 @@ function LlmCostTab({ days }: { days: number }) {
         <StatCard label={`Total calls (${days}d)`} value={String(data.totalCalls)} />
       </div>
       <Card>
-        <div className="text-sm font-semibold mb-3 text-slate-700">Cost by feature</div>
+        <div className="text-sm font-semibold mb-3 text-ink">Cost by feature</div>
         <div style={{ height: Math.max(160, data.byFeature.length * 40) }}>
           <ResponsiveContainer>
             <BarChart data={data.byFeature} layout="vertical">
               <XAxis type="number" tick={{ fill: AXIS }} tickFormatter={(v: number) => money(v)} />
               <YAxis type="category" dataKey="feature" width={140} tick={{ fill: AXIS, fontSize: 11 }} />
-              <Tooltip cursor={{ fill: "rgba(99,102,241,0.06)" }} contentStyle={TOOLTIP} formatter={(v: unknown) => money(Number(v))} />
+              <Tooltip cursor={{ fill: "rgba(14,143,92,0.08)" }} contentStyle={TOOLTIP} formatter={(v: unknown) => money(Number(v))} />
               <Bar dataKey="costUsd" radius={[0, 6, 6, 0]}>
                 {data.byFeature.map((_, i) => (
-                  <Cell key={i} fill="#6366f1" />
+                  <Cell key={i} fill="#0e8f5c" />
                 ))}
               </Bar>
             </BarChart>
@@ -122,14 +122,14 @@ function LlmCostTab({ days }: { days: number }) {
         </div>
       </Card>
       <Card>
-        <div className="text-sm font-semibold mb-3 text-slate-700">Cost by day</div>
+        <div className="text-sm font-semibold mb-3 text-ink">Cost by day</div>
         <div style={{ height: 240 }}>
           <ResponsiveContainer>
             <BarChart data={data.byDay}>
               <XAxis dataKey="day" tick={{ fill: AXIS, fontSize: 10 }} interval="preserveStartEnd" />
               <YAxis tick={{ fill: AXIS }} tickFormatter={(v: number) => money(v)} />
               <Tooltip contentStyle={TOOLTIP} formatter={(v: unknown) => money(Number(v))} />
-              <Bar dataKey="costUsd" radius={[4, 4, 0, 0]} fill="#10b981" />
+              <Bar dataKey="costUsd" radius={[4, 4, 0, 0]} fill="#0e8f5c" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -152,7 +152,7 @@ function ProductAnalyticsTab({ days }: { days: number }) {
   return (
     <div className="space-y-4">
       <Card>
-        <div className="text-sm font-semibold mb-3 text-slate-700">Events by type</div>
+        <div className="text-sm font-semibold mb-3 text-ink">Events by type</div>
         <div className="flex flex-wrap gap-2">
           {data.byName.map((n) => (
             <Chip key={n.name} tone="indigo">
@@ -163,14 +163,14 @@ function ProductAnalyticsTab({ days }: { days: number }) {
       </Card>
       {data.searchesByDay.length > 0 && (
         <Card>
-          <div className="text-sm font-semibold mb-3 text-slate-700">Job searches by day</div>
+          <div className="text-sm font-semibold mb-3 text-ink">Job searches by day</div>
           <div style={{ height: 240 }}>
             <ResponsiveContainer>
               <BarChart data={data.searchesByDay}>
                 <XAxis dataKey="day" tick={{ fill: AXIS, fontSize: 10 }} interval="preserveStartEnd" />
                 <YAxis tick={{ fill: AXIS }} allowDecimals={false} />
                 <Tooltip contentStyle={TOOLTIP} />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="#f59e0b" />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="#b45309" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -178,12 +178,12 @@ function ProductAnalyticsTab({ days }: { days: number }) {
       )}
       {data.topSearchQueries.length > 0 && (
         <Card>
-          <div className="text-sm font-semibold mb-3 text-slate-700">Top search queries</div>
+          <div className="text-sm font-semibold mb-3 text-ink">Top search queries</div>
           <div className="space-y-1.5">
             {data.topSearchQueries.map((q) => (
               <div key={q.query} className="flex items-center gap-3 text-sm">
-                <div className="flex-1 truncate text-slate-700">{q.query}</div>
-                <div className="text-slate-400 font-medium">{q.count}</div>
+                <div className="flex-1 truncate text-ink">{q.query}</div>
+                <div className="text-ink-dim font-medium">{q.count}</div>
               </div>
             ))}
           </div>
@@ -206,7 +206,7 @@ function LogsTab({ logsDashboardUrl }: { logsDashboardUrl: string | null | undef
               href={logsDashboardUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-signal hover:text-signal"
             >
               Open dashboard ↗
             </a>

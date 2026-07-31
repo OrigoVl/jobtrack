@@ -4,10 +4,14 @@ import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 type Variant = "primary" | "ghost" | "danger" | "subtle";
 type Size = "sm" | "md";
 
+// DevRadar design tokens (client/tailwind.config.js + src/index.css) — signal (phosphor green)
+// replaces the old indigo-600 as the single primary accent, alert (amber) is used sparingly for
+// warnings/highlights. Danger stays on Tailwind's built-in rose palette — that's a semantic
+// error/destructive color, not part of the brand token system being reskinned here.
 const VARIANT: Record<Variant, string> = {
-  primary: "bg-indigo-600 text-white shadow-sm hover:bg-indigo-500 active:bg-indigo-700",
-  ghost: "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200",
-  subtle: "bg-transparent text-slate-600 hover:bg-slate-100",
+  primary: "bg-signal text-white shadow-sm hover:opacity-90 active:opacity-100",
+  ghost: "bg-surface-2 text-ink border border-grid hover:bg-grid/50",
+  subtle: "bg-transparent text-ink-dim hover:bg-surface-2",
   danger: "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100",
 };
 const SIZE: Record<Size, string> = { sm: "px-2.5 py-1.5 text-xs", md: "px-3.5 py-2 text-sm" };
@@ -36,7 +40,7 @@ export function Btn({
       {...rest}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 ${VARIANT[variant]} ${SIZE[size]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 focus-visible:ring-offset-1 ${VARIANT[variant]} ${SIZE[size]} ${className}`}
     >
       {loading && <Spinner className={size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5"} />}
       {children}
@@ -46,7 +50,7 @@ export function Btn({
 
 export function Card({ className = "", children, ...rest }: { className?: string } & HTMLAttributes<HTMLDivElement>) {
   return (
-    <div {...rest} className={`rounded-2xl bg-white border border-slate-200 shadow-card p-4 md:p-5 ${className}`}>
+    <div {...rest} className={`rounded-2xl bg-surface border border-grid shadow-card p-4 md:p-5 ${className}`}>
       {children}
     </div>
   );
@@ -56,19 +60,23 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   return (
     <div className="flex items-start gap-3 flex-wrap">
       <div className="min-w-0">
-        <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">{title}</h2>
-        {subtitle && <p className="text-sm text-slate-500 mt-1 max-w-2xl">{subtitle}</p>}
+        <h2 className="font-display text-2xl font-bold tracking-tight text-ink">{title}</h2>
+        {subtitle && <p className="text-sm text-ink-dim mt-1 max-w-2xl">{subtitle}</p>}
       </div>
       {actions && <div className="ml-auto flex gap-2 flex-wrap">{actions}</div>}
     </div>
   );
 }
 
+// Tone keys are kept as-is (many call sites across features pass tone="indigo"/"emerald"/"amber")
+// — only the underlying palette changed. "indigo" and "emerald" both resolve to the single new
+// "signal" accent (there's one green in the rebranded token system, not two), "amber" resolves
+// to "alert", "rose" (errors/destructive) is untouched.
 const CHIP_TONE = {
-  slate: "bg-slate-100 text-slate-600 border-slate-200",
-  indigo: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  amber: "bg-amber-50 text-amber-700 border-amber-200",
+  slate: "bg-surface-2 text-ink-dim border-grid",
+  indigo: "bg-signal/10 text-signal border-signal/30",
+  emerald: "bg-signal/10 text-signal border-signal/30",
+  amber: "bg-alert/10 text-alert border-alert/30",
   rose: "bg-rose-50 text-rose-700 border-rose-200",
 } as const;
 
@@ -82,10 +90,12 @@ export function Chip({ tone = "slate", children }: { tone?: keyof typeof CHIP_TO
 
 export function ProgressBar({ value, max, tone = "indigo" }: { value: number; max: number; tone?: "indigo" | "emerald" }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
-  const color = tone === "emerald" ? "bg-emerald-500" : "bg-indigo-600";
+  // Both tones render as the signal accent post-rebrand (see CHIP_TONE comment above) — the prop
+  // is kept for call-site compatibility.
+  void tone;
   return (
-    <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-      <div className={`h-full ${color} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+    <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
+      <div className="h-full bg-signal rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -94,8 +104,8 @@ export function EmptyState({ icon, title, hint, action }: { icon: string; title:
   return (
     <div className="flex flex-col items-center text-center py-10 px-4">
       <div className="text-4xl mb-3">{icon}</div>
-      <div className="font-semibold text-slate-800">{title}</div>
-      {hint && <div className="text-sm text-slate-500 mt-1 max-w-md">{hint}</div>}
+      <div className="font-semibold text-ink">{title}</div>
+      {hint && <div className="text-sm text-ink-dim mt-1 max-w-md">{hint}</div>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -114,12 +124,12 @@ export function Segmented<T extends string | number>({
 }) {
   const pad = size === "sm" ? "px-2.5 py-1 text-xs" : "px-3.5 py-1.5 text-sm";
   return (
-    <div className="inline-flex rounded-lg bg-slate-100 border border-slate-200 p-0.5">
+    <div className="inline-flex rounded-lg bg-surface-2 border border-grid p-0.5">
       {options.map((o) => (
         <button
           key={String(o.value)}
           onClick={() => onChange(o.value)}
-          className={`${pad} rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${value === o.value ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+          className={`${pad} rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${value === o.value ? "bg-surface text-signal shadow-sm" : "text-ink-dim hover:text-ink"}`}
         >
           {o.label}
         </button>
@@ -218,22 +228,22 @@ export function Section({
   const open = openProp ?? openState;
   const toggle = () => (onToggle ? onToggle(!open) : setOpenState((v) => !v));
   return (
-    <div className={bare ? "" : "rounded-xl border border-slate-200 bg-white overflow-hidden"}>
+    <div className={bare ? "" : "rounded-xl border border-grid bg-surface overflow-hidden"}>
       <button
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className={`w-full flex items-center gap-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${bare ? "py-2" : "px-3.5 py-2.5"}`}
+        className={`w-full flex items-center gap-2 text-sm font-semibold text-ink hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${bare ? "py-2" : "px-3.5 py-2.5"}`}
       >
         {icon && <span aria-hidden>{icon}</span>}
         <span>{title}</span>
-        {hint && <span className="text-xs font-normal text-slate-400 truncate">· {hint}</span>}
-        <span className={`ml-auto text-slate-400 transition-transform duration-200 ${open ? "rotate-90" : ""}`} aria-hidden>
+        {hint && <span className="text-xs font-normal text-ink-dim truncate">· {hint}</span>}
+        <span className={`ml-auto text-ink-dim transition-transform duration-200 ${open ? "rotate-90" : ""}`} aria-hidden>
           ›
         </span>
       </button>
       <Collapse open={open}>
-        <div className={`space-y-3 ${bare ? "pb-3 pt-1" : "px-3.5 pb-3.5 pt-1 border-t border-slate-100"}`}>{children}</div>
+        <div className={`space-y-3 ${bare ? "pb-3 pt-1" : "px-3.5 pb-3.5 pt-1 border-t border-grid"}`}>{children}</div>
       </Collapse>
     </div>
   );
@@ -272,7 +282,7 @@ export function Dropdown({ label, align = "left", children }: { label: ReactNode
         // native <select> closing after picking an option.
         // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
         <div
-          className={`absolute z-20 mt-1 min-w-[220px] rounded-xl bg-white border border-slate-200 shadow-lg p-2 space-y-1 ${align === "right" ? "right-0" : "left-0"}`}
+          className={`absolute z-20 mt-1 min-w-[220px] rounded-xl bg-surface border border-grid shadow-lg p-2 space-y-1 ${align === "right" ? "right-0" : "left-0"}`}
           onClick={(e) => {
             // Let items opt out via data-keep-open (e.g. a text input) — anything else inside
             // the panel closes the dropdown once clicked, same as a native <select>.
@@ -287,7 +297,7 @@ export function Dropdown({ label, align = "left", children }: { label: ReactNode
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-lg bg-slate-100 ${className}`} />;
+  return <div className={`animate-pulse rounded-lg bg-surface-2 ${className}`} />;
 }
 
 export function CardsSkeleton({ count = 3 }: { count?: number }) {

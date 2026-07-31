@@ -125,6 +125,123 @@ describe("cross-tenant isolation (PGlite, real HTTP)", () => {
     expect(bobVacancyStillThere.some((v) => v.id === bobVacancy.id)).toBe(true);
   });
 
+  it("neither user's calendar events are visible to the other, and a manual event can't be linked to the other's vacancy", async () => {
+    const carol = await registerAndSignIn("carol@example.test");
+    const dave = await registerAndSignIn("dave@example.test");
+
+    const carolVacancyRes = await api(carol, "/vacancies", {
+      method: "POST",
+      body: JSON.stringify({ company: "Carol Co", position: "Engineer" }),
+    });
+    const carolVacancy = (await carolVacancyRes.json()) as { id: number };
+
+    const carolEventRes = await api(carol, "/calendar/events", {
+      method: "POST",
+      body: JSON.stringify({ title: "Carol's interview", startAt: "2026-09-01T10:00:00.000Z", type: "interview" }),
+    });
+    expect(carolEventRes.status).toBe(201);
+    const carolEvent = (await carolEventRes.json()) as { id: number };
+
+    const daveEventRes = await api(dave, "/calendar/events", {
+      method: "POST",
+      body: JSON.stringify({ title: "Dave's reminder", startAt: "2026-09-02T10:00:00.000Z", type: "reminder" }),
+    });
+    const daveEvent = (await daveEventRes.json()) as { id: number };
+
+    // Lists only ever show the caller's own rows.
+    const carolEvents = (await (await api(carol, "/calendar/events")).json()) as { title: string }[];
+    const daveEvents = (await (await api(dave, "/calendar/events")).json()) as { title: string }[];
+    expect(carolEvents.map((e) => e.title)).toEqual(["Carol's interview"]);
+    expect(daveEvents.map((e) => e.title)).toEqual(["Dave's reminder"]);
+
+    // Dave can't link his own event to Carol's vacancy — a clean 400, not a leak/crash.
+    const daveLinksCarolsVacancy = await api(dave, `/calendar/events/${daveEvent.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ vacancyId: carolVacancy.id }),
+    });
+    expect(daveLinksCarolsVacancy.status).toBe(400);
+
+    // Editing/deleting another user's event by id behaves as "not found"/"affected nothing".
+    const daveEditsCarolsEvent = await api(dave, `/calendar/events/${carolEvent.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ title: "hijacked" }),
+    });
+    expect(daveEditsCarolsEvent.status).toBe(404);
+
+    const daveDeletesCarolsEvent = await api(dave, `/calendar/events/${carolEvent.id}`, { method: "DELETE" });
+    const daveDeleteBody = (await daveDeletesCarolsEvent.json()) as { deleted: number };
+    expect(daveDeleteBody.deleted).toBe(0);
+    const carolEventStillThere = (await (await api(carol, "/calendar/events")).json()) as { id: number }[];
+    expect(carolEventStillThere.some((e) => e.id === carolEvent.id)).toBe(true);
+  });
+
+  it("neither user's contacts are visible to the other, and a contact can't be linked to the other's company", async () => {
+    const erin = await registerAndSignIn("erin@example.test");
+    const frank = await registerAndSignIn("frank@example.test");
+
+    const erinCompanyRes = await api(erin, "/companies", { method: "POST", body: JSON.stringify({ name: "Erin's Co" }) });
+    expect(erinCompanyRes.ok).toBeTruthy();
+    const erinCompanies = (await (await api(erin, "/companies")).json()) as { id: number }[];
+    const erinCompanyId = erinCompanies[0]!.id;
+
+    const erinContactRes = await api(erin, "/contacts", { method: "POST", body: JSON.stringify({ name: "Erin's contact" }) });
+    expect(erinContactRes.status).toBe(201);
+    const erinContact = (await erinContactRes.json()) as { id: number };
+
+    const frankContactRes = await api(frank, "/contacts", { method: "POST", body: JSON.stringify({ name: "Frank's contact" }) });
+    const frankContact = (await frankContactRes.json()) as { id: number };
+
+    const erinContacts = (await (await api(erin, "/contacts")).json()) as { name: string }[];
+    const frankContacts = (await (await api(frank, "/contacts")).json()) as { name: string }[];
+    expect(erinContacts.map((c) => c.name)).toEqual(["Erin's contact"]);
+    expect(frankContacts.map((c) => c.name)).toEqual(["Frank's contact"]);
+
+    // Frank can't link his own contact to Erin's company — a clean 400, not a leak/crash.
+    const frankLinksErinsCompany = await api(frank, `/contacts/${frankContact.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ companyId: erinCompanyId }),
+    });
+    expect(frankLinksErinsCompany.status).toBe(400);
+
+    const frankEditsErinsContact = await api(frank, `/contacts/${erinContact.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ name: "hijacked" }),
+    });
+    expect(frankEditsErinsContact.status).toBe(404);
+
+    const frankDeletesErinsContact = await api(frank, `/contacts/${erinContact.id}`, { method: "DELETE" });
+    const frankDeleteBody = (await frankDeletesErinsContact.json()) as { deleted: number };
+    expect(frankDeleteBody.deleted).toBe(0);
+  });
+
+  it("a public CV share link only ever serves its OWN owner's doc, and never leaks after being disabled", async () => {
+    const gina = await registerAndSignIn("gina@example.test");
+    const heidi = await registerAndSignIn("heidi@example.test");
+
+    await api(gina, "/cv/doc", { method: "PUT", body: JSON.stringify({ name: "Gina Public", title: "Engineer" }) });
+    await api(heidi, "/cv/doc", { method: "PUT", body: JSON.stringify({ name: "Heidi Public", title: "Designer" }) });
+
+    const shareRes = await api(gina, "/cv/share", { method: "POST" });
+    const share = (await shareRes.json()) as { slug: string; enabled: boolean };
+
+    // No cookie at all — this is the whole point of a PUBLIC share link.
+    const publicRes = await fetch(`${BASE_URL}/api/cv/public/${share.slug}`);
+    expect(publicRes.status).toBe(200);
+    const publicBody = (await publicRes.json()) as { doc: { name: string } };
+    expect(publicBody.doc.name).toBe("Gina Public");
+    // Never leaks anything beyond the doc itself (no email/session/other-field keys).
+    expect(Object.keys(publicBody)).toEqual(["doc"]);
+
+    // Someone else's random-looking slug never resolves to Gina's (or anyone's) data.
+    const wrongSlugRes = await fetch(`${BASE_URL}/api/cv/public/not-a-real-slug`);
+    expect(wrongSlugRes.status).toBe(404);
+
+    // Disabling it takes effect immediately, even though the slug itself didn't change.
+    await api(gina, "/cv/share", { method: "PUT", body: JSON.stringify({ enabled: false }) });
+    const disabledRes = await fetch(`${BASE_URL}/api/cv/public/${share.slug}`);
+    expect(disabledRes.status).toBe(404);
+  });
+
   it("an unauthenticated request never reaches another user's data — it's rejected before any query runs", async () => {
     const noAuthVacancies = await fetch(`${BASE_URL}/api/vacancies`);
     expect(noAuthVacancies.status).toBe(401);

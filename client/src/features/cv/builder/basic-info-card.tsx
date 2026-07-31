@@ -41,11 +41,11 @@ export function GeneralSection({ doc, onChange, llm, busyStyle, onImproveSummary
         maxLength={400}
       />
       <label className="block">
-        <span className="text-xs font-semibold text-slate-500">Summary</span>
+        <span className="text-xs font-semibold text-ink-dim">Summary</span>
         <textarea
           value={doc.summary}
           onChange={(e) => onChange({ summary: e.target.value })}
-          className="w-full mt-0.5 h-20 bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="w-full mt-0.5 h-20 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
         />
       </label>
       {/* Small action chips instead of one "improve" button — each rewrites the summary with a
@@ -57,7 +57,7 @@ export function GeneralSection({ doc, onChange, llm, busyStyle, onImproveSummary
             type="button"
             onClick={() => onImproveSummary(style)}
             disabled={!llm || !doc.summary.trim() || !!busyStyle}
-            className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-surface-2 text-ink-dim border border-grid hover:bg-signal/10 hover:text-signal hover:border-signal/30 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {busyStyle === style ? "⏳" : null} {label}
           </button>

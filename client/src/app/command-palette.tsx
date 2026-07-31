@@ -86,13 +86,13 @@ export function CommandPalette({
   // already covers the keyboard-equivalent close action, so no separate key handler is needed.
   return (
     <div
-      className="fixed inset-0 z-[100] bg-slate-900/40 flex items-start justify-center pt-[12vh] px-4"
+      className="fixed inset-0 z-[100] bg-ink/40 flex items-start justify-center pt-[12vh] px-4"
       onClick={() => setOpen(false)}
       role="presentation"
     >
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
-        className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden"
+        className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-grid overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <input
@@ -115,17 +115,17 @@ export function CommandPalette({
           }}
           placeholder="Jump to a page or run an action… (Dashboard, Vacancies, Log out…)"
           aria-label="Command palette — jump to a page or run an action"
-          className="w-full px-4 py-3.5 text-sm outline-none border-b border-slate-100"
+          className="w-full px-4 py-3.5 text-sm outline-none border-b border-surface-2"
         />
         <div className="max-h-80 overflow-y-auto py-1.5">
-          {results.length === 0 && <div className="px-4 py-6 text-center text-sm text-slate-400">Nothing matches "{q}"</div>}
+          {results.length === 0 && <div className="px-4 py-6 text-center text-sm text-ink-dim">Nothing matches "{q}"</div>}
           {results.map((r, i) => (
             <button
               key={r.key}
               onClick={() => run(i)}
               onMouseEnter={() => setActive(i)}
               className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${
-                i === active ? "bg-indigo-50 text-indigo-700" : "text-slate-700"
+                i === active ? "bg-signal/10 text-signal" : "text-ink"
               }`}
             >
               <span className="text-base w-5 text-center">{r.icon}</span>
@@ -133,7 +133,7 @@ export function CommandPalette({
             </button>
           ))}
         </div>
-        <div className="px-4 py-2 border-t border-slate-100 text-[11px] text-slate-400 flex gap-3">
+        <div className="px-4 py-2 border-t border-surface-2 text-[11px] text-ink-dim flex gap-3">
           <span>↑↓ navigate</span>
           <span>↵ select</span>
           <span>esc close</span>

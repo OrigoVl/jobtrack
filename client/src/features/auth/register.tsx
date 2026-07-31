@@ -29,9 +29,9 @@ export function Register() {
   if (registered) {
     return (
       <AuthLayout title="Check your email" subtitle="We sent a verification link to finish creating your account.">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-ink-dim">
           Click the link in the email, then{" "}
-          <Link to="/login" className="text-indigo-600 hover:underline">
+          <Link to="/login" className="text-signal hover:underline">
             log in
           </Link>
           .
@@ -68,8 +68,8 @@ export function Register() {
         <GoogleButton />
       </form>
       <div className="mt-4 text-sm">
-        <span className="text-slate-500">Already have an account? </span>
-        <Link to="/login" className="text-indigo-600 hover:underline">
+        <span className="text-ink-dim">Already have an account? </span>
+        <Link to="/login" className="text-signal hover:underline">
           Log in
         </Link>
       </div>

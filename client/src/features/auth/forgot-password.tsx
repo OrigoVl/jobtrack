@@ -46,7 +46,7 @@ export function ForgotPassword() {
         </Btn>
       </form>
       <div className="mt-4 text-sm">
-        <Link to="/login" className="text-indigo-600 hover:underline">
+        <Link to="/login" className="text-signal hover:underline">
           Back to log in
         </Link>
       </div>

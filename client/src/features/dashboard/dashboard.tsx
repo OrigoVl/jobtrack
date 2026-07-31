@@ -28,22 +28,22 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
     };
   }, []);
   return (
-    <Card className="!bg-gradient-to-br !from-indigo-50 !to-white !border-indigo-200">
+    <Card className="!bg-gradient-to-br !from-signal/10 !to-white !border-signal/30">
       <div className="flex items-center gap-2 mb-2">
-        <span className="font-semibold text-indigo-900">🎯 Focus of the week</span>
+        <span className="font-semibold text-signal">🎯 Focus of the week</span>
         {data && !data.offline && llm && <Chip tone="indigo">AI</Chip>}
       </div>
-      {loading && <div className="text-sm text-slate-400">✨ Analyzing your search status…</div>}
+      {loading && <div className="text-sm text-ink-dim">✨ Analyzing your search status…</div>}
       {!loading && data && data.actions.length > 0 && (
         <ol className="space-y-2">
           {data.actions.map((a, i) => (
             <li key={`${a.title}-${i}`} className="flex gap-2.5 text-sm">
-              <span className="shrink-0 w-5 h-5 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
+              <span className="shrink-0 w-5 h-5 rounded-full bg-signal text-white text-xs font-bold flex items-center justify-center">
                 {i + 1}
               </span>
               <span>
-                <b className="text-slate-800">{a.title}.</b>{" "}
-                <span className="text-slate-600">
+                <b className="text-ink">{a.title}.</b>{" "}
+                <span className="text-ink-dim">
                   <Markdown text={a.why} inline />
                 </span>
               </span>
@@ -52,10 +52,10 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
         </ol>
       )}
       {!loading && (!data || data.actions.length === 0) && (
-        <div className="text-sm text-slate-500">Add a few vacancies — and personalized priorities for the week will show up here.</div>
+        <div className="text-sm text-ink-dim">Add a few vacancies — and personalized priorities for the week will show up here.</div>
       )}
       {data?.offline && (
-        <div className="text-xs text-slate-400 mt-2">Basic tips (AI offline). Set a key in server/.env for personalized analysis.</div>
+        <div className="text-xs text-ink-dim mt-2">Basic tips (AI offline). Set a key in server/.env for personalized analysis.</div>
       )}
     </Card>
   );
@@ -97,10 +97,10 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
     .filter((x) => x.next)
     .sort((a, b) => (a.next > b.next ? 1 : -1))
     .slice(0, 5);
-  const stat = (n: string | number, l: string, c = "text-slate-900") => (
+  const stat = (n: string | number, l: string, c = "text-ink") => (
     <Card className="text-center">
       <div className={`text-3xl font-extrabold ${c}`}>{n}</div>
-      <div className="text-xs text-slate-500 mt-1">{l}</div>
+      <div className="text-xs text-ink-dim mt-1">{l}</div>
     </Card>
   );
   return (
@@ -112,9 +112,9 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
       />
 
       {vacancies.length <= 1 && (
-        <Card className="!bg-indigo-50 !border-indigo-200">
-          <div className="font-semibold text-indigo-900">👋 Getting started</div>
-          <ol className="text-sm text-indigo-900/80 mt-2 space-y-1 list-decimal pl-5">
+        <Card className="!bg-signal/10 !border-signal/30">
+          <div className="font-semibold text-signal">👋 Getting started</div>
+          <ol className="text-sm text-signal/80 mt-2 space-y-1 list-decimal pl-5">
             <li>Add a few vacancies or import them on the "Vacancies" tab.</li>
             <li>Click "Analyze all" — the app will detect each vacancy's stack itself.</li>
             <li>Check the "Roadmap" and "Skill radar" — they'll show what to pick up for the market.</li>
@@ -132,9 +132,9 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {stat(vacancies.length, "Total vacancies")}
-        {stat(active, "Active", "text-indigo-600")}
-        {stat(iv, "In interviews", "text-amber-600")}
-        {stat(`${study?.learned ?? 0}/${study?.total ?? 0}`, "Cards learned", "text-emerald-600")}
+        {stat(active, "Active", "text-signal")}
+        {stat(iv, "In interviews", "text-alert")}
+        {stat(`${study?.learned ?? 0}/${study?.total ?? 0}`, "Cards learned", "text-signal")}
       </div>
 
       {vacancies.length > 0 && <FocusWeekCard llm={llm} />}
@@ -142,20 +142,20 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
       {roadmap && (
         <Card>
           <div className="flex items-center justify-between mb-2">
-            <div className="font-semibold text-slate-800">🗺️ Roadmap progress</div>
-            <button onClick={() => go("roadmap")} className="text-sm text-indigo-600 hover:underline">
+            <div className="font-semibold text-ink">🗺️ Roadmap progress</div>
+            <button onClick={() => go("roadmap")} className="text-sm text-signal hover:underline">
               Open →
             </button>
           </div>
           <ProgressBar value={roadmap.progress.done} max={roadmap.progress.total} tone="emerald" />
-          <div className="text-xs text-slate-500 mt-2">
+          <div className="text-xs text-ink-dim mt-2">
             {roadmap.progress.done} of {roadmap.progress.total} skills marked as known
             {/* Deliberately not "mastered" — this reflects the roadmap's manual "know it" toggle,
                 not skills actually reinforced through Practice (see the separate "Cards learned" stat). */}
             {learn && learn.gaps.length > 0 && (
               <>
                 {" "}
-                · top-priority gap: <b className="text-slate-700">{learn.gaps[0].tech}</b>
+                · top-priority gap: <b className="text-ink">{learn.gaps[0].tech}</b>
               </>
             )}
           </div>
@@ -165,37 +165,37 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
           <div className="flex items-center justify-between mb-2">
-            <div className="font-semibold text-slate-800">📅 Upcoming steps</div>
+            <div className="font-semibold text-ink">📅 Upcoming steps</div>
             {notificationsSupported() &&
               (notifOn ? (
                 <button
                   onClick={onDisableNotifications}
                   title="Disable reminders"
-                  className="text-[11px] text-emerald-600 hover:text-rose-600 hover:underline"
+                  className="text-[11px] text-signal hover:text-rose-600 hover:underline"
                 >
                   🔔 Reminders enabled (turn off)
                 </button>
               ) : (
-                <button onClick={onEnableNotifications} className="text-[11px] text-indigo-600 hover:underline">
+                <button onClick={onEnableNotifications} className="text-[11px] text-signal hover:underline">
                   🔔 Enable reminders
                 </button>
               ))}
           </div>
           {upcoming.length === 0 ? (
-            <div className="text-slate-400 text-sm">Nothing scheduled — add a "next step" date on your vacancies.</div>
+            <div className="text-ink-dim text-sm">Nothing scheduled — add a "next step" date on your vacancies.</div>
           ) : (
             upcoming.map((u) => (
-              <div key={u.id} className="flex justify-between text-sm py-1.5 border-b border-slate-100 last:border-0">
+              <div key={u.id} className="flex justify-between text-sm py-1.5 border-b border-surface-2 last:border-0">
                 <span>
-                  {u.company} — <span className="text-slate-500">{u.status}</span>
+                  {u.company} — <span className="text-ink-dim">{u.status}</span>
                 </span>
-                <span className="text-amber-600 font-medium">{u.next}</span>
+                <span className="text-alert font-medium">{u.next}</span>
               </div>
             ))
           )}
         </Card>
         <Card>
-          <div className="font-semibold mb-2 text-slate-800">⚡ Quick actions</div>
+          <div className="font-semibold mb-2 text-ink">⚡ Quick actions</div>
           <div className="flex flex-wrap gap-2">
             <Btn onClick={() => go("analyzer")}>🔍 Vacancy analysis</Btn>
             <Btn variant="ghost" onClick={() => go("roadmap")}>
@@ -208,8 +208,8 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
               📄 CV analysis
             </Btn>
           </div>
-          <div className="text-xs text-slate-400 mt-3">
-            Cards due for review today: <b className="text-slate-600">{study?.due.length ?? 0}</b>
+          <div className="text-xs text-ink-dim mt-3">
+            Cards due for review today: <b className="text-ink-dim">{study?.due.length ?? 0}</b>
           </div>
         </Card>
       </div>

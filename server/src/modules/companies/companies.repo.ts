@@ -37,3 +37,15 @@ export async function findCompanyByName(userId: UserId, name: string): Promise<C
     .where(and(eq(companies.userId, userId), eq(companies.name, name)));
   return row;
 }
+
+// Added for modules/contacts/ (a contact can optionally link to a company) — confirms a given
+// companyId actually belongs to this user before contacts.routes.ts allows linking to it,
+// same "clean 400 instead of an opaque FK-violation 500" pattern as calendar.routes.ts'
+// assertOwnVacancyOrNull.
+export async function getCompanyById(userId: UserId, id: number): Promise<Company | undefined> {
+  const [row] = await db
+    .select()
+    .from(companies)
+    .where(and(eq(companies.userId, userId), eq(companies.id, id)));
+  return row;
+}
