@@ -29,6 +29,9 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
       "@typescript-eslint/no-explicit-any": "warn",
       "no-console": ["warn", { allow: ["warn", "error"] }],
+      // DateInput/DateTimeInput (shared/date-input.tsx) render a real <input> internally — tell
+      // jsx-a11y they're valid form controls so wrapping them in a <label> is recognized.
+      "jsx-a11y/label-has-associated-control": ["error", { controlComponents: ["DateInput", "DateTimeInput"] }],
     },
   },
   {

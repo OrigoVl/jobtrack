@@ -8,6 +8,7 @@ import {
   useVacancies,
 } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Spinner } from "../../shared/ui";
+import { DateTimeInput } from "../../shared/date-input";
 import {
   CALENDAR_EVENT_TYPES,
   type CalendarEvent,
@@ -83,19 +84,17 @@ function EventModal({
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
             <span className="text-xs font-semibold text-ink-dim">Starts</span>
-            <input
-              type="datetime-local"
+            <DateTimeInput
               value={toLocalInput(form.startAt)}
-              onChange={(e) => set("startAt", fromLocalInput(e.target.value) ?? "")}
+              onChange={(local) => set("startAt", fromLocalInput(local) ?? "")}
               className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
             />
           </label>
           <label className="block">
             <span className="text-xs font-semibold text-ink-dim">Ends (optional)</span>
-            <input
-              type="datetime-local"
+            <DateTimeInput
               value={toLocalInput(form.endAt)}
-              onChange={(e) => set("endAt", fromLocalInput(e.target.value))}
+              onChange={(local) => set("endAt", fromLocalInput(local))}
               className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
             />
           </label>

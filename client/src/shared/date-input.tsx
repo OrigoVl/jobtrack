@@ -87,3 +87,94 @@ export function DateInput({
     />
   );
 }
+
+/** Formats a local "yyyy-MM-ddTHH:mm" (the value shape `<input type="datetime-local">` uses) as
+ * "mm/dd/yyyy, HH:mm" for display. Empty/invalid input → "". */
+function localToDisplay(local: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(local);
+  if (!m) return "";
+  const [, y, mo, d, h, mi] = m;
+  return `${mo}/${d}/${y}, ${h}:${mi}`;
+}
+
+/** Parses a "mm/dd/yyyy, HH:mm" display string into a local "yyyy-MM-ddTHH:mm" string, or null if
+ * incomplete/invalid. */
+function displayToLocal(display: string): string | null {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2})$/.exec(display);
+  if (!m) return null;
+  const [, mo, d, y, h, mi] = m;
+  if (Number(mo) < 1 || Number(mo) > 12 || Number(d) < 1 || Number(d) > 31 || Number(h) > 23 || Number(mi) > 59) return null;
+  return `${y}-${mo}-${d}T${h}:${mi}`;
+}
+
+/** Re-applies "mm/dd/yyyy, HH:mm" separators as the user types/deletes digits, capping at 12
+ * digits total (MMDDYYYYHHmm). */
+function maskDateTimeDigits(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 12);
+  const mo = digits.slice(0, 2);
+  const d = digits.slice(2, 4);
+  const y = digits.slice(4, 8);
+  const h = digits.slice(8, 10);
+  const mi = digits.slice(10, 12);
+  let out = mo;
+  if (d) out += `/${d}`;
+  if (y) out += `/${y}`;
+  if (h) out += `, ${h}`;
+  if (mi) out += `:${mi}`;
+  return out;
+}
+
+/**
+ * A locale-independent replacement for `<input type="datetime-local">`, for the same reason as
+ * `DateInput` above (a Ukrainian-locale OS renders "дд.мм.рррр, --:--" instead of an English
+ * placeholder, and `lang` on the element isn't reliably honored across browsers). Value/onChange
+ * use the same local "yyyy-MM-ddTHH:mm" string a native `datetime-local` input's `value`/
+ * `e.target.value` would — a drop-in replacement for call sites already using
+ * `toLocalInput`/`fromLocalInput` (see `calendar-date-utils.ts`).
+ */
+export function DateTimeInput({
+  value,
+  onChange,
+  "aria-label": ariaLabel,
+  className,
+}: {
+  value: string;
+  onChange: (local: string) => void;
+  "aria-label"?: string;
+  className?: string;
+}) {
+  const [text, setText] = useState(() => localToDisplay(value));
+
+  useEffect(() => {
+    setText(localToDisplay(value));
+  }, [value]);
+
+  function commit(nextText: string) {
+    if (!nextText) {
+      onChange("");
+      return;
+    }
+    const local = displayToLocal(nextText);
+    if (local) onChange(local);
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      placeholder="mm/dd/yyyy, HH:mm"
+      value={text}
+      aria-label={ariaLabel}
+      className={className}
+      onChange={(e) => {
+        const masked = maskDateTimeDigits(e.target.value);
+        setText(masked);
+        if (!masked || /^\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}$/.test(masked)) commit(masked);
+      }}
+      onBlur={() => {
+        if (text && !displayToLocal(text)) setText(localToDisplay(value));
+        if (!text) commit("");
+      }}
+    />
+  );
+}
