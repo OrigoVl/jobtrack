@@ -388,3 +388,99 @@ export interface JobSearchResult {
   jobs: JobResult[];
   offline?: boolean;
 }
+
+export const CALENDAR_EVENT_TYPES = ["interview", "call", "deadline", "reminder", "other"] as const;
+export type CalendarEventType = (typeof CALENDAR_EVENT_TYPES)[number];
+
+export interface CalendarEvent {
+  id: number;
+  title: string;
+  notes: string;
+  /** ISO instant. */
+  startAt: string;
+  /** ISO instant, or null — no end time set. */
+  endAt: string | null;
+  type: CalendarEventType;
+  /** Linked vacancy, or null — a plain personal event. */
+  vacancyId: number | null;
+}
+
+export interface CalendarEventInput {
+  title: string;
+  notes: string;
+  startAt: string;
+  endAt: string | null;
+  type: CalendarEventType;
+  vacancyId: number | null;
+}
+
+/** A vacancy's own `next` (next-step) date, surfaced read-only in the combined calendar view —
+ * clicking one navigates to that vacancy, it's never edited from the calendar itself. */
+export interface CalendarVacancyStep {
+  vacancyId: number;
+  company: string;
+  position: string;
+  date: string;
+}
+
+/** A day with N SRS flashcards due, surfaced read-only — clicking navigates to Study. */
+export interface CalendarSrsDueDay {
+  date: string;
+  count: number;
+}
+
+export interface CombinedCalendar {
+  events: CalendarEvent[];
+  vacancyNextSteps: CalendarVacancyStep[];
+  srsDue: CalendarSrsDueDay[];
+}
+
+export const JOB_SEARCH_REGIONS = ["all", "ua", "remote"] as const;
+export type JobSearchRegion = (typeof JOB_SEARCH_REGIONS)[number];
+
+export interface SavedSearch {
+  id: number;
+  query: string;
+  region: JobSearchRegion;
+  label: string | null;
+  lastNotifiedAt: string | null;
+}
+
+export interface SavedSearchInput {
+  query: string;
+  region: JobSearchRegion;
+  label: string;
+}
+
+export interface Contact {
+  id: number;
+  name: string;
+  role: string;
+  companyId: number | null;
+  email: string;
+  linkedinUrl: string;
+  notes: string;
+  /** ISO date (YYYY-MM-DD), or "" — not set. */
+  lastContactAt: string;
+}
+
+export interface ContactInput {
+  name: string;
+  role: string;
+  companyId: number | null;
+  email: string;
+  linkedinUrl: string;
+  notes: string;
+  lastContactAt: string;
+}
+
+export interface CvShare {
+  slug: string;
+  enabled: boolean;
+}
+
+export interface LinkedInOptimizeResult {
+  headline: string;
+  about: string;
+  offline: boolean;
+}

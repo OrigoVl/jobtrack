@@ -9,7 +9,7 @@ import { admin } from "better-auth/plugins";
 import db from "../db/client.js";
 import * as schema from "../db/schema/index.js";
 import { env } from "../config/env.js";
-import { sendEmail } from "./email.js";
+import { sendEmail } from "../shared/email.js";
 import { seedProfileIfEmpty } from "../db/bootstrap.js";
 import type { UserId } from "../db/user-id.js";
 

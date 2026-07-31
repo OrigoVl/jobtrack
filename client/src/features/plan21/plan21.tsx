@@ -21,26 +21,26 @@ export function Plan21() {
       />
       <Card>
         <div className="flex items-center justify-between text-sm mb-2">
-          <span className="font-semibold text-slate-700">
+          <span className="font-semibold text-ink">
             {plural(done, "day")} done of {allDays.length}
           </span>
-          <span className="text-slate-400">{pct}%</span>
+          <span className="text-ink-dim">{pct}%</span>
         </div>
         <ProgressBar value={done} max={allDays.length} tone="emerald" />
       </Card>
       {plan21.phases.map((ph) => (
         <Card key={ph.id}>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-slate-900">{ph.title}</span>
+            <span className="font-bold text-ink">{ph.title}</span>
             <Chip tone="indigo">{ph.range}</Chip>
           </div>
-          {ph.note && <p className="text-sm text-slate-500 mt-1">{ph.note}</p>}
+          {ph.note && <p className="text-sm text-ink-dim mt-1">{ph.note}</p>}
           <div className="mt-3 space-y-2">
             {ph.days.map((d) => (
               <label
                 key={d.id}
                 className={`flex gap-3 items-start p-3 rounded-lg border cursor-pointer transition-colors ${
-                  plan21.progress[d.id] ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                  plan21.progress[d.id] ? "bg-signal/10 border-signal/30" : "bg-surface-2 border-grid hover:bg-surface-2"
                 }`}
               >
                 <input
@@ -50,14 +50,14 @@ export function Plan21() {
                   onChange={(e) => setPlanDayMutation.mutate({ dayId: d.id, done: e.target.checked })}
                 />
                 <div className="min-w-0">
-                  <div className="font-semibold text-slate-800 text-sm">Day {d.day}</div>
-                  <div className="text-sm text-slate-600 mt-0.5">
-                    <span className="text-slate-400">Theory:</span> {d.theory}
+                  <div className="font-semibold text-ink text-sm">Day {d.day}</div>
+                  <div className="text-sm text-ink-dim mt-0.5">
+                    <span className="text-ink-dim">Theory:</span> {d.theory}
                   </div>
-                  <div className="text-sm text-slate-600">
-                    <span className="text-slate-400">Practice:</span> {d.practice}
+                  <div className="text-sm text-ink-dim">
+                    <span className="text-ink-dim">Practice:</span> {d.practice}
                   </div>
-                  {d.warmup && <div className="text-xs text-slate-400 mt-0.5">🔁 Warm-up: {d.warmup}</div>}
+                  {d.warmup && <div className="text-xs text-ink-dim mt-0.5">🔁 Warm-up: {d.warmup}</div>}
                 </div>
               </label>
             ))}

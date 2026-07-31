@@ -43,7 +43,7 @@ export function ExperienceCard({
   if (experience.length === 0) {
     return (
       <div className="text-center py-6 space-y-2">
-        <div className="text-sm text-slate-400">No experience entries yet</div>
+        <div className="text-sm text-ink-dim">No experience entries yet</div>
         <Btn size="sm" onClick={add}>
           + Add experience
         </Btn>
@@ -68,13 +68,13 @@ export function ExperienceCard({
               if (dragIdx !== null) onMove(dragIdx, i);
               setDragIdx(null);
             }}
-            className={`rounded-lg border transition-colors ${dragIdx === i ? "border-indigo-400 bg-indigo-50/40" : isOpen ? "border-indigo-200" : "border-slate-200"}`}
+            className={`rounded-lg border transition-colors ${dragIdx === i ? "border-signal/50 bg-signal/10/40" : isOpen ? "border-signal/30" : "border-grid"}`}
           >
             <button
               type="button"
               onClick={() => setExpanded(isOpen ? null : i)}
               aria-expanded={isOpen}
-              className="w-full flex items-center gap-2 px-2.5 py-2 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded-lg"
+              className="w-full flex items-center gap-2 px-2.5 py-2 text-left hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 rounded-lg"
             >
               <button
                 type="button"
@@ -86,23 +86,23 @@ export function ExperienceCard({
                 onDragEnd={() => setDragIdx(null)}
                 onClick={(ev) => ev.stopPropagation()}
                 title="Drag to reorder"
-                className="cursor-grab active:cursor-grabbing select-none text-slate-400 hover:text-slate-600 text-lg leading-none"
+                className="cursor-grab active:cursor-grabbing select-none text-ink-dim hover:text-ink-dim text-lg leading-none"
               >
                 ⠿
               </button>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-slate-800 truncate">{e.company || `Entry ${i + 1}`}</div>
-                <div className="text-xs text-slate-500 truncate">
+                <div className="text-sm font-semibold text-ink truncate">{e.company || `Entry ${i + 1}`}</div>
+                <div className="text-xs text-ink-dim truncate">
                   {e.role || "No role"}
                   {e.period ? ` · ${e.period}` : ""}
                 </div>
               </div>
-              <span className={`text-slate-400 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`} aria-hidden>
+              <span className={`text-ink-dim transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`} aria-hidden>
                 ›
               </span>
             </button>
             <Collapse open={isOpen}>
-              <div className="px-2.5 pb-2.5 pt-1 space-y-2 border-t border-slate-100">
+              <div className="px-2.5 pb-2.5 pt-1 space-y-2 border-t border-surface-2">
                 <div className="flex gap-1 justify-end">
                   <Btn size="sm" variant="subtle" onClick={() => onMove(i, i - 1)} disabled={i === 0}>
                     ↑
@@ -123,7 +123,7 @@ export function ExperienceCard({
                   />
                 </div>
                 <label className="block">
-                  <span className="text-xs font-semibold text-slate-500 flex items-center gap-2">
+                  <span className="text-xs font-semibold text-ink-dim flex items-center gap-2">
                     Achievements (one per line)
                     <Btn
                       size="sm"
@@ -138,7 +138,7 @@ export function ExperienceCard({
                   <textarea
                     value={e.bullets.join("\n")}
                     onChange={(ev) => onSet(i, { bullets: ev.target.value.split("\n") })}
-                    className="w-full mt-0.5 h-24 bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    className="w-full mt-0.5 h-24 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
                   />
                 </label>
                 <div className="flex justify-end">

@@ -4,7 +4,6 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import fs from "fs";
-import path from "path";
 import type { IncomingMessage } from "http";
 import { randomUUID } from "crypto";
 import { pinoHttp } from "pino-http";
@@ -108,7 +107,16 @@ if (fs.existsSync(env.clientDistPath)) {
   // Express 5 (path-to-regexp v8): a bare "*" no longer works as a catch-all — a named
   // splat parameter is required ("/*name"). SPA fallback: anything that's not /api and not
   // a static file gets index.html (routing happens on the client, via React Router).
-  app.get("/*splat", (_q, res) => res.sendFile(path.join(env.clientDistPath, "index.html")));
+  //
+  // `{ root: ... }` + a relative filename — NOT `sendFile(path.join(clientDistPath, "index.html"))`
+  // with no root. Without `root`, the `send` package (Express's sendFile implementation) applies
+  // its default `dotfiles: "ignore"` check to the ENTIRE absolute path, not just the part below
+  // the served directory — if the app is deployed/checked out anywhere under a dot-prefixed
+  // directory (e.g. a CI workspace, a `.deploy/` path, this project's own git-worktree-based
+  // agent sandboxes under `.claude/worktrees/...`), that check silently 404s every single SPA
+  // route, even though `index.html` plainly exists. Passing `root` makes the dotfiles check
+  // (correctly) only look at the path *relative to* the served directory.
+  app.get("/*splat", (_q, res) => res.sendFile("index.html", { root: env.clientDistPath }));
 }
 
 // single error handler — consistent {error, details} format

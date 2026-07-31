@@ -55,10 +55,10 @@ export function Login() {
         <GoogleButton />
       </form>
       <div className="mt-4 flex justify-between text-sm">
-        <Link to="/register" className="text-indigo-600 hover:underline">
+        <Link to="/register" className="text-signal hover:underline">
           Create an account
         </Link>
-        <Link to="/forgot-password" className="text-slate-500 hover:underline">
+        <Link to="/forgot-password" className="text-ink-dim hover:underline">
           Forgot password?
         </Link>
       </div>

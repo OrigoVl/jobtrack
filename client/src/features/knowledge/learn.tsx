@@ -31,32 +31,32 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
   return (
     <details
       onToggle={(e) => e.currentTarget.open && load()}
-      className="rounded-2xl bg-white border border-slate-200 shadow-card overflow-hidden"
+      className="rounded-2xl bg-white border border-grid shadow-card overflow-hidden"
       open={defaultOpen}
     >
       <summary className="cursor-pointer px-4 py-3 flex items-center gap-2 select-none">
-        <span className="font-semibold text-slate-800">{gap.tech}</span>
+        <span className="font-semibold text-ink">{gap.tech}</span>
         <Chip tone="rose">{gap.count} vac.</Chip>
         {dyn?.source === "ai" && <Chip tone="indigo">AI for you</Chip>}
-        <span className="ml-auto text-slate-400 text-sm">expand</span>
+        <span className="ml-auto text-ink-dim text-sm">expand</span>
       </summary>
-      <div className="px-4 pb-4 border-t border-slate-100 space-y-3">
-        {loading && <div className="text-xs text-slate-400 mt-3">✨ Personalizing topics to your stack…</div>}
+      <div className="px-4 pb-4 border-t border-surface-2 space-y-3">
+        {loading && <div className="text-xs text-ink-dim mt-3">✨ Personalizing topics to your stack…</div>}
         {dyn?.focus && (
-          <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-2.5 text-sm text-indigo-900 mt-3">
+          <div className="rounded-lg bg-signal/10 border border-signal/20 p-2.5 text-sm text-signal mt-3">
             <span className="font-semibold">✨ Personal focus:</span> <Markdown text={dyn.focus} inline />
           </div>
         )}
         <div>
-          <div className="text-xs text-slate-500 mt-3 mb-1">What to learn</div>
-          <ul className="list-disc pl-5 text-sm text-slate-700 space-y-1">
+          <div className="text-xs text-ink-dim mt-3 mb-1">What to learn</div>
+          <ul className="list-disc pl-5 text-sm text-ink space-y-1">
             {topics.map((l, i) => (
               <li key={i}>{l}</li>
             ))}
           </ul>
         </div>
         <div>
-          <div className="text-xs text-slate-500 mb-1">Resources</div>
+          <div className="text-xs text-ink-dim mb-1">Resources</div>
           <div className="flex flex-wrap gap-2">
             {resources.map((r) => (
               <a
@@ -64,7 +64,7 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
                 href={r.u}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 text-indigo-600 hover:bg-slate-200"
+                className="text-xs px-2.5 py-1 rounded-lg bg-surface-2 text-signal hover:bg-grid"
               >
                 {r.t} ↗{r.ai ? " ✨" : ""}
               </a>
@@ -73,11 +73,11 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
         </div>
         {gap.drills.length > 0 && (
           <div>
-            <div className="text-xs text-slate-500 mb-1">Practice problems (the "Practice" tab)</div>
-            <ul className="list-disc pl-5 text-sm text-slate-600 space-y-1">
+            <div className="text-xs text-ink-dim mb-1">Practice problems (the "Practice" tab)</div>
+            <ul className="list-disc pl-5 text-sm text-ink-dim space-y-1">
               {gap.drills.map((d, i) => (
                 <li key={i}>
-                  {d.q} <span className="text-[10px] text-slate-400">({d.lvl})</span>
+                  {d.q} <span className="text-[10px] text-ink-dim">({d.lvl})</span>
                 </li>
               ))}
             </ul>
@@ -119,7 +119,7 @@ export function LearnPlan({ llm }: { llm: boolean }) {
       />
       {learn.strengths.length > 0 && (
         <Card>
-          <div className="text-xs text-slate-500 mb-1">✅ Your strengths against demand</div>
+          <div className="text-xs text-ink-dim mb-1">✅ Your strengths against demand</div>
           <div className="flex flex-wrap gap-1">
             {learn.strengths.slice(0, 12).map((s) => (
               <Chip key={s.tech} tone="emerald">
@@ -131,15 +131,15 @@ export function LearnPlan({ llm }: { llm: boolean }) {
       )}
       {plan && (
         <Card>
-          <div className="text-sm font-semibold mb-2 text-slate-700">🤖 Your personal plan</div>
+          <div className="text-sm font-semibold mb-2 text-ink">🤖 Your personal plan</div>
           <Markdown text={plan} />
         </Card>
       )}
 
-      <div className="text-sm text-slate-500">⚠️ Gaps by priority ({learn.gaps.length}):</div>
+      <div className="text-sm text-ink-dim">⚠️ Gaps by priority ({learn.gaps.length}):</div>
       {learn.gaps.length === 0 && (
         <Card>
-          <div className="text-emerald-600 font-medium">🎉 You cover the entire stack of added vacancies!</div>
+          <div className="text-signal font-medium">🎉 You cover the entire stack of added vacancies!</div>
         </Card>
       )}
       {learn.gaps.map((g, idx) => (

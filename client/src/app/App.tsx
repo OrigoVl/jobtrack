@@ -33,6 +33,10 @@ const Roadmap = lazy(() => import("../features/roadmap/roadmap").then((m) => ({ 
 const Analytics = lazy(() => import("../features/analytics/charts").then((m) => ({ default: m.Analytics })));
 const Admin = lazy(() => import("../features/admin/admin").then((m) => ({ default: m.Admin })));
 const Account = lazy(() => import("../features/account/account").then((m) => ({ default: m.Account })));
+const Calendar = lazy(() => import("../features/calendar/calendar").then((m) => ({ default: m.CalendarPage })));
+const Contacts = lazy(() => import("../features/contacts/contacts").then((m) => ({ default: m.Contacts })));
+// Public (no session) — mounted at the same tier as /login below, NOT inside Shell/AuthGate.
+const CvPublic = lazy(() => import("../features/cv/cv-public").then((m) => ({ default: m.CvPublic })));
 
 type NavItem = { path: string; icon: string; label: string };
 const NAV: { section: string; items: NavItem[] }[] = [
@@ -44,7 +48,9 @@ const NAV: { section: string; items: NavItem[] }[] = [
       { path: "/jobs", icon: "🔎", label: "Job Search" },
       { path: "/analyzer", icon: "🔍", label: "Vacancy Analysis" },
       { path: "/companies", icon: "🏢", label: "Companies" },
+      { path: "/contacts", icon: "🧑‍🤝‍🧑", label: "Contacts" },
       { path: "/analytics", icon: "📊", label: "Analytics" },
+      { path: "/calendar", icon: "🗓️", label: "Calendar" },
     ],
   },
   {
@@ -77,9 +83,9 @@ const DEFAULT_PATH = "/dashboard";
 function ToastHost() {
   const { toasts, dismissToast } = useToast();
   const tone: Record<string, string> = {
-    success: "bg-emerald-600",
+    success: "bg-signal",
     error: "bg-rose-600",
-    info: "bg-slate-800",
+    info: "bg-ink",
   };
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
@@ -101,30 +107,26 @@ function AiBadge() {
   const llm = data?.llm ?? false;
   return (
     <span
-      className={`text-xs font-medium px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 ${
-        llm ? "border-emerald-200 text-emerald-700 bg-emerald-50" : "border-slate-200 text-slate-500 bg-slate-50"
+      className={`font-display text-xs font-medium px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 ${
+        llm ? "border-signal/30 text-signal bg-signal/10" : "border-grid text-ink-dim bg-surface-2"
       }`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${llm ? "bg-emerald-500" : "bg-slate-400"}`} />
+      <span className={`w-1.5 h-1.5 rounded-full ${llm ? "bg-signal" : "bg-ink-dim"}`} />
       {llm ? "AI: on" : "AI: offline"}
     </span>
   );
 }
 
 function Brand() {
-  return (
-    <div className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-indigo-600 to-emerald-500 bg-clip-text text-transparent">
-      🚀 JobTrack
-    </div>
-  );
+  return <div className="font-display text-lg font-bold tracking-tight text-signal">🚀 JobTrack</div>;
 }
 
 function SidebarProgress() {
   const { data: roadmap } = useRoadmap();
   if (!roadmap) return null;
   return (
-    <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5">
-      <div className="text-xs font-medium text-slate-600 mb-1">
+    <div className="rounded-xl bg-surface-2 border border-grid p-2.5">
+      <div className="text-xs font-medium text-ink-dim mb-1">
         Roadmap: {roadmap.progress.done}/{roadmap.progress.total}
       </div>
       <ProgressBar value={roadmap.progress.done} max={roadmap.progress.total} tone="emerald" />
@@ -135,11 +137,11 @@ function SidebarProgress() {
 function navBtn(item: NavItem, compact = false) {
   const cls = ({ isActive }: { isActive: boolean }) =>
     compact
-      ? `shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-          isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+      ? `font-display shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+          isActive ? "bg-signal text-white shadow-sm" : "text-ink-dim hover:bg-surface-2"
         }`
-      : `w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-          isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+      : `font-display w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+          isActive ? "bg-signal text-white shadow-sm" : "text-ink-dim hover:bg-surface-2"
         }`;
   return (
     <NavLink key={item.path} to={item.path} className={cls}>
@@ -211,28 +213,28 @@ function Shell() {
   return (
     <div className="min-h-screen lg:flex">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 shrink-0 sticky top-0 h-screen border-r border-slate-200 bg-white/70 backdrop-blur-md p-3.5 gap-2.5 overflow-y-auto">
+      <aside className="hidden lg:flex flex-col w-64 shrink-0 sticky top-0 h-screen border-r border-grid bg-surface/70 backdrop-blur-md p-3.5 gap-2.5 overflow-y-auto">
         <div className="flex items-center justify-between">
           <Brand />
         </div>
         <AiBadge />
         <button
           onClick={() => setPaletteOpen(true)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-400 hover:border-slate-300 hover:text-slate-500 transition-colors"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-grid bg-surface text-xs text-ink-dim hover:border-signal/40 hover:text-ink transition-colors"
         >
           <span>🔎 Search…</span>
-          <span className="ml-auto font-mono text-[10px] bg-slate-100 rounded px-1.5 py-0.5 text-slate-500">⌘K</span>
+          <span className="ml-auto font-display text-[10px] bg-surface-2 rounded px-1.5 py-0.5 text-ink-dim">⌘K</span>
         </button>
         <nav className="flex flex-col gap-2.5 flex-1">
           {NAV.map((group) => (
             <div key={group.section}>
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-1">{group.section}</div>
+              <div className="font-display text-[11px] font-bold uppercase tracking-wider text-ink-dim px-3 mb-1">{group.section}</div>
               <div className="flex flex-col gap-0.5">{group.items.map((it) => navBtn(it))}</div>
             </div>
           ))}
           {isAdmin && (
             <div>
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-1">Admin</div>
+              <div className="font-display text-[11px] font-bold uppercase tracking-wider text-ink-dim px-3 mb-1">Admin</div>
               <div className="flex flex-col gap-0.5">{navBtn(ADMIN_ITEM)}</div>
             </div>
           )}
@@ -245,7 +247,7 @@ function Shell() {
 
       {/* Mobile top nav */}
       <div className="flex-1 min-w-0">
-        <header className="lg:hidden sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <header className="lg:hidden sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-grid">
           <div className="px-4 py-3 flex items-center gap-3">
             <Brand />
             <div className="ml-auto flex items-center gap-2">
@@ -271,7 +273,9 @@ function Shell() {
                 <Route path="/jobs" element={<Jobs />} />
                 <Route path="/analyzer" element={<Analyzer />} />
                 <Route path="/companies" element={<Companies />} />
+                <Route path="/contacts" element={<Contacts />} />
                 <Route path="/analytics" element={<Analytics />} />
+                <Route path="/calendar" element={<Calendar />} />
                 <Route path="/roadmap" element={<Roadmap />} />
                 <Route path="/plan21" element={<Plan21 />} />
                 <Route path="/learn" element={<LearnPlanWrapper />} />
@@ -378,6 +382,10 @@ export default function App() {
                   </PublicRoute>
                 }
               />
+              {/* Public — no session, no Shell chrome (see cv-public.tsx). Deliberately NOT
+                  wrapped in PublicRoute: an already-signed-in visitor should still be able to
+                  open a (their own, or anyone else's) shared CV link while logged in. */}
+              <Route path="/cv/public/:slug" element={<CvPublic />} />
               <Route path="/*" element={<AuthGate />} />
             </Routes>
           </Suspense>

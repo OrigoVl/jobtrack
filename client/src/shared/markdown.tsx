@@ -94,11 +94,11 @@ export function Markdown({ text, className, inline = false }: { text: string; cl
   if (inline) return <>{renderInlineText(text, "i")}</>;
   const blocks = parseMarkdownBlocks(text);
   return (
-    <div className={className ?? "text-sm text-slate-700 space-y-2"}>
+    <div className={className ?? "text-sm text-ink space-y-2"}>
       {blocks.map((b, idx) => {
         if (b.type === "h") {
           return (
-            <div key={idx} className={`font-semibold text-slate-800 ${HEADING_SIZE[b.level] ?? "text-sm"}`}>
+            <div key={idx} className={`font-semibold text-ink ${HEADING_SIZE[b.level] ?? "text-sm"}`}>
               {renderInlineText(b.text, `h${idx}`)}
             </div>
           );

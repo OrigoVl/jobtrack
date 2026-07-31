@@ -49,7 +49,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             <button
               key={id}
               onClick={() => onSetTheme({ template: id })}
-              className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${theme.template === id ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+              className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${theme.template === id ? "border-signal bg-signal/10 text-signal" : "border-grid text-ink-dim hover:bg-surface-2"}`}
             >
               {label}
             </button>
@@ -58,16 +58,16 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
       </Section>
       <Section title="Style" icon="🎨" hint={`${theme.font === "serif" ? "Serif" : "Sans"} · ${Math.round(theme.scale * 100)}%`}>
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <label className="flex items-center gap-2 text-sm text-slate-600">
+          <label className="flex items-center gap-2 text-sm text-ink-dim">
             Accent
             <input
               type="color"
               value={theme.accent}
               onChange={(e) => onSetTheme({ accent: e.target.value })}
-              className="w-8 h-8 rounded cursor-pointer border border-slate-200 bg-white p-0.5"
+              className="w-8 h-8 rounded cursor-pointer border border-grid bg-white p-0.5"
             />
           </label>
-          <div className="flex items-center gap-2 text-sm text-slate-600">
+          <div className="flex items-center gap-2 text-sm text-ink-dim">
             Font
             <Segmented
               value={theme.font}
@@ -79,10 +79,10 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             />
           </div>
         </div>
-        <label className="block text-sm text-slate-600">
+        <label className="block text-sm text-ink-dim">
           <div className="flex justify-between">
             <span>Text scale</span>
-            <span className="text-slate-400">{Math.round(theme.scale * 100)}%</span>
+            <span className="text-ink-dim">{Math.round(theme.scale * 100)}%</span>
           </div>
           <input
             type="range"
@@ -92,7 +92,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             value={theme.scale}
             onChange={(e) => onSetTheme({ scale: Number(e.target.value) })}
             aria-label="Text scale"
-            className="w-full mt-1 accent-indigo-600"
+            className="w-full mt-1 accent-signal"
           />
         </label>
       </Section>
@@ -102,17 +102,17 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             <img
               src={doc.photo}
               alt=""
-              className={`w-16 h-16 object-cover border-2 border-indigo-200 ${theme.photoShape === "square" ? "rounded-lg" : "rounded-full"}`}
+              className={`w-16 h-16 object-cover border-2 border-signal/30 ${theme.photoShape === "square" ? "rounded-lg" : "rounded-full"}`}
             />
           ) : (
             <div
-              className={`w-16 h-16 bg-slate-100 border-2 border-dashed border-slate-300 grid place-items-center text-slate-400 text-xl ${theme.photoShape === "square" ? "rounded-lg" : "rounded-full"}`}
+              className={`w-16 h-16 bg-surface-2 border-2 border-dashed border-grid grid place-items-center text-ink-dim text-xl ${theme.photoShape === "square" ? "rounded-lg" : "rounded-full"}`}
             >
               👤
             </div>
           )}
           <div className="flex gap-1.5 flex-wrap">
-            <label className="inline-flex items-center gap-1 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200">
+            <label className="inline-flex items-center gap-1 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer bg-surface-2 text-ink border border-grid hover:bg-grid">
               {doc.photo ? "🔄 Change" : "🖼 Add"}
               <input
                 type="file"
@@ -131,7 +131,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             )}
           </div>
         </div>
-        <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+        <div className="flex items-center justify-between gap-2 text-xs text-ink-dim">
           <span>Shape</span>
           <Segmented
             value={theme.photoShape ?? "circle"}
@@ -142,7 +142,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             ]}
           />
         </div>
-        <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+        <div className="flex items-center justify-between gap-2 text-xs text-ink-dim">
           <span>Position</span>
           <Segmented
             value={theme.photoPos ?? "left"}
@@ -153,12 +153,12 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             ]}
           />
         </div>
-        <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+        <label className="flex items-center gap-1.5 text-xs text-ink-dim cursor-pointer">
           <input
             type="checkbox"
             checked={theme.showPhoto !== false}
             onChange={(e) => onSetTheme({ showPhoto: e.target.checked })}
-            className="accent-indigo-600"
+            className="accent-signal"
           />
           Show photo in the PDF
         </label>

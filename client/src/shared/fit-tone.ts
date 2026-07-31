@@ -3,4 +3,4 @@
 import type { Fit } from "./types";
 
 export const fitTone: Record<Fit, "emerald" | "amber" | "rose"> = { high: "emerald", med: "amber", low: "rose" };
-export const fitText: Record<Fit, string> = { high: "text-emerald-600", med: "text-amber-600", low: "text-rose-600" };
+export const fitText: Record<Fit, string> = { high: "text-signal", med: "text-alert", low: "text-rose-600" };

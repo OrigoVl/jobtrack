@@ -43,8 +43,8 @@ export function Analyzer() {
       />
 
       <Card>
-        <div className="text-sm font-semibold mb-1 text-slate-700">🔗 Auto-parse by links</div>
-        <p className="text-xs text-slate-500 mb-2">
+        <div className="text-sm font-semibold mb-1 text-ink">🔗 Auto-parse by links</div>
+        <p className="text-xs text-ink-dim mb-2">
           Goes through every added vacancy, fetches the text from its link, and updates the stack/level/fit. Data shows up immediately in
           Skill radar, Analytics, and Roadmap.
         </p>
@@ -53,17 +53,17 @@ export function Analyzer() {
         </Btn>
         {batch && (
           <div className="mt-3 text-sm">
-            <div className="text-slate-600 mb-2">
+            <div className="text-ink-dim mb-2">
               Processed: <b>{batch.processed}</b>
             </div>
             <div className="space-y-1 max-h-64 overflow-auto">
               {batch.results.map((r) => (
-                <div key={r.id} className="flex gap-2 items-start border-b border-slate-100 pb-1">
+                <div key={r.id} className="flex gap-2 items-start border-b border-surface-2 pb-1">
                   <span className="font-medium w-28 shrink-0 truncate">{r.company}</span>
                   {r.error ? (
                     <span className="text-rose-600 text-xs">{r.error}</span>
                   ) : (
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-ink-dim">
                       {(r.techs || []).join(", ")} <span className={"ml-1 " + fitText[(r.fit as Fit) || "med"]}>· {r.fit}</span>
                     </span>
                   )}
@@ -80,7 +80,7 @@ export function Analyzer() {
           onChange={(e) => setText(e.target.value)}
           aria-label="Vacancy text to analyze"
           placeholder="Paste the vacancy's text…"
-          className="w-full h-40 bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="w-full h-40 bg-surface-2 border border-grid rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
         />
         <Btn className="mt-2" onClick={run} loading={busy} disabled={!text}>
           {busy ? "Analyzing…" : "Analyze"}
@@ -90,7 +90,7 @@ export function Analyzer() {
       {res && (
         <Card className="space-y-3">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-slate-500">Fit:</span>
+            <span className="text-sm text-ink-dim">Fit:</span>
             <span className={"font-bold " + fitText[res.fit]}>{res.fit.toUpperCase()}</span>
             {res.level && <Chip>{res.level}</Chip>}
             {res.semanticFit != null && (
@@ -100,7 +100,7 @@ export function Analyzer() {
             )}
           </div>
           <div>
-            <div className="text-xs text-slate-500 mb-1">✅ Match with your stack</div>
+            <div className="text-xs text-ink-dim mb-1">✅ Match with your stack</div>
             <div className="flex flex-wrap gap-1">
               {res.match.length ? (
                 res.match.map((t) => (
@@ -109,12 +109,12 @@ export function Analyzer() {
                   </Chip>
                 ))
               ) : (
-                <span className="text-slate-400 text-sm">—</span>
+                <span className="text-ink-dim text-sm">—</span>
               )}
             </div>
           </div>
           <div>
-            <div className="text-xs text-slate-500 mb-1">⚠️ Gaps (what to pick up)</div>
+            <div className="text-xs text-ink-dim mb-1">⚠️ Gaps (what to pick up)</div>
             <div className="flex flex-wrap gap-1">
               {res.gap.length ? (
                 res.gap.map((t) => (
@@ -123,13 +123,13 @@ export function Analyzer() {
                   </Chip>
                 ))
               ) : (
-                <span className="text-slate-400 text-sm">None — you cover the stack!</span>
+                <span className="text-ink-dim text-sm">None — you cover the stack!</span>
               )}
             </div>
           </div>
           {res.summary && (
-            <div className="border-t border-slate-100 pt-3">
-              <div className="text-xs text-slate-500 mb-1">🤖 AI summary</div>
+            <div className="border-t border-surface-2 pt-3">
+              <div className="text-xs text-ink-dim mb-1">🤖 AI summary</div>
               <Markdown text={res.summary} />
             </div>
           )}

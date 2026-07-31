@@ -1,8 +1,11 @@
-// Sends auth emails (verification, password reset) via the Resend HTTP API directly — no SDK,
-// consistent with this codebase's pattern of hand-rolled provider calls over a heavier client
-// (see llm/client.ts). Gated behind RESEND_API_KEY, same graceful-offline-fallback shape as the
-// LLM keys: without one, the email is logged instead of sent, so local dev/e2e need zero setup
-// to exercise the full registration/verification/reset flow.
+// Generic email sending via the Resend HTTP API directly — no SDK, consistent with this
+// codebase's pattern of hand-rolled provider calls over a heavier client (see llm/client.ts).
+// Gated behind RESEND_API_KEY, same graceful-offline-fallback shape as the LLM keys: without
+// one, the email is logged instead of sent, so local dev/e2e need zero setup to exercise the
+// full registration/verification/reset flow. Originally lived under auth/ (it started out only
+// sending verification/reset/delete-account emails) — moved to shared/ once a second consumer
+// appeared (modules/saved-searches/'s new-postings digest) that has nothing to do with auth.
+
 import { env } from "../config/env.js";
 import { contextLogger } from "../core/logger.js";
 

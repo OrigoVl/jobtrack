@@ -8,11 +8,11 @@ const LANGUAGE_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2", "Native", "Conversa
 export function ProjectsSection({ projects, onChange }: { projects: string[]; onChange: (v: string) => void }) {
   return (
     <label className="block">
-      <span className="text-xs font-semibold text-slate-500">Projects (one per line)</span>
+      <span className="text-xs font-semibold text-ink-dim">Projects (one per line)</span>
       <textarea
         value={projects.join("\n")}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full mt-0.5 h-24 bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        className="w-full mt-0.5 h-24 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
       />
     </label>
   );
@@ -22,11 +22,11 @@ export function ProjectsSection({ projects, onChange }: { projects: string[]; on
 export function EducationSection({ education, onChange }: { education: string[]; onChange: (v: string) => void }) {
   return (
     <label className="block">
-      <span className="text-xs font-semibold text-slate-500">Education (one per line)</span>
+      <span className="text-xs font-semibold text-ink-dim">Education (one per line)</span>
       <textarea
         value={education.join("\n")}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full mt-0.5 h-24 bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        className="w-full mt-0.5 h-24 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
       />
     </label>
   );
@@ -43,13 +43,13 @@ export function LanguagesSection({ languages, onChange }: LanguagesSectionProps)
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-400">{languages.length ? `${languages.length} added` : "None yet"}</span>
+        <span className="text-xs text-ink-dim">{languages.length ? `${languages.length} added` : "None yet"}</span>
         <Btn size="sm" variant="ghost" onClick={() => onChange([...languages, { name: "", level: "B2" }])}>
           + Add a language
         </Btn>
       </div>
       {languages.length === 0 && (
-        <div className="text-xs text-slate-400">Add languages and proficiency level — they'll show up as a separate section in the CV.</div>
+        <div className="text-xs text-ink-dim">Add languages and proficiency level — they'll show up as a separate section in the CV.</div>
       )}
       {languages.map((l, i) => (
         <div key={i} className="flex items-end gap-2">
@@ -63,11 +63,11 @@ export function LanguagesSection({ languages, onChange }: LanguagesSectionProps)
             />
           </div>
           <label className="block w-40">
-            <span className="text-xs font-semibold text-slate-500">Level</span>
+            <span className="text-xs font-semibold text-ink-dim">Level</span>
             <select
               value={l.level}
               onChange={(e) => setLang(i, { level: e.target.value })}
-              className="w-full mt-0.5 bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
             >
               {LANGUAGE_LEVELS.map((lvl) => (
                 <option key={lvl} value={lvl}>

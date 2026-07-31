@@ -5,12 +5,18 @@ import type {
   AdminUsersResult,
   Analytics,
   AnalyzeResult,
+  CalendarEvent,
+  CalendarEventInput,
+  CombinedCalendar,
   Company,
+  Contact,
+  ContactInput,
   CvAnalysis,
   CvDoc,
   CvMatch,
   CvPreset,
   CvReview,
+  CvShare,
   CvTailorResult,
   Drill,
   FetchAllResult,
@@ -19,6 +25,7 @@ import type {
   JsonVacancyImportResult,
   KnowledgeData,
   LearnData,
+  LinkedInOptimizeResult,
   MockEvaluation,
   Plan21Data,
   Profile,
@@ -26,6 +33,8 @@ import type {
   ResourcesData,
   RoadmapData,
   RoadmapStatus,
+  SavedSearch,
+  SavedSearchInput,
   StudyState,
   Vacancy,
 } from "./types";
@@ -174,4 +183,35 @@ export const api = {
   adminUsers: (limit = 50, offset = 0) => req<AdminUsersResult>(`/admin/users?limit=${limit}&offset=${offset}`),
   adminLlmUsage: (days = 30) => req<AdminLlmUsageSummary>(`/admin/llm-usage?days=${days}`),
   adminProductEvents: (days = 30) => req<AdminProductEventsSummary>(`/admin/product-events?days=${days}`),
+
+  calendarCombined: (range: { from?: string; to?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (range.from) q.set("from", range.from);
+    if (range.to) q.set("to", range.to);
+    const qs = q.toString();
+    return req<CombinedCalendar>(`/calendar/combined${qs ? `?${qs}` : ""}`);
+  },
+  addCalendarEvent: (e: CalendarEventInput) => req<CalendarEvent>("/calendar/events", { method: "POST", body: JSON.stringify(e) }),
+  updateCalendarEvent: (id: number, patch: Partial<CalendarEventInput>) =>
+    req<CalendarEvent>(`/calendar/events/${id}`, { method: "PUT", body: JSON.stringify(patch) }),
+  deleteCalendarEvent: (id: number) => req<{ ok: boolean; deleted: number }>(`/calendar/events/${id}`, { method: "DELETE" }),
+
+  savedSearches: () => req<SavedSearch[]>("/saved-searches"),
+  addSavedSearch: (s: SavedSearchInput) => req<SavedSearch>("/saved-searches", { method: "POST", body: JSON.stringify(s) }),
+  deleteSavedSearch: (id: number) => req<{ ok: boolean; deleted: number }>(`/saved-searches/${id}`, { method: "DELETE" }),
+
+  contacts: () => req<Contact[]>("/contacts"),
+  addContact: (c: Partial<ContactInput>) => req<Contact>("/contacts", { method: "POST", body: JSON.stringify(c) }),
+  updateContact: (id: number, patch: Partial<ContactInput>) =>
+    req<Contact>(`/contacts/${id}`, { method: "PUT", body: JSON.stringify(patch) }),
+  deleteContact: (id: number) => req<{ ok: boolean; deleted: number }>(`/contacts/${id}`, { method: "DELETE" }),
+
+  cvShare: () => req<CvShare | null>("/cv/share"),
+  generateCvShare: () => req<CvShare>("/cv/share", { method: "POST" }),
+  setCvShareEnabled: (enabled: boolean) => req<CvShare>("/cv/share", { method: "PUT", body: JSON.stringify({ enabled }) }),
+  // Public — no session required, matches the server route not being behind authed(). Still
+  // goes through the same `req()` helper (nothing about it depends on a cookie being present).
+  cvPublic: (slug: string) => req<{ doc: CvDoc }>(`/cv/public/${encodeURIComponent(slug)}`),
+
+  linkedinOptimize: () => req<LinkedInOptimizeResult>("/cv/linkedin-optimize", { method: "POST", body: "{}" }),
 };

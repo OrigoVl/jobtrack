@@ -36,9 +36,9 @@ export class ErrorBoundary extends Component<Props, State> {
       <div className="max-w-xl mx-auto mt-16 px-4">
         <Card className="text-center space-y-3">
           <div className="text-4xl">⚠️</div>
-          <h2 className="font-bold text-lg text-slate-900">Something went wrong</h2>
-          <p className="text-sm text-slate-500">An unexpected error occurred on this screen. Other tabs and data are unaffected.</p>
-          <pre className="text-left text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-500 overflow-x-auto">
+          <h2 className="font-bold text-lg text-ink">Something went wrong</h2>
+          <p className="text-sm text-ink-dim">An unexpected error occurred on this screen. Other tabs and data are unaffected.</p>
+          <pre className="text-left text-xs bg-surface-2 border border-grid rounded-lg p-2.5 text-ink-dim overflow-x-auto">
             {error.message}
           </pre>
           <div className="flex justify-center gap-2">

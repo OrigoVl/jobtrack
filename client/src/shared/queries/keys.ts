@@ -16,4 +16,8 @@ export const queryKeys = {
   adminUsers: ["adminUsers"] as const,
   adminLlmUsage: ["adminLlmUsage"] as const,
   adminProductEvents: ["adminProductEvents"] as const,
+  calendarCombined: ["calendarCombined"] as const,
+  savedSearches: ["savedSearches"] as const,
+  contacts: ["contacts"] as const,
+  cvShare: ["cvShare"] as const,
 };

@@ -22,14 +22,14 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-xs font-semibold text-slate-500">{label}</span>
+      <span className="text-xs font-semibold text-ink-dim">{label}</span>
       <input
         type={type}
         value={value}
         maxLength={maxLength}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full mt-0.5 bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
       />
     </label>
   );
@@ -114,19 +114,19 @@ export function SkillsInput({
 
   return (
     <label className="block">
-      {!hideLabel && <span className="text-xs font-semibold text-slate-500">{label}</span>}
-      <div className="mt-0.5 flex flex-wrap items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-lg p-1.5 focus-within:ring-2 focus-within:ring-indigo-400">
+      {!hideLabel && <span className="text-xs font-semibold text-ink-dim">{label}</span>}
+      <div className="mt-0.5 flex flex-wrap items-center gap-1.5 bg-surface-2 border border-grid rounded-lg p-1.5 focus-within:ring-2 focus-within:ring-signal/50">
         {skills.map((s, i) => (
           <span
             key={`${s}-${i}`}
-            className="inline-flex items-center gap-1 text-xs font-medium pl-2 pr-1 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200"
+            className="inline-flex items-center gap-1 text-xs font-medium pl-2 pr-1 py-0.5 rounded-full bg-signal/10 text-signal border border-signal/30"
           >
             {s}
             <button
               type="button"
               onClick={() => removeAt(i)}
               aria-label={`Remove ${s}`}
-              className="text-indigo-400 hover:text-indigo-700 hover:bg-indigo-100 rounded-full w-4 h-4 inline-flex items-center justify-center leading-none"
+              className="text-signal/60 hover:text-signal hover:bg-signal/10 rounded-full w-4 h-4 inline-flex items-center justify-center leading-none"
             >
               ✕
             </button>
@@ -148,7 +148,7 @@ export function SkillsInput({
       </div>
       {focused && suggestions.length > 0 && (
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-slate-400">Suggestions</span>
+          <span className="text-[11px] text-ink-dim">Suggestions</span>
           {suggestions.map((s) => (
             <button
               key={s}
@@ -158,7 +158,7 @@ export function SkillsInput({
               // clicked (blur happens before click in the event order).
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => addSuggestion(s)}
-              className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200"
+              className="text-xs font-medium px-2 py-0.5 rounded-full bg-surface-2 text-ink-dim border border-grid hover:bg-signal/10 hover:text-signal hover:border-signal/30"
             >
               + {s}
             </button>

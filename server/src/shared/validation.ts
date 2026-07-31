@@ -164,6 +164,122 @@ export function parseCompanyInput(body: unknown): CompanyInput {
   };
 }
 
+export interface ContactInput {
+  name?: string;
+  role?: string;
+  companyId?: number | null;
+  email?: string;
+  linkedinUrl?: string;
+  notes?: string;
+  lastContactAt?: string;
+}
+
+/** Parses a networking contact (create or partial update — same `{ partial }` shape as
+ * parseVacancyInput/parseCalendarEventInput). `companyId` is only range/shape-checked here;
+ * confirming it belongs to the caller needs a DB lookup — see contacts.routes.ts. */
+export function parseContactInput(body: unknown, { partial = false }: { partial?: boolean } = {}): ContactInput {
+  const b = (body || {}) as Record<string, unknown>;
+  const has = (key: string) => Object.prototype.hasOwnProperty.call(b, key);
+  const out: ContactInput = {};
+  if (!partial || has("name")) out.name = asString(b.name).trim().slice(0, 200);
+  if (!partial || has("role")) out.role = asString(b.role).trim().slice(0, 160);
+  if (!partial || has("companyId")) {
+    if (b.companyId == null || b.companyId === "") {
+      out.companyId = null;
+    } else {
+      const n = Number(b.companyId);
+      if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, 'Field "companyId" must be a positive integer');
+      out.companyId = n;
+    }
+  }
+  if (!partial || has("email")) out.email = asString(b.email).trim().slice(0, 200);
+  if (!partial || has("linkedinUrl")) out.linkedinUrl = b.linkedinUrl ? toUrl(b.linkedinUrl, "linkedinUrl") : "";
+  if (!partial || has("notes")) out.notes = asString(b.notes).slice(0, 5000);
+  if (!partial || has("lastContactAt")) out.lastContactAt = toDateOrEmpty(b.lastContactAt, "lastContactAt");
+  return out;
+}
+
+export const JOB_SEARCH_REGIONS = ["all", "ua", "remote"] as const;
+export type JobSearchRegion = (typeof JOB_SEARCH_REGIONS)[number];
+
+export interface SavedSearchInput {
+  query: string;
+  region: JobSearchRegion;
+  label: string;
+}
+
+/** A job alert (saved search) — create only, no partial/update variant (the client only ever
+ * deletes and re-creates one, there's no "edit" UI for an existing alert). */
+export function parseSavedSearchInput(body: unknown): SavedSearchInput {
+  const b = (body || {}) as Record<string, unknown>;
+  const query = asString(b.query).trim().slice(0, 200);
+  if (!query) throw new HttpError(400, 'Field "query" is required');
+  const region = asString(b.region, "all");
+  if (!JOB_SEARCH_REGIONS.includes(region as JobSearchRegion)) throw new HttpError(400, `Invalid region: "${region}"`);
+  return { query, region: region as JobSearchRegion, label: asString(b.label).trim().slice(0, 120) };
+}
+
+export const CALENDAR_EVENT_TYPES = ["interview", "call", "deadline", "reminder", "other"] as const;
+export type CalendarEventType = (typeof CALENDAR_EVENT_TYPES)[number];
+
+/** A full timestamp (not just a date — calendar events carry a time-of-day), normalized to ISO
+ * via Date round-tripping so downstream string comparisons (repo range filters) are consistent
+ * regardless of what shape the client sent (`Z`, `+00:00`, no offset, ...). */
+function toIsoDateTime(value: unknown, field: string): string {
+  const raw = asString(value).trim();
+  if (!raw) throw new HttpError(400, `Field "${field}" is required`);
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) throw new HttpError(400, `Field "${field}" must be a valid date/time`);
+  return d.toISOString();
+}
+
+/** Same as toIsoDateTime, but an empty/missing value means "not set" (e.g. `endAt`) instead of an error. */
+function toIsoDateTimeOrNull(value: unknown, field: string): string | null {
+  const raw = asString(value).trim();
+  if (!raw) return null;
+  return toIsoDateTime(raw, field);
+}
+
+export interface CalendarEventInput {
+  title?: string;
+  notes?: string;
+  startAt?: string;
+  endAt?: string | null;
+  type?: CalendarEventType;
+  vacancyId?: number | null;
+}
+
+/**
+ * Parses a manual calendar event (create or partial update — see `{ partial }`, same shape as
+ * parseVacancyInput). `vacancyId` is only range/shape-checked here (a positive integer or null);
+ * confirming it actually belongs to the caller is the repository/service's job (it needs a DB
+ * lookup), not this pure parsing layer.
+ */
+export function parseCalendarEventInput(body: unknown, { partial = false }: { partial?: boolean } = {}): CalendarEventInput {
+  const b = (body || {}) as Record<string, unknown>;
+  const has = (key: string) => Object.prototype.hasOwnProperty.call(b, key);
+  const out: CalendarEventInput = {};
+  if (!partial || has("title")) out.title = asString(b.title).trim().slice(0, 200);
+  if (!partial || has("notes")) out.notes = asString(b.notes).slice(0, 5000);
+  if (!partial || has("startAt")) out.startAt = toIsoDateTime(b.startAt, "startAt");
+  if (!partial || has("endAt")) out.endAt = toIsoDateTimeOrNull(b.endAt, "endAt");
+  if (!partial || has("type")) {
+    const type = asString(b.type, "other");
+    if (!CALENDAR_EVENT_TYPES.includes(type as CalendarEventType)) throw new HttpError(400, `Invalid type: "${type}"`);
+    out.type = type as CalendarEventType;
+  }
+  if (!partial || has("vacancyId")) {
+    if (b.vacancyId == null || b.vacancyId === "") {
+      out.vacancyId = null;
+    } else {
+      const n = Number(b.vacancyId);
+      if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, 'Field "vacancyId" must be a positive integer');
+      out.vacancyId = n;
+    }
+  }
+  return out;
+}
+
 export function parseText(body: unknown, field = "text", { min = 1, max = 20000 }: { min?: number; max?: number } = {}): string {
   const text = asString((body as Record<string, unknown> | null | undefined)?.[field]);
   if (text.trim().length < min) throw new HttpError(400, `Field "${field}" cannot be empty`);

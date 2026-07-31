@@ -93,15 +93,15 @@ function VacancyBoard() {
             onDragLeave={() => setOver((cur) => (cur === status ? null : cur))}
             onDrop={onDrop(status)}
             className={`shrink-0 w-64 rounded-xl border p-2 transition-colors ${
-              over === status ? "border-indigo-400 bg-indigo-50" : "border-slate-200 bg-slate-50"
+              over === status ? "border-signal/50 bg-signal/10" : "border-grid bg-surface-2"
             }`}
           >
             <div className="flex items-center justify-between px-1.5 py-1 mb-1.5">
-              <span className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-ink-dim">
                 <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT_CLASS[status] ?? DEFAULT_STATUS_DOT_CLASS}`} />
                 {status}
               </span>
-              <span className="text-[11px] text-slate-400">{items.length}</span>
+              <span className="text-[11px] text-ink-dim">{items.length}</span>
             </div>
             <div className="space-y-2 min-h-[40px]">
               {items.map((v) => {
@@ -132,25 +132,25 @@ function VacancyBoard() {
                         moveByKeyboard(v, -1);
                       }
                     }}
-                    className={`relative bg-white border border-slate-200 border-l-4 ${STATUS_BORDER_L_CLASS[status] ?? DEFAULT_STATUS_BORDER_L_CLASS} rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-card focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-opacity ${isSaving ? "opacity-60" : ""}`}
+                    className={`relative bg-white border border-grid border-l-4 ${STATUS_BORDER_L_CLASS[status] ?? DEFAULT_STATUS_BORDER_L_CLASS} rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-card focus:outline-none focus:ring-2 focus:ring-signal/50 transition-opacity ${isSaving ? "opacity-60" : ""}`}
                   >
                     {isSaving && (
-                      <span className="absolute top-1.5 right-1.5 text-indigo-500" aria-label="Saving…">
+                      <span className="absolute top-1.5 right-1.5 text-signal" aria-label="Saving…">
                         <Spinner className="h-3 w-3" />
                       </span>
                     )}
-                    <div className="font-semibold text-sm text-slate-800 truncate">{v.company}</div>
-                    <div className="text-xs text-slate-500 truncate">{v.position}</div>
+                    <div className="font-semibold text-sm text-ink truncate">{v.company}</div>
+                    <div className="text-xs text-ink-dim truncate">{v.position}</div>
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                       <Chip tone={fitTone[v.fit]}>{v.fit}</Chip>
                       {v.stack.slice(0, 2).map((s) => (
-                        <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                        <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim">
                           {s}
                         </span>
                       ))}
-                      {v.stack.length > 2 && <span className="text-[10px] text-slate-400">+{v.stack.length - 2}</span>}
+                      {v.stack.length > 2 && <span className="text-[10px] text-ink-dim">+{v.stack.length - 2}</span>}
                     </div>
-                    {v.next && <div className="text-[11px] text-amber-600 mt-1">⏭ {v.next}</div>}
+                    {v.next && <div className="text-[11px] text-alert mt-1">⏭ {v.next}</div>}
                   </div>
                 );
               })}
@@ -207,7 +207,7 @@ export function Vacancies() {
         subtitle="Track all your vacancies in one place. Paste a vacancy link (from any site — LinkedIn, Djinni, robota.ua, dou.ua, etc.) and the stack fills in itself. In Kanban view, drag cards between statuses (or select a card and press ←/→ — no mouse needed)."
         actions={
           <div className="flex gap-2 flex-wrap">
-            <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+            <div className="flex gap-1 bg-surface-2 rounded-lg p-0.5">
               <Btn variant={view === "table" ? "primary" : "subtle"} size="sm" onClick={() => setView("table")}>
                 ☰ Table
               </Btn>
@@ -226,13 +226,13 @@ export function Vacancies() {
       />
 
       <Card>
-        <div className="text-sm font-semibold mb-2 text-slate-700">📥 Import from a DOU export</div>
+        <div className="text-sm font-semibold mb-2 text-ink">📥 Import from a DOU export</div>
         <textarea
           value={imp}
           onChange={(e) => setImp(e.target.value)}
           aria-label="HTML or text to import from DOU"
           placeholder="Paste the HTML or text of a saved DOU vacancies table — we'll extract every link…"
-          className="w-full h-20 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="w-full h-20 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
         />
         <Btn className="mt-2" variant="ghost" onClick={doImport} disabled={!imp} loading={importVacanciesMutation.isPending}>
           {importVacanciesMutation.isPending ? "Importing and analyzing…" : "Import links"}
@@ -240,8 +240,8 @@ export function Vacancies() {
       </Card>
 
       <Card>
-        <div className="text-sm font-semibold mb-1 text-slate-700">🔄 Import / export JSON</div>
-        <p className="text-xs text-slate-500 mb-2">
+        <div className="text-sm font-semibold mb-1 text-ink">🔄 Import / export JSON</div>
+        <p className="text-xs text-ink-dim mb-2">
           Format <code>job-tracker.json</code> — an array of <code>{"{company, pos, level, fit, status, applied, next, notes, url}"}</code>.
           Vacancies with the same link (or company+position) get updated, the rest get added — you can keep the file elsewhere (e.g. in
           another chat) and just drop it here to sync.
@@ -287,7 +287,7 @@ export function Vacancies() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-slate-500 text-xs text-left bg-slate-50 border-b border-slate-200">
+                <tr className="text-ink-dim text-xs text-left bg-surface-2 border-b border-grid">
                   <th className="p-3 w-10 text-right">#</th>
                   <th className="p-3">Company / Position</th>
                   <th className="p-3">Stack</th>
@@ -306,18 +306,18 @@ export function Vacancies() {
                   const isSavingRow = updateVacancyMutation.isPending && updateVacancyMutation.variables?.id === row.id;
                   const isDeletingRow = deleteVacancyMutation.isPending && deleteVacancyMutation.variables === row.id;
                   return (
-                    <tr key={row.id} className="border-t border-slate-100 align-top hover:bg-slate-50/60">
-                      <td className="p-3 text-right text-slate-400 text-xs tabular-nums">{i + 1}</td>
+                    <tr key={row.id} className="border-t border-surface-2 align-top hover:bg-surface-2/60">
+                      <td className="p-3 text-right text-ink-dim text-xs tabular-nums">{i + 1}</td>
                       <td className="p-3">
                         <input
                           defaultValue={row.company}
                           onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { company: e.target.value } })}
-                          className="bg-transparent font-semibold w-full outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
+                          className="bg-transparent font-semibold w-full outline-none focus:bg-white focus:ring-1 focus:ring-signal/40 rounded px-1"
                         />
                         <input
                           defaultValue={row.position}
                           onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { position: e.target.value } })}
-                          className="bg-transparent text-slate-500 text-xs w-full outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
+                          className="bg-transparent text-ink-dim text-xs w-full outline-none focus:bg-white focus:ring-1 focus:ring-signal/40 rounded px-1"
                         />
                         <div className="flex items-center gap-1 mt-0.5">
                           <input
@@ -326,7 +326,7 @@ export function Vacancies() {
                             onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { url: e.target.value } })}
                             placeholder="Vacancy link (from any site) → the stack fills in itself…"
                             aria-label={`Vacancy link — ${row.company}`}
-                            className="bg-transparent text-indigo-600 text-[11px] flex-1 min-w-0 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1"
+                            className="bg-transparent text-signal text-[11px] flex-1 min-w-0 outline-none focus:bg-white focus:ring-1 focus:ring-signal/40 rounded px-1"
                           />
                           {row.url && (
                             <a
@@ -334,14 +334,14 @@ export function Vacancies() {
                               target="_blank"
                               rel="noreferrer"
                               title="Open the vacancy"
-                              className="text-indigo-600 text-xs shrink-0"
+                              className="text-signal text-xs shrink-0"
                             >
                               ↗
                             </a>
                           )}
                         </div>
                         {isSavingRow && (
-                          <div className="flex items-center gap-1 text-[11px] text-indigo-500 mt-0.5">
+                          <div className="flex items-center gap-1 text-[11px] text-signal mt-0.5">
                             <Spinner className="h-3 w-3" /> Saving…
                           </div>
                         )}
@@ -349,13 +349,10 @@ export function Vacancies() {
                       <td className="p-3 max-w-[220px]">
                         <div className="flex flex-wrap gap-1">
                           {row.stack.length === 0 ? (
-                            <span className="text-xs text-slate-400">—</span>
+                            <span className="text-xs text-ink-dim">—</span>
                           ) : (
                             row.stack.map((s) => (
-                              <span
-                                key={s}
-                                className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200"
-                              >
+                              <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim border border-grid">
                                 {s}
                               </span>
                             ))
@@ -366,7 +363,7 @@ export function Vacancies() {
                         <select
                           defaultValue={row.fit}
                           onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { fit: e.target.value as Fit } })}
-                          className={`bg-slate-100 border border-slate-200 rounded px-1.5 py-1 text-xs font-medium ${fitText[row.fit]}`}
+                          className={`bg-surface-2 border border-grid rounded px-1.5 py-1 text-xs font-medium ${fitText[row.fit]}`}
                         >
                           <option value="high">High</option>
                           <option value="med">Med</option>
@@ -391,12 +388,12 @@ export function Vacancies() {
                           value={row.applied}
                           onChange={(iso) => updateVacancyMutation.mutate({ id: row.id, patch: { applied: iso } })}
                           aria-label={`Applied date — ${row.company}`}
-                          className="bg-transparent w-24 sm:w-28 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
+                          className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-signal/40 rounded px-1 text-xs"
                         />
                         {daysSinceApplied(row.applied) != null && (
                           <div
                             className={`text-[11px] mt-0.5 ${
-                              isStaleApplication(row.status, daysSinceApplied(row.applied)) ? "text-rose-600 font-medium" : "text-slate-400"
+                              isStaleApplication(row.status, daysSinceApplied(row.applied)) ? "text-rose-600 font-medium" : "text-ink-dim"
                             }`}
                             title={
                               isStaleApplication(row.status, daysSinceApplied(row.applied))
@@ -413,14 +410,14 @@ export function Vacancies() {
                           value={row.next}
                           onChange={(iso) => updateVacancyMutation.mutate({ id: row.id, patch: { next: iso } })}
                           aria-label={`Next step date — ${row.company}`}
-                          className="bg-transparent w-24 sm:w-28 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
+                          className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-signal/40 rounded px-1 text-xs"
                         />
                       </td>
                       <td className="p-3 text-right">
                         <button
                           onClick={() => deleteVacancyMutation.mutate(row.id)}
                           disabled={isDeletingRow}
-                          className="text-slate-400 hover:text-rose-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="text-ink-dim hover:text-rose-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Delete"
                         >
                           {isDeletingRow ? <Spinner className="h-3.5 w-3.5" /> : "✕"}

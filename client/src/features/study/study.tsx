@@ -28,15 +28,15 @@ function DrillSandbox({ drill }: { drill: Drill }) {
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="mt-3 text-sm text-indigo-600 font-medium hover:underline self-start">
+      <button onClick={() => setOpen(true)} className="mt-3 text-sm text-signal font-medium hover:underline self-start">
         🧪 Open sandbox (run code)
       </button>
     );
   }
   return (
-    <div className="mt-3 border border-slate-200 rounded-lg overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border-b border-slate-200">
-        <span className="text-xs font-semibold text-slate-500">🧪 JS Sandbox</span>
+    <div className="mt-3 border border-grid rounded-lg overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-surface-2 border-b border-grid">
+        <span className="text-xs font-semibold text-ink-dim">🧪 JS Sandbox</span>
         <div className="ml-auto flex gap-1">
           <Btn
             size="sm"
@@ -69,10 +69,10 @@ function DrillSandbox({ drill }: { drill: Drill }) {
         onChange={(e) => setCode(e.target.value)}
         spellCheck={false}
         rows={Math.min(16, code.split("\n").length + 1)}
-        className="w-full font-mono text-xs p-3 outline-none resize-y text-slate-800"
+        className="w-full font-mono text-xs p-3 outline-none resize-y text-ink"
       />
       {result && (
-        <div className="border-t border-slate-200 px-3 py-2 text-xs font-mono bg-slate-900 text-slate-100">
+        <div className="border-t border-grid px-3 py-2 text-xs font-mono bg-ink text-surface-2">
           {result.error ? (
             <div className="text-rose-400 whitespace-pre-wrap">⛔ {result.error}</div>
           ) : result.logs.length ? (
@@ -82,9 +82,9 @@ function DrillSandbox({ drill }: { drill: Drill }) {
               </div>
             ))
           ) : (
-            <div className="text-slate-400">Done (no console.log). Time: {result.ms} ms</div>
+            <div className="text-ink-dim">Done (no console.log). Time: {result.ms} ms</div>
           )}
-          {!result.error && result.logs.length > 0 && <div className="text-slate-500 mt-1">⏱ {result.ms} ms</div>}
+          {!result.error && result.logs.length > 0 && <div className="text-ink-dim mt-1">⏱ {result.ms} ms</div>}
         </div>
       )}
     </div>
@@ -217,7 +217,7 @@ export function Study() {
         }
       />
       {mode !== "mock" && (
-        <div className="text-xs text-slate-400 flex gap-4 items-center">
+        <div className="text-xs text-ink-dim flex gap-4 items-center">
           <span>
             ⏱ {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, "0")}
           </span>
@@ -248,9 +248,9 @@ export function Study() {
       {mode === "srs" &&
         (card ? (
           <Card className="min-h-[220px] flex flex-col">
-            <div className="text-xs uppercase tracking-wide text-indigo-600 font-bold">{card.cat}</div>
-            <div className="text-lg font-semibold mt-2 text-slate-800">{card.q}</div>
-            {show && <div className="mt-3 pt-3 border-t border-slate-100 text-slate-700">{card.a}</div>}
+            <div className="text-xs uppercase tracking-wide text-signal font-bold">{card.cat}</div>
+            <div className="text-lg font-semibold mt-2 text-ink">{card.q}</div>
+            {show && <div className="mt-3 pt-3 border-t border-surface-2 text-ink">{card.a}</div>}
             <div className="mt-auto pt-4 flex flex-wrap gap-2">
               {!show ? (
                 <Btn onClick={() => setShow(true)}>👁 Show answer</Btn>
@@ -259,10 +259,10 @@ export function Study() {
                   <Btn variant="ghost" className="!bg-rose-50 !text-rose-700 !border-rose-200" onClick={() => grade(1)}>
                     🔁 Again
                   </Btn>
-                  <Btn variant="ghost" className="!bg-amber-50 !text-amber-700 !border-amber-200" onClick={() => grade(2)}>
+                  <Btn variant="ghost" className="!bg-alert/10 !text-alert !border-alert/30" onClick={() => grade(2)}>
                     😓 Hard
                   </Btn>
-                  <Btn variant="ghost" className="!bg-emerald-50 !text-emerald-700 !border-emerald-200" onClick={() => grade(3)}>
+                  <Btn variant="ghost" className="!bg-signal/10 !text-signal !border-signal/30" onClick={() => grade(3)}>
                     ✅ Good
                   </Btn>
                   <Btn variant="ghost" className="!bg-sky-50 !text-sky-700 !border-sky-200" onClick={() => grade(4)}>
@@ -292,7 +292,7 @@ export function Study() {
                 setI(0);
                 setShow(false);
               }}
-              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700"
+              className="text-sm border border-grid rounded-lg px-3 py-1.5 bg-white text-ink"
             >
               {cats.map((c) => (
                 <option key={c} value={c}>
@@ -307,14 +307,14 @@ export function Study() {
                 setI(0);
                 setShow(false);
               }}
-              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700"
+              className="text-sm border border-grid rounded-lg px-3 py-1.5 bg-white text-ink"
             >
               <option value="all">Any difficulty</option>
               <option value="easy">easy</option>
               <option value="med">medium</option>
               <option value="hard">hard</option>
             </select>
-            <label className="text-sm text-slate-600 flex items-center gap-1.5 cursor-pointer">
+            <label className="text-sm text-ink-dim flex items-center gap-1.5 cursor-pointer">
               <input
                 type="checkbox"
                 checked={onlyUnsolved}
@@ -339,32 +339,29 @@ export function Study() {
                   ✨ More problems for "{genTech}"
                 </Btn>
               )}
-              <span className="text-xs text-slate-400">{plural(filteredDrills.length, "problem")}</span>
+              <span className="text-xs text-ink-dim">{plural(filteredDrills.length, "problem")}</span>
             </div>
           </div>
           {drill ? (
             <Card className="min-h-[220px] flex flex-col">
               <div className="flex items-center gap-2">
-                <span className="text-xs uppercase tracking-wide text-indigo-600 font-bold">{drill.cat}</span>
+                <span className="text-xs uppercase tracking-wide text-signal font-bold">{drill.cat}</span>
                 <Chip>{drill.lvl}</Chip>
                 {drill.generated && <Chip tone="indigo">✨ AI tailored for you</Chip>}
                 {drillProgress[drill.id] === "solved" && (
-                  <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                  <span className="text-xs font-semibold text-signal bg-signal/10 border border-signal/30 rounded-full px-2 py-0.5">
                     ✓ solved
                   </span>
                 )}
-                <span className="text-xs text-slate-400 ml-auto">
+                <span className="text-xs text-ink-dim ml-auto">
                   {drillIdx + 1} / {filteredDrills.length}
                 </span>
               </div>
-              <div className="text-lg font-semibold mt-2 text-slate-800">{drill.q}</div>
+              <div className="text-lg font-semibold mt-2 text-ink">{drill.q}</div>
               {hintsShown > 0 && (
                 <div className="mt-3 space-y-1.5">
                   {hints.slice(0, hintsShown).map((h, idx) => (
-                    <div
-                      key={`${drill.id}-hint-${idx}`}
-                      className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5"
-                    >
+                    <div key={`${drill.id}-hint-${idx}`} className="text-sm text-alert bg-alert/10 border border-alert/30 rounded-lg p-2.5">
                       💡 <b>Hint {idx + 1}:</b> {h}
                     </div>
                   ))}
@@ -372,10 +369,8 @@ export function Study() {
               )}
               {show && (
                 <>
-                  <pre className="mt-3 bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs overflow-auto text-slate-700">
-                    {drill.sol}
-                  </pre>
-                  <div className="text-sm text-slate-500 mt-2">{drill.exp}</div>
+                  <pre className="mt-3 bg-surface-2 border border-grid rounded-lg p-3 text-xs overflow-auto text-ink">{drill.sol}</pre>
+                  <div className="text-sm text-ink-dim mt-2">{drill.exp}</div>
                 </>
               )}
               {RUNNABLE_CATS.has(drill.cat) && <DrillSandbox key={drill.id} drill={drill} />}
@@ -393,7 +388,7 @@ export function Study() {
                 ) : (
                   <Btn
                     variant="ghost"
-                    className="!bg-emerald-50 !text-emerald-700 !border-emerald-200"
+                    className="!bg-signal/10 !text-signal !border-signal/30"
                     onClick={() => setDrillStatusMutation.mutate({ id: drill.id, status: "solved" })}
                   >
                     ✅ Done

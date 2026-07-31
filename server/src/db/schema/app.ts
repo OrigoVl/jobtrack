@@ -1,7 +1,20 @@
 // Postgres schema (Drizzle) for JobTrack's own domain tables. Multi-tenant from day one:
 // every table carries `userId`, a real FK to better-auth's `user` table (schema/auth.ts) with
 // ON DELETE CASCADE — deleting a user's account cleanly removes all of their data.
-import { pgTable, integer, text, jsonb, date, timestamp, real, index, uniqueIndex, primaryKey, foreignKey } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  integer,
+  text,
+  jsonb,
+  date,
+  timestamp,
+  real,
+  boolean,
+  index,
+  uniqueIndex,
+  primaryKey,
+  foreignKey,
+} from "drizzle-orm/pg-core";
 import { user } from "./auth.js";
 
 const userIdCol = () =>
@@ -54,10 +67,44 @@ export const companies = pgTable(
     notes: text().notNull().default(""),
     questions: jsonb().$type<string[]>().notNull().default([]),
   },
-  // The upsert in companies.routes.ts does ON CONFLICT(name) today; under multi-tenancy that
-  // must become ON CONFLICT (user_id, name), or one user's upsert silently overwrites another
-  // user's company row with the same name.
-  (t) => [uniqueIndex("companies_user_name_key").on(t.userId, t.name)],
+  (t) => [
+    // The upsert in companies.routes.ts does ON CONFLICT(name) today; under multi-tenancy that
+    // must become ON CONFLICT (user_id, name), or one user's upsert silently overwrites another
+    // user's company row with the same name.
+    uniqueIndex("companies_user_name_key").on(t.userId, t.name),
+    // FK target for contacts' composite FK below (Phase 9) — same "vacancies_user_id_key" trick.
+    uniqueIndex("companies_user_id_key").on(t.userId, t.id),
+  ],
+);
+
+// Networking/contact tracker (Phase 9) — deliberately its own table rather than piggybacking on
+// `companies` (a contact is a person, a company is an org; a contact optionally BELONGS to one).
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: integer().primaryKey().generatedByDefaultAsIdentity(),
+    userId: userIdCol(),
+    name: text().notNull().default(""),
+    role: text(),
+    // Optional link to a tracked company. Nullable — plenty of networking contacts (a recruiter
+    // reached on LinkedIn, a conference acquaintance) aren't tied to any company row yet. Same
+    // composite-FK trick as vacancy_status_history/calendar_events above: MATCH SIMPLE means the
+    // constraint is only checked when companyId is non-null, so a contact can never end up
+    // pointing at ANOTHER user's company, while an unlinked contact is unaffected.
+    companyId: integer("company_id"),
+    email: text(),
+    linkedinUrl: text("linkedin_url"),
+    notes: text().notNull().default(""),
+    lastContactAt: date("last_contact_at", { mode: "string" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({ columns: [t.userId, t.companyId], foreignColumns: [companies.userId, companies.id] }).onDelete("cascade"),
+    // FK target for calendar_events' composite FK below.
+    uniqueIndex("contacts_user_id_key").on(t.userId, t.id),
+    // Covers the list view (`ORDER BY name`, scoped to one user).
+    index("contacts_user_name_idx").on(t.userId, t.name),
+  ],
 );
 
 export const srs = pgTable(
@@ -140,4 +187,90 @@ export const vacancyStatusHistory = pgTable(
     // Covers "count of vacancies that ever reached status X" (getReachedCounts).
     index("vsh_user_status_idx").on(t.userId, t.status),
   ],
+);
+
+// Manual calendar entries (interviews/calls/deadlines/reminders) for the unified Calendar
+// feature — see modules/calendar/. Read-only calendar items surfaced from elsewhere (a
+// vacancy's `next` date, SRS due-cards) are NOT stored here; they're derived on the fly by
+// calendar.service.ts from the vacancies/srs tables, so there's exactly one source of truth for
+// each of those dates.
+export const calendarEvents = pgTable(
+  "calendar_events",
+  {
+    id: integer().primaryKey().generatedByDefaultAsIdentity(),
+    userId: userIdCol(),
+    title: text().notNull().default(""),
+    notes: text().notNull().default(""),
+    // mode:"string" (like srs.lastReview above) — the API/client deal in ISO strings directly,
+    // no need to round-trip through a JS Date for a value that's only ever displayed/compared.
+    startAt: timestamp("start_at", { withTimezone: true, mode: "string" }).notNull(),
+    endAt: timestamp("end_at", { withTimezone: true, mode: "string" }),
+    // "interview" | "call" | "deadline" | "reminder" | "other" — validated in shared/validation.ts,
+    // not a Postgres enum (matches this codebase's existing preference for text + app-level
+    // validation over DB enums, e.g. vacancies.status/fit above).
+    type: text().notNull().default("other"),
+    // Optional link to a tracked vacancy (e.g. "on-site interview for this vacancy"). Nullable —
+    // a plain personal reminder has no vacancy at all. The composite FK below (not just a plain
+    // `references(() => vacancies.id)`) is what makes it structurally impossible for a manual
+    // event to end up pointing at ANOTHER user's vacancy, the same guarantee
+    // vacancy_status_history relies on above. Postgres's default MATCH SIMPLE means the FK is
+    // only checked when vacancyId is non-null (a NULL vacancyId always satisfies it), so an
+    // unlinked event is unaffected. ON DELETE CASCADE (not SET NULL): a composite FK's "SET NULL"
+    // would null out every referencing column, including the NOT NULL userId — deleting the
+    // linked vacancy removes the calendar entry with it instead, mirroring how deleting a vacancy
+    // already removes its status history.
+    vacancyId: integer("vacancy_id"),
+    // Same optional-link/composite-FK story as vacancyId above, but to the Phase 9 `contacts`
+    // table (e.g. "coffee chat with this contact") — added alongside contacts itself since it's
+    // a single column + one more composite FK, not a structural change to this migration.
+    contactId: integer("contact_id"),
+  },
+  (t) => [
+    foreignKey({ columns: [t.userId, t.vacancyId], foreignColumns: [vacancies.userId, vacancies.id] }).onDelete("cascade"),
+    foreignKey({ columns: [t.userId, t.contactId], foreignColumns: [contacts.userId, contacts.id] }).onDelete("cascade"),
+    // Covers the month-grid "events overlapping this date range, for this user" query.
+    index("calendar_events_user_start_idx").on(t.userId, t.startAt),
+  ],
+);
+
+// Job alerts (Phase 9) — a saved query+region the scheduler (modules/saved-searches/
+// saved-searches.scheduler.ts) periodically re-runs against the same aggregators /jobs/search
+// already uses, diffing against `lastSeenUrls` to email only newly-appeared postings.
+export const savedSearches = pgTable(
+  "saved_searches",
+  {
+    id: integer().primaryKey().generatedByDefaultAsIdentity(),
+    userId: userIdCol(),
+    query: text().notNull().default(""),
+    region: text().notNull().default("all"),
+    label: text(),
+    // URLs already seen for this saved search, as of the last scheduler run — a plain jsonb
+    // array (not a separate table): bounded in size (capped at a few hundred by the scheduler
+    // before writing back) and only ever read/written as a whole by the one background job that
+    // owns it, so a relational child table would add join overhead for no real benefit here.
+    lastSeenUrls: jsonb("last_seen_urls").$type<string[]>().notNull().default([]),
+    lastNotifiedAt: timestamp("last_notified_at", { withTimezone: true, mode: "string" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Covers the list view (scoped to one user) and the scheduler's full-table scan (see
+    // saved-searches.repo.ts#listAllSavedSearches — deliberately unscoped, the one legitimate
+    // "all users" query in this module, used only by the background job, never a route).
+    index("saved_searches_user_id_idx").on(t.userId, t.id),
+  ],
+);
+
+// Shareable public CV link (Phase 9) — GET /api/cv/public/:slug (no authed()) looks up the slug
+// here and, if enabled, serves ONLY that user's `cvDoc` (user_kv) — see modules/cv-shares/.
+// One row per user (unique on userId): "generate" upserts a fresh random slug rather than
+// accumulating old ones, so a previously-shared link stops working the moment a new one is made.
+export const cvShares = pgTable(
+  "cv_shares",
+  {
+    slug: text().primaryKey(),
+    userId: userIdCol(),
+    enabled: boolean().notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("cv_shares_user_id_key").on(t.userId)],
 );

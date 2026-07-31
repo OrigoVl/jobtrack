@@ -25,20 +25,20 @@ export function Projects() {
           return (
             <Card key={p.id} className="flex flex-col">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-slate-900 text-lg">{p.name}</span>
+                <span className="font-bold text-ink text-lg">{p.name}</span>
                 <Chip tone="indigo">{p.phase}</Chip>
               </div>
-              <div className="text-xs text-slate-500">{p.subtitle}</div>
+              <div className="text-xs text-ink-dim">{p.subtitle}</div>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {p.tech.map((t) => (
-                  <span key={t} className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                  <span key={t} className="text-[11px] px-2 py-0.5 rounded-md bg-surface-2 text-ink-dim">
                     {t}
                   </span>
                 ))}
               </div>
-              <p className="text-sm text-slate-600 mt-3">{p.goal}</p>
+              <p className="text-sm text-ink-dim mt-3">{p.goal}</p>
               <div className="mt-3">
-                <div className="flex justify-between text-xs text-slate-500 mb-1">
+                <div className="flex justify-between text-xs text-ink-dim mb-1">
                   <span>Definition of Done</span>
                   <span>
                     {done} / {p.dod.length}
@@ -56,7 +56,7 @@ export function Projects() {
                         checked={!!projects.progress[d.id]}
                         onChange={(e) => setProjectItemMutation.mutate({ itemId: d.id, done: e.target.checked })}
                       />
-                      <span className={projects.progress[d.id] ? "line-through text-slate-400" : "text-slate-700"}>{d.text}</span>
+                      <span className={projects.progress[d.id] ? "line-through text-ink-dim" : "text-ink"}>{d.text}</span>
                     </label>
                   </li>
                 ))}

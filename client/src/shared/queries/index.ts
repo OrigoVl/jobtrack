@@ -10,3 +10,8 @@ export * from "./projects";
 export * from "./plan21";
 export * from "./companies";
 export * from "./admin";
+export * from "./calendar";
+export * from "./saved-searches";
+export * from "./contacts";
+export * from "./cv-share";
+export * from "./linkedin";
