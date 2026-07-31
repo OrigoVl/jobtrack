@@ -43,7 +43,7 @@ async function isReachableUrl(rawUrl: string): Promise<boolean> {
     const res = await fetch(url.toString(), {
       method: "GET",
       redirect: "follow",
-      headers: { "user-agent": "Mozilla/5.0 (JobTrack)" },
+      headers: { "user-agent": "Mozilla/5.0 (DevRadar)" },
       signal: ac.signal,
     });
     return res.status < 400;

@@ -1,4 +1,4 @@
-// Postgres schema (Drizzle) for JobTrack's own domain tables. Multi-tenant from day one:
+// Postgres schema (Drizzle) for DevRadar's own domain tables. Multi-tenant from day one:
 // every table carries `userId`, a real FK to better-auth's `user` table (schema/auth.ts) with
 // ON DELETE CASCADE — deleting a user's account cleanly removes all of their data.
 import {

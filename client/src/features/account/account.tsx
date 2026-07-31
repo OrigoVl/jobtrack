@@ -26,7 +26,7 @@ export function Account() {
       <Card>
         <div className="text-sm font-semibold text-ink">Export your data</div>
         <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">
-          Downloads a JSON file with your profile, vacancies, companies, and study progress — everything you've created in JobTrack.
+          Downloads a JSON file with your profile, vacancies, companies, and study progress — everything you've created in DevRadar.
         </p>
         {/* A plain download link, not a fetch()+blob dance — the server already sets
             Content-Disposition: attachment, so a direct navigation triggers the browser's

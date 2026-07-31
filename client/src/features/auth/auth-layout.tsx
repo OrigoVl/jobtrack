@@ -7,7 +7,7 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
           <div className="font-extrabold text-2xl tracking-tight bg-gradient-to-r from-signal to-signal bg-clip-text text-transparent">
-            🚀 JobTrack
+            📡 DevRadar
           </div>
         </div>
         <div className="rounded-2xl bg-white border border-grid shadow-card p-6">

@@ -1,4 +1,4 @@
-// Self-service data export ("what does JobTrack know about me") — the part of Phase 7's backup
+// Self-service data export ("what does DevRadar know about me") — the part of Phase 7's backup
 // story that Railway's own Postgres backups don't cover: a per-user, portable copy the user can
 // download themselves. Deliberately excludes llm_usage/product_events: those are operational
 // telemetry ABOUT the user's usage (cost, timing), not content they created — the same

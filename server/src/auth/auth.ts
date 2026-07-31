@@ -35,7 +35,7 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       await sendEmail({
         to: user.email,
-        subject: "Reset your JobTrack password",
+        subject: "Reset your DevRadar password",
         html: `<p>Click the link below to reset your password:</p><p><a href="${url}">${url}</a></p><p>If you didn't request this, you can ignore this email.</p>`,
       });
     },
@@ -47,7 +47,7 @@ export const auth = betterAuth({
     sendVerificationEmail: async ({ user, url }) => {
       await sendEmail({
         to: user.email,
-        subject: "Verify your JobTrack email",
+        subject: "Verify your DevRadar email",
         html: `<p>Click the link below to verify your email and finish creating your account:</p><p><a href="${url}">${url}</a></p>`,
       });
     },
@@ -70,7 +70,7 @@ export const auth = betterAuth({
       sendDeleteAccountVerification: async ({ user, url }) => {
         await sendEmail({
           to: user.email,
-          subject: "Confirm deleting your JobTrack account",
+          subject: "Confirm deleting your DevRadar account",
           html:
             `<p>Click the link below to permanently delete your account and all of its data (vacancies, CV, progress). This cannot be undone.</p>` +
             `<p><a href="${url}">${url}</a></p>` +

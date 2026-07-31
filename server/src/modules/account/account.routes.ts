@@ -9,7 +9,7 @@ r.get(
   "/account/export",
   authed(async (userId, _req, res) => {
     const data = await exportAccountData(userId);
-    res.setHeader("Content-Disposition", 'attachment; filename="jobtrack-export.json"');
+    res.setHeader("Content-Disposition", 'attachment; filename="devradar-export.json"');
     res.json(data);
   }),
 );

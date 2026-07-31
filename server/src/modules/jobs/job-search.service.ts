@@ -15,7 +15,7 @@ async function fetchRemote(url: string, ms = 8000): Promise<Response | null> {
   const ac = new AbortController();
   const to = setTimeout(() => ac.abort(), ms);
   try {
-    const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (JobTrack)" }, signal: ac.signal });
+    const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (DevRadar)" }, signal: ac.signal });
     // Used to silently return null on any non-2xx response — if an aggregator (Remotive/
     // Arbeitnow/DOU) changes its schema, starts blocking, or goes down, /jobs/search would
     // just silently return fewer results (or offline:true), with NO log to dig into.

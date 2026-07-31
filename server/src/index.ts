@@ -39,7 +39,7 @@ process.on("uncaughtException", (err) => {
 // auth/auth.ts's `databaseHooks.user.create.after` instead — see db/bootstrap.ts's top comment.
 
 const server = app.listen(env.port, () =>
-  logger.info(`✅ JobTrack API on http://localhost:${env.port} (LLM: ${env.llm.isAvailable ? "on" : "off — offline mode"})`),
+  logger.info(`✅ DevRadar API on http://localhost:${env.port} (LLM: ${env.llm.isAvailable ? "on" : "off — offline mode"})`),
 );
 
 // Job alerts (Phase 9) — a single in-process interval, not a queue/worker system (see

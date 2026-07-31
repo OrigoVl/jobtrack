@@ -1,4 +1,4 @@
-# JobTrack — a dynamic job-search tracker (React + Node + Postgres + AI)
+# DevRadar — a dynamic job-search tracker (React + Node + Postgres + AI)
 
 A full-featured, lightweight full-stack app: **analyzes job postings and CVs, surfaces skill gaps and market demand, drills you for interviews, and helps with your resume/cover letters.** Stack: **React + TypeScript + Node.js + Postgres/Drizzle (+ optional LLM)**.
 

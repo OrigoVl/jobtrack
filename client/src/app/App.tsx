@@ -118,7 +118,7 @@ function AiBadge() {
 }
 
 function Brand() {
-  return <div className="font-display text-lg font-bold tracking-tight text-signal">🚀 JobTrack</div>;
+  return <div className="font-display text-lg font-bold tracking-tight text-signal">📡 DevRadar</div>;
 }
 
 function SidebarProgress() {

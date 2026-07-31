@@ -80,7 +80,7 @@ const RawEnvSchema = z
     // no email provider at all. EMAIL_FROM defaults to Resend's shared sandbox sender, which
     // only delivers to the Resend account's own verified email until a custom domain is set up.
     RESEND_API_KEY: z.string().trim().min(1).optional(),
-    EMAIL_FROM: z.string().trim().min(1).default("JobTrack <onboarding@resend.dev>"),
+    EMAIL_FROM: z.string().trim().min(1).default("DevRadar <onboarding@resend.dev>"),
     // Google OAuth (optional) — both or neither (enforced below); absent → the client hides the
     // "Continue with Google" button and only email+password is offered.
     GOOGLE_CLIENT_ID: z.string().trim().min(1).optional(),
