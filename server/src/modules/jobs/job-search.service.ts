@@ -1,6 +1,6 @@
 // Job search across external aggregators (Remotive, Arbeitnow, DOU) — no API keys needed.
 import { contextLogger } from "../../core/logger.js";
-import { normalizeTag } from "../../shared/tag-format.js";
+import { normalizeTags } from "../../shared/tag-format.js";
 
 export interface RawJob {
   company: string;
@@ -68,7 +68,7 @@ export async function fetchRemotive(query: string): Promise<RawJob[]> {
     position: j.title || "—",
     url: j.url || "",
     location: j.candidate_required_location || "Remote",
-    tags: Array.isArray(j.tags) ? (j.tags.slice(0, 10) as string[]).map(normalizeTag) : [],
+    tags: Array.isArray(j.tags) ? normalizeTags((j.tags as string[]).slice(0, 10)) : [],
     source: "Remotive",
   }));
 }
@@ -97,7 +97,7 @@ export async function fetchArbeitnow(query: string): Promise<RawJob[]> {
       position: j.title || "—",
       url: j.url || "",
       location: j.location || (j.remote ? "Remote" : "—"),
-      tags: Array.isArray(j.tags) ? (j.tags.slice(0, 10) as string[]).map(normalizeTag) : [],
+      tags: Array.isArray(j.tags) ? normalizeTags((j.tags as string[]).slice(0, 10)) : [],
       source: "Arbeitnow",
     }))
     .filter(

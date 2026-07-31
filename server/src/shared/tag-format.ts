@@ -60,3 +60,21 @@ export function normalizeTag(tag: string): string {
   }
   return titleCase(raw);
 }
+
+/** Normalizes a whole tag list and deduplicates it case-insensitively, keeping the first
+ * occurrence's position. Several distinct raw tags can normalize to the same canonical name
+ * (e.g. "html" and "css" both resolve to "HTML/CSS" via TECHS' combined regex) — without this,
+ * normalizeTag() alone would surface visible duplicate chips on a single job card. */
+export function normalizeTags(tags: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of tags) {
+    const normalized = normalizeTag(raw);
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+  }
+  return out;
+}

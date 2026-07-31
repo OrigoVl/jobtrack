@@ -11,6 +11,7 @@ import {
 import { api } from "../../shared/api";
 import { useToast } from "../../shared/use-toast";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Spinner } from "../../shared/ui";
+import { DateInput } from "../../shared/date-input";
 import { plural } from "../../shared/format";
 import { STATUSES, type Fit, type Vacancy, type VacancyStatus } from "../../shared/types";
 import { fitTone, fitText } from "../../shared/fit-tone";
@@ -386,16 +387,11 @@ export function Vacancies() {
                         </select>
                       </td>
                       <td className="p-3">
-                        <input
-                          type="date"
-                          // Browsers render native date inputs in the OS/browser locale, not the
-                          // page's <html lang>, so a non-English OS shows dd.mm.yyyy even in this
-                          // English-only UI. lang="en-US" pins THIS input's own rendering locale.
-                          lang="en-US"
-                          defaultValue={row.applied}
-                          onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { applied: e.target.value } })}
+                        <DateInput
+                          value={row.applied}
+                          onChange={(iso) => updateVacancyMutation.mutate({ id: row.id, patch: { applied: iso } })}
                           aria-label={`Applied date — ${row.company}`}
-                          className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
+                          className="bg-transparent w-24 sm:w-28 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
                         />
                         {daysSinceApplied(row.applied) != null && (
                           <div
@@ -413,13 +409,11 @@ export function Vacancies() {
                         )}
                       </td>
                       <td className="p-3">
-                        <input
-                          type="date"
-                          lang="en-US"
-                          defaultValue={row.next}
-                          onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { next: e.target.value } })}
+                        <DateInput
+                          value={row.next}
+                          onChange={(iso) => updateVacancyMutation.mutate({ id: row.id, patch: { next: iso } })}
                           aria-label={`Next step date — ${row.company}`}
-                          className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
+                          className="bg-transparent w-24 sm:w-28 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-300 rounded px-1 text-xs"
                         />
                       </td>
                       <td className="p-3 text-right">

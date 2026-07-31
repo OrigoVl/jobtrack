@@ -8,6 +8,7 @@ import { CardsSkeleton, ProgressBar, Btn } from "../shared/ui";
 import { ErrorBoundary } from "../shared/error-boundary";
 import { useSession, signOut } from "../shared/auth-client";
 import { CommandPalette } from "./command-palette";
+import { NotFound } from "./not-found";
 
 const Login = lazy(() => import("../features/auth/login").then((m) => ({ default: m.Login })));
 const Register = lazy(() => import("../features/auth/register").then((m) => ({ default: m.Register })));
@@ -283,6 +284,9 @@ function Shell() {
                 <Route path="/resources" element={<Resources />} />
                 <Route path="/cv" element={<CVWrapper />} />
                 <Route path="/cvbuilder" element={<CvBuilderWrapper />} />
+                {/* The sidebar link is "/cvbuilder" (no hyphen), but "/cv-builder" is the more
+                    guessable/typed spelling — redirect it instead of 404ing on a reasonable guess. */}
+                <Route path="/cv-builder" element={<Navigate to="/cvbuilder" replace />} />
                 <Route path="/account" element={<Account />} />
                 <Route
                   path="/admin"
@@ -292,7 +296,7 @@ function Shell() {
                     </AdminGate>
                   }
                 />
-                <Route path="*" element={<Navigate to={DEFAULT_PATH} replace />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
           </ErrorBoundary>

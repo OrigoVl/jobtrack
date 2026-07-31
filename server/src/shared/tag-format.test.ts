@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeTag } from "./tag-format.js";
+import { normalizeTag, normalizeTags } from "./tag-format.js";
 
 describe("normalizeTag", () => {
   it("resolves a known technology to its canonical TECHS casing", () => {
@@ -30,5 +30,25 @@ describe("normalizeTag", () => {
 
   it("passes through empty input", () => {
     expect(normalizeTag("")).toBe("");
+  });
+});
+
+describe("normalizeTags", () => {
+  it("collapses distinct raw tags that normalize to the same canonical name", () => {
+    // "html" and "css" both resolve to the combined "HTML/CSS" TECHS entry — without dedup
+    // this would surface as a visibly duplicated chip on the same job card.
+    expect(normalizeTags(["html", "css"])).toEqual(["HTML/CSS"]);
+  });
+
+  it("dedupes case-insensitively while keeping the first occurrence's position", () => {
+    expect(normalizeTags(["React", "frontend", "REACT", "Frontend"])).toEqual(["React", "Frontend"]);
+  });
+
+  it("leaves an already-unique tag list untouched", () => {
+    expect(normalizeTags(["react", "node", "excel"])).toEqual(["React", "Node.js", "Excel"]);
+  });
+
+  it("returns an empty array for empty input", () => {
+    expect(normalizeTags([])).toEqual([]);
   });
 });
