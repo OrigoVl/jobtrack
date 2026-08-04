@@ -159,9 +159,14 @@ export function CvMatchPanel({
   const tone = match.score >= 75 ? "bg-signal" : match.score >= 50 ? "bg-alert" : "bg-rose-500";
   return (
     <Card className="space-y-3">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <span className="font-semibold text-ink">{t("reports.match.title")}</span>
         {match.offline && <Chip>{t("shared.offline")}</Chip>}
+        {match.semanticFit != null && (
+          <Chip tone={match.semanticFit >= 0.75 ? "emerald" : match.semanticFit >= 0.5 ? "amber" : "rose"}>
+            {t("reports.match.semanticFit", { percent: Math.round(match.semanticFit * 100) })}
+          </Chip>
+        )}
         <span className="ml-auto text-2xl font-extrabold text-ink">
           {match.score}
           <span className="text-xs text-ink-dim">{t("reports.per100")}</span>

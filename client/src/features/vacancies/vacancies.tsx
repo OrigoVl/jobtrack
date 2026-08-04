@@ -18,6 +18,7 @@ import { fitText, fitLabel } from "../../shared/fit-tone";
 import { statusLabel } from "../../shared/status-labels";
 import { STATUS_SELECT_CLASS, DEFAULT_STATUS_SELECT_CLASS } from "../../shared/status-tone";
 import { VacancyBoard } from "./kanban-board";
+import { SimilarVacanciesButton } from "./similar-vacancies-button";
 
 /** Triggers a browser download of a JSON file with the given data (for exporting vacancies). */
 function downloadJson(filename: string, data: unknown): void {
@@ -223,6 +224,7 @@ export function Vacancies() {
                               ↗
                             </a>
                           )}
+                          <SimilarVacanciesButton vacancyId={row.id} />
                         </div>
                         {isSavingRow && (
                           <div className="flex items-center gap-1 text-[11px] text-signal mt-0.5">

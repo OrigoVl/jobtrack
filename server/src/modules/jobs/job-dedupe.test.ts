@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dedupeBySimhash, hammingDistance, simhash } from "./job-dedupe.js";
+import { dedupeBySimhash, findSimhashDuplicate, hammingDistance, simhash } from "./job-dedupe.js";
 
 describe("simhash() + hammingDistance()", () => {
   it("gives identical text a Hamming distance of 0 from itself", () => {
@@ -50,5 +50,25 @@ describe("dedupeBySimhash()", () => {
 
   it("returns an empty array for an empty input without throwing", () => {
     expect(dedupeBySimhash([])).toEqual([]);
+  });
+});
+
+describe("findSimhashDuplicate()", () => {
+  it("finds a near-duplicate of an already-tracked vacancy, reworded slightly", () => {
+    const existing = [
+      { id: 1, company: "Acme Corp", position: "Senior React Developer" },
+      { id: 2, company: "Acme Corp", position: "DevOps Engineer" },
+    ];
+    const match = findSimhashDuplicate({ company: "Acme Corp", position: "Senior React Developer (remote)" }, existing);
+    expect(match?.id).toBe(1);
+  });
+
+  it("returns undefined when nothing tracked is actually similar", () => {
+    const existing = [{ id: 1, company: "Acme Corp", position: "Senior React Developer" }];
+    expect(findSimhashDuplicate({ company: "Globex Inc", position: "QA Automation Engineer" }, existing)).toBeUndefined();
+  });
+
+  it("returns undefined for an empty existing list", () => {
+    expect(findSimhashDuplicate({ company: "Acme Corp", position: "Senior React Developer" }, [])).toBeUndefined();
   });
 });

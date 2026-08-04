@@ -288,6 +288,7 @@
     },
     "match": {
       "title": "🎯 Vacancy match",
+      "semanticFit": "🧠 Semantic similarity: {{percent}}%",
       "covered": "✓ Already covered",
       "missingTitle": "△ Missing for this vacancy",
       "whatToDo": "💡 What to do for this vacancy",

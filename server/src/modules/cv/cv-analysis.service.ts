@@ -6,6 +6,7 @@ import type { UserId } from "../../db/user-id.js";
 import { extractTechs } from "../../shared/tech-dict.js";
 import { chat, chatJson, llmAvailable } from "../../llm/index.js";
 import { demandMap } from "../../shared/demand.js";
+import { semanticSimilarity } from "../../llm/embeddings.js";
 
 export const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 export const strs = (v: unknown): string[] => arr(v).filter((x): x is string => typeof x === "string");
@@ -183,15 +184,30 @@ export interface CvMatch {
   missing: string[];
   suggestions: { title: string; fix: string }[];
   tailoredSummary: string;
+  /** Cosine similarity (embeddings, llm/embeddings.ts) between the CV and vacancy text, roughly
+   * in [0,1] — null when embeddings are unavailable (offline, or a non-OpenAI provider). Shown
+   * as its own signal (same convention as vacancies/analyze's `semanticFit` chip,
+   * features/analyzer/analyzer.tsx) rather than silently folded into a single number, since it
+   * catches genuinely different things than keyword/LLM matching (semantic closeness without a
+   * shared term) and a user comparing the two should be able to tell them apart. */
+  semanticFit: number | null;
 }
-function heuristicMatch(cvText: string, jobText: string, reason: FallbackReason = "no-key"): CvMatch {
+/** `semanticFit` is computed by the caller (matchCv) once, in parallel with the keyword-overlap
+ * work here, and blended into `score` — the offline heuristic used to be PURE keyword overlap,
+ * missing genuinely relevant experience phrased differently from the vacancy text (e.g. "built
+ * a REST API on Node.js" vs. "backend developer, scalable services", no shared tokens). Blended,
+ * not replaced: keyword overlap still catches concrete, named-tech matches semanticFit can't
+ * (embeddings are English-and-tone-sensitive; "React" the token is unambiguous either way). */
+function heuristicMatch(cvText: string, jobText: string, semanticFit: number | null, reason: FallbackReason = "no-key"): CvMatch {
   const cv = new Set(tokenizeSkills(cvText));
   const jobTokens = tokenizeSkills(jobText);
   const matched = jobTokens.filter((t) => cv.has(t));
   const missing = jobTokens.filter((t) => !cv.has(t));
-  const score = jobTokens.length ? Math.round((matched.length / jobTokens.length) * 100) : 0;
+  const tokenScore = jobTokens.length ? (matched.length / jobTokens.length) * 100 : 0;
+  const score = Math.round(semanticFit != null ? tokenScore * 0.6 + semanticFit * 100 * 0.4 : tokenScore);
   return {
     score,
+    semanticFit,
     verdict:
       reason === "no-key"
         ? "Basic offline keyword-based comparison. Enable the LLM for a precise gap analysis."
@@ -205,24 +221,32 @@ function heuristicMatch(cvText: string, jobText: string, reason: FallbackReason 
 
 export async function matchCv(userId: UserId, cvText: string, jobTitle: string, jobText: string): Promise<CvMatch & { offline: boolean }> {
   const combined = `${jobTitle}\n${jobText}`;
-  if (!llmAvailable()) return { offline: true, ...heuristicMatch(cvText, combined) };
+  // Computed unconditionally (independent of the LLM chat call below — a separate API, a separate
+  // failure mode) and attached to whichever path returns, so semanticFit is always present in the
+  // response shape rather than only on the offline path. embeddingsAvailable() gates this to a
+  // no-op (semanticFit stays null) when there's no OpenAI key — never blocks/slows the request.
+  const semanticFitPromise = semanticSimilarity(userId, cvText, combined, "cv-match");
+  if (!llmAvailable()) return { offline: true, ...heuristicMatch(cvText, combined, await semanticFitPromise) };
   // Same reasoning as reviewCv above — this is gap-analysis FEEDBACK shown to the user, so it
   // follows the app's UI locale (outputLocale: "app" below), not the resume's own language.
-  const out = await chatJson(
-    userId,
-    "You are a technical recruiter. You compare a candidate's resume against the requirements of a SPECIFIC vacancy and give a targeted gap analysis. Respond with ONLY valid JSON. Don't invent experience that isn't in the resume.",
-    `Vacancy: ${jobTitle}\nRequirements/description/stack:\n${jobText}\n\nCandidate's resume:\n${cvText}\n\n` +
-      `Return JSON strictly: {"score":<0-100 how well the CV fits this vacancy>,` +
-      `"verdict":"1-2 sentence verdict",` +
-      `"matched":["requirements/skills the candidate already covers"],` +
-      `"missing":["what's missing specifically for this vacancy (skills/keywords)"],` +
-      `"suggestions":[{"title":"what to do","fix":"a concrete action for this vacancy"}],` +
-      `"tailoredSummary":"a summary tailored to this vacancy, 2-3 sentences, based only on the candidate's real experience"}`,
-    CvMatchSchema,
-    // maxTokens 1800 (not 1000) — the same risk of generation being cut off as in reviewCv above.
-    { maxTokens: 1800, temperature: 0.4, cache: true, tier: "smart", feature: "cv-match", outputLocale: "app" },
-  );
+  const [out, semanticFit] = await Promise.all([
+    chatJson(
+      userId,
+      "You are a technical recruiter. You compare a candidate's resume against the requirements of a SPECIFIC vacancy and give a targeted gap analysis. Respond with ONLY valid JSON. Don't invent experience that isn't in the resume.",
+      `Vacancy: ${jobTitle}\nRequirements/description/stack:\n${jobText}\n\nCandidate's resume:\n${cvText}\n\n` +
+        `Return JSON strictly: {"score":<0-100 how well the CV fits this vacancy>,` +
+        `"verdict":"1-2 sentence verdict",` +
+        `"matched":["requirements/skills the candidate already covers"],` +
+        `"missing":["what's missing specifically for this vacancy (skills/keywords)"],` +
+        `"suggestions":[{"title":"what to do","fix":"a concrete action for this vacancy"}],` +
+        `"tailoredSummary":"a summary tailored to this vacancy, 2-3 sentences, based only on the candidate's real experience"}`,
+      CvMatchSchema,
+      // maxTokens 1800 (not 1000) — the same risk of generation being cut off as in reviewCv above.
+      { maxTokens: 1800, temperature: 0.4, cache: true, tier: "smart", feature: "cv-match", outputLocale: "app" },
+    ),
+    semanticFitPromise,
+  ]);
   // Same fix as in reviewCv above: this is the offline heuristic, not an LLM result.
-  if (!out) return { offline: true, ...heuristicMatch(cvText, combined, "llm-failed") };
-  return { offline: false, ...out, score: Math.max(0, Math.min(100, Math.round(out.score))) };
+  if (!out) return { offline: true, ...heuristicMatch(cvText, combined, semanticFit, "llm-failed") };
+  return { offline: false, ...out, semanticFit, score: Math.max(0, Math.min(100, Math.round(out.score))) };
 }

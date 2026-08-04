@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Btn } from "../../shared/ui";
-import { AuthLayout, AuthError, authInputClass } from "./auth-layout";
+import { AuthLayout, AuthError } from "./auth-layout";
+import { PasswordInput } from "./password-input";
 import { resetPassword } from "../../shared/auth-client";
 
 export function ResetPassword() {
@@ -41,14 +42,12 @@ export function ResetPassword() {
     <AuthLayout title={t("resetPassword.title")}>
       <form onSubmit={onSubmit} className="space-y-3">
         {error && <AuthError message={error} />}
-        <input
-          type="password"
+        <PasswordInput
           required
           minLength={8}
           placeholder={t("resetPassword.passwordPlaceholder")}
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className={authInputClass}
+          onChange={setPassword}
         />
         <Btn type="submit" loading={loading} className="w-full">
           {t("resetPassword.submit")}

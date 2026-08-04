@@ -30,6 +30,12 @@ export interface Vacancy {
   created?: string;
 }
 
+/** GET /vacancies/:id/similar — see server/src/modules/vacancies/vacancies.repo.ts#findSimilarVacancies. */
+export interface SimilarVacancy extends Vacancy {
+  /** Cosine similarity to the reference vacancy's embedding, roughly in [0,1]. */
+  similarity: number;
+}
+
 export interface Profile {
   skills: string[];
   cvText: string;
@@ -286,6 +292,7 @@ export interface CvMatch {
   missing: string[];
   suggestions: { title: string; fix: string }[];
   tailoredSummary: string;
+  semanticFit: number | null;
 }
 
 export interface CvExperience {

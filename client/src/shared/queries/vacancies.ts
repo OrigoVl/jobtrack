@@ -11,6 +11,17 @@ export function useVacancies() {
   return useQuery({ queryKey: queryKeys.vacancies, queryFn: api.vacancies });
 }
 
+/** Lazy by design (`enabled`) — GET /vacancies/:id/similar is only fetched once a user actually
+ * opens a given vacancy's "similar" popover (see SimilarVacanciesButton), not eagerly for every
+ * row in the list (which would fire one request per row on every page load for no reason). */
+export function useSimilarVacancies(vacancyId: number, enabled: boolean) {
+  return useQuery({
+    queryKey: [...queryKeys.similarVacancies, vacancyId],
+    queryFn: () => api.similarVacancies(vacancyId),
+    enabled,
+  });
+}
+
 export function useAddVacancy() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -19,10 +30,17 @@ export function useAddVacancy() {
   const invalidateDerived = useInvalidateDerived();
   return useMutation({
     mutationFn: (v: Partial<Vacancy>) => api.addVacancy(v),
-    onSuccess: async (row) => {
+    onSuccess: async ({ possibleDuplicateOf, ...row }) => {
       qc.setQueryData<Vacancy[]>(queryKeys.vacancies, (cur) => [row, ...(cur ?? [])]);
       await invalidateDerived();
-      toast(t("toasts.added"), "success");
+      // Advisory only (server/src/modules/jobs/job-dedupe.ts#findSimhashDuplicate) — the vacancy
+      // is already saved either way, this just flags it so the user can merge/delete manually
+      // if it really is the same posting.
+      if (possibleDuplicateOf) {
+        toast(t("toasts.possibleDuplicate", { company: possibleDuplicateOf.company, position: possibleDuplicateOf.position }), "info");
+      } else {
+        toast(t("toasts.added"), "success");
+      }
     },
     onError,
   });

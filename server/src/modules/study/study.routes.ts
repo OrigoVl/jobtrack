@@ -1,6 +1,16 @@
 import express from "express";
 import { z } from "zod";
-import { getProfile, getDrillProgress, setDrillStatus, setKvJson, getSrsStateByCard, getSrsRow, recordSrsGrade } from "../../db/index.js";
+import {
+  getProfile,
+  getDrillProgress,
+  setDrillStatus,
+  setKvJson,
+  getSrsStateByCard,
+  getSrsRow,
+  recordSrsGrade,
+  getStudyStreak,
+  recordStudyActivity,
+} from "../../db/index.js";
 import { catFor } from "../knowledge/knowledge-base.js";
 import { chatJson, llmAvailable } from "../../llm/index.js";
 import { HttpError, authed } from "../../core/http.js";
@@ -42,7 +52,11 @@ r.put(
     const status = String(req.body?.status || "todo");
     if (!(await allDrills(userId)).some((d) => d.id === id)) throw new HttpError(400, `Unknown task: "${id}"`);
     if (status !== "solved" && status !== "todo") throw new HttpError(400, `Unknown status: "${status}"`);
-    res.json({ ok: true, progress: await setDrillStatus(userId, id, status) });
+    const progress = await setDrillStatus(userId, id, status);
+    // Only solving counts as a study action for the streak — unmarking a task back to "todo"
+    // isn't something to reward.
+    if (status === "solved") await recordStudyActivity(userId);
+    res.json({ ok: true, progress });
   }),
 );
 
@@ -160,7 +174,12 @@ r.get(
       const s = state[c.id];
       return !s || s.due <= today;
     });
-    res.json({ due, total: cards.length, learned: Object.values(state).filter((s) => s.reps > 0).length });
+    res.json({
+      due,
+      total: cards.length,
+      learned: Object.values(state).filter((s) => s.reps > 0).length,
+      streak: await getStudyStreak(userId),
+    });
   }),
 );
 r.post(
@@ -191,7 +210,8 @@ r.post(
     const due = new Date(now.getTime() + intervalDays * 86400000).toISOString().slice(0, 10);
     const lastReview = now.toISOString();
     await recordSrsGrade(userId, cardId, { difficulty, stability, interval: intervalDays, due, reps, lastReview });
-    res.json({ ok: true, due, interval: intervalDays, difficulty, stability });
+    const streak = await recordStudyActivity(userId);
+    res.json({ ok: true, due, interval: intervalDays, difficulty, stability, streak });
   }),
 );
 

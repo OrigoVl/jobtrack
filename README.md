@@ -82,13 +82,13 @@ Faster/cheaper than an LLM wherever the task doesn't require "understanding" tex
 - **Fuzzy matching / Levenshtein** (`shared/fuzzy-match.ts`) — tolerance for typos in technology names.
 - **Probabilistic fit score** (`vacancies/vacancy-text.ts`) — a logistic function instead of a crude "5 matches = high."
 - **Recency-weighted demand** (`shared/demand.ts`) — exponential decay of a job posting's weight by age (90-day half-life).
-- **SimHash deduplication** (`jobs/job-dedupe.ts`) — merging near-duplicate postings from different aggregators.
+- **SimHash deduplication** (`jobs/job-dedupe.ts`) — merging near-duplicate postings from different aggregators (`/jobs/search`, import), and flagging (never blocking) a likely duplicate when you add a vacancy by hand or paste a URL.
 - **Vector embeddings** (`llm/embeddings.ts`) — OpenAI `text-embedding-3-small` for semantic CV↔job similarity (OpenAI key only).
 - **Funnel conversion and average time in status** (`db/vacancy-history.ts`) — derived metrics from the status-change history log.
 
 ### Semantic vacancy similarity (pgvector)
 
-Every vacancy gets its embedding computed and stored automatically (best-effort, fire-and-forget — never adds latency to saving a vacancy) whenever its content changes, from a short synthesized "position at company. Level: X. Stack: ..." blob (`vacancies/vacancy-text.ts#vacancyEmbeddingText`). `GET /api/vacancies/:id/similar` returns the most semantically similar OTHER vacancies you've tracked, ranked by cosine distance via Postgres' [pgvector](https://github.com/pgvector/pgvector) extension and an HNSW index (`vacancies.repo.ts#findSimilarVacancies`) — an actual approximate-nearest-neighbor search, not a full-table brute-force scan.
+Every vacancy gets its embedding computed and stored automatically (best-effort, fire-and-forget — never adds latency to saving a vacancy) whenever its content changes, from a short synthesized "position at company. Level: X. Stack: ..." blob (`vacancies/vacancy-text.ts#vacancyEmbeddingText`). `GET /api/vacancies/:id/similar` returns the most semantically similar OTHER vacancies you've tracked, ranked by cosine distance via Postgres' [pgvector](https://github.com/pgvector/pgvector) extension and an HNSW index (`vacancies.repo.ts#findSimilarVacancies`) — an actual approximate-nearest-neighbor search, not a full-table brute-force scan. Surfaced in the UI as a small "🔗" toggle on each vacancy row/card (`features/vacancies/similar-vacancies-button.tsx`), fetched lazily — only once a user actually opens it, not eagerly for every row.
 
 - **Requires the `pgvector/pgvector:pg16` Postgres image** (already the default in `docker-compose.yml`) instead of plain `postgres:16-alpine` — a bare Postgres image can't `CREATE EXTENSION vector` (the `.control`/`.so` files aren't present). If you're running Postgres yourself outside Docker, install the [pgvector extension](https://github.com/pgvector/pgvector#installation) on it first.
 - **Vacancies added before this feature shipped** have no embedding yet — run `npx tsx server/scripts/backfill-vacancy-embeddings.ts` (add `--dry-run` to preview first) once to fill them in.
@@ -220,9 +220,6 @@ Data and mutations flow through **TanStack Query** (`shared/queries/*`) — each
 ## What's next (ideas for future work)
 
 - A full interview calendar (currently just basic Web Notifications).
-- Deduplication when manually adding a job posting (SimHash dedup currently only applies to `/jobs/search` and imports).
-- Surface `/vacancies/:id/similar` (see "Semantic vacancy similarity" above) in the UI itself — it's a working API today, not yet wired into any page.
-- The offline fallback for `POST /cv/match` still doesn't use `semanticFit` — only token overlap.
 
 ### Multi-tenancy
 

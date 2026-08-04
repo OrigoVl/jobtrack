@@ -80,9 +80,9 @@ export const companies = pgTable(
     questions: jsonb().$type<string[]>().notNull().default([]),
   },
   (t) => [
-    // The upsert in companies.routes.ts does ON CONFLICT(name) today; under multi-tenancy that
-    // must become ON CONFLICT (user_id, name), or one user's upsert silently overwrites another
-    // user's company row with the same name.
+    // companies.repo.ts#upsertCompany's ON CONFLICT target is [userId, name] (not just name),
+    // so this composite index is what actually backs it — a same-named company in two different
+    // users' lists never collides.
     uniqueIndex("companies_user_name_key").on(t.userId, t.name),
     // FK target for contacts' composite FK below (Phase 9) — same "vacancies_user_id_key" trick.
     uniqueIndex("companies_user_id_key").on(t.userId, t.id),
@@ -137,9 +137,8 @@ export const srs = pgTable(
     stability: real(),
     lastReview: timestamp("last_review", { withTimezone: true, mode: "string" }),
   },
-  // The upsert in study.routes.ts does ON CONFLICT(cardId) today; under multi-tenancy that
-  // must scope to (user_id, card_id), or one user's SRS review silently overwrites another
-  // user's review state for a card with the same id.
+  // db/kv.ts's SRS upsert ON CONFLICT target is [userId, cardId] (not just cardId), backed by
+  // this composite primary key — a shared card id never lets one user's review overwrite another's.
   (t) => [primaryKey({ columns: [t.userId, t.cardId] })],
 );
 

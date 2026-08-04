@@ -6,6 +6,7 @@ import { STATUSES, type Vacancy } from "../../shared/types";
 import { fitTone, fitLabel } from "../../shared/fit-tone";
 import { statusLabel } from "../../shared/status-labels";
 import { STATUS_DOT_CLASS, STATUS_BORDER_L_CLASS, DEFAULT_STATUS_DOT_CLASS, DEFAULT_STATUS_BORDER_L_CLASS } from "../../shared/status-tone";
+import { SimilarVacanciesButton } from "./similar-vacancies-button";
 
 /* ---------- Vacancies board (drag-and-drop + keyboard) ---------- */
 export function VacancyBoard() {
@@ -136,6 +137,9 @@ export function VacancyBoard() {
                         </span>
                       ))}
                       {v.stack.length > 2 && <span className="text-[10px] text-ink-dim">+{v.stack.length - 2}</span>}
+                      <span className="ml-auto">
+                        <SimilarVacanciesButton vacancyId={v.id} />
+                      </span>
                     </div>
                     {v.next && <div className="text-[11px] text-alert mt-1">⏭ {v.next}</div>}
                   </div>

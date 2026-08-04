@@ -90,3 +90,16 @@ export function dedupeBySimhash<T extends DedupableJob>(jobs: T[]): T[] {
   }
   return result;
 }
+
+/**
+ * The first vacancy in `existing` that's a likely near-duplicate of `candidate` (e.g. adding a
+ * vacancy by hand, or via a pasted URL, that's already tracked under a slightly different
+ * position title) — advisory only, unlike dedupeBySimhash above (which silently drops
+ * duplicates from a search/import batch): the caller (vacancies.routes.ts) surfaces this as a
+ * warning, never blocks the save, since two genuinely different postings can legitimately read
+ * as "similar" (e.g. the same company hiring for the same role twice, months apart).
+ */
+export function findSimhashDuplicate<T extends DedupableJob>(candidate: DedupableJob, existing: T[]): T | undefined {
+  const fingerprint = simhash(`${candidate.company} ${candidate.position}`);
+  return existing.find((job) => hammingDistance(simhash(`${job.company} ${job.position}`), fingerprint) <= HAMMING_THRESHOLD);
+}

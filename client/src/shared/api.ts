@@ -35,6 +35,7 @@ import type {
   RoadmapStatus,
   SavedSearch,
   SavedSearchInput,
+  SimilarVacancy,
   StudyState,
   Vacancy,
 } from "./types";
@@ -88,7 +89,11 @@ export const api = {
   authConfig: () => req<{ googleEnabled: boolean }>("/auth-config"),
 
   vacancies: () => req<Vacancy[]>("/vacancies"),
-  addVacancy: (v: Partial<Vacancy>) => req<Vacancy>("/vacancies", { method: "POST", body: JSON.stringify(v) }),
+  addVacancy: (v: Partial<Vacancy>) =>
+    req<Vacancy & { possibleDuplicateOf: { id: number; company: string; position: string } | null }>("/vacancies", {
+      method: "POST",
+      body: JSON.stringify(v),
+    }),
   updateVacancy: (id: number, v: Partial<Vacancy>) => req<Vacancy>(`/vacancies/${id}`, { method: "PUT", body: JSON.stringify(v) }),
   deleteVacancy: (id: number) => req<{ ok: boolean }>(`/vacancies/${id}`, { method: "DELETE" }),
   analyzeVacancy: (text: string) => req<AnalyzeResult>("/vacancies/analyze", { method: "POST", body: JSON.stringify({ text }) }),
@@ -102,6 +107,7 @@ export const api = {
   importVacanciesJson: (items: unknown[]) =>
     req<JsonVacancyImportResult>("/vacancies/import-json", { method: "POST", body: JSON.stringify(items) }),
   exportVacancies: () => req<Record<string, string>[]>("/vacancies/export"),
+  similarVacancies: (id: number) => req<{ similar: SimilarVacancy[] }>(`/vacancies/${id}/similar`),
 
   profile: () => req<Profile>("/profile"),
   saveProfile: (p: Profile) => req<Profile>("/profile", { method: "PUT", body: JSON.stringify(p) }),

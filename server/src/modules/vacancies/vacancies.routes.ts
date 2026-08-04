@@ -18,6 +18,7 @@ import {
 } from "../../shared/validation.js";
 import { fetchVacancyText, computeFit, quickAnalyze, tryAutoEnrichStack } from "./vacancy-analysis.service.js";
 import { vacancyEmbeddingText } from "./vacancy-text.js";
+import { findSimhashDuplicate } from "../jobs/job-dedupe.js";
 import {
   listVacancies,
   getVacancy,
@@ -72,6 +73,13 @@ r.post(
   "/vacancies",
   authed(async (userId, req, res) => {
     const b = parseVacancyInput(req.body, { partial: false });
+    // Checked against the list BEFORE inserting (so the new row never matches itself) — advisory
+    // only (see job-dedupe.ts#findSimhashDuplicate), never blocks the save: two postings that
+    // read as "similar" (the same company re-hiring for the same role) can be genuinely distinct.
+    const possibleDuplicate =
+      b.company || b.position
+        ? findSimhashDuplicate({ company: b.company!, position: b.position! }, await listVacancies(userId))
+        : undefined;
     const id = await createVacancy(userId, {
       company: b.company!,
       position: b.position!,
@@ -96,7 +104,12 @@ r.post(
     }
     const row = await getVacancy(userId, id);
     embedVacancyInBackground(userId, id, row!);
-    res.status(201).json(row!);
+    res.status(201).json({
+      ...row!,
+      possibleDuplicateOf: possibleDuplicate
+        ? { id: possibleDuplicate.id, company: possibleDuplicate.company, position: possibleDuplicate.position }
+        : null,
+    });
   }),
 );
 r.put(

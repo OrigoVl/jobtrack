@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Btn } from "../../shared/ui";
 import { AuthLayout, AuthError, authInputClass } from "./auth-layout";
+import { PasswordInput } from "./password-input";
 import { GoogleButton } from "./google-button";
 import { signUp } from "../../shared/auth-client";
 
@@ -62,15 +63,7 @@ export function Register() {
           onChange={(e) => setEmail(e.target.value)}
           className={authInputClass}
         />
-        <input
-          type="password"
-          required
-          minLength={8}
-          placeholder={t("register.passwordPlaceholder")}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className={authInputClass}
-        />
+        <PasswordInput required minLength={8} placeholder={t("register.passwordPlaceholder")} value={password} onChange={setPassword} />
         <Btn type="submit" loading={loading} className="w-full">
           {t("register.submit")}
         </Btn>

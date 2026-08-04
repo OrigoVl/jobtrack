@@ -81,6 +81,31 @@ export async function setRoadmapStatus(userId: UserId, tech: string, status: str
   return progress;
 }
 
+export interface StreakState {
+  current: number;
+  longest: number;
+  lastActiveDate: string;
+}
+const EMPTY_STREAK: StreakState = { current: 0, longest: 0, lastActiveDate: "" };
+
+export async function getStudyStreak(userId: UserId): Promise<StreakState> {
+  return (await getKvJson<StreakState>(userId, "studyStreak")) || EMPTY_STREAK;
+}
+
+/** Records a study/practice action (a flashcard grade or a solved drill) as "done today" —
+ * advances the streak by one if the last active day was yesterday, resets to 1 after a gap, and
+ * is a no-op if today was already recorded (grading 10 cards in one sitting counts once). */
+export async function recordStudyActivity(userId: UserId): Promise<StreakState> {
+  const today = new Date().toISOString().slice(0, 10);
+  const state = await getStudyStreak(userId);
+  if (state.lastActiveDate === today) return state;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const current = state.lastActiveDate === yesterday ? state.current + 1 : 1;
+  const next: StreakState = { current, longest: Math.max(state.longest, current), lastActiveDate: today };
+  await setKvJson(userId, "studyStreak", next);
+  return next;
+}
+
 // Map of cardId -> SRS row (interval/due/reps/FSRS state), for computing "due today" and stats.
 export async function getSrsStateByCard(userId: UserId): Promise<Record<string, SrsRow>> {
   const rows = await db.select().from(srs).where(eq(srs.userId, userId));

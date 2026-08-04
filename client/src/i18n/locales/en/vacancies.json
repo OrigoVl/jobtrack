@@ -5,6 +5,12 @@
     "table": "☰ Table",
     "board": "🗂 Kanban"
   },
+  "similar": {
+    "buttonLabel": "Similar vacancies",
+    "heading": "🔗 Similar vacancies",
+    "empty": "Nothing similar found yet",
+    "untitled": "Untitled"
+  },
   "addVacancy": "+ Add vacancy",
   "addFirst": "+ Add the first one",
   "import": {
@@ -54,6 +60,7 @@
   },
   "toasts": {
     "added": "Vacancy added",
+    "possibleDuplicate": "Added — but this looks similar to an existing one: {{position}} at {{company}}. Worth checking if it's a duplicate.",
     "deleted": "Vacancy deleted",
     "stackPulled": "Stack pulled from the link: {{stack}}",
     "linkSavedNoStack": "Link saved (could not automatically detect the stack from the page)",

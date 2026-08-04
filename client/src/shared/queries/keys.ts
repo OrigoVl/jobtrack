@@ -4,6 +4,9 @@ export const queryKeys = {
   health: ["health"] as const,
   authConfig: ["authConfig"] as const,
   vacancies: ["vacancies"] as const,
+  // Parameterized: a query hook spreads in the vacancy id, e.g. [...queryKeys.similarVacancies, id]
+  // (same convention as calendarCombined's [...queryKeys.calendarCombined, range.from, range.to]).
+  similarVacancies: ["similarVacancies"] as const,
   profile: ["profile"] as const,
   analytics: ["analytics"] as const,
   learn: ["learn"] as const,
