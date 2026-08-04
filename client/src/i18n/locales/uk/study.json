@@ -11,7 +11,11 @@
     "solved_one": "Розв'язано: {{count}} завдання з {{total}}",
     "solved_few": "Розв'язано: {{count}} завдання з {{total}}",
     "solved_many": "Розв'язано: {{count}} завдань з {{total}}",
-    "solved_other": "Розв'язано: {{count}} завдання з {{total}}"
+    "solved_other": "Розв'язано: {{count}} завдання з {{total}}",
+    "streak_one": "{{count}} день поспіль",
+    "streak_few": "{{count}} дні поспіль",
+    "streak_many": "{{count}} днів поспіль",
+    "streak_other": "{{count}} дня поспіль"
   },
   "moreCards": "✨ Більше карток на тему «{{topic}}»",
   "llmKeyRequired": "Потрібен ключ LLM",

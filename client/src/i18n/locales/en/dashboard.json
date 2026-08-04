@@ -1,19 +1,28 @@
 {
   "title": "Dashboard",
   "subtitle": "Your job-search HQ: vacancy progress, upcoming steps, and quick access to everything.",
-  "gettingStarted": {
-    "heading": "👋 Getting started",
-    "step1": "Add a few vacancies or import them on the \"Vacancies\" tab.",
-    "step2": "Click \"Analyze all\" — the app will detect each vacancy's stack itself.",
-    "step3": "Check the \"Roadmap\" and \"Skill radar\" — they'll show what to pick up for the market.",
-    "addVacancies": "Add vacancies",
-    "openRoadmap": "Open the roadmap"
+  "onboarding": {
+    "heading": "👋 Get set up",
+    "progress": "{{done}}/{{total}} steps done",
+    "steps": {
+      "vacancy": "Add your first vacancy",
+      "profile": "Add your skills to your profile",
+      "roadmap": "Mark one skill as known in the Roadmap",
+      "practice": "Try a flashcard or a practice problem"
+    },
+    "cta": {
+      "vacancy": "Add a vacancy",
+      "profile": "Open profile",
+      "roadmap": "Open roadmap",
+      "practice": "Open practice"
+    }
   },
   "stats": {
     "totalVacancies": "Total vacancies",
     "active": "Active",
     "inInterviews": "In interviews",
-    "cardsLearned": "Cards learned"
+    "cardsLearned": "Cards learned",
+    "streak": "Day streak"
   },
   "focusWeek": {
     "heading": "🎯 Focus of the week",

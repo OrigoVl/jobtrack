@@ -157,10 +157,17 @@ export const api = {
 
   study: async (): Promise<StudyState> => {
     const [due, content] = await Promise.all([
-      req<{ due: StudyState["due"]; total: number; learned: number }>("/study/due"),
+      req<{ due: StudyState["due"]; total: number; learned: number; streak: StudyState["streak"] }>("/study/due"),
       req<{ drills: StudyState["drills"]; drillProgress: Record<string, string> }>("/study/content"),
     ]);
-    return { due: due.due, total: due.total, learned: due.learned, drills: content.drills, drillProgress: content.drillProgress };
+    return {
+      due: due.due,
+      total: due.total,
+      learned: due.learned,
+      streak: due.streak,
+      drills: content.drills,
+      drillProgress: content.drillProgress,
+    };
   },
   grade: (cardId: string, grade: number) =>
     req<{ ok: boolean }>("/study/grade", { method: "POST", body: JSON.stringify({ cardId, grade }) }),

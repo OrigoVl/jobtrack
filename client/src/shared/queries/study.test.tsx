@@ -17,6 +17,7 @@ const studyFixture: StudyState = {
   due: [],
   total: 0,
   learned: 0,
+  streak: { current: 0, longest: 0, lastActiveDate: "" },
   drills: [{ id: "drill-1", cat: "JS", lvl: "easy", q: "?", sol: "...", exp: "..." }],
   drillProgress: {},
 };

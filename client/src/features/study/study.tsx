@@ -223,6 +223,9 @@ export function Study() {
           <span>
             ⏱ {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, "0")}
           </span>
+          {(study?.streak.current ?? 0) > 0 && (
+            <span className="text-alert font-medium">🔥 {t("stats.streak", { count: study!.streak.current })}</span>
+          )}
           {mode === "srs" && <span>{t("stats.dueToday", { count: due.length })}</span>}
           {mode === "drill" && <span>{t("stats.solved", { count: solvedCount, total: drills.length })}</span>}
           {mode === "srs" && cardTopic && (

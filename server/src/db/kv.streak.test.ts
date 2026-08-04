@@ -3,15 +3,17 @@
 // domain helpers, see companies.repo.test.ts/vacancies.repo.test.ts for the same pattern.
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTestDb, insertTestUser } from "./test-db.js";
-import { BOOTSTRAP_USER_ID } from "./user-id.js";
+import { BOOTSTRAP_USER_ID, type UserId } from "./user-id.js";
 
 const USER_A = BOOTSTRAP_USER_ID;
+const USER_B = "user-b" as UserId;
 
 let kv: typeof import("./kv.js");
 
 beforeAll(async () => {
   const testDb = await createTestDb();
   await insertTestUser(testDb, USER_A);
+  await insertTestUser(testDb, USER_B);
   vi.doMock("./client.js", () => ({ default: testDb }));
   kv = await import("./kv.js");
 });
@@ -60,12 +62,6 @@ describe("study streak (PGlite)", () => {
   });
 
   it("getStudyStreak() returns a zeroed state for a user who never studied", async () => {
-    const other = "other-streak-user" as typeof USER_A;
-    const testDb = await createTestDb();
-    await insertTestUser(testDb, other);
-    vi.doMock("./client.js", () => ({ default: testDb }));
-    vi.resetModules();
-    const freshKv: typeof import("./kv.js") = await import("./kv.js");
-    expect(await freshKv.getStudyStreak(other)).toEqual({ current: 0, longest: 0, lastActiveDate: "" });
+    expect(await kv.getStudyStreak(USER_B)).toEqual({ current: 0, longest: 0, lastActiveDate: "" });
   });
 });

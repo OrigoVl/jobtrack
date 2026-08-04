@@ -38,6 +38,11 @@ import {
 } from "./vacancies.repo.js";
 import type { UserId } from "../../db/user-id.js";
 
+// How many of a user's own most-recent vacancies to scan for a possible SimHash duplicate on
+// add (see the POST /vacancies handler below) — a duplicate is virtually always something added
+// recently, so this bounds the check's cost independent of how large a user's full history gets.
+const DEDUPE_CHECK_LIMIT = 300;
+
 // Fire-and-forget: recomputes and stores a vacancy's embedding from its own fields (see
 // vacancy-text.ts#vacancyEmbeddingText) after a create/update that touched embeddable content.
 // Deliberately NOT awaited by any caller — the request that triggers this responds immediately;
@@ -76,9 +81,17 @@ r.post(
     // Checked against the list BEFORE inserting (so the new row never matches itself) — advisory
     // only (see job-dedupe.ts#findSimhashDuplicate), never blocks the save: two postings that
     // read as "similar" (the same company re-hiring for the same role) can be genuinely distinct.
+    // Bounded to the most recent DEDUPE_CHECK_LIMIT vacancies (listVacancies already orders by
+    // id desc) rather than the whole table — a duplicate is virtually always something added
+    // recently, and this keeps the Hamming-distance scan (job-dedupe.ts's own doc comment:
+    // "acceptable for hundreds... tens of thousands would need LSH bucketing") bounded
+    // regardless of how many vacancies a single user accumulates over time.
     const possibleDuplicate =
       b.company || b.position
-        ? findSimhashDuplicate({ company: b.company!, position: b.position! }, await listVacancies(userId))
+        ? findSimhashDuplicate(
+            { company: b.company!, position: b.position! },
+            await listVacancies(userId, { limit: DEDUPE_CHECK_LIMIT, offset: 0 }),
+          )
         : undefined;
     const id = await createVacancy(userId, {
       company: b.company!,

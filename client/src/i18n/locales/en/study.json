@@ -9,7 +9,9 @@
   "stats": {
     "dueToday": "Due for review today: {{count}}",
     "solved_one": "Solved: {{count}} problem of {{total}}",
-    "solved_other": "Solved: {{count}} problems of {{total}}"
+    "solved_other": "Solved: {{count}} problems of {{total}}",
+    "streak_one": "{{count}}-day streak",
+    "streak_other": "{{count}}-day streak"
   },
   "moreCards": "✨ More cards for \"{{topic}}\"",
   "llmKeyRequired": "An LLM key is required",

@@ -173,10 +173,17 @@ export interface Drill {
   tech?: string;
 }
 
+export interface StreakState {
+  current: number;
+  longest: number;
+  lastActiveDate: string;
+}
+
 export interface StudyState {
   due: StudyCard[];
   total: number;
   learned: number;
+  streak: StreakState;
   drills: Drill[];
   drillProgress: Record<string, string>;
 }

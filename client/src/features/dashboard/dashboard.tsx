@@ -100,6 +100,38 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
       <div className="text-xs text-ink-dim mt-1">{l}</div>
     </Card>
   );
+  // Real product signals, not a "have you visited this page" flag — each step reflects something
+  // the user actually did (persisted server-side already), so it survives reloads and can't be
+  // gamed by just clicking through pages. Hidden once every step is done (see onboardingRemaining
+  // below), same as the single-card version this replaces.
+  const onboardingSteps = [
+    {
+      done: vacancies.length > 0,
+      path: "vacancies",
+      labelKey: "onboarding.steps.vacancy" as const,
+      ctaKey: "onboarding.cta.vacancy" as const,
+    },
+    {
+      done: (profile?.skills.length ?? 0) > 0,
+      path: "cv",
+      labelKey: "onboarding.steps.profile" as const,
+      ctaKey: "onboarding.cta.profile" as const,
+    },
+    {
+      done: (roadmap?.progress.done ?? 0) > 0,
+      path: "roadmap",
+      labelKey: "onboarding.steps.roadmap" as const,
+      ctaKey: "onboarding.cta.roadmap" as const,
+    },
+    {
+      done: (study?.learned ?? 0) > 0 || Object.keys(study?.drillProgress ?? {}).length > 0,
+      path: "study",
+      labelKey: "onboarding.steps.practice" as const,
+      ctaKey: "onboarding.cta.practice" as const,
+    },
+  ];
+  const onboardingDone = onboardingSteps.filter((s) => s.done).length;
+  const onboardingRemaining = onboardingSteps.length - onboardingDone;
   return (
     <div className="space-y-5">
       <PageHeader
@@ -108,30 +140,42 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
         actions={profile?.domain ? <Chip tone="indigo">🎯 {profile.domain}</Chip> : undefined}
       />
 
-      {vacancies.length <= 1 && (
+      {onboardingRemaining > 0 && (
         <Card className="!bg-signal/10 !border-signal/30">
-          <div className="font-semibold text-signal">{t("gettingStarted.heading")}</div>
-          <ol className="text-sm text-signal/80 mt-2 space-y-1 list-decimal pl-5">
-            <li>{t("gettingStarted.step1")}</li>
-            <li>{t("gettingStarted.step2")}</li>
-            <li>{t("gettingStarted.step3")}</li>
-          </ol>
-          <div className="flex gap-2 mt-3">
-            <Btn size="sm" onClick={() => go("vacancies")}>
-              {t("gettingStarted.addVacancies")}
-            </Btn>
-            <Btn size="sm" variant="ghost" onClick={() => go("roadmap")}>
-              {t("gettingStarted.openRoadmap")}
-            </Btn>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="font-semibold text-signal">{t("onboarding.heading")}</div>
+            <div className="text-xs text-signal/70">
+              {t("onboarding.progress", { done: onboardingDone, total: onboardingSteps.length })}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            {onboardingSteps.map((s) => (
+              <div key={s.labelKey} className="flex items-center gap-2 text-sm">
+                <span
+                  className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                    s.done ? "bg-signal text-white" : "border-2 border-signal/40"
+                  }`}
+                >
+                  {s.done ? "✓" : ""}
+                </span>
+                <span className={s.done ? "text-signal/60 line-through" : "text-signal"}>{t(s.labelKey)}</span>
+                {!s.done && (
+                  <button onClick={() => go(s.path)} className="ml-auto text-xs font-medium text-signal hover:underline shrink-0">
+                    {t(s.ctaKey)}
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         </Card>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {stat(vacancies.length, t("stats.totalVacancies"))}
         {stat(active, t("stats.active"), "text-signal")}
         {stat(iv, t("stats.inInterviews"), "text-alert")}
         {stat(`${study?.learned ?? 0}/${study?.total ?? 0}`, t("stats.cardsLearned"), "text-signal")}
+        {stat(study?.streak.current ?? 0, `🔥 ${t("stats.streak")}`, (study?.streak.current ?? 0) > 0 ? "text-alert" : "text-ink")}
       </div>
 
       {vacancies.length > 0 && <FocusWeekCard llm={llm} />}
