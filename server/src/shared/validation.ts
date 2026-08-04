@@ -62,6 +62,7 @@ export interface VacancyInput {
   company?: string;
   position?: string;
   level?: string;
+  salary?: string;
   url?: string;
   status?: VacancyStatus;
   fit?: Fit;
@@ -78,6 +79,7 @@ export function parseVacancyInput(body: unknown, { partial = false }: { partial?
   if (!partial || has("company")) out.company = asString(b.company, "New").trim().slice(0, 200) || "New";
   if (!partial || has("position")) out.position = asString(b.position).trim().slice(0, 200);
   if (!partial || has("level")) out.level = asString(b.level).trim().slice(0, 40);
+  if (!partial || has("salary")) out.salary = asString(b.salary).trim().slice(0, 60);
   if (!partial || has("url")) out.url = toUrl(b.url, "url");
   if (!partial || has("status")) {
     const status = asString(b.status, "Want to apply");
@@ -100,6 +102,7 @@ export interface JsonVacancyItem {
   company: string;
   position: string;
   level: string;
+  salary: string;
   url: string;
   status: VacancyStatus;
   fit: Fit;
@@ -147,6 +150,7 @@ export function parseJsonVacancyItem(raw: unknown): JsonVacancyItem {
     .trim()
     .slice(0, 200);
   const level = asString(b.level).trim().slice(0, 40);
+  const salary = asString(b.salary).trim().slice(0, 60);
   const url = toUrl(b.url, "url");
   const status = normalizeStatus(asString(b.status, "Want to apply"));
   if (!STATUSES.includes(status as VacancyStatus)) throw new HttpError(400, `Invalid status: "${status}"`);
@@ -155,7 +159,7 @@ export function parseJsonVacancyItem(raw: unknown): JsonVacancyItem {
   const applied = toDateOrEmpty(b.applied, "applied");
   const next = toDateOrEmpty(b.next, "next");
   const notes = asString(b.notes).slice(0, 5000);
-  return { company, position, level, url, status: status as VacancyStatus, fit: fit as Fit, applied, next, notes };
+  return { company, position, level, salary, url, status: status as VacancyStatus, fit: fit as Fit, applied, next, notes };
 }
 
 export interface ProfileInput {
@@ -193,6 +197,7 @@ export interface ContactInput {
   name?: string;
   role?: string;
   companyId?: number | null;
+  vacancyId?: number | null;
   email?: string;
   linkedinUrl?: string;
   notes?: string;
@@ -200,8 +205,8 @@ export interface ContactInput {
 }
 
 /** Parses a networking contact (create or partial update — same `{ partial }` shape as
- * parseVacancyInput/parseCalendarEventInput). `companyId` is only range/shape-checked here;
- * confirming it belongs to the caller needs a DB lookup — see contacts.routes.ts. */
+ * parseVacancyInput/parseCalendarEventInput). `companyId`/`vacancyId` are only range/shape-checked
+ * here; confirming they belong to the caller needs a DB lookup — see contacts.routes.ts. */
 export function parseContactInput(body: unknown, { partial = false }: { partial?: boolean } = {}): ContactInput {
   const b = (body || {}) as Record<string, unknown>;
   const has = (key: string) => Object.prototype.hasOwnProperty.call(b, key);
@@ -217,11 +222,29 @@ export function parseContactInput(body: unknown, { partial = false }: { partial?
       out.companyId = n;
     }
   }
+  if (!partial || has("vacancyId")) {
+    if (b.vacancyId == null || b.vacancyId === "") {
+      out.vacancyId = null;
+    } else {
+      const n = Number(b.vacancyId);
+      if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, 'Field "vacancyId" must be a positive integer');
+      out.vacancyId = n;
+    }
+  }
   if (!partial || has("email")) out.email = asString(b.email).trim().slice(0, 200);
   if (!partial || has("linkedinUrl")) out.linkedinUrl = b.linkedinUrl ? toUrl(b.linkedinUrl, "linkedinUrl") : "";
   if (!partial || has("notes")) out.notes = asString(b.notes).slice(0, 5000);
   if (!partial || has("lastContactAt")) out.lastContactAt = toDateOrEmpty(b.lastContactAt, "lastContactAt");
   return out;
+}
+
+export interface DigestPreferencesInput {
+  enabled: boolean;
+}
+
+export function parseDigestPreferencesInput(body: unknown): DigestPreferencesInput {
+  const b = (body || {}) as Record<string, unknown>;
+  return { enabled: b.enabled === true };
 }
 
 export const JOB_SEARCH_REGIONS = ["all", "ua", "remote"] as const;

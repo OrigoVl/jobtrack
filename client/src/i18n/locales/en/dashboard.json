@@ -15,7 +15,8 @@
       "profile": "Open profile",
       "roadmap": "Open roadmap",
       "practice": "Open practice"
-    }
+    },
+    "celebration": "You've completed every setup step!"
   },
   "stats": {
     "totalVacancies": "Total vacancies",

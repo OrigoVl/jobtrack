@@ -31,8 +31,15 @@
       "joined": "Дата реєстрації",
       "vacancies": "Вакансії",
       "llmCallsRecent": "Викликів ШІ (нещодавно)",
-      "bannedBadge": "заблоковано"
+      "bannedBadge": "заблоковано",
+      "actions": "Дії"
     },
+    "actions": {
+      "ban": "Заблокувати",
+      "unban": "Розблокувати"
+    },
+    "banConfirmTitle": "Заблокувати {{name}}?",
+    "banConfirmMessage": "Користувач не зможе увійти, доки блокування не знято.",
     "showingSummary": "Показано {{count}} з {{total}}."
   },
   "llm": {

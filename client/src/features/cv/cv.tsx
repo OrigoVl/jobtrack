@@ -431,6 +431,7 @@ export function CVView({ llm }: { llm: boolean }) {
                 <button
                   onClick={() => (current === "analysis" ? setAnalysis(null) : setReview(null))}
                   title={t("builder.reports.hide")}
+                  aria-label={t("builder.reports.hide")}
                   className="absolute right-3 top-3 z-10 text-ink-dim hover:text-ink-dim text-sm"
                 >
                   ✕

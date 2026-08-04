@@ -31,8 +31,15 @@
       "joined": "Joined",
       "vacancies": "Vacancies",
       "llmCallsRecent": "LLM calls (recent)",
-      "bannedBadge": "banned"
+      "bannedBadge": "banned",
+      "actions": "Actions"
     },
+    "actions": {
+      "ban": "Ban",
+      "unban": "Unban"
+    },
+    "banConfirmTitle": "Ban {{name}}?",
+    "banConfirmMessage": "They won't be able to sign in until unbanned.",
     "showingSummary": "Showing {{count}} of {{total}}."
   },
   "llm": {

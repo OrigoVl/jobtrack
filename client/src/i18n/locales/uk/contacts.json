@@ -8,6 +8,7 @@
   },
   "editAriaLabel": "Редагувати {{name}}",
   "deleteAriaLabel": "Видалити {{name}}",
+  "deleteConfirmTitle": "Видалити {{name}}?",
   "lastContact": "Останній контакт: {{date}}",
   "linkedin": "LinkedIn ↗",
   "modal": {
@@ -20,6 +21,9 @@
     "rolePlaceholder": "напр. Engineering Manager",
     "company": "Компанія (необов'язково)",
     "companyNone": "— немає —",
+    "vacancy": "Пов'язана вакансія (необов'язково)",
+    "vacancyNone": "— немає —",
+    "vacancyUntitled": "Без назви",
     "email": "Email",
     "lastContacted": "Останній контакт",
     "linkedinUrl": "LinkedIn URL",

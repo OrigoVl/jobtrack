@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { forwardRef, useLayoutEffect, useRef, useState } from "react";
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 import { usePopover } from "./use-popover";
 import { PopoverPanel } from "./popover";
@@ -29,17 +29,16 @@ export function Spinner({ className = "h-3.5 w-3.5" }: { className?: string }) {
   );
 }
 
-export function Btn({
-  variant = "primary",
-  size = "md",
-  className = "",
-  loading = false,
-  disabled,
-  children,
-  ...rest
-}: { variant?: Variant; size?: Size; loading?: boolean } & ButtonHTMLAttributes<HTMLButtonElement>) {
+// forwardRef so a caller that needs to imperatively focus a button (e.g. confirm.tsx focusing
+// the confirm action on open, without the project-banned `autoFocus` prop) can attach a ref —
+// a plain function component would silently drop it (React never applies it to the DOM node).
+export const Btn = forwardRef<
+  HTMLButtonElement,
+  { variant?: Variant; size?: Size; loading?: boolean } & ButtonHTMLAttributes<HTMLButtonElement>
+>(function Btn({ variant = "primary", size = "md", className = "", loading = false, disabled, children, ...rest }, ref) {
   return (
     <button
+      ref={ref}
       {...rest}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
@@ -49,7 +48,7 @@ export function Btn({
       {children}
     </button>
   );
-}
+});
 
 export function Card({ className = "", children, ...rest }: { className?: string } & HTMLAttributes<HTMLDivElement>) {
   return (

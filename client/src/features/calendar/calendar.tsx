@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
   useCombinedCalendar,
@@ -9,6 +9,7 @@ import {
   useVacancies,
 } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Spinner } from "../../shared/ui";
+import { useConfirm } from "../../shared/use-confirm";
 import { DateTimeInput } from "../../shared/date-input";
 import {
   CALENDAR_EVENT_TYPES,
@@ -166,6 +167,7 @@ function EventModal({
 
 export function CalendarPage() {
   const { t, i18n } = useTranslation(["calendar", "common"]);
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const today = new Date();
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() });
@@ -247,8 +249,9 @@ export function CalendarPage() {
       addMutation.mutate(draft, { onSuccess: () => setModal(null) });
     }
   };
-  const doDelete = () => {
+  const doDelete = async () => {
     if (!modal?.editingId) return;
+    if (!(await confirm({ title: t("deleteConfirmTitle", { title: modal.draft.title || t("common:actions.delete") }) }))) return;
     deleteMutation.mutate(modal.editingId, { onSuccess: () => setModal(null) });
   };
 
@@ -404,7 +407,9 @@ export function CalendarPage() {
                       {t("common:actions.edit")}
                     </button>
                     <button
-                      onClick={() => deleteMutation.mutate(e.id)}
+                      onClick={async () => {
+                        if (await confirm({ title: t("deleteConfirmTitle", { title: e.title }) })) deleteMutation.mutate(e.id);
+                      }}
                       disabled={isDeleting}
                       className="text-xs text-ink-dim hover:text-rose-600 px-1.5 py-1 disabled:opacity-50"
                       aria-label={t("deleteAriaLabel", { title: e.title })}

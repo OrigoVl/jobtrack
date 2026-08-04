@@ -5,6 +5,7 @@ import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useAddVacancy, useAddSavedSearch, useDeleteSavedSearch, useProfile, useSavedSearches } from "../../shared/queries";
 import { Btn, Card, Chip, EmptyState, PageHeader, Segmented, Spinner } from "../../shared/ui";
+import { useConfirm } from "../../shared/use-confirm";
 import type { JobResult, JobSearchRegion, JobSearchResult } from "../../shared/types";
 
 /** Job alerts (saved searches) — a re-runs-every-few-hours background email digest of newly
@@ -12,6 +13,7 @@ import type { JobResult, JobSearchRegion, JobSearchResult } from "../../shared/t
  * below, and server/src/modules/saved-searches/). Just the list + delete here. */
 function SavedSearchesCard() {
   const { t, i18n } = useTranslation(["jobs", "common"]);
+  const confirm = useConfirm();
   const { data: searches, isLoading } = useSavedSearches();
   const deleteMutation = useDeleteSavedSearch();
   if (isLoading) return null;
@@ -34,7 +36,9 @@ function SavedSearchesCard() {
                   : t("alerts.noAlertsSent")}
               </span>
               <button
-                onClick={() => deleteMutation.mutate(s.id)}
+                onClick={async () => {
+                  if (await confirm({ title: t("alerts.deleteConfirmTitle", { name: s.label || s.query }) })) deleteMutation.mutate(s.id);
+                }}
                 disabled={isDeleting}
                 className="text-ink-dim hover:text-rose-500 disabled:opacity-50 shrink-0"
                 aria-label={t("alerts.deleteAriaLabel", { name: s.label || s.query })}

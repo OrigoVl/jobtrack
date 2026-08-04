@@ -109,6 +109,7 @@ export function LayoutPresetsPanel({
                 <button
                   onClick={() => onDeletePreset(p.name)}
                   title={t("common:actions.delete")}
+                  aria-label={`${t("common:actions.delete")}: ${p.name}`}
                   className="text-ink-dim hover:text-rose-500 leading-none px-1"
                 >
                   ✕

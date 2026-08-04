@@ -4,6 +4,7 @@ import {
   parseJsonVacancyItem,
   parseProfileInput,
   parseCompanyInput,
+  parseContactInput,
   parsePagination,
   assertSafeVacancyUrl,
   STATUSES,
@@ -54,6 +55,12 @@ describe("parseVacancyInput", () => {
     const out = parseVacancyInput({ notes: "update" }, { partial: true });
     expect(out).toEqual({ notes: "update" });
   });
+
+  it("accepts a freeform salary string, defaulting to '' and trimming/capping like level", () => {
+    expect(parseVacancyInput({}).salary).toBe("");
+    expect(parseVacancyInput({ salary: "  $90k-110k  " }).salary).toBe("$90k-110k");
+    expect(parseVacancyInput({ salary: "x".repeat(100) }).salary).toHaveLength(60);
+  });
 });
 
 describe("parseJsonVacancyItem", () => {
@@ -75,6 +82,12 @@ describe("parseJsonVacancyItem", () => {
     expect(out.company).toBe("Zone3000");
     expect(out.status).toBe("Want to apply");
     expect(out.fit).toBe("med");
+  });
+
+  it("accepts a freeform salary string and trims/truncates it, defaulting to '' when absent", () => {
+    expect(parseJsonVacancyItem(validItem).salary).toBe("");
+    expect(parseJsonVacancyItem({ ...validItem, salary: "  $90k-110k  " }).salary).toBe("$90k-110k");
+    expect(parseJsonVacancyItem({ ...validItem, salary: "x".repeat(100) }).salary).toHaveLength(60);
   });
 
   it("accepts 'position' as a fallback key (own export round-trip)", () => {
@@ -126,6 +139,34 @@ describe("parseCompanyInput", () => {
   it("accepts a valid company payload", () => {
     const out = parseCompanyInput({ name: "Acme", notes: "n", questions: ["Q1"] });
     expect(out).toEqual({ name: "Acme", notes: "n", questions: ["Q1"] });
+  });
+});
+
+describe("parseContactInput", () => {
+  it("defaults vacancyId to null when omitted", () => {
+    const out = parseContactInput({ name: "Ada" });
+    expect(out.vacancyId).toBeNull();
+  });
+
+  it("accepts a positive integer vacancyId", () => {
+    const out = parseContactInput({ name: "Ada", vacancyId: 5 });
+    expect(out.vacancyId).toBe(5);
+  });
+
+  it("treats null/empty vacancyId as unlinked", () => {
+    expect(parseContactInput({ name: "Ada", vacancyId: null }).vacancyId).toBeNull();
+    expect(parseContactInput({ name: "Ada", vacancyId: "" }).vacancyId).toBeNull();
+  });
+
+  it("rejects a non-positive or non-integer vacancyId", () => {
+    expect(() => parseContactInput({ name: "Ada", vacancyId: 0 })).toThrow(HttpError);
+    expect(() => parseContactInput({ name: "Ada", vacancyId: -1 })).toThrow(HttpError);
+    expect(() => parseContactInput({ name: "Ada", vacancyId: 1.5 })).toThrow(HttpError);
+  });
+
+  it("partial update only touches vacancyId when the field is present", () => {
+    const out = parseContactInput({ vacancyId: 3 }, { partial: true });
+    expect(out).toEqual({ vacancyId: 3 });
   });
 });
 

@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
+import { useResources } from "../../shared/queries";
 import { Btn, Card, Chip, PageHeader } from "../../shared/ui";
 import type { ResourcesData } from "../../shared/types";
 
 /* ---------- Resources ---------- */
 export function Resources() {
   const { t } = useTranslation(["resources", "common"]);
-  const [d, setD] = useUi<ResourcesData | null>("resources.data", null);
+  const { data: d } = useResources();
   const [sub, setSub] = useUi<"bp" | "plat" | "cheat" | "check">("resources.sub", "bp");
   const [done, setDone] = useState<Record<string, boolean>>(() => {
     try {
@@ -17,9 +17,6 @@ export function Resources() {
       return {};
     }
   });
-  useEffect(() => {
-    if (!d) api.resources().then(setD);
-  }, [d, setD]);
   const toggle = (i: number) => {
     const n = { ...done, [i]: !done[i] };
     setDone(n);

@@ -337,7 +337,11 @@ export function CvBuilder({ llm }: { llm: boolean }) {
         subtitle={t("builder.header.subtitle")}
         actions={
           <>
-            <Btn variant="ghost" onClick={() => exportCvDoc(doc)} title={t("builder.header.exportPdfTitle")}>
+            <Btn
+              variant="ghost"
+              onClick={() => exportCvDoc(doc, () => toast(t("builder.header.exportPopupBlocked"), "error"))}
+              title={t("builder.header.exportPdfTitle")}
+            >
               {t("builder.header.exportPdf")}
             </Btn>
             <Btn onClick={save} loading={busy === "save"}>
@@ -575,7 +579,11 @@ export function CvBuilder({ llm }: { llm: boolean }) {
         {/* Right column — preview only, nothing above it: sticky and immediately in focus no
             matter which accordion section is open on the left. */}
         <div className="min-w-0 lg:sticky lg:top-6">
-          <CvPreviewPanel doc={doc} onExport={() => exportCvDoc(doc)} onSectionClick={onPreviewSectionClick} />
+          <CvPreviewPanel
+            doc={doc}
+            onExport={() => exportCvDoc(doc, () => toast(t("builder.header.exportPopupBlocked"), "error"))}
+            onSectionClick={onPreviewSectionClick}
+          />
         </div>
       </div>
     </div>

@@ -12,6 +12,7 @@ export interface Contact {
   name: string;
   role: string;
   companyId: number | null;
+  vacancyId: number | null;
   email: string;
   linkedinUrl: string;
   notes: string;
@@ -30,6 +31,7 @@ function toContact(row: typeof contacts.$inferSelect): Contact {
     name: row.name,
     role: row.role ?? "",
     companyId: row.companyId,
+    vacancyId: row.vacancyId,
     email: row.email ?? "",
     linkedinUrl: row.linkedinUrl ?? "",
     notes: row.notes,
@@ -54,6 +56,7 @@ export interface NewContact {
   name: string;
   role: string;
   companyId: number | null;
+  vacancyId: number | null;
   email: string;
   linkedinUrl: string;
   notes: string;

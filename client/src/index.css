@@ -160,3 +160,17 @@ body {
 main > * {
   animation: jt-fade-in 0.28s ease-out;
 }
+
+/* Confetti pieces for celebration.tsx (Offer/onboarding milestones) — always applied to a leaf
+   <span> with no children, so fill-mode "forwards" here is safe (see the caution above jt-fade-in
+   — that risk only exists for elements that have fixed-position descendants). */
+@keyframes jt-confetti-fall {
+  from {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}

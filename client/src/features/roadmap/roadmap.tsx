@@ -87,6 +87,7 @@ function Node({ node }: { node: RoadmapNode }) {
       <button
         onClick={() => setRoadmapStatusMutation.mutate({ tech: node.tech, status: NEXT[node.status] })}
         title={t("nodeStatusHint")}
+        aria-label={`${node.tech}: ${statusLabel}. ${t("nodeStatusHint")}`}
         className={`absolute left-0 top-2 z-10 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all ${meta.badge} ${meta.border} ${meta.ring}`}
       >
         {ICON[node.status]}

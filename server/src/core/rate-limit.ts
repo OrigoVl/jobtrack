@@ -7,11 +7,13 @@
 // declared, and each replica forgets other replicas' counters). With REDIS_URL set, both
 // limiters below share counters through Redis instead, so the declared limit holds regardless
 // of how many replicas are running.
-import rateLimit, { type RateLimitExceededEventHandler, type Store } from "express-rate-limit";
+import rateLimit, { ipKeyGenerator, type RateLimitExceededEventHandler, type Store } from "express-rate-limit";
 import { RedisStore, type RedisReply } from "rate-limit-redis";
 import { Redis } from "ioredis";
+import type { Request } from "express";
 import { env } from "../config/env.js";
 import { contextLogger } from "./logger.js";
+import { getSessionUserIdForRateLimit } from "./http.js";
 
 // A single shared Redis connection for both limiters below (not one per limiter) — no reason
 // to open two sockets to the same server for the same purpose. `undefined` when REDIS_URL
@@ -34,14 +36,42 @@ function sharedStore(prefix: string): Store | undefined {
     : undefined;
 }
 
+// Per-account key when the request has a valid session, falling back to per-IP (via
+// express-rate-limit's own ipKeyGenerator, which correctly normalizes/subnets IPv6) for
+// unauthenticated requests. Without this, every user behind the same office/VPN/NAT IP shares one
+// bucket — a single heavy user throttles everyone else on that address, and there's no way to
+// give one abusive ACCOUNT a tighter limit independent of who else is on their network. This is
+// the one sanctioned second caller of the session lookup outside authed()/requireAdmin()
+// themselves (see http.ts's getSessionUserIdForRateLimit).
+//
+// Deliberately used ONLY by aiLimiter below, not apiLimiter: apiLimiter is mounted globally on
+// every "/api/*" request (app.ts), so keying it this way would add a second session lookup to
+// literally every request in the app (on top of the one authed() already does once the handler
+// runs) — real added latency/DB load for a limiter whose job is just a coarse anti-runaway-loop
+// backstop, where IP bucketing is an acceptable tradeoff. aiLimiter only gates a small, bounded
+// set of expensive LLM endpoints, where one extra fast auth lookup is negligible next to the
+// multi-second LLM call it precedes, and per-account keying is exactly what the shared-IP
+// AI-cost-throttling problem needs.
+async function perAccountKey(req: Request): Promise<string> {
+  const userId = await getSessionUserIdForRateLimit(req);
+  return userId ? `user:${userId}` : `ip:${ipKeyGenerator(req.ip ?? "unknown")}`;
+}
+
 // A shared handler instead of express-rate-limit's default behavior: the default just writes
 // res.status(...).json(message) with no logging at all. Without this, a triggered limit
 // (especially aiLimiter — a sign of a runaway loop in the frontend or an attempt to burn
 // through paid LLM quota) would be visible ONLY to the client (an error toast), leaving no
 // trace on the server at all.
-function logAndReject(name: string): RateLimitExceededEventHandler {
+// `resolveKey` mirrors whatever this specific limiter actually bucketed the request by (IP for
+// apiLimiter, per-account for aiLimiter) — logging a resolved account key here for a limiter
+// that never used one for bucketing would misleadingly suggest it was.
+function logAndReject(name: string, resolveKey: (req: Request) => string | Promise<string>): RateLimitExceededEventHandler {
   return (req, res, _next, options) => {
-    contextLogger().warn({ path: req.path, ip: req.ip, limiter: name }, "Rate limit exceeded");
+    // Only runs on the rare rejected-request path, so re-deriving the key here (for aiLimiter,
+    // the same lookup perAccountKey() already did once for bucketing) is not a hot-path cost.
+    void Promise.resolve(resolveKey(req)).then((key) => {
+      contextLogger().warn({ path: req.path, key, limiter: name }, "Rate limit exceeded");
+    });
     res.status(options.statusCode).json(options.message);
   };
 }
@@ -58,7 +88,9 @@ export const apiLimiter = rateLimit({
   // goes through errorHandler — express-rate-limit's handler writes `options.message` directly —
   // so the client (shared/use-error-toast.ts) can map it to a translated message the same way.
   message: { error: "Too many requests. Try again in a few minutes.", code: "RATE_LIMITED" },
-  handler: logAndReject("api"),
+  handler: logAndReject("api", (req) => `ip:${ipKeyGenerator(req.ip ?? "unknown")}`),
+  // IP-keyed (express-rate-limit's default) — see perAccountKey's comment for why this one stays
+  // IP-based while aiLimiter below doesn't.
   store: sharedStore("rl:api:"),
 });
 
@@ -72,6 +104,7 @@ export const aiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many AI requests. Wait a few minutes and try again.", code: "AI_RATE_LIMITED" },
-  handler: logAndReject("ai"),
+  handler: logAndReject("ai", perAccountKey),
+  keyGenerator: perAccountKey,
   store: sharedStore("rl:ai:"),
 });

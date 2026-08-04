@@ -13,6 +13,7 @@ export interface VacancyRow {
   company: string;
   position: string;
   level: string;
+  salary: string;
   url: string;
   status: string;
   fit: string;

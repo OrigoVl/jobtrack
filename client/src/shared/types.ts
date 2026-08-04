@@ -20,6 +20,7 @@ export interface Vacancy {
   company: string;
   position: string;
   level: string;
+  salary: string;
   url: string;
   status: string;
   fit: Fit;
@@ -92,11 +93,22 @@ export interface Analytics {
   stageDurations: StageDuration[];
 }
 
+// Advisory only (see server/src/modules/jobs/job-dedupe.ts) — a near-duplicate by company+title
+// SimHash similarity to something already tracked; the import still adds it, this is just a
+// heads-up the UI can surface, never a block.
+export interface PossibleDuplicate {
+  index: number;
+  company: string;
+  position: string;
+  of: { id: number; company: string; position: string };
+}
+
 export interface JsonVacancyImportResult {
   added: number;
   updated: number;
   skipped: number;
   errors: { index: number; message: string }[];
+  possibleDuplicates: PossibleDuplicate[];
 }
 
 export interface LearnGap {
@@ -480,6 +492,8 @@ export interface Contact {
   name: string;
   role: string;
   companyId: number | null;
+  /** Linked vacancy (e.g. the recruiter/hiring manager for this application), or null. */
+  vacancyId: number | null;
   email: string;
   linkedinUrl: string;
   notes: string;
@@ -491,6 +505,7 @@ export interface ContactInput {
   name: string;
   role: string;
   companyId: number | null;
+  vacancyId: number | null;
   email: string;
   linkedinUrl: string;
   notes: string;
@@ -500,6 +515,12 @@ export interface ContactInput {
 export interface CvShare {
   slug: string;
   enabled: boolean;
+}
+
+export interface DigestPreferences {
+  enabled: boolean;
+  /** ISO instant of the last digest actually sent, or null — none yet. */
+  lastSentAt: string | null;
 }
 
 export interface LinkedInOptimizeResult {

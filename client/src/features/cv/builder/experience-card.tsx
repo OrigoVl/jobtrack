@@ -88,6 +88,7 @@ export function ExperienceCard({
                 onDragEnd={() => setDragIdx(null)}
                 onClick={(ev) => ev.stopPropagation()}
                 title={t("experienceCard.dragToReorder")}
+                aria-label={t("experienceCard.dragToReorder")}
                 className="cursor-grab active:cursor-grabbing select-none text-ink-dim hover:text-ink-dim text-lg leading-none"
               >
                 ⠿
@@ -108,10 +109,24 @@ export function ExperienceCard({
             <Collapse open={isOpen}>
               <div className="px-2.5 pb-2.5 pt-1 space-y-2 border-t border-surface-2">
                 <div className="flex gap-1 justify-end">
-                  <Btn size="sm" variant="subtle" onClick={() => onMove(i, i - 1)} disabled={i === 0}>
+                  <Btn
+                    size="sm"
+                    variant="subtle"
+                    onClick={() => onMove(i, i - 1)}
+                    disabled={i === 0}
+                    aria-label={t("experienceCard.moveUp")}
+                    title={t("experienceCard.moveUp")}
+                  >
                     ↑
                   </Btn>
-                  <Btn size="sm" variant="subtle" onClick={() => onMove(i, i + 1)} disabled={i === experience.length - 1}>
+                  <Btn
+                    size="sm"
+                    variant="subtle"
+                    onClick={() => onMove(i, i + 1)}
+                    disabled={i === experience.length - 1}
+                    aria-label={t("experienceCard.moveDown")}
+                    title={t("experienceCard.moveDown")}
+                  >
                     ↓
                   </Btn>
                 </div>

@@ -18,20 +18,20 @@
     "@tanstack/react-query": "^5.59.0",
     "better-auth": "^1.6.25",
     "i18next": "^26.3.6",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "react-i18next": "^17.0.11",
-    "react-router-dom": "^7.18.1",
+    "react-router": "^8.3.0",
     "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.12.0",
     "@testing-library/jest-dom": "^6.5.0",
     "@testing-library/react": "^16.0.1",
-    "@types/react": "^18.3.11",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.2",
-    "@vitest/coverage-v8": "^3.2.7",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "@vitest/coverage-v8": "^4.1.10",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.12.0",
     "eslint-plugin-jsx-a11y": "^6.10.0",
@@ -43,7 +43,7 @@
     "tailwindcss": "^3.4.13",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.8.1",
-    "vite": "^5.4.8",
-    "vitest": "^3.2.7"
+    "vite": "^8.2.0",
+    "vitest": "^4.1.10"
   }
 }

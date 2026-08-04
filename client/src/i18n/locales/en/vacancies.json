@@ -34,10 +34,26 @@
     "title": "No vacancies yet",
     "hint": "Add your first vacancy by hand or import a list from DOU — the app will build the analytics and roadmap from there."
   },
+  "filters": {
+    "searchPlaceholder": "Search company, position, stack, notes…",
+    "searchAriaLabel": "Search vacancies",
+    "allStatuses": "All statuses",
+    "allFits": "All fit levels",
+    "columns": "Columns",
+    "reset": "Reset filters",
+    "noMatches": {
+      "title": "No matches",
+      "hint": "No vacancy matches these filters — try changing or resetting them."
+    }
+  },
   "table": {
     "companyPosition": "Company / Position",
     "stack": "Stack",
     "fit": "Fit",
+    "salary": "Salary",
+    "salaryPlaceholder": "e.g. $90k-110k",
+    "salaryAriaLabel": "Salary — {{company}}",
+    "contacts": "Contacts",
     "status": "Status",
     "applied": "Applied",
     "nextStep": "Next step",
@@ -48,7 +64,9 @@
     "nextStepDateAriaLabel": "Next step date — {{company}}",
     "daysWaiting_one": "{{count}}d waiting",
     "daysWaiting_other": "{{count}}d waiting",
-    "staleTooltip": "More than {{days}} days without a response — worth nudging the recruiter"
+    "staleTooltip": "More than {{days}} days without a response — worth nudging the recruiter",
+    "deleteConfirmTitle": "Delete {{company}} — {{position}}?",
+    "deleteConfirmMessage": "This removes the vacancy and its whole status history. This can't be undone."
   },
   "kanban": {
     "columnAriaLabel_one": "Column \"{{status}}\", {{count}} vacancy",
@@ -60,6 +78,7 @@
   },
   "toasts": {
     "added": "Vacancy added",
+    "offerCelebration": "Congratulations on the offer from {{company}}!",
     "possibleDuplicate": "Added — but this looks similar to an existing one: {{position}} at {{company}}. Worth checking if it's a duplicate.",
     "deleted": "Vacancy deleted",
     "stackPulled": "Stack pulled from the link: {{stack}}",
@@ -68,6 +87,8 @@
     "importAdded_one": "Added {{count}} vacancy",
     "importAdded_other": "Added {{count}} vacancies",
     "importNoNewLinks": "No new links found",
+    "possibleDuplicatesCount_one": "{{count}} of them might be a duplicate of something you already track",
+    "possibleDuplicatesCount_other": "{{count}} of them might be duplicates of something you already track",
     "jsonImport": {
       "added_one": "added {{count}}",
       "added_other": "added {{count}}",

@@ -141,6 +141,7 @@ export function VacancyBoard() {
                         <SimilarVacanciesButton vacancyId={v.id} />
                       </span>
                     </div>
+                    {v.salary && <div className="text-[11px] text-signal mt-1">💰 {v.salary}</div>}
                     {v.next && <div className="text-[11px] text-alert mt-1">⏭ {v.next}</div>}
                   </div>
                 );

@@ -1,12 +1,14 @@
 import { Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate, useLocation } from "react-router";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { ToastProvider } from "../shared/toast";
 import { useToast } from "../shared/use-toast";
+import { ConfirmDialogProvider } from "../shared/confirm";
 import { useHealth, useRoadmap } from "../shared/queries";
 import { CardsSkeleton, ProgressBar, Btn } from "../shared/ui";
 import { useUi } from "../shared/ui-state";
+import { CelebrationOverlay } from "../shared/celebration";
 import { LanguageSwitcher } from "../shared/language-switcher";
 import { ThemeSwitcher } from "../shared/theme-switcher";
 import { ErrorBoundary } from "../shared/error-boundary";
@@ -364,6 +366,7 @@ function Shell() {
       </div>
 
       <ToastHost />
+      <CelebrationOverlay />
       <CommandPalette
         items={allItems}
         actions={[{ id: "logout", icon: "🚪", label: t("logOut"), onRun: logOut }]}
@@ -403,49 +406,51 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <BrowserRouter>
-          <Suspense fallback={null}>
-            <Routes>
-              <Route
-                path="/login"
-                element={
-                  <PublicRoute>
-                    <Login />
-                  </PublicRoute>
-                }
-              />
-              <Route
-                path="/register"
-                element={
-                  <PublicRoute>
-                    <Register />
-                  </PublicRoute>
-                }
-              />
-              <Route
-                path="/forgot-password"
-                element={
-                  <PublicRoute>
-                    <ForgotPassword />
-                  </PublicRoute>
-                }
-              />
-              <Route
-                path="/reset-password"
-                element={
-                  <PublicRoute>
-                    <ResetPassword />
-                  </PublicRoute>
-                }
-              />
-              {/* Public — no session, no Shell chrome (see cv-public.tsx). Deliberately NOT
+        <ConfirmDialogProvider>
+          <BrowserRouter>
+            <Suspense fallback={null}>
+              <Routes>
+                <Route
+                  path="/login"
+                  element={
+                    <PublicRoute>
+                      <Login />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path="/register"
+                  element={
+                    <PublicRoute>
+                      <Register />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path="/forgot-password"
+                  element={
+                    <PublicRoute>
+                      <ForgotPassword />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path="/reset-password"
+                  element={
+                    <PublicRoute>
+                      <ResetPassword />
+                    </PublicRoute>
+                  }
+                />
+                {/* Public — no session, no Shell chrome (see cv-public.tsx). Deliberately NOT
                   wrapped in PublicRoute: an already-signed-in visitor should still be able to
                   open a (their own, or anyone else's) shared CV link while logged in. */}
-              <Route path="/cv/public/:slug" element={<CvPublic />} />
-              <Route path="/*" element={<AuthGate />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
+                <Route path="/cv/public/:slug" element={<CvPublic />} />
+                <Route path="/*" element={<AuthGate />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </ConfirmDialogProvider>
       </ToastProvider>
     </QueryClientProvider>
   );

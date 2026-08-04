@@ -31,6 +31,11 @@ export const vacancies = pgTable(
     company: text().notNull().default(""),
     position: text().notNull().default(""),
     level: text().notNull().default(""),
+    // Freeform, like `level` above — not structured min/max/currency columns: candidates paste
+    // whatever the posting itself says ("$90k-110k", "80000 UAH/mo", "negotiable"), and forcing
+    // that into a single currency/number pair would lose information for the common case of a
+    // vague or range-only listing. "" means "not set" (same tri-state convention as level/notes).
+    salary: text().notNull().default(""),
     url: text().notNull().default(""),
     status: text().notNull().default("Want to apply"),
     fit: text().notNull().default("med"),
@@ -104,6 +109,17 @@ export const contacts = pgTable(
     // constraint is only checked when companyId is non-null, so a contact can never end up
     // pointing at ANOTHER user's company, while an unlinked contact is unaffected.
     companyId: integer("company_id"),
+    // Optional link to a tracked vacancy (e.g. "this recruiter is running the Acme process").
+    // Deliberately NOT the composite-FK/cascade trick used for vacancyId elsewhere in this file
+    // (vacancy_status_history, calendar_events): those rows are children of a vacancy and have no
+    // reason to outlive it, but a contact is a person — deleting a vacancy must never delete the
+    // person's record along with it. A composite (user_id, vacancy_id) FK can't express "SET NULL"
+    // either way (it would also try to null the NOT NULL user_id column and fail), so this uses a
+    // plain single-column FK straight to vacancies.id with ON DELETE SET NULL: the vacancy link is
+    // cleared, the contact stays. Cross-tenant linking is still prevented, just at the app layer
+    // (assertOwnVacancyOrNull in contacts.routes.ts) rather than structurally by the DB — the same
+    // "defense-in-depth, not the only guard" trust already placed in that helper for calendar events.
+    vacancyId: integer("vacancy_id").references(() => vacancies.id, { onDelete: "set null" }),
     email: text(),
     linkedinUrl: text("linkedin_url"),
     notes: text().notNull().default(""),
@@ -285,3 +301,17 @@ export const cvShares = pgTable(
   },
   (t) => [uniqueIndex("cv_shares_user_id_key").on(t.userId)],
 );
+
+// One row per user — opt-in for the periodic email digest (stale applications, study streak,
+// upcoming interviews/next-steps; see modules/digest/). A real `enabled` column, not a blob in
+// the generic `user_kv` table (used for study streak etc.): the scheduler needs a direct
+// `WHERE enabled = true` scan across EVERY user, which a jsonb value can't do without a raw SQL
+// path expression — the same reason saved_searches/cv_shares get first-class columns instead of
+// user_kv. userId IS the primary key (unlike other tables' surrogate `id`) since there's no
+// external lookup key here (unlike cv_shares' `slug`, looked up from a public URL) — one row per
+// user is the table's only real identity.
+export const digestPreferences = pgTable("digest_preferences", {
+  userId: userIdCol().primaryKey(),
+  enabled: boolean().notNull().default(false),
+  lastSentAt: timestamp("last_sent_at", { withTimezone: true, mode: "string" }),
+});

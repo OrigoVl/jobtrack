@@ -18,6 +18,7 @@ import type {
   CvReview,
   CvShare,
   CvTailorResult,
+  DigestPreferences,
   Drill,
   FetchAllResult,
   FocusWeek,
@@ -99,7 +100,11 @@ export const api = {
   deleteVacancy: (id: number) => req<{ ok: boolean }>(`/vacancies/${id}`, { method: "DELETE" }),
   analyzeVacancy: (text: string) => req<AnalyzeResult>("/vacancies/analyze", { method: "POST", body: JSON.stringify({ text }) }),
   importVacancies: (html: string) =>
-    req<{ added: number; items: { company: string; url: string }[] }>("/vacancies/import", {
+    req<{
+      added: number;
+      items: { company: string; url: string }[];
+      possibleDuplicates: { company: string; url: string; of: { id: number; company: string; position: string } }[];
+    }>("/vacancies/import", {
       method: "POST",
       body: JSON.stringify({ html }),
     }),
@@ -205,6 +210,9 @@ export const api = {
   adminUsers: (limit = 50, offset = 0) => req<AdminUsersResult>(`/admin/users?limit=${limit}&offset=${offset}`),
   adminLlmUsage: (days = 30) => req<AdminLlmUsageSummary>(`/admin/llm-usage?days=${days}`),
   adminProductEvents: (days = 30) => req<AdminProductEventsSummary>(`/admin/product-events?days=${days}`),
+  adminBanUser: (userId: string, reason?: string) =>
+    req<{ ok: boolean }>(`/admin/users/${userId}/ban`, { method: "POST", body: JSON.stringify({ reason }) }),
+  adminUnbanUser: (userId: string) => req<{ ok: boolean }>(`/admin/users/${userId}/unban`, { method: "POST" }),
 
   calendarCombined: (range: { from?: string; to?: string } = {}) => {
     const q = new URLSearchParams();
@@ -238,4 +246,8 @@ export const api = {
   cvPublic: (slug: string) => req<{ doc: CvDoc }>(`/cv/public/${encodeURIComponent(slug)}`),
 
   linkedinOptimize: () => req<LinkedInOptimizeResult>("/cv/linkedin-optimize", { method: "POST", body: "{}" }),
+
+  digestPreferences: () => req<DigestPreferences>("/digest/preferences"),
+  setDigestEnabled: (enabled: boolean) =>
+    req<DigestPreferences>("/digest/preferences", { method: "PUT", body: JSON.stringify({ enabled }) }),
 };

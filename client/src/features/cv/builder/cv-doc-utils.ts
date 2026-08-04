@@ -177,10 +177,14 @@ export function buildCvHtml(doc: CvDoc): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(doc.name || "CV")}</title><style>${css}</style></head><body>${layout}</body></html>`;
 }
 
-export function exportCvDoc(doc: CvDoc): void {
+/** `onPopupBlocked` replaces the old native `alert()` — a plain utility function has no toast
+ * context of its own, so the call site (which does) supplies how to surface the failure,
+ * consistent with the rest of the app's toast-based error feedback instead of a jarring native
+ * dialog. */
+export function exportCvDoc(doc: CvDoc, onPopupBlocked: () => void): void {
   const w = window.open("", "_blank");
   if (!w) {
-    alert("Allow pop-ups to export the PDF.");
+    onPopupBlocked();
     return;
   }
   w.document.write(buildCvHtml(doc));

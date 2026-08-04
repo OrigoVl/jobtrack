@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "../../shared/api";
-import { useHealth, useLearn, useProfile, useRoadmap, useStudy, useVacancies } from "../../shared/queries";
+import { useFocusWeek, useHealth, useLearn, useProfile, useRoadmap, useStudy, useVacancies } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
 import { useToast } from "../../shared/use-toast";
+import { useFireCelebration } from "../../shared/use-celebration";
+import { useUi } from "../../shared/ui-state";
 import { statusLabel } from "../../shared/status-labels";
 import {
   enableNotifications,
@@ -13,23 +14,13 @@ import {
   notificationsSupported,
   maybeNotifyFollowUps,
 } from "../../shared/notifications";
-import type { FocusWeek } from "../../shared/types";
 
 function FocusWeekCard({ llm }: { llm: boolean }) {
   const { t } = useTranslation("dashboard");
-  const [data, setData] = useState<FocusWeek | null>(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    let alive = true;
-    api
-      .focusWeek()
-      .then((d) => alive && setData(d))
-      .catch(() => alive && setData({ actions: [] }))
-      .finally(() => alive && setLoading(false));
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // A query error (network/auth) is treated the same as "no actions" below, same as the old
+  // manual .catch(() => setData({ actions: [] })) — it's not the same thing as the server's own
+  // `offline: true` (LLM unavailable, heuristic fallback still returned actions successfully).
+  const { data, isLoading: loading } = useFocusWeek();
   return (
     <Card className="!bg-gradient-to-br !from-signal/10 !to-surface !border-signal/30">
       <div className="flex items-center gap-2 mb-2">
@@ -68,6 +59,7 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
   const { data: health } = useHealth();
   const { data: profile } = useProfile();
   const { toast } = useToast();
+  const fireCelebration = useFireCelebration();
   const [notifOn, setNotifOn] = useState(() => notificationsEnabled());
   const llm = health?.llm ?? false;
   const today = new Date().toISOString().slice(0, 10);
@@ -87,23 +79,11 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
     setNotifOn(false);
     toast(t("notifications.disabledToast"), "success");
   };
-  if (loadingVacancies) return <CardsSkeleton count={4} />;
-  const active = vacancies.filter((x) => !["Rejected", "Paused", "Want to apply"].includes(x.status)).length;
-  const iv = vacancies.filter((x) => ["Tech interview", "Take-home task", "Final"].includes(x.status)).length;
-  const upcoming = vacancies
-    .filter((x) => x.next)
-    .sort((a, b) => (a.next > b.next ? 1 : -1))
-    .slice(0, 5);
-  const stat = (n: string | number, l: string, c = "text-ink") => (
-    <Card className="text-center">
-      <div className={`text-3xl font-extrabold ${c}`}>{n}</div>
-      <div className="text-xs text-ink-dim mt-1">{l}</div>
-    </Card>
-  );
   // Real product signals, not a "have you visited this page" flag — each step reflects something
   // the user actually did (persisted server-side already), so it survives reloads and can't be
   // gamed by just clicking through pages. Hidden once every step is done (see onboardingRemaining
-  // below), same as the single-card version this replaces.
+  // below), same as the single-card version this replaces. Computed above the loadingVacancies
+  // early return (with the hooks that react to it) so hook order stays identical across renders.
   const onboardingSteps = [
     {
       done: vacancies.length > 0,
@@ -132,6 +112,36 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
   ];
   const onboardingDone = onboardingSteps.filter((s) => s.done).length;
   const onboardingRemaining = onboardingSteps.length - onboardingDone;
+  // Fires the confetti celebration the moment the checklist first hits 100% — gated on
+  // `dataSettled` so the load waterfall (profile/roadmap/study each resolve independently) can't
+  // be mistaken for the user just having finished the last step: `prevRemainingRef` only starts
+  // recording once every query behind onboardingSteps has data, so the very first "settled" render
+  // just establishes the baseline instead of comparing against transient loading defaults.
+  const dataSettled = profile !== undefined && roadmap !== undefined && study !== undefined;
+  const prevRemainingRef = useRef<number | null>(null);
+  const [onboardingCelebrated, setOnboardingCelebrated] = useUi("dashboard.onboardingCelebrated", false);
+  useEffect(() => {
+    if (!dataSettled) return;
+    const prev = prevRemainingRef.current;
+    prevRemainingRef.current = onboardingRemaining;
+    if (!onboardingCelebrated && prev !== null && prev > 0 && onboardingRemaining === 0) {
+      fireCelebration("🎉", t("onboarding.celebration"));
+      setOnboardingCelebrated(true);
+    }
+  }, [dataSettled, onboardingRemaining, onboardingCelebrated, setOnboardingCelebrated, t, fireCelebration]);
+  if (loadingVacancies) return <CardsSkeleton count={4} />;
+  const active = vacancies.filter((x) => !["Rejected", "Paused", "Want to apply"].includes(x.status)).length;
+  const iv = vacancies.filter((x) => ["Tech interview", "Take-home task", "Final"].includes(x.status)).length;
+  const upcoming = vacancies
+    .filter((x) => x.next)
+    .sort((a, b) => (a.next > b.next ? 1 : -1))
+    .slice(0, 5);
+  const stat = (n: string | number, l: string, c = "text-ink") => (
+    <Card className="text-center">
+      <div className={`text-3xl font-extrabold ${c}`}>{n}</div>
+      <div className="text-xs text-ink-dim mt-1">{l}</div>
+    </Card>
+  );
   return (
     <div className="space-y-5">
       <PageHeader

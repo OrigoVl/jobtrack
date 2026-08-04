@@ -15,3 +15,5 @@ export * from "./saved-searches";
 export * from "./contacts";
 export * from "./cv-share";
 export * from "./linkedin";
+export * from "./resources";
+export * from "./digest";

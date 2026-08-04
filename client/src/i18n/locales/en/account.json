@@ -5,6 +5,17 @@
     "heading": "Theme",
     "description": "Switch between a light and dark look."
   },
+  "digest": {
+    "heading": "Weekly email digest",
+    "description": "A weekly email with applications that have gone quiet, upcoming interviews, and your study streak.",
+    "toggleLabel": "Send me the weekly digest",
+    "lastSent": "Last sent: {{date}}",
+    "neverSent": "Not sent yet",
+    "toasts": {
+      "enabled": "Weekly digest enabled",
+      "disabled": "Weekly digest disabled"
+    }
+  },
   "export": {
     "heading": "Export your data",
     "description": "Downloads a JSON file with your profile, vacancies, companies, and study progress — everything you've created in DevRadar.",

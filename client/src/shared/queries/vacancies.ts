@@ -4,6 +4,7 @@ import { api } from "../api";
 import type { Vacancy } from "../types";
 import { useToast } from "../use-toast";
 import { useMutationErrorToast } from "../use-error-toast";
+import { useFireCelebration } from "../use-celebration";
 import { queryKeys } from "./keys";
 import { useInvalidateAll, useInvalidateDerived } from "./derived";
 
@@ -52,17 +53,18 @@ export function useUpdateVacancy() {
   const { t } = useTranslation("vacancies");
   const onError = useMutationErrorToast();
   const invalidateDerived = useInvalidateDerived();
+  const fireCelebration = useFireCelebration();
   return useMutation({
     mutationFn: ({ id, patch }: { id: number; patch: Partial<Vacancy> }) => api.updateVacancy(id, patch),
     onSuccess: async (row, variables) => {
-      const prevUrl = qc.getQueryData<Vacancy[]>(queryKeys.vacancies)?.find((x) => x.id === row.id)?.url;
+      const prev = qc.getQueryData<Vacancy[]>(queryKeys.vacancies)?.find((x) => x.id === row.id);
       qc.setQueryData<Vacancy[]>(queryKeys.vacancies, (cur) => cur?.map((x) => (x.id === row.id ? row : x)) ?? cur);
       await invalidateDerived();
       // The server tries to automatically pull the stack/level/fit when the URL appears or
       // changes (server/src/modules/vacancies/vacancy-analysis.service.ts tryAutoEnrichStack,
       // best-effort, any public https host — LinkedIn, Djinni, robota.ua, dou.ua, etc.,
       // except local/internal addresses blocked by SSRF protection) — we report the outcome.
-      if (variables.patch.url !== undefined && variables.patch.url !== prevUrl) {
+      if (variables.patch.url !== undefined && variables.patch.url !== prev?.url) {
         toast(
           row.stack.length > 0
             ? t("toasts.stackPulled", { stack: `${row.stack.slice(0, 5).join(", ")}${row.stack.length > 5 ? "…" : ""}` })
@@ -71,6 +73,12 @@ export function useUpdateVacancy() {
               : t("toasts.linkRemoved"),
           row.stack.length > 0 ? "success" : "info",
         );
+      }
+      // Celebrate reaching "Offer" — gated on the patch itself (not just row.status) so an
+      // unrelated edit to a vacancy that's already an Offer (e.g. tweaking its salary) doesn't
+      // re-fire the confetti every time.
+      if (variables.patch.status === "Offer" && prev?.status !== "Offer") {
+        fireCelebration("🎉", t("toasts.offerCelebration", { company: row.company }));
       }
     },
     onError,
@@ -103,7 +111,13 @@ export function useImportVacancies() {
     mutationFn: (html: string) => api.importVacancies(html),
     onSuccess: async (res) => {
       await invalidateAll();
-      toast(res.added ? t("toasts.importAdded", { count: res.added }) : t("toasts.importNoNewLinks"), res.added ? "success" : "info");
+      const base = res.added ? t("toasts.importAdded", { count: res.added }) : t("toasts.importNoNewLinks");
+      // Advisory only (server/src/modules/jobs/job-dedupe.ts) — the items are already saved
+      // either way, this just flags a same-company match so the user can check for a duplicate.
+      const dupSuffix = res.possibleDuplicates.length
+        ? ` — ${t("toasts.possibleDuplicatesCount", { count: res.possibleDuplicates.length })}`
+        : "";
+      toast(base + dupSuffix, res.added ? "success" : "info");
     },
     onError,
   });
@@ -122,6 +136,7 @@ export function useImportVacanciesJson() {
       if (res.added) parts.push(t("toasts.jsonImport.added", { count: res.added }));
       if (res.updated) parts.push(t("toasts.jsonImport.updated", { count: res.updated }));
       if (res.skipped) parts.push(t("toasts.jsonImport.skipped", { count: res.skipped }));
+      if (res.possibleDuplicates.length) parts.push(t("toasts.possibleDuplicatesCount", { count: res.possibleDuplicates.length }));
       const ok = res.added > 0 || res.updated > 0;
       toast(parts.length ? parts.join(", ") : t("toasts.jsonImport.noData"), ok ? "success" : "error");
     },

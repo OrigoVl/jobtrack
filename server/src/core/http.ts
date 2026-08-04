@@ -44,6 +44,17 @@ async function getSession(req: Request) {
   return auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
 }
 
+/** The one narrow, sanctioned exception to "authed()/requireAdmin() are the only place a
+ * session is read": core/rate-limit.ts calls this to key the AI/API limiters per-account instead
+ * of per-IP (important once more than one user shares an office/VPN IP — a multi-user prerequisite).
+ * Deliberately returns ONLY the id, never the full session/role, since bucketing a rate limit is
+ * all it's for — every actual authorization decision still goes exclusively through
+ * authed()/requireAdmin() below, and no repository or route ever receives a `userId` this way. */
+export async function getSessionUserIdForRateLimit(req: Request): Promise<UserId | null> {
+  const session = await getSession(req);
+  return session ? (session.user.id as UserId) : null;
+}
+
 // The single seam between "who is making this request" and every route/repository — the ONLY
 // place that reads a better-auth session. No repository and no route ever imports a session or
 // reads req.user directly; they all go through the `userId` this function hands them.

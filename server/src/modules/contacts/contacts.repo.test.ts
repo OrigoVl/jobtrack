@@ -13,6 +13,7 @@ const NEW_CONTACT = {
   name: "Ada Lovelace",
   role: "Engineering Manager",
   companyId: null as number | null,
+  vacancyId: null as number | null,
   email: "ada@example.test",
   linkedinUrl: "https://www.linkedin.com/in/ada",
   notes: "Met at a meetup",
@@ -22,6 +23,7 @@ const NEW_CONTACT = {
 let testDb: Awaited<ReturnType<typeof createTestDb>>;
 let repo: typeof import("./contacts.repo.js");
 let companiesRepo: typeof import("../companies/companies.repo.js");
+let vacanciesRepo: typeof import("../vacancies/vacancies.repo.js");
 
 beforeAll(async () => {
   testDb = await createTestDb();
@@ -30,6 +32,7 @@ beforeAll(async () => {
   vi.doMock("../../db/client.js", () => ({ default: testDb }));
   repo = await import("./contacts.repo.js");
   companiesRepo = await import("../companies/companies.repo.js");
+  vacanciesRepo = await import("../vacancies/vacancies.repo.js");
 });
 
 describe("contacts.repo (PGlite)", () => {
@@ -75,6 +78,45 @@ describe("contacts.repo (PGlite)", () => {
     await expect(
       testDb.insert(contacts).values({ userId: USER_B, name: "Cross-tenant attempt", companyId: companyOfA!.id }),
     ).rejects.toThrow();
+  });
+
+  it("can link a contact to a vacancy", async () => {
+    const vacancyId = await vacanciesRepo.createVacancy(USER_A, {
+      company: "Acme",
+      position: "SWE",
+      level: "",
+      salary: "",
+      url: "",
+      status: "Applied",
+      fit: "med",
+      applied: "",
+      next: "",
+      notes: "",
+      stack: [],
+    });
+    const contact = await repo.createContact(USER_A, { ...NEW_CONTACT, vacancyId });
+    expect(contact.vacancyId).toBe(vacancyId);
+  });
+
+  it("deleting the linked vacancy unlinks the contact (SET NULL) instead of deleting it", async () => {
+    const vacancyId = await vacanciesRepo.createVacancy(USER_A, {
+      company: "Beta Corp",
+      position: "SWE",
+      level: "",
+      salary: "",
+      url: "",
+      status: "Applied",
+      fit: "med",
+      applied: "",
+      next: "",
+      notes: "",
+      stack: [],
+    });
+    const contact = await repo.createContact(USER_A, { ...NEW_CONTACT, name: "Recruiter for Beta", vacancyId });
+    await vacanciesRepo.deleteVacancy(USER_A, vacancyId);
+    const stillThere = await repo.getContact(USER_A, contact.id);
+    expect(stillThere).toBeDefined();
+    expect(stillThere?.vacancyId).toBeNull();
   });
 
   it("updateContact() partially updates without clobbering other fields", async () => {

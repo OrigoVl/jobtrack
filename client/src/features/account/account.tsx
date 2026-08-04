@@ -4,9 +4,12 @@ import { Btn, Card, PageHeader } from "../../shared/ui";
 import { deleteUser } from "../../shared/auth-client";
 import { LanguageSwitcher } from "../../shared/language-switcher";
 import { ThemeSwitcher } from "../../shared/theme-switcher";
+import { useDigestPreferences, useSetDigestEnabled } from "../../shared/queries";
 
 export function Account() {
   const { t } = useTranslation(["account", "common"]);
+  const { data: digestPrefs } = useDigestPreferences();
+  const setDigestEnabledMutation = useSetDigestEnabled();
   const [deleteRequested, setDeleteRequested] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +40,26 @@ export function Account() {
         <div className="text-sm font-semibold text-ink">{t("theme.heading")}</div>
         <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">{t("theme.description")}</p>
         <ThemeSwitcher />
+      </Card>
+
+      <Card>
+        <div className="text-sm font-semibold text-ink">{t("digest.heading")}</div>
+        <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">{t("digest.description")}</p>
+        <label className="flex items-center gap-2 text-sm text-ink cursor-pointer">
+          <input
+            type="checkbox"
+            checked={digestPrefs?.enabled ?? false}
+            onChange={(e) => setDigestEnabledMutation.mutate(e.target.checked)}
+            disabled={setDigestEnabledMutation.isPending}
+            className="accent-signal"
+          />
+          {t("digest.toggleLabel")}
+        </label>
+        <p className="text-xs text-ink-dim mt-2">
+          {digestPrefs?.lastSentAt
+            ? t("digest.lastSent", { date: new Date(digestPrefs.lastSentAt).toLocaleDateString() })
+            : t("digest.neverSent")}
+        </p>
       </Card>
 
       <Card>

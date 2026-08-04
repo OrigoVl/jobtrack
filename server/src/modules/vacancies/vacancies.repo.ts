@@ -18,6 +18,7 @@ const VACANCY_COLUMNS = {
   company: vacancies.company,
   position: vacancies.position,
   level: vacancies.level,
+  salary: vacancies.salary,
   url: vacancies.url,
   status: vacancies.status,
   fit: vacancies.fit,
@@ -67,6 +68,7 @@ export interface NewVacancy {
   company: string;
   position: string;
   level: string;
+  salary: string;
   url: string;
   status: string;
   fit: string;
@@ -100,6 +102,7 @@ export interface JsonVacancyInsert {
   company: string;
   position: string;
   level: string;
+  salary: string;
   url: string;
   status: string;
   fit: string;
@@ -120,6 +123,7 @@ export interface VacancyUpdate {
   company: string;
   position: string;
   level: string;
+  salary: string;
   url: string;
   status: string;
   fit: string;
@@ -240,6 +244,24 @@ export async function listVacancyStatusRows(userId: UserId): Promise<{ status: s
 export async function listVacancyStatusNextRows(userId: UserId): Promise<{ status: string; next: string; applied: string }[]> {
   return db
     .select({ status: vacancies.status, next: vacancies.next, applied: vacancies.applied })
+    .from(vacancies)
+    .where(eq(vacancies.userId, userId));
+}
+
+/** Narrow projection for the email digest's "stale applications" section — see
+ * modules/digest/digest.service.ts#buildStaleApplications, which needs company/position (unlike
+ * listVacancyStatusNextRows above) to actually name the application in the email body. */
+export async function listVacancyDigestRows(
+  userId: UserId,
+): Promise<{ id: number; company: string; position: string; status: string; applied: string }[]> {
+  return db
+    .select({
+      id: vacancies.id,
+      company: vacancies.company,
+      position: vacancies.position,
+      status: vacancies.status,
+      applied: vacancies.applied,
+    })
     .from(vacancies)
     .where(eq(vacancies.userId, userId));
 }

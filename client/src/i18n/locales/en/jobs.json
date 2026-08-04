@@ -22,7 +22,8 @@
     "lastAlert": "Last alert {{date}}",
     "noAlertsSent": "No alerts sent yet",
     "deleteTitle": "Delete alert",
-    "deleteAriaLabel": "Delete alert for {{name}}"
+    "deleteAriaLabel": "Delete alert for {{name}}",
+    "deleteConfirmTitle": "Delete alert \"{{name}}\"?"
   },
   "external": {
     "heading": "🌐 Search on external sites",

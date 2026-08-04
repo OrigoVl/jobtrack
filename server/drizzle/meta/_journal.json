@@ -43,6 +43,27 @@
       "when": 1785837360802,
       "tag": "0005_stormy_shocker",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785842755926,
+      "tag": "0006_absurd_gunslinger",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785845246464,
+      "tag": "0007_curly_angel",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785848208258,
+      "tag": "0008_overrated_blade",
+      "breakpoints": true
     }
   ]
 }

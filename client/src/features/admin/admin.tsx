@@ -1,9 +1,11 @@
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useTranslation } from "react-i18next";
-import { Card, CardsSkeleton, Chip, EmptyState, PageHeader, Segmented } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Segmented } from "../../shared/ui";
 import { useUi } from "../../shared/ui-state";
 import { money } from "../../shared/format";
-import { useAdminLlmUsage, useAdminOverview, useAdminProductEvents, useAdminUsers } from "../../shared/queries";
+import { useAdminLlmUsage, useAdminOverview, useAdminProductEvents, useAdminUsers, useBanUser, useUnbanUser } from "../../shared/queries";
+import { useConfirm } from "../../shared/use-confirm";
+import { useSession } from "../../shared/auth-client";
 
 const AXIS = "#4c5f56"; // --ink-dim
 const TOOLTIP = {
@@ -43,7 +45,11 @@ function OverviewTab({ days }: { days: number }) {
 
 function UsersTab() {
   const { t, i18n } = useTranslation(["admin", "common"]);
+  const confirm = useConfirm();
+  const { data: session } = useSession();
   const { data, isLoading } = useAdminUsers(50, 0);
+  const banMutation = useBanUser();
+  const unbanMutation = useUnbanUser();
   if (isLoading) return <CardsSkeleton count={1} />;
   if (!data || data.users.length === 0) return <EmptyState icon="👥" title={t("users.empty.title")} />;
   return (
@@ -56,27 +62,59 @@ function UsersTab() {
             <th className="py-2 pr-3">{t("users.table.role")}</th>
             <th className="py-2 pr-3">{t("users.table.joined")}</th>
             <th className="py-2 pr-3 text-right">{t("users.table.vacancies")}</th>
-            <th className="py-2 text-right">{t("users.table.llmCallsRecent")}</th>
+            <th className="py-2 pr-3 text-right">{t("users.table.llmCallsRecent")}</th>
+            <th className="py-2 text-right">{t("users.table.actions")}</th>
           </tr>
         </thead>
         <tbody>
-          {data.users.map((u) => (
-            <tr key={u.id} className="border-b border-surface-2 last:border-0">
-              <td className="py-2 pr-3 font-medium text-ink">{u.name || "—"}</td>
-              <td className="py-2 pr-3 text-ink-dim">{u.email}</td>
-              <td className="py-2 pr-3">
-                {u.role === "admin" ? <Chip tone="indigo">admin</Chip> : <Chip>user</Chip>}
-                {u.banned && (
-                  <Chip tone="rose" key="banned">
-                    {t("users.table.bannedBadge")}
-                  </Chip>
-                )}
-              </td>
-              <td className="py-2 pr-3 text-ink-dim">{new Date(u.createdAt).toLocaleDateString(i18n.language)}</td>
-              <td className="py-2 pr-3 text-right">{u.vacancyCount}</td>
-              <td className="py-2 text-right">{u.llmCallsRecent}</td>
-            </tr>
-          ))}
+          {data.users.map((u) => {
+            const isSelf = u.id === session?.user?.id;
+            const isBanning = banMutation.isPending && banMutation.variables?.userId === u.id;
+            const isUnbanning = unbanMutation.isPending && unbanMutation.variables === u.id;
+            return (
+              <tr key={u.id} className="border-b border-surface-2 last:border-0">
+                <td className="py-2 pr-3 font-medium text-ink">{u.name || "—"}</td>
+                <td className="py-2 pr-3 text-ink-dim">{u.email}</td>
+                <td className="py-2 pr-3">
+                  {u.role === "admin" ? <Chip tone="indigo">admin</Chip> : <Chip>user</Chip>}
+                  {u.banned && (
+                    <Chip tone="rose" key="banned">
+                      {t("users.table.bannedBadge")}
+                    </Chip>
+                  )}
+                </td>
+                <td className="py-2 pr-3 text-ink-dim">{new Date(u.createdAt).toLocaleDateString(i18n.language)}</td>
+                <td className="py-2 pr-3 text-right">{u.vacancyCount}</td>
+                <td className="py-2 pr-3 text-right">{u.llmCallsRecent}</td>
+                <td className="py-2 text-right">
+                  {isSelf ? (
+                    <span className="text-xs text-ink-dim">—</span>
+                  ) : u.banned ? (
+                    <Btn variant="ghost" size="sm" loading={isUnbanning} onClick={() => unbanMutation.mutate(u.id)}>
+                      {t("users.actions.unban")}
+                    </Btn>
+                  ) : (
+                    <Btn
+                      variant="danger"
+                      size="sm"
+                      loading={isBanning}
+                      onClick={async () => {
+                        if (
+                          await confirm({
+                            title: t("users.banConfirmTitle", { name: u.name || u.email }),
+                            message: t("users.banConfirmMessage"),
+                          })
+                        )
+                          banMutation.mutate({ userId: u.id });
+                      }}
+                    >
+                      {t("users.actions.ban")}
+                    </Btn>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       <div className="text-xs text-ink-dim mt-2">{t("users.showingSummary", { count: data.users.length, total: data.total })}</div>

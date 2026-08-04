@@ -21,6 +21,7 @@ const contact: Contact = {
   name: "Ada Lovelace",
   role: "Engineering Manager",
   companyId: null,
+  vacancyId: null,
   email: "ada@example.test",
   linkedinUrl: "",
   notes: "Met at a meetup",

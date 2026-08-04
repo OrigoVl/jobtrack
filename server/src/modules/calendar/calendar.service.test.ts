@@ -10,6 +10,7 @@ function vacancy(overrides: Partial<VacancyRow> = {}): VacancyRow {
     company: "Acme",
     position: "Engineer",
     level: "",
+    salary: "",
     url: "",
     status: "Applied",
     fit: "med",

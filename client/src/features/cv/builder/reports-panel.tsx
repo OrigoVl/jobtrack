@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Btn, Card, Chip, Segmented } from "../../../shared/ui";
+import { useToast } from "../../../shared/use-toast";
 import type { CvMatch, CvReview, CvTailorResult } from "../../../shared/types";
 import { CvMatchPanel, CvReviewPanel } from "../cv";
 import { exportCvDoc } from "./cv-doc-utils";
@@ -43,6 +44,7 @@ export function ReportsPanel({
   onApplyRewrite: (before: string, after: string) => void;
 }) {
   const { t } = useTranslation(["cv", "common"]);
+  const { toast } = useToast();
   if (!review && !match && !tailored) return null;
   // Which reports actually exist — falls back to whichever is available if the remembered tab
   // was hidden/cleared, so the dismiss (✕) button always acts on what's actually on screen.
@@ -73,6 +75,7 @@ export function ReportsPanel({
         <button
           onClick={hide}
           title={t("builder.reports.hide")}
+          aria-label={t("builder.reports.hide")}
           className="absolute right-3 top-3 z-10 text-ink-dim hover:text-ink-dim text-sm"
         >
           ✕
@@ -100,7 +103,11 @@ export function ReportsPanel({
                 <Btn size="sm" onClick={onApplyTailored}>
                   {t("builder.reports.tailor.applyToCv")}
                 </Btn>
-                <Btn size="sm" variant="ghost" onClick={() => exportCvDoc(tailored.doc)}>
+                <Btn
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => exportCvDoc(tailored.doc, () => toast(t("builder.header.exportPopupBlocked"), "error"))}
+                >
                   {t("builder.reports.tailor.exportTailoredPdf")}
                 </Btn>
               </div>

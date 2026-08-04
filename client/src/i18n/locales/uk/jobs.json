@@ -22,7 +22,8 @@
     "lastAlert": "Останнє сповіщення {{date}}",
     "noAlertsSent": "Сповіщень ще не надсилали",
     "deleteTitle": "Видалити сповіщення",
-    "deleteAriaLabel": "Видалити сповіщення для {{name}}"
+    "deleteAriaLabel": "Видалити сповіщення для {{name}}",
+    "deleteConfirmTitle": "Видалити сповіщення «{{name}}»?"
   },
   "external": {
     "heading": "🌐 Пошук на зовнішніх сайтах",

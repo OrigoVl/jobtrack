@@ -34,10 +34,26 @@
     "title": "Поки що немає вакансій",
     "hint": "Додай свою першу вакансію вручну або імпортуй список із DOU — застосунок побудує аналітику й дорожню карту на основі цього."
   },
+  "filters": {
+    "searchPlaceholder": "Пошук по компанії, посаді, стеку, нотатках…",
+    "searchAriaLabel": "Пошук вакансій",
+    "allStatuses": "Усі статуси",
+    "allFits": "Уся відповідність",
+    "columns": "Колонки",
+    "reset": "Скинути фільтри",
+    "noMatches": {
+      "title": "Нічого не знайдено",
+      "hint": "Жодна вакансія не відповідає цим фільтрам — спробуй їх змінити або скинути."
+    }
+  },
   "table": {
     "companyPosition": "Компанія / Посада",
     "stack": "Стек",
     "fit": "Відповідність",
+    "salary": "Зарплата",
+    "salaryPlaceholder": "напр. $90k-110k",
+    "salaryAriaLabel": "Зарплата — {{company}}",
+    "contacts": "Контакти",
     "status": "Статус",
     "applied": "Подано",
     "nextStep": "Наступний крок",
@@ -50,7 +66,9 @@
     "daysWaiting_few": "{{count}} дні очікування",
     "daysWaiting_many": "{{count}} днів очікування",
     "daysWaiting_other": "{{count}} дні очікування",
-    "staleTooltip": "Більш ніж {{days}} днів без відповіді — варто нагадати рекрутеру"
+    "staleTooltip": "Більш ніж {{days}} днів без відповіді — варто нагадати рекрутеру",
+    "deleteConfirmTitle": "Видалити {{company}} — {{position}}?",
+    "deleteConfirmMessage": "Це видалить вакансію та всю історію її статусів. Дію не можна скасувати."
   },
   "kanban": {
     "columnAriaLabel_one": "Колонка «{{status}}», {{count}} вакансія",
@@ -64,6 +82,7 @@
   },
   "toasts": {
     "added": "Вакансію додано",
+    "offerCelebration": "Вітаємо з офером від {{company}}!",
     "possibleDuplicate": "Додано — але це схоже на вже наявну вакансію: {{position}} у {{company}}. Варто перевірити, чи це не дублікат.",
     "deleted": "Вакансію видалено",
     "stackPulled": "Стек підтягнуто з посилання: {{stack}}",
@@ -74,6 +93,10 @@
     "importAdded_many": "Додано {{count}} вакансій",
     "importAdded_other": "Додано {{count}} вакансії",
     "importNoNewLinks": "Нових посилань не знайдено",
+    "possibleDuplicatesCount_one": "{{count}} з них, можливо, дублює те, що ти вже відстежуєш",
+    "possibleDuplicatesCount_few": "{{count}} з них, можливо, дублюють те, що ти вже відстежуєш",
+    "possibleDuplicatesCount_many": "{{count}} з них, можливо, дублюють те, що ти вже відстежуєш",
+    "possibleDuplicatesCount_other": "{{count}} з них, можливо, дублюють те, що ти вже відстежуєш",
     "jsonImport": {
       "added_one": "додано {{count}}",
       "added_few": "додано {{count}}",

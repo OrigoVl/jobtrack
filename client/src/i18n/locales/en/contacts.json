@@ -8,6 +8,7 @@
   },
   "editAriaLabel": "Edit {{name}}",
   "deleteAriaLabel": "Delete {{name}}",
+  "deleteConfirmTitle": "Delete {{name}}?",
   "lastContact": "Last contact: {{date}}",
   "linkedin": "LinkedIn ↗",
   "modal": {
@@ -20,6 +21,9 @@
     "rolePlaceholder": "e.g. Engineering Manager",
     "company": "Company (optional)",
     "companyNone": "— none —",
+    "vacancy": "Linked vacancy (optional)",
+    "vacancyNone": "— none —",
+    "vacancyUntitled": "Untitled",
     "email": "Email",
     "lastContacted": "Last contacted",
     "linkedinUrl": "LinkedIn URL",

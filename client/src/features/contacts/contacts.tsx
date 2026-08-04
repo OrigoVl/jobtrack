@@ -1,7 +1,16 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAddContact, useCompanies, useContactOutreach, useContacts, useDeleteContact, useUpdateContact } from "../../shared/queries";
+import {
+  useAddContact,
+  useCompanies,
+  useContactOutreach,
+  useContacts,
+  useDeleteContact,
+  useUpdateContact,
+  useVacancies,
+} from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Spinner } from "../../shared/ui";
+import { useConfirm } from "../../shared/use-confirm";
 import type { Contact, ContactInput, OutreachResult } from "../../shared/types";
 
 /** Draft an AI outreach/follow-up message for a contact (POST /contacts/:id/outreach) and let the
@@ -53,7 +62,16 @@ function ContactOutreachPanel({ contact }: { contact: Contact }) {
   );
 }
 
-const EMPTY_DRAFT: ContactInput = { name: "", role: "", companyId: null, email: "", linkedinUrl: "", notes: "", lastContactAt: "" };
+const EMPTY_DRAFT: ContactInput = {
+  name: "",
+  role: "",
+  companyId: null,
+  vacancyId: null,
+  email: "",
+  linkedinUrl: "",
+  notes: "",
+  lastContactAt: "",
+};
 
 function ContactModal({
   draft,
@@ -75,6 +93,7 @@ function ContactModal({
   const { t } = useTranslation(["contacts", "common"]);
   const [form, setForm] = useState(draft);
   const { data: companies = [] } = useCompanies();
+  const { data: vacancies = [] } = useVacancies();
   const set = <K extends keyof ContactInput>(k: K, v: ContactInput[K]) => setForm((f) => ({ ...f, [k]: v }));
   const canSave = form.name.trim().length > 0;
   return (
@@ -111,6 +130,21 @@ function ContactModal({
             {companies.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="text-xs font-semibold text-ink-dim">{t("modal.vacancy")}</span>
+          <select
+            value={form.vacancyId ?? ""}
+            onChange={(e) => set("vacancyId", e.target.value ? Number(e.target.value) : null)}
+            className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+          >
+            <option value="">{t("modal.vacancyNone")}</option>
+            {vacancies.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.company} — {v.position || t("modal.vacancyUntitled")}
               </option>
             ))}
           </select>
@@ -177,14 +211,17 @@ function ContactModal({
 
 export function Contacts() {
   const { t } = useTranslation(["contacts", "common"]);
+  const confirm = useConfirm();
   const { data: contacts, isLoading } = useContacts();
   const { data: companies = [] } = useCompanies();
+  const { data: vacancies = [] } = useVacancies();
   const addMutation = useAddContact();
   const updateMutation = useUpdateContact();
   const deleteMutation = useDeleteContact();
   const [modal, setModal] = useState<{ editingId: number | null; draft: ContactInput } | null>(null);
 
   const companyName = (id: number | null) => (id ? (companies.find((c) => c.id === id)?.name ?? "—") : "—");
+  const linkedVacancy = (id: number | null) => (id ? vacancies.find((v) => v.id === id) : undefined);
 
   const openNew = () => setModal({ editingId: null, draft: EMPTY_DRAFT });
   const openEdit = (c: Contact) =>
@@ -194,6 +231,7 @@ export function Contacts() {
         name: c.name,
         role: c.role,
         companyId: c.companyId,
+        vacancyId: c.vacancyId,
         email: c.email,
         linkedinUrl: c.linkedinUrl,
         notes: c.notes,
@@ -208,8 +246,9 @@ export function Contacts() {
       addMutation.mutate(draft, { onSuccess: () => setModal(null) });
     }
   };
-  const doDelete = () => {
+  const doDelete = async () => {
     if (!modal?.editingId) return;
+    if (!(await confirm({ title: t("deleteConfirmTitle", { name: modal.draft.name || t("common:actions.delete") }) }))) return;
     deleteMutation.mutate(modal.editingId, { onSuccess: () => setModal(null) });
   };
 
@@ -246,7 +285,9 @@ export function Contacts() {
                       {t("common:actions.edit")}
                     </button>
                     <button
-                      onClick={() => deleteMutation.mutate(c.id)}
+                      onClick={async () => {
+                        if (await confirm({ title: t("deleteConfirmTitle", { name: c.name }) })) deleteMutation.mutate(c.id);
+                      }}
                       disabled={isDeleting}
                       className="text-xs text-ink-dim hover:text-rose-600 px-1.5 py-1 disabled:opacity-50"
                       aria-label={t("deleteAriaLabel", { name: c.name })}
@@ -256,6 +297,12 @@ export function Contacts() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                  {linkedVacancy(c.vacancyId) && (
+                    <span className="px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim border border-grid">
+                      🔗 {linkedVacancy(c.vacancyId)!.company}
+                      {linkedVacancy(c.vacancyId)!.position ? ` — ${linkedVacancy(c.vacancyId)!.position}` : ""}
+                    </span>
+                  )}
                   {c.email && (
                     <a href={`mailto:${c.email}`} className="text-signal hover:underline">
                       {c.email}

@@ -10,6 +10,7 @@ import { env } from "./config/env.js";
 import logger from "./core/logger.js";
 import { closeDb } from "./db/index.js";
 import { startSavedSearchesScheduler } from "./modules/saved-searches/saved-searches.scheduler.js";
+import { startDigestScheduler } from "./modules/digest/digest.scheduler.js";
 
 // Without these two handlers, an unexpected exception outside an Express request (e.g. a
 // throw in setTimeout/a background timer, or an unhandled Promise rejection from code nobody
@@ -45,6 +46,8 @@ const server = app.listen(env.port, () =>
 // Job alerts (Phase 9) — a single in-process interval, not a queue/worker system (see
 // saved-searches.scheduler.ts's top comment for why that's proportional to this app's scale).
 const savedSearchesTimer = startSavedSearchesScheduler();
+// Weekly email digest — same in-process-interval shape as the job alerts scheduler above.
+const digestTimer = startDigestScheduler();
 
 // Graceful shutdown: without a SIGTERM handler (e.g. from `docker stop`) Node kills the
 // process immediately, cutting off in-flight requests and leaving the SQLite connection
@@ -54,6 +57,7 @@ const savedSearchesTimer = startSavedSearchesScheduler();
 function shutdown(signal: string): void {
   logger.info(`${signal} received — graceful shutdown…`);
   clearInterval(savedSearchesTimer);
+  clearInterval(digestTimer);
   const forceExitTimer = setTimeout(() => {
     logger.warn("Graceful shutdown did not complete within 10s — forcing exit");
     process.exit(1);

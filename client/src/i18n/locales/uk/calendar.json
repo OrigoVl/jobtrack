@@ -34,6 +34,7 @@
   "untitledEvent": "Подія без назви",
   "editAriaLabel": "Редагувати {{title}}",
   "deleteAriaLabel": "Видалити {{title}}",
+  "deleteConfirmTitle": "Видалити «{{title}}»?",
   "modal": {
     "editEvent": "Редагувати подію",
     "newEvent": "Нова подія",

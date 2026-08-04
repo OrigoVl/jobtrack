@@ -1,0 +1,1 @@
+ALTER TABLE "vacancies" ADD COLUMN "salary" text DEFAULT '' NOT NULL;

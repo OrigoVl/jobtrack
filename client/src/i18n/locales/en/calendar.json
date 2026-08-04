@@ -30,6 +30,7 @@
   "untitledEvent": "Untitled event",
   "editAriaLabel": "Edit {{title}}",
   "deleteAriaLabel": "Delete {{title}}",
+  "deleteConfirmTitle": "Delete \"{{title}}\"?",
   "modal": {
     "editEvent": "Edit event",
     "newEvent": "New event",

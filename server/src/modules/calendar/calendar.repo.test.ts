@@ -17,6 +17,7 @@ const NEW_VACANCY = {
   company: "Acme",
   position: "Engineer",
   level: "mid",
+  salary: "",
   url: "",
   status: "Want to apply",
   fit: "med",

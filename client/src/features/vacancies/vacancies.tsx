@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useUi } from "../../shared/ui-state";
 import {
   useAddVacancy,
+  useContacts,
   useDeleteVacancy,
   useImportVacancies,
   useImportVacanciesJson,
@@ -11,7 +12,8 @@ import {
 } from "../../shared/queries";
 import { api } from "../../shared/api";
 import { useToast } from "../../shared/use-toast";
-import { Btn, Card, CardsSkeleton, EmptyState, PageHeader, Spinner } from "../../shared/ui";
+import { useConfirm } from "../../shared/use-confirm";
+import { Btn, Card, CardsSkeleton, Dropdown, EmptyState, PageHeader, Spinner } from "../../shared/ui";
 import { DateInput } from "../../shared/date-input";
 import { STATUSES, type Fit, type VacancyStatus } from "../../shared/types";
 import { fitText, fitLabel } from "../../shared/fit-tone";
@@ -19,6 +21,7 @@ import { statusLabel } from "../../shared/status-labels";
 import { STATUS_SELECT_CLASS, DEFAULT_STATUS_SELECT_CLASS } from "../../shared/status-tone";
 import { VacancyBoard } from "./kanban-board";
 import { SimilarVacanciesButton } from "./similar-vacancies-button";
+import { filterAndSortVacancies, COLUMN_LABEL_KEY, OPTIONAL_COLUMNS, type SortKey, type ColumnKey } from "./vacancies-filter";
 
 /** Triggers a browser download of a JSON file with the given data (for exporting vacancies). */
 function downloadJson(filename: string, data: unknown): void {
@@ -50,7 +53,10 @@ function isStaleApplication(status: string, days: number | null): boolean {
 /* ---------- Vacancies ---------- */
 export function Vacancies() {
   const { t } = useTranslation(["vacancies", "common"]);
+  const confirm = useConfirm();
   const { data: vacancies = [], isLoading } = useVacancies();
+  const { data: contacts = [] } = useContacts();
+  const contactsFor = (vacancyId: number) => contacts.filter((c) => c.vacancyId === vacancyId);
   const addVacancyMutation = useAddVacancy();
   const updateVacancyMutation = useUpdateVacancy();
   const deleteVacancyMutation = useDeleteVacancy();
@@ -60,6 +66,30 @@ export function Vacancies() {
   const jsonFileInputRef = useRef<HTMLInputElement | null>(null);
   const [imp, setImp] = useUi("vacancies.import", "");
   const [view, setView] = useUi<"table" | "board">("vacancies.view", "table");
+  const [search, setSearch] = useUi("vacancies.search", "");
+  const [filterStatus, setFilterStatus] = useUi<string>("vacancies.filterStatus", "all");
+  const [filterFit, setFilterFit] = useUi<string>("vacancies.filterFit", "all");
+  const [sortBy, setSortBy] = useUi<SortKey>("vacancies.sortBy", "default");
+  const [sortDir, setSortDir] = useUi<"asc" | "desc">("vacancies.sortDir", "asc");
+  const [hiddenColumns, setHiddenColumns] = useUi<ColumnKey[]>("vacancies.hiddenColumns", []);
+  const isColVisible = (key: ColumnKey) => !hiddenColumns.includes(key);
+  const toggleColumn = (key: ColumnKey) =>
+    setHiddenColumns(isColVisible(key) ? [...hiddenColumns, key] : hiddenColumns.filter((k) => k !== key));
+  const toggleSort = (key: Exclude<SortKey, "default">) => {
+    if (sortBy === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else {
+      setSortBy(key);
+      setSortDir("asc");
+    }
+  };
+  const sortArrow = (key: SortKey) => (sortBy === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
+  const hasActiveFilters = filterStatus !== "all" || filterFit !== "all" || search.trim() !== "";
+  const resetFilters = () => {
+    setSearch("");
+    setFilterStatus("all");
+    setFilterFit("all");
+  };
+  const visibleVacancies = filterAndSortVacancies(vacancies, { search, status: filterStatus, fit: filterFit, sortBy, sortDir });
   const doImport = async () => {
     await importVacanciesMutation.mutateAsync(imp);
     setImp("");
@@ -129,7 +159,7 @@ export function Vacancies() {
         <div className="text-sm font-semibold mb-1 text-ink">{t("jsonImportExport.heading")}</div>
         <p className="text-xs text-ink-dim mb-2">
           {t("jsonImportExport.formatIntro")} <code>job-tracker.json</code> — {t("jsonImportExport.formatSchema")}{" "}
-          <code>{"{company, pos, level, fit, status, applied, next, notes, url}"}</code>. {t("jsonImportExport.syncNote")}
+          <code>{"{company, pos, level, salary, fit, status, applied, next, notes, url}"}</code>. {t("jsonImportExport.syncNote")}
         </p>
         <div className="flex gap-2 flex-wrap">
           <input
@@ -168,156 +198,299 @@ export function Vacancies() {
       ) : view === "board" ? (
         <VacancyBoard />
       ) : (
-        <Card className="!p-0 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-ink-dim text-xs text-left bg-surface-2 border-b border-grid">
-                  <th className="p-3 w-10 text-right">#</th>
-                  <th className="p-3">{t("table.companyPosition")}</th>
-                  <th className="p-3">{t("table.stack")}</th>
-                  <th className="p-3">{t("table.fit")}</th>
-                  <th className="p-3">{t("table.status")}</th>
-                  <th className="p-3">{t("table.applied")}</th>
-                  <th className="p-3">{t("table.nextStep")}</th>
-                  <th className="p-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {vacancies.map((row, i) => {
-                  // updateVacancyMutation is one hook for the whole table, so scope "saving" to
-                  // exactly the row whose id matches the last call's variables (React Query holds
-                  // variables while isPending) — otherwise the spinner would flash on every row at once.
-                  const isSavingRow = updateVacancyMutation.isPending && updateVacancyMutation.variables?.id === row.id;
-                  const isDeletingRow = deleteVacancyMutation.isPending && deleteVacancyMutation.variables === row.id;
-                  return (
-                    <tr key={row.id} className="border-t border-surface-2 align-top hover:bg-surface-2/60">
-                      <td className="p-3 text-right text-ink-dim text-xs tabular-nums">{i + 1}</td>
-                      <td className="p-3">
-                        <input
-                          defaultValue={row.company}
-                          onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { company: e.target.value } })}
-                          className="bg-transparent font-semibold w-full outline-none focus:bg-surface focus:ring-1 focus:ring-signal/40 rounded px-1"
-                        />
-                        <input
-                          defaultValue={row.position}
-                          onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { position: e.target.value } })}
-                          className="bg-transparent text-ink-dim text-xs w-full outline-none focus:bg-surface focus:ring-1 focus:ring-signal/40 rounded px-1"
-                        />
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <input
-                            type="url"
-                            defaultValue={row.url}
-                            onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { url: e.target.value } })}
-                            placeholder={t("table.vacancyLinkPlaceholder")}
-                            aria-label={t("table.vacancyLinkAriaLabel", { company: row.company })}
-                            className="bg-transparent text-signal text-[11px] flex-1 min-w-0 outline-none focus:bg-surface focus:ring-1 focus:ring-signal/40 rounded px-1"
-                          />
-                          {row.url && (
-                            <a
-                              href={row.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              title={t("table.openVacancy")}
-                              className="text-signal text-xs shrink-0"
-                            >
-                              ↗
-                            </a>
-                          )}
-                          <SimilarVacanciesButton vacancyId={row.id} />
-                        </div>
-                        {isSavingRow && (
-                          <div className="flex items-center gap-1 text-[11px] text-signal mt-0.5">
-                            <Spinner className="h-3 w-3" /> {t("common:state.saving")}
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-3 max-w-[220px]">
-                        <div className="flex flex-wrap gap-1">
-                          {row.stack.length === 0 ? (
-                            <span className="text-xs text-ink-dim">—</span>
-                          ) : (
-                            row.stack.map((s) => (
-                              <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim border border-grid">
-                                {s}
-                              </span>
-                            ))
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        <select
-                          defaultValue={row.fit}
-                          onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { fit: e.target.value as Fit } })}
-                          className={`bg-surface-2 border border-grid rounded px-1.5 py-1 text-xs font-medium ${fitText[row.fit]}`}
-                        >
-                          <option value="high">{fitLabel("high")}</option>
-                          <option value="med">{fitLabel("med")}</option>
-                          <option value="low">{fitLabel("low")}</option>
-                        </select>
-                      </td>
-                      <td className="p-3">
-                        <select
-                          defaultValue={row.status}
-                          onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { status: e.target.value } })}
-                          className={`border rounded px-1.5 py-1 text-xs font-medium ${
-                            STATUS_SELECT_CLASS[row.status as VacancyStatus] ?? DEFAULT_STATUS_SELECT_CLASS
-                          }`}
-                        >
-                          {STATUSES.map((s) => (
-                            <option key={s} value={s}>
-                              {statusLabel(s)}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="p-3">
-                        <DateInput
-                          value={row.applied}
-                          onChange={(iso) => updateVacancyMutation.mutate({ id: row.id, patch: { applied: iso } })}
-                          aria-label={t("table.appliedDateAriaLabel", { company: row.company })}
-                          className="bg-transparent w-32 outline-none focus:bg-surface focus:ring-1 focus:ring-signal/40 rounded px-1 text-xs"
-                        />
-                        {daysSinceApplied(row.applied) != null && (
-                          <div
-                            className={`text-[11px] mt-0.5 ${
-                              isStaleApplication(row.status, daysSinceApplied(row.applied)) ? "text-rose-600 font-medium" : "text-ink-dim"
-                            }`}
-                            title={
-                              isStaleApplication(row.status, daysSinceApplied(row.applied))
-                                ? t("table.staleTooltip", { days: STALE_APPLICATION_DAYS })
-                                : undefined
-                            }
-                          >
-                            {t("table.daysWaiting", { count: daysSinceApplied(row.applied)! })}
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <DateInput
-                          value={row.next}
-                          onChange={(iso) => updateVacancyMutation.mutate({ id: row.id, patch: { next: iso } })}
-                          aria-label={t("table.nextStepDateAriaLabel", { company: row.company })}
-                          className="bg-transparent w-32 outline-none focus:bg-surface focus:ring-1 focus:ring-signal/40 rounded px-1 text-xs"
-                        />
-                      </td>
-                      <td className="p-3 text-right">
-                        <button
-                          onClick={() => deleteVacancyMutation.mutate(row.id)}
-                          disabled={isDeletingRow}
-                          className="text-ink-dim hover:text-rose-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={t("common:actions.delete")}
-                        >
-                          {isDeletingRow ? <Spinner className="h-3.5 w-3.5" /> : "✕"}
-                        </button>
-                      </td>
+        <>
+          <Card>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("filters.searchPlaceholder")}
+                aria-label={t("filters.searchAriaLabel")}
+                className="flex-1 min-w-[180px] bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+              />
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 text-sm text-ink"
+              >
+                <option value="all">{t("filters.allStatuses")}</option>
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {statusLabel(s)}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={filterFit}
+                onChange={(e) => setFilterFit(e.target.value)}
+                className="bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 text-sm text-ink"
+              >
+                <option value="all">{t("filters.allFits")}</option>
+                <option value="high">{fitLabel("high")}</option>
+                <option value="med">{fitLabel("med")}</option>
+                <option value="low">{fitLabel("low")}</option>
+              </select>
+              <Dropdown label={`⚙ ${t("filters.columns")}`}>
+                {OPTIONAL_COLUMNS.map((key) => (
+                  <label
+                    key={key}
+                    className="flex items-center gap-2 px-2 py-1.5 text-sm text-ink rounded-lg hover:bg-surface-2 cursor-pointer"
+                  >
+                    <input type="checkbox" checked={isColVisible(key)} onChange={() => toggleColumn(key)} className="accent-signal" />
+                    {t(COLUMN_LABEL_KEY[key])}
+                  </label>
+                ))}
+              </Dropdown>
+              {hasActiveFilters && (
+                <Btn size="sm" variant="ghost" onClick={resetFilters}>
+                  {t("filters.reset")}
+                </Btn>
+              )}
+            </div>
+          </Card>
+
+          {visibleVacancies.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon="🔍"
+                title={t("filters.noMatches.title")}
+                hint={t("filters.noMatches.hint")}
+                action={
+                  <Btn size="sm" variant="ghost" onClick={resetFilters}>
+                    {t("filters.reset")}
+                  </Btn>
+                }
+              />
+            </Card>
+          ) : (
+            <Card className="!p-0 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-ink-dim text-xs text-left bg-surface-2 border-b border-grid">
+                      <th className="p-3 w-10 text-right">#</th>
+                      <th className="p-3 cursor-pointer select-none hover:text-ink" onClick={() => toggleSort("company")}>
+                        {t("table.companyPosition")}
+                        {sortArrow("company")}
+                      </th>
+                      {isColVisible("stack") && <th className="p-3">{t("table.stack")}</th>}
+                      {isColVisible("fit") && (
+                        <th className="p-3 cursor-pointer select-none hover:text-ink" onClick={() => toggleSort("fit")}>
+                          {t("table.fit")}
+                          {sortArrow("fit")}
+                        </th>
+                      )}
+                      {isColVisible("salary") && <th className="p-3">{t("table.salary")}</th>}
+                      {isColVisible("contacts") && <th className="p-3">{t("table.contacts")}</th>}
+                      <th className="p-3 cursor-pointer select-none hover:text-ink" onClick={() => toggleSort("status")}>
+                        {t("table.status")}
+                        {sortArrow("status")}
+                      </th>
+                      {isColVisible("applied") && (
+                        <th className="p-3 cursor-pointer select-none hover:text-ink" onClick={() => toggleSort("applied")}>
+                          {t("table.applied")}
+                          {sortArrow("applied")}
+                        </th>
+                      )}
+                      {isColVisible("next") && (
+                        <th className="p-3 cursor-pointer select-none hover:text-ink" onClick={() => toggleSort("next")}>
+                          {t("table.nextStep")}
+                          {sortArrow("next")}
+                        </th>
+                      )}
+                      <th className="p-3"></th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                  </thead>
+                  <tbody>
+                    {visibleVacancies.map((row, i) => {
+                      // updateVacancyMutation is one hook for the whole table, so scope "saving" to
+                      // exactly the row whose id matches the last call's variables (React Query holds
+                      // variables while isPending) — otherwise the spinner would flash on every row at once.
+                      const isSavingRow = updateVacancyMutation.isPending && updateVacancyMutation.variables?.id === row.id;
+                      const isDeletingRow = deleteVacancyMutation.isPending && deleteVacancyMutation.variables === row.id;
+                      return (
+                        <tr key={row.id} className="border-t border-surface-2 align-top hover:bg-surface-2/60">
+                          <td className="p-3 text-right text-ink-dim text-xs tabular-nums">{i + 1}</td>
+                          <td className="p-3">
+                            <input
+                              defaultValue={row.company}
+                              onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { company: e.target.value } })}
+                              className="bg-transparent font-semibold w-full outline-none focus:bg-surface focus:ring-1 focus:ring-signal/40 rounded px-1"
+                            />
+                            <input
+                              defaultValue={row.position}
+                              onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { position: e.target.value } })}
+                              className="bg-transparent text-ink-dim text-xs w-full outline-none focus:bg-surface focus:ring-1 focus:ring-signal/40 rounded px-1"
+                            />
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <input
+                                type="url"
+                                defaultValue={row.url}
+                                onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { url: e.target.value } })}
+                                placeholder={t("table.vacancyLinkPlaceholder")}
+                                aria-label={t("table.vacancyLinkAriaLabel", { company: row.company })}
+                                className="bg-transparent text-signal text-[11px] flex-1 min-w-0 outline-none focus:bg-surface focus:ring-1 focus:ring-signal/40 rounded px-1"
+                              />
+                              {row.url && (
+                                <a
+                                  href={row.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  title={t("table.openVacancy")}
+                                  aria-label={t("table.openVacancy")}
+                                  className="text-signal text-xs shrink-0"
+                                >
+                                  ↗
+                                </a>
+                              )}
+                              <SimilarVacanciesButton vacancyId={row.id} />
+                            </div>
+                            {isSavingRow && (
+                              <div className="flex items-center gap-1 text-[11px] text-signal mt-0.5">
+                                <Spinner className="h-3 w-3" /> {t("common:state.saving")}
+                              </div>
+                            )}
+                          </td>
+                          {isColVisible("stack") && (
+                            <td className="p-3 max-w-[220px]">
+                              <div className="flex flex-wrap gap-1">
+                                {row.stack.length === 0 ? (
+                                  <span className="text-xs text-ink-dim">—</span>
+                                ) : (
+                                  row.stack.map((s) => (
+                                    <span
+                                      key={s}
+                                      className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim border border-grid"
+                                    >
+                                      {s}
+                                    </span>
+                                  ))
+                                )}
+                              </div>
+                            </td>
+                          )}
+                          {isColVisible("fit") && (
+                            <td className="p-3">
+                              <select
+                                defaultValue={row.fit}
+                                onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { fit: e.target.value as Fit } })}
+                                className={`bg-surface-2 border border-grid rounded px-1.5 py-1 text-xs font-medium ${fitText[row.fit]}`}
+                              >
+                                <option value="high">{fitLabel("high")}</option>
+                                <option value="med">{fitLabel("med")}</option>
+                                <option value="low">{fitLabel("low")}</option>
+                              </select>
+                            </td>
+                          )}
+                          {isColVisible("salary") && (
+                            <td className="p-3">
+                              <input
+                                defaultValue={row.salary}
+                                onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { salary: e.target.value } })}
+                                placeholder={t("table.salaryPlaceholder")}
+                                aria-label={t("table.salaryAriaLabel", { company: row.company })}
+                                className="bg-transparent w-24 outline-none focus:bg-surface focus:ring-1 focus:ring-signal/40 rounded px-1 text-xs"
+                              />
+                            </td>
+                          )}
+                          {isColVisible("contacts") && (
+                            <td className="p-3 max-w-[180px]">
+                              {contactsFor(row.id).length === 0 ? (
+                                <span className="text-xs text-ink-dim">—</span>
+                              ) : (
+                                <div className="flex flex-wrap gap-1">
+                                  {contactsFor(row.id).map((c) => (
+                                    <span
+                                      key={c.id}
+                                      title={c.role || undefined}
+                                      className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim border border-grid"
+                                    >
+                                      🧑‍🤝‍🧑 {c.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                          )}
+                          <td className="p-3">
+                            <select
+                              defaultValue={row.status}
+                              onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { status: e.target.value } })}
+                              className={`border rounded px-1.5 py-1 text-xs font-medium ${
+                                STATUS_SELECT_CLASS[row.status as VacancyStatus] ?? DEFAULT_STATUS_SELECT_CLASS
+                              }`}
+                            >
+                              {STATUSES.map((s) => (
+                                <option key={s} value={s}>
+                                  {statusLabel(s)}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          {isColVisible("applied") && (
+                            <td className="p-3">
+                              <DateInput
+                                value={row.applied}
+                                onChange={(iso) => updateVacancyMutation.mutate({ id: row.id, patch: { applied: iso } })}
+                                aria-label={t("table.appliedDateAriaLabel", { company: row.company })}
+                                className="bg-transparent w-32 outline-none focus:bg-surface focus:ring-1 focus:ring-signal/40 rounded px-1 text-xs"
+                              />
+                              {daysSinceApplied(row.applied) != null && (
+                                <div
+                                  className={`text-[11px] mt-0.5 ${
+                                    isStaleApplication(row.status, daysSinceApplied(row.applied))
+                                      ? "text-rose-600 font-medium"
+                                      : "text-ink-dim"
+                                  }`}
+                                  title={
+                                    isStaleApplication(row.status, daysSinceApplied(row.applied))
+                                      ? t("table.staleTooltip", { days: STALE_APPLICATION_DAYS })
+                                      : undefined
+                                  }
+                                >
+                                  {t("table.daysWaiting", { count: daysSinceApplied(row.applied)! })}
+                                </div>
+                              )}
+                            </td>
+                          )}
+                          {isColVisible("next") && (
+                            <td className="p-3">
+                              <DateInput
+                                value={row.next}
+                                onChange={(iso) => updateVacancyMutation.mutate({ id: row.id, patch: { next: iso } })}
+                                aria-label={t("table.nextStepDateAriaLabel", { company: row.company })}
+                                className="bg-transparent w-32 outline-none focus:bg-surface focus:ring-1 focus:ring-signal/40 rounded px-1 text-xs"
+                              />
+                            </td>
+                          )}
+                          <td className="p-3 text-right">
+                            <button
+                              onClick={async () => {
+                                if (
+                                  await confirm({
+                                    title: t("table.deleteConfirmTitle", { company: row.company, position: row.position }),
+                                    message: t("table.deleteConfirmMessage"),
+                                  })
+                                )
+                                  deleteVacancyMutation.mutate(row.id);
+                              }}
+                              disabled={isDeletingRow}
+                              className="text-ink-dim hover:text-rose-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={t("common:actions.delete")}
+                              aria-label={t("common:actions.delete")}
+                            >
+                              {isDeletingRow ? <Spinner className="h-3.5 w-3.5" /> : "✕"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </>
       )}
     </div>
   );

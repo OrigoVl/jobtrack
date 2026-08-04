@@ -21,6 +21,7 @@ import calendar from "./modules/calendar/calendar.routes.js";
 import contacts from "./modules/contacts/contacts.routes.js";
 import cvShares from "./modules/cv-shares/cv-shares.routes.js";
 import savedSearches from "./modules/saved-searches/saved-searches.routes.js";
+import digest from "./modules/digest/digest.routes.js";
 
 const r = express.Router();
 
@@ -44,5 +45,6 @@ r.use(calendar);
 r.use(contacts);
 r.use(cvShares);
 r.use(savedSearches);
+r.use(digest);
 
 export default r;

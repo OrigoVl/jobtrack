@@ -102,7 +102,12 @@ r.post(
         `Generate 3 new practical interview-level tasks specifically for "${tech}", of varying difficulty.\n` +
         `Format strictly: {"drills":[{"q":"task statement","lvl":"easy|med|hard","sol":"short sample solution","exp":"1-2 sentence explanation"}]}`,
       GenDrillsSchema,
-      { maxTokens: 1200, temperature: 0.6, tier: "smart", feature: "study-generate-drills", outputLocale: "app" },
+      // cache: true — llm/client.ts's cache key hashes the full prompt (tech + role + the
+      // candidate's skills list), so this dedupes a repeat "generate more for React" click (or a
+      // retry after a transient failure) for the SAME user, and any two users who happen to share
+      // both role and skills list, without paying for another smart-tier generation — same
+      // reasoning as every other cached generation call site (cv-improve, cover-letter, knowledge).
+      { maxTokens: 1200, temperature: 0.6, cache: true, tier: "smart", feature: "study-generate-drills", outputLocale: "app" },
     );
     const items = out?.drills ?? [];
     const gen = await genDrills(userId);
@@ -148,7 +153,9 @@ r.post(
         `Generate 5 flashcards, "question → concise accurate answer", at interview level.\n` +
         `Format strictly: {"cards":[{"q":"question","a":"answer in 2-4 sentences"}]}`,
       GenCardsSchema,
-      { maxTokens: 900, temperature: 0.5, tier: "smart", feature: "study-generate-cards", outputLocale: "app" },
+      // cache: true — same reasoning as study-generate-drills above: dedupe a repeat/retried
+      // "generate more" click for the same topic+role instead of paying for another generation.
+      { maxTokens: 900, temperature: 0.5, cache: true, tier: "smart", feature: "study-generate-cards", outputLocale: "app" },
     );
     const items = out?.cards ?? [];
     const gen = await genCards(userId);

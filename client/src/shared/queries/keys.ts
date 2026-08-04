@@ -9,6 +9,8 @@ export const queryKeys = {
   similarVacancies: ["similarVacancies"] as const,
   profile: ["profile"] as const,
   analytics: ["analytics"] as const,
+  focusWeek: ["focusWeek"] as const,
+  resources: ["resources"] as const,
   learn: ["learn"] as const,
   roadmap: ["roadmap"] as const,
   study: ["study"] as const,
@@ -23,4 +25,5 @@ export const queryKeys = {
   savedSearches: ["savedSearches"] as const,
   contacts: ["contacts"] as const,
   cvShare: ["cvShare"] as const,
+  digestPreferences: ["digestPreferences"] as const,
 };

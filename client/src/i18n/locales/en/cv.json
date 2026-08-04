@@ -21,7 +21,8 @@
       "title": "CV Builder",
       "subtitle": "A structured resume focused on outcomes. Fill it in from your existing CV, edit it, and export to PDF.",
       "exportPdf": "⬇️ Export PDF",
-      "exportPdfTitle": "In the browser's print dialog, the date/document title at the top of pages are disabled automatically; if they still appear — turn off «Headers and footers»"
+      "exportPdfTitle": "In the browser's print dialog, the date/document title at the top of pages are disabled automatically; if they still appear — turn off «Headers and footers»",
+      "exportPopupBlocked": "Allow pop-ups for this site to export the PDF."
     },
     "importMenu": {
       "label": "📎 Import",
@@ -142,6 +143,8 @@
     "addFirst": "+ Add experience",
     "add": "+ Add",
     "dragToReorder": "Drag to reorder",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
     "entryFallback": "Entry {{n}}",
     "noRole": "No role",
     "role": "Role",

@@ -97,6 +97,7 @@ r.post(
       company: b.company!,
       position: b.position!,
       level: b.level!,
+      salary: b.salary!,
       url: b.url!,
       status: b.status!,
       fit: b.fit!,
@@ -138,6 +139,7 @@ r.put(
       company: patch.company ?? cur.company,
       position: patch.position ?? cur.position,
       level: patch.level ?? cur.level,
+      salary: patch.salary ?? cur.salary,
       url: patch.url ?? cur.url,
       status: patch.status ?? cur.status,
       fit: patch.fit ?? cur.fit,
@@ -317,6 +319,14 @@ r.post(
     const seen = new Set<string>();
     const newIds: { id: number; url: string }[] = [];
     const added: { company: string; url: string }[] = [];
+    // Snapshot once, before any inserts below — advisory only (see the SimHash comment on
+    // POST /vacancies above). A newly-imported item's `position` is still the "(imported)"
+    // placeholder until enrichment runs further down, so a title-based SimHash comparison would
+    // be meaningless at this stage; the useful signal here is simply "you already track a
+    // vacancy at this company" (same relaxed company-only check the Kanban/table views don't do
+    // for you automatically when a company has multiple roles open at once).
+    const existingSnapshot = await listVacancies(userId, { limit: DEDUPE_CHECK_LIMIT, offset: 0 });
+    const possibleDuplicates: { company: string; url: string; of: { id: number; company: string; position: string } }[] = [];
     let match: RegExpExecArray | null;
     while ((match = re.exec(html))) {
       const dupId = match[2] ?? "";
@@ -325,10 +335,18 @@ r.post(
       const url = (match[0] ?? "") + "/";
       const company = (match[1] ?? "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
       if (await findVacancyByUrl(userId, url)) continue;
+      const existingAtCompany = existingSnapshot.find((v) => v.company.toLowerCase() === company.toLowerCase());
       const id = await createVacancyMinimal(userId, { company, position: "(imported)", url, status: "Want to apply" });
       await recordStatusChange(userId, id, "Want to apply");
       newIds.push({ id, url });
       added.push({ company, url });
+      if (existingAtCompany) {
+        possibleDuplicates.push({
+          company,
+          url,
+          of: { id: existingAtCompany.id, company: existingAtCompany.company, position: existingAtCompany.position },
+        });
+      }
     }
     for (const { id, url } of newIds) {
       const enrichment = await tryAutoEnrichStack(userId, url);
@@ -337,7 +355,7 @@ r.post(
       }
       await new Promise((resolve) => setTimeout(resolve, 400)); // polite pause
     }
-    res.json({ added: added.length, items: added });
+    res.json({ added: added.length, items: added, possibleDuplicates });
   }),
 );
 
@@ -372,15 +390,40 @@ r.post(
         : null;
     if (!items) throw new HttpError(400, "Expected an array of vacancies (or {items:[...]})");
     if (items.length > 1000) throw new HttpError(400, "Too many items in one import (max 1000)", null, "VACANCY_IMPORT_TOO_MANY");
+    // Snapshot BEFORE the loop — a possible-duplicate check compares each newly-added item
+    // against vacancies that existed before this import started, not against siblings added
+    // earlier in the same batch (advisory only, see job-dedupe.ts#findSimhashDuplicate's own
+    // doc comment; catching in-batch near-duplicates too would need re-snapshotting after
+    // every insert, not worth it for what's already a best-effort heads-up).
+    const existingSnapshot = await listVacancies(userId, { limit: DEDUPE_CHECK_LIMIT, offset: 0 });
     let added = 0;
     let updated = 0;
     const errors: { index: number; message: string }[] = [];
+    const possibleDuplicates: {
+      index: number;
+      company: string;
+      position: string;
+      of: { id: number; company: string; position: string };
+    }[] = [];
     for (const [index, raw] of items.entries()) {
       try {
         const item = parseJsonVacancyItem(raw);
+        const dup =
+          item.company || item.position
+            ? findSimhashDuplicate({ company: item.company, position: item.position }, existingSnapshot)
+            : undefined;
         const { result, id } = await upsertJsonVacancy(userId, item);
-        if (result === "added") added++;
-        else updated++;
+        if (result === "added") {
+          added++;
+          if (dup) {
+            possibleDuplicates.push({
+              index,
+              company: item.company,
+              position: item.position,
+              of: { id: dup.id, company: dup.company, position: dup.position },
+            });
+          }
+        } else updated++;
         // Auto-enrichment only for NEW vacancies with a link: the job-tracker.json format
         // doesn't include a stack, and for existing ones (updated) we don't touch the stack on
         // every resync, so we don't overwrite something that may have already been fine-tuned
@@ -403,7 +446,7 @@ r.post(
     if (errors.length > 0) {
       contextLogger().warn({ total: items.length, added, updated, failed: errors.length }, "JSON vacancy import: some items failed");
     }
-    res.json({ added, updated, skipped: errors.length, errors });
+    res.json({ added, updated, skipped: errors.length, errors, possibleDuplicates });
   }),
 );
 
@@ -415,6 +458,7 @@ r.get(
       company: v.company,
       pos: v.position,
       level: v.level,
+      salary: v.salary,
       fit: v.fit,
       status: v.status,
       applied: v.applied,
