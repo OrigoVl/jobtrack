@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Btn } from "../../../shared/ui";
 
 const CROP_VIEWPORT = 260;
 const CROP_OUTPUT = 400;
 
 export function PhotoCropper({ src, onCancel, onDone }: { src: string; onCancel: () => void; onDone: (dataUrl: string) => void }) {
+  const { t } = useTranslation(["cv", "common"]);
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -45,13 +47,13 @@ export function PhotoCropper({ src, onCancel, onDone }: { src: string; onCancel:
   const nudge = (dx: number, dy: number) => setOffset(clamp({ x: offset.x + dx, y: offset.y + dy }));
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4">
-      <button type="button" aria-label="Close" onClick={onCancel} className="fixed inset-0 bg-ink/50 cursor-default" />
+      <button type="button" aria-label={t("common:actions.close")} onClick={onCancel} className="fixed inset-0 bg-ink/50 cursor-default" />
       <div className="relative bg-white rounded-2xl p-5 shadow-xl w-[320px] space-y-3">
-        <div className="text-sm font-semibold text-ink">Crop photo</div>
+        <div className="text-sm font-semibold text-ink">{t("photoCropper.title")}</div>
         <div
           role="button"
           tabIndex={0}
-          aria-label="Drag or use arrow keys to position the photo"
+          aria-label={t("photoCropper.dragAria")}
           className="relative mx-auto rounded-full overflow-hidden bg-surface-2 border border-grid touch-none cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
           style={{ width: CROP_VIEWPORT, height: CROP_VIEWPORT }}
           onPointerDown={(e) => {
@@ -86,7 +88,7 @@ export function PhotoCropper({ src, onCancel, onDone }: { src: string; onCancel:
         </div>
         <label className="block text-sm text-ink-dim">
           <div className="flex justify-between">
-            <span>Zoom</span>
+            <span>{t("photoCropper.zoom")}</span>
             <span className="text-ink-dim">{Math.round(zoom * 100)}%</span>
           </div>
           <input
@@ -96,17 +98,17 @@ export function PhotoCropper({ src, onCancel, onDone }: { src: string; onCancel:
             step={0.05}
             value={zoom}
             onChange={(e) => setZoom(Number(e.target.value))}
-            aria-label="Photo zoom"
+            aria-label={t("photoCropper.zoomAria")}
             className="w-full mt-1 accent-signal"
           />
         </label>
-        <div className="text-[11px] text-ink-dim text-center">Drag to position</div>
+        <div className="text-[11px] text-ink-dim text-center">{t("photoCropper.dragToPosition")}</div>
         <div className="flex gap-2 justify-end">
           <Btn size="sm" variant="ghost" onClick={onCancel}>
-            Cancel
+            {t("common:actions.cancel")}
           </Btn>
           <Btn size="sm" onClick={confirm} disabled={!img}>
-            Done
+            {t("photoCropper.done")}
           </Btn>
         </div>
       </div>

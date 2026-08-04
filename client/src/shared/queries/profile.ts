@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import type { Profile } from "../types";
 import { useToast } from "../use-toast";
+import { useMutationErrorToast } from "../use-error-toast";
 import { queryKeys } from "./keys";
 import { useInvalidateDerived } from "./derived";
 
@@ -13,6 +14,7 @@ export function useProfile() {
 export function useSaveProfile() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const onError = useMutationErrorToast();
   const invalidateDerived = useInvalidateDerived();
   return useMutation({
     mutationFn: (p: Profile) => api.saveProfile(p),
@@ -21,7 +23,7 @@ export function useSaveProfile() {
       await invalidateDerived();
       toast("Profile saved", "success");
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
+    onError,
   });
 }
 

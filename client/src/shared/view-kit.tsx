@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { SKILL_SUGGESTIONS } from "./skill-suggestions";
 
 // Small shared components used across several view files.
@@ -57,6 +58,7 @@ export function SkillsInput({
   /** Omit the label — used when the parent already shows a title (e.g. an accordion header). */
   hideLabel?: boolean;
 }) {
+  const { t } = useTranslation(["chrome", "common"]);
   const [draft, setDraft] = useState("");
   const [focused, setFocused] = useState(false);
 
@@ -125,7 +127,7 @@ export function SkillsInput({
             <button
               type="button"
               onClick={() => removeAt(i)}
-              aria-label={`Remove ${s}`}
+              aria-label={t("skillsInput.removeSkill", { skill: s })}
               className="text-signal/60 hover:text-signal hover:bg-signal/10 rounded-full w-4 h-4 inline-flex items-center justify-center leading-none"
             >
               ✕
@@ -142,13 +144,13 @@ export function SkillsInput({
             setFocused(false);
             onBlur();
           }}
-          placeholder={skills.length ? "Search skill…" : (placeholder ?? "Search skill…")}
+          placeholder={skills.length ? t("skillsInput.searchPlaceholder") : (placeholder ?? t("skillsInput.searchPlaceholder"))}
           className="flex-1 min-w-[120px] bg-transparent text-sm outline-none py-0.5"
         />
       </div>
       {focused && suggestions.length > 0 && (
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-ink-dim">Suggestions</span>
+          <span className="text-[11px] text-ink-dim">{t("skillsInput.suggestions")}</span>
           {suggestions.map((s) => (
             <button
               key={s}

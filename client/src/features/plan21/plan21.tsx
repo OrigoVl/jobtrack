@@ -1,11 +1,12 @@
+import { useTranslation } from "react-i18next";
 import { usePlan21, useSetPlanDay } from "../../shared/queries";
 import { Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
-import { plural } from "../../shared/format";
 
 /* ---------- Fast-track intensive plan (day count is dynamic — driven by the candidate's
    actual skill gaps, not a fixed number, so the name/copy here deliberately avoid promising
    a specific day count like "21-Day") ---------- */
 export function Plan21() {
+  const { t } = useTranslation(["plan21", "common"]);
   const { data: plan21, isLoading } = usePlan21();
   const setPlanDayMutation = useSetPlanDay();
   if (isLoading || !plan21) return <CardsSkeleton count={3} />;
@@ -15,15 +16,13 @@ export function Plan21() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Intensive plan"
-        subtitle="The plan builds itself automatically from your gaps: demand from your vacancy list minus skills from your CV/profile. Add a vacancy or update your CV — phases rebuild to match the current gaps."
-        actions={<Chip tone="emerald">{plural(allDays.length, "day")} total</Chip>}
+        title={t("title")}
+        subtitle={t("subtitle")}
+        actions={<Chip tone="emerald">{t("daysTotal", { count: allDays.length })}</Chip>}
       />
       <Card>
         <div className="flex items-center justify-between text-sm mb-2">
-          <span className="font-semibold text-ink">
-            {plural(done, "day")} done of {allDays.length}
-          </span>
+          <span className="font-semibold text-ink">{t("daysDone", { count: done, total: allDays.length })}</span>
           <span className="text-ink-dim">{pct}%</span>
         </div>
         <ProgressBar value={done} max={allDays.length} tone="emerald" />
@@ -50,14 +49,14 @@ export function Plan21() {
                   onChange={(e) => setPlanDayMutation.mutate({ dayId: d.id, done: e.target.checked })}
                 />
                 <div className="min-w-0">
-                  <div className="font-semibold text-ink text-sm">Day {d.day}</div>
+                  <div className="font-semibold text-ink text-sm">{t("day", { day: d.day })}</div>
                   <div className="text-sm text-ink-dim mt-0.5">
-                    <span className="text-ink-dim">Theory:</span> {d.theory}
+                    <span className="text-ink-dim">{t("theory")}</span> {d.theory}
                   </div>
                   <div className="text-sm text-ink-dim">
-                    <span className="text-ink-dim">Practice:</span> {d.practice}
+                    <span className="text-ink-dim">{t("practice")}</span> {d.practice}
                   </div>
-                  {d.warmup && <div className="text-xs text-ink-dim mt-0.5">🔁 Warm-up: {d.warmup}</div>}
+                  {d.warmup && <div className="text-xs text-ink-dim mt-0.5">{t("warmup", { text: d.warmup })}</div>}
                 </div>
               </label>
             ))}

@@ -1,4 +1,14 @@
-import { CARDS, DRILLS } from "../study/content.js";
+import { getCards, getDrills } from "../study/content.js";
+import { getLocale } from "../../core/request-context.js";
+import { buildKbUk } from "./knowledge-base.uk.js";
+
+// Lazily built (not a top-level constant) — see buildKbUk()'s doc comment for why: it reads `KB`,
+// defined further down in this very module, so it can only run once this module has finished
+// loading. Memoized since the translated data never changes across requests.
+let kbUkCache: ReturnType<typeof buildKbUk> | undefined;
+function getKbUk(): ReturnType<typeof buildKbUk> {
+  return (kbUkCache ??= buildKbUk());
+}
 
 export interface Resource {
   t: string;
@@ -35,7 +45,7 @@ export const KB: Record<string, KbEntry> = {
   "Next.js": {
     cat: "React",
     learn: ["App Router, server components", "SSR/SSG/ISR", "Data fetching, route handlers"],
-    resources: [R("Next.js Learn", "https://nextjs.org/learn")],
+    resources: [R("Next.js Learn", "https://nextjs.org/learn"), R("Next.js Docs", "https://nextjs.org/docs")],
   },
   TypeScript: {
     cat: "TypeScript",
@@ -76,7 +86,7 @@ export const KB: Record<string, KbEntry> = {
   MySQL: {
     cat: "SQL",
     learn: ["JOIN, indexes, query optimization", "Transactions, replication"],
-    resources: [R("SQLBolt", "https://sqlbolt.com/")],
+    resources: [R("SQLBolt", "https://sqlbolt.com/"), R("MySQL Tutorial", "https://www.mysqltutorial.org/")],
   },
   "Node.js": {
     cat: "Node.js",
@@ -99,42 +109,63 @@ export const KB: Record<string, KbEntry> = {
       "DTO + class-validator",
       "JWT/Passport, TypeORM/Prisma",
     ],
-    resources: [R("NestJS Docs", "https://docs.nestjs.com/"), R("NestJS Courses", "https://courses.nestjs.com/")],
+    resources: [
+      R("NestJS Docs", "https://docs.nestjs.com/"),
+      R("NestJS Courses", "https://courses.nestjs.com/"),
+      R("NestJS Sample Apps (practice)", "https://github.com/nestjs/nest/tree/master/sample"),
+    ],
   },
   Express: {
     cat: "Node.js",
     learn: ["Routing, middleware, error handling", "App structure, validation"],
-    resources: [R("Express Guide", "https://expressjs.com/en/guide/routing.html")],
+    resources: [
+      R("Express Guide", "https://expressjs.com/en/guide/routing.html"),
+      R("MDN — Express/Node tutorial (build-along)", "https://developer.mozilla.org/en-US/docs/Learn/Server-side/Express_Nodejs"),
+    ],
   },
   Docker: {
     cat: "Docker",
     learn: ["Dockerfile, layers and caching, multi-stage builds", "docker-compose, volumes, networks", "Image vs container"],
-    resources: [R("Docker Curriculum", "https://docker-curriculum.com/"), R("Docker Get Started", "https://docs.docker.com/get-started/")],
+    resources: [
+      R("Docker Curriculum", "https://docker-curriculum.com/"),
+      R("Docker Get Started", "https://docs.docker.com/get-started/"),
+      R("Play with Docker (practice)", "https://labs.play-with-docker.com/"),
+    ],
   },
   AWS: {
     cat: "System Design",
     learn: ["EC2/S3/Lambda/RDS/SQS (mapped to Azure equivalents)", "IAM, networking basics", "Serverless fundamentals"],
-    resources: [R("AWS Skill Builder", "https://explore.skillbuilder.aws/")],
+    resources: [
+      R("AWS Skill Builder", "https://explore.skillbuilder.aws/"),
+      R("AWS Hands-on Tutorials (practice)", "https://aws.amazon.com/getting-started/hands-on/"),
+    ],
   },
   Kafka: {
     cat: "System Design",
     learn: ["Producer/consumer, topics, partitions", "Event-driven architecture, delivery guarantees", "Kafka vs RabbitMQ"],
-    resources: [R("System Design 101", "https://github.com/ByteByteGoHq/system-design-101")],
+    resources: [
+      R("Confluent Developer — Kafka tutorials", "https://developer.confluent.io/"),
+      R("Kafka Quickstart (practice)", "https://kafka.apache.org/quickstart"),
+      R("System Design 101", "https://github.com/ByteByteGoHq/system-design-101"),
+    ],
   },
   WebSockets: {
     cat: "Node.js",
     learn: ["ws/Socket.IO, Nest Gateway", "Real-time, presence", "Scaling via Redis pub/sub"],
-    resources: [R("Socket.IO Docs", "https://socket.io/docs/v4/")],
+    resources: [
+      R("Socket.IO Docs", "https://socket.io/docs/v4/"),
+      R("MDN — WebSockets API", "https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API"),
+    ],
   },
   GraphQL: {
     cat: "API",
     learn: ["Schema, resolvers, queries/mutations", "Apollo, caching", "REST vs GraphQL, N+1 (dataloader)"],
-    resources: [R("GraphQL.org", "https://graphql.org/learn/")],
+    resources: [R("GraphQL.org", "https://graphql.org/learn/"), R("How to GraphQL (hands-on tutorials)", "https://www.howtographql.com/")],
   },
   Redis: {
     cat: "System Design",
     learn: ["Caching (cache-aside), TTL", "Pub/sub, queues, leaderboards", "Rate limiting"],
-    resources: [R("Redis University", "https://redis.io/learn/")],
+    resources: [R("Redis Dev Hub", "https://redis.io/learn/")],
   },
   Jest: {
     cat: "Testing",
@@ -154,6 +185,7 @@ export const KB: Record<string, KbEntry> = {
     resources: [
       R("OpenAI Docs", "https://platform.openai.com/docs/guides/text-generation"),
       R("Anthropic Docs", "https://docs.claude.com/en/docs/build-with-claude/overview"),
+      R("Anthropic Prompt Engineering Tutorial (hands-on)", "https://github.com/anthropics/prompt-eng-interactive-tutorial"),
     ],
   },
   Angular: {
@@ -164,27 +196,36 @@ export const KB: Record<string, KbEntry> = {
   RxJS: {
     cat: "TypeScript",
     learn: ["Observables, operators (map/switchMap/merge)", "Subjects, error handling"],
-    resources: [R("RxJS Docs", "https://rxjs.dev/guide/overview")],
+    resources: [R("RxJS Docs", "https://rxjs.dev/guide/overview"), R("Learn RxJS", "https://www.learnrxjs.io/")],
   },
   "REST API": {
     cat: "API",
     learn: ["Methods, status codes, versioning", "Idempotency, pagination", "OpenAPI/Swagger"],
-    resources: [R("REST API Tutorial", "https://restfulapi.net/")],
+    resources: [
+      R("REST API Tutorial", "https://restfulapi.net/"),
+      R("MDN — HTTP overview", "https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview"),
+    ],
   },
   Python: {
     cat: "System Design",
     learn: ["Syntax, types, virtual environments", "FastAPI/Django basics"],
-    resources: [R("Python Docs", "https://docs.python.org/3/tutorial/")],
+    resources: [
+      R("Python Docs", "https://docs.python.org/3/tutorial/"),
+      R("Exercism — Python Track (practice)", "https://exercism.org/tracks/python"),
+    ],
   },
   Go: {
     cat: "System Design",
     learn: ["Syntax, goroutines, channels", "Standard library"],
-    resources: [R("A Tour of Go", "https://go.dev/tour/")],
+    resources: [R("A Tour of Go", "https://go.dev/tour/"), R("Go by Example", "https://gobyexample.com/")],
   },
   Kubernetes: {
     cat: "System Design",
     learn: ["Pods/Deployments/Services", "kubectl, configs"],
-    resources: [R("Kubernetes Basics", "https://kubernetes.io/docs/tutorials/kubernetes-basics/")],
+    resources: [
+      R("Kubernetes Basics", "https://kubernetes.io/docs/tutorials/kubernetes-basics/"),
+      R("Killercoda — Kubernetes Playground (practice)", "https://killercoda.com/kubernetes"),
+    ],
   },
   Vue: {
     cat: "Vue",
@@ -208,7 +249,7 @@ export const KB: Record<string, KbEntry> = {
   TailwindCSS: {
     cat: "HTML/CSS",
     learn: ["Utility-first, responsive prefixes", "Theme customization, @apply", "Dark mode, composing classes"],
-    resources: [R("Tailwind Docs", "https://tailwindcss.com/docs")],
+    resources: [R("Tailwind Docs", "https://tailwindcss.com/docs"), R("Tailwind Play (practice)", "https://play.tailwindcss.com/")],
   },
   "HTML/CSS": {
     cat: "HTML/CSS",
@@ -217,6 +258,7 @@ export const KB: Record<string, KbEntry> = {
       R("MDN HTML", "https://developer.mozilla.org/en-US/docs/Web/HTML"),
       R("Guide to Flexbox", "https://css-tricks.com/snippets/css/a-guide-to-flexbox/"),
       R("web.dev Learn CSS", "https://web.dev/learn/css"),
+      R("Frontend Mentor (practice)", "https://www.frontendmentor.io/"),
     ],
   },
   MongoDB: {
@@ -282,9 +324,19 @@ export interface KnowledgeBase {
 }
 
 export function kbFor(tech: string): KnowledgeBase {
-  const base = KB[tech] || GENERIC;
+  const locale = getLocale();
+  const kb = locale === "uk" ? getKbUk() : KB;
+  const base = kb[tech] || GENERIC;
   const cat = base.cat;
-  const drills = cat ? DRILLS.filter((d) => d.cat === cat).map((d) => ({ q: d.q, lvl: d.lvl })) : [];
-  const cards = cat ? CARDS.filter((c) => c.cat === cat).map((c) => ({ q: c.q })) : [];
+  const drills = cat
+    ? getDrills(locale)
+        .filter((d) => d.cat === cat)
+        .map((d) => ({ q: d.q, lvl: d.lvl }))
+    : [];
+  const cards = cat
+    ? getCards(locale)
+        .filter((c) => c.cat === cat)
+        .map((c) => ({ q: c.q }))
+    : [];
   return { learn: base.learn, resources: base.resources, drills, cards };
 }

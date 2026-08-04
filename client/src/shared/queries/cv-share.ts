@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import i18n from "../../i18n";
 import { api } from "../api";
 import { useToast } from "../use-toast";
+import { useMutationErrorToast } from "../use-error-toast";
 import { queryKeys } from "./keys";
 
 export function useCvShare() {
@@ -10,26 +12,28 @@ export function useCvShare() {
 export function useGenerateCvShare() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const onError = useMutationErrorToast();
   return useMutation({
     mutationFn: () => api.generateCvShare(),
     onSuccess: async (share) => {
       qc.setQueryData(queryKeys.cvShare, share);
-      toast("Public link created", "success");
+      toast(i18n.t("cv:shareLink.toasts.created"), "success");
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
+    onError,
   });
 }
 
 export function useSetCvShareEnabled() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const onError = useMutationErrorToast();
   return useMutation({
     mutationFn: (enabled: boolean) => api.setCvShareEnabled(enabled),
     onSuccess: async (share) => {
       qc.setQueryData(queryKeys.cvShare, share);
-      toast(share.enabled ? "Public link enabled" : "Public link disabled", "success");
+      toast(share.enabled ? i18n.t("cv:shareLink.toasts.enabled") : i18n.t("cv:shareLink.toasts.disabled"), "success");
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
+    onError,
   });
 }
 

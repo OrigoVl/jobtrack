@@ -1,0 +1,50 @@
+{
+  "title": "Dashboard",
+  "subtitle": "Your job-search HQ: vacancy progress, upcoming steps, and quick access to everything.",
+  "gettingStarted": {
+    "heading": "👋 Getting started",
+    "step1": "Add a few vacancies or import them on the \"Vacancies\" tab.",
+    "step2": "Click \"Analyze all\" — the app will detect each vacancy's stack itself.",
+    "step3": "Check the \"Roadmap\" and \"Skill radar\" — they'll show what to pick up for the market.",
+    "addVacancies": "Add vacancies",
+    "openRoadmap": "Open the roadmap"
+  },
+  "stats": {
+    "totalVacancies": "Total vacancies",
+    "active": "Active",
+    "inInterviews": "In interviews",
+    "cardsLearned": "Cards learned"
+  },
+  "focusWeek": {
+    "heading": "🎯 Focus of the week",
+    "analyzing": "✨ Analyzing your search status…",
+    "empty": "Add a few vacancies — and personalized priorities for the week will show up here.",
+    "offline": "Basic tips (AI offline). Set a key in server/.env for personalized analysis."
+  },
+  "roadmapProgress": {
+    "heading": "🗺️ Roadmap progress",
+    "open": "Open →",
+    "skillsKnown": "{{done}} of {{total}} skills marked as known",
+    "topGap": "top-priority gap: {{tech}}"
+  },
+  "upcomingSteps": {
+    "heading": "📅 Upcoming steps",
+    "disableReminders": "Disable reminders",
+    "remindersEnabled": "🔔 Reminders enabled (turn off)",
+    "enableReminders": "🔔 Enable reminders",
+    "empty": "Nothing scheduled — add a \"next step\" date on your vacancies."
+  },
+  "quickActions": {
+    "heading": "⚡ Quick actions",
+    "vacancyAnalysis": "🔍 Vacancy analysis",
+    "roadmap": "🗺️ Roadmap",
+    "review": "🧠 Review",
+    "cvAnalysis": "📄 CV analysis",
+    "cardsDueToday": "Cards due for review today:"
+  },
+  "notifications": {
+    "enabledToast": "Reminders enabled — we'll check for overdue steps next time you open the app",
+    "deniedToast": "Notification permission was not granted",
+    "disabledToast": "Reminders disabled"
+  }
+}

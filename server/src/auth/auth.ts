@@ -12,6 +12,62 @@ import { env } from "../config/env.js";
 import { sendEmail } from "../shared/email.js";
 import { seedProfileIfEmpty } from "../db/bootstrap.js";
 import type { UserId } from "../db/user-id.js";
+import { getLocale } from "../core/request-context.js";
+import type { AppLocale } from "../shared/locale.js";
+
+// One template per email kind, keyed by locale — mirrors llm/client.ts's LANGUAGE_NAME lookup
+// (same "small Record instead of a template engine/i18n library" style). These callbacks run
+// inside the same Express request that populated core/request-context.ts's locale (from the
+// client's X-Locale header, see app.ts's middleware), so `getLocale()` below picks the right one
+// without threading a locale parameter through better-auth's own callback signature.
+interface EmailTemplate {
+  subject: string;
+  html: (url: string) => string;
+}
+
+const RESET_PASSWORD_EMAIL: Record<AppLocale, EmailTemplate> = {
+  en: {
+    subject: "Reset your DevRadar password",
+    html: (url) =>
+      `<p>Click the link below to reset your password:</p><p><a href="${url}">${url}</a></p>` +
+      `<p>If you didn't request this, you can ignore this email.</p>`,
+  },
+  uk: {
+    subject: "Скиньте пароль DevRadar",
+    html: (url) =>
+      `<p>Перейдіть за посиланням нижче, щоб скинути пароль:</p><p><a href="${url}">${url}</a></p>` +
+      `<p>Якщо ви не робили цей запит, просто проігноруйте цей лист.</p>`,
+  },
+};
+
+const VERIFY_EMAIL: Record<AppLocale, EmailTemplate> = {
+  en: {
+    subject: "Verify your DevRadar email",
+    html: (url) => `<p>Click the link below to verify your email and finish creating your account:</p><p><a href="${url}">${url}</a></p>`,
+  },
+  uk: {
+    subject: "Підтвердьте свою пошту в DevRadar",
+    html: (url) =>
+      `<p>Перейдіть за посиланням нижче, щоб підтвердити пошту і завершити створення акаунта:</p><p><a href="${url}">${url}</a></p>`,
+  },
+};
+
+const DELETE_ACCOUNT_EMAIL: Record<AppLocale, EmailTemplate> = {
+  en: {
+    subject: "Confirm deleting your DevRadar account",
+    html: (url) =>
+      `<p>Click the link below to permanently delete your account and all of its data (vacancies, CV, progress). This cannot be undone.</p>` +
+      `<p><a href="${url}">${url}</a></p>` +
+      `<p>If you didn't request this, ignore this email — your account is safe.</p>`,
+  },
+  uk: {
+    subject: "Підтвердьте видалення акаунта DevRadar",
+    html: (url) =>
+      `<p>Перейдіть за посиланням нижче, щоб остаточно видалити свій акаунт і всі його дані (вакансії, CV, прогрес). Це неможливо скасувати.</p>` +
+      `<p><a href="${url}">${url}</a></p>` +
+      `<p>Якщо ви не робили цей запит, просто проігноруйте цей лист — ваш акаунт у безпеці.</p>`,
+  },
+};
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
@@ -33,11 +89,8 @@ export const auth = betterAuth({
     // so RESEND_API_KEY absence (dev/e2e) falls back to logging the link — see auth/email.ts.
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
-      await sendEmail({
-        to: user.email,
-        subject: "Reset your DevRadar password",
-        html: `<p>Click the link below to reset your password:</p><p><a href="${url}">${url}</a></p><p>If you didn't request this, you can ignore this email.</p>`,
-      });
+      const { subject, html } = RESET_PASSWORD_EMAIL[getLocale()];
+      await sendEmail({ to: user.email, subject, html: html(url) });
     },
   },
 
@@ -45,11 +98,8 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
-      await sendEmail({
-        to: user.email,
-        subject: "Verify your DevRadar email",
-        html: `<p>Click the link below to verify your email and finish creating your account:</p><p><a href="${url}">${url}</a></p>`,
-      });
+      const { subject, html } = VERIFY_EMAIL[getLocale()];
+      await sendEmail({ to: user.email, subject, html: html(url) });
     },
   },
 
@@ -68,14 +118,8 @@ export const auth = betterAuth({
     deleteUser: {
       enabled: true,
       sendDeleteAccountVerification: async ({ user, url }) => {
-        await sendEmail({
-          to: user.email,
-          subject: "Confirm deleting your DevRadar account",
-          html:
-            `<p>Click the link below to permanently delete your account and all of its data (vacancies, CV, progress). This cannot be undone.</p>` +
-            `<p><a href="${url}">${url}</a></p>` +
-            `<p>If you didn't request this, ignore this email — your account is safe.</p>`,
-        });
+        const { subject, html } = DELETE_ACCOUNT_EMAIL[getLocale()];
+        await sendEmail({ to: user.email, subject, html: html(url) });
       },
     },
   },

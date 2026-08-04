@@ -1,10 +1,13 @@
 import { Suspense, lazy, useEffect, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { ToastProvider } from "../shared/toast";
 import { useToast } from "../shared/use-toast";
 import { useHealth, useRoadmap } from "../shared/queries";
 import { CardsSkeleton, ProgressBar, Btn } from "../shared/ui";
+import { useUi } from "../shared/ui-state";
+import { LanguageSwitcher } from "../shared/language-switcher";
 import { ErrorBoundary } from "../shared/error-boundary";
 import { useSession, signOut } from "../shared/auth-client";
 import { CommandPalette } from "./command-palette";
@@ -38,46 +41,57 @@ const Contacts = lazy(() => import("../features/contacts/contacts").then((m) => 
 // Public (no session) — mounted at the same tier as /login below, NOT inside Shell/AuthGate.
 const CvPublic = lazy(() => import("../features/cv/cv-public").then((m) => ({ default: m.CvPublic })));
 
+// Static structure — paths/icons/grouping never change with the language, only the label text
+// does. Kept as translation KEYS (resolved to actual NavItem[] inside Shell() below, where
+// useTranslation() is available) rather than translated up front: this is a module-level
+// constant evaluated once at import time, before i18next necessarily even has a language chosen,
+// and it wouldn't react to a language switch afterward if it held resolved strings.
+//
+// labelKey/sectionKey are typed against the ACTUAL nav.json shape (not a plain `string`) so a
+// typo here is still a tsc error, same guarantee as calling t("...") with a literal — see
+// i18n/i18next.d.ts's own comment on why that matters for the Phase B delegation.
 type NavItem = { path: string; icon: string; label: string };
-const NAV: { section: string; items: NavItem[] }[] = [
+type NavLabelKey = `items.${keyof (typeof import("../i18n/locales/en/nav.json"))["items"]}`;
+type NavSectionKey = `sections.${keyof (typeof import("../i18n/locales/en/nav.json"))["sections"]}`;
+type NavItemDef = { path: string; icon: string; labelKey: NavLabelKey };
+const NAV_DEF: { sectionKey: NavSectionKey; items: NavItemDef[] }[] = [
   {
-    section: "Job Search",
+    sectionKey: "sections.jobSearch",
     items: [
-      { path: "/dashboard", icon: "🏠", label: "Dashboard" },
-      { path: "/vacancies", icon: "📋", label: "Vacancies" },
-      { path: "/jobs", icon: "🔎", label: "Job Search" },
-      { path: "/analyzer", icon: "🔍", label: "Vacancy Analysis" },
-      { path: "/companies", icon: "🏢", label: "Companies" },
-      { path: "/contacts", icon: "🧑‍🤝‍🧑", label: "Contacts" },
-      { path: "/analytics", icon: "📊", label: "Analytics" },
-      { path: "/calendar", icon: "🗓️", label: "Calendar" },
+      { path: "/dashboard", icon: "🏠", labelKey: "items.dashboard" },
+      { path: "/vacancies", icon: "📋", labelKey: "items.vacancies" },
+      { path: "/jobs", icon: "🔎", labelKey: "items.jobSearch" },
+      { path: "/analyzer", icon: "🔍", labelKey: "items.vacancyAnalysis" },
+      { path: "/companies", icon: "🏢", labelKey: "items.companies" },
+      { path: "/contacts", icon: "🧑‍🤝‍🧑", labelKey: "items.contacts" },
+      { path: "/analytics", icon: "📊", labelKey: "items.analytics" },
+      { path: "/calendar", icon: "🗓️", labelKey: "items.calendar" },
     ],
   },
   {
-    section: "Growth",
+    sectionKey: "sections.growth",
     items: [
       // Roadmap includes the former "Skill Radar" page as a tab, and Practice includes the
       // former "Mock Interview" page as a mode — related screens grouped instead of scattered
       // across the sidebar (old /radar and /mock links still work, see the redirects below).
-      { path: "/roadmap", icon: "🗺️", label: "Roadmap" },
-      { path: "/plan21", icon: "📅", label: "Intensive plan" },
-      { path: "/learn", icon: "📚", label: "Learning Plan" },
-      { path: "/study", icon: "🧠", label: "Practice" },
-      { path: "/projects", icon: "🧩", label: "Pet Projects" },
-      { path: "/resources", icon: "📖", label: "Resources" },
+      { path: "/roadmap", icon: "🗺️", labelKey: "items.roadmap" },
+      { path: "/plan21", icon: "📅", labelKey: "items.intensivePlan" },
+      { path: "/learn", icon: "📚", labelKey: "items.learningPlan" },
+      { path: "/study", icon: "🧠", labelKey: "items.practice" },
+      { path: "/projects", icon: "🧩", labelKey: "items.petProjects" },
+      { path: "/resources", icon: "📖", labelKey: "items.resources" },
     ],
   },
   {
-    section: "Profile",
+    sectionKey: "sections.profile",
     items: [
-      { path: "/cv", icon: "📄", label: "CV" },
-      { path: "/cvbuilder", icon: "🛠", label: "CV Builder" },
-      { path: "/account", icon: "⚙️", label: "Account" },
+      { path: "/cv", icon: "📄", labelKey: "items.cv" },
+      { path: "/cvbuilder", icon: "🛠", labelKey: "items.cvBuilder" },
+      { path: "/account", icon: "⚙️", labelKey: "items.account" },
     ],
   },
 ];
-const ALL_ITEMS = NAV.flatMap((g) => g.items);
-const ADMIN_ITEM: NavItem = { path: "/admin", icon: "🛡️", label: "Admin" };
+const ADMIN_ITEM_DEF: NavItemDef = { path: "/admin", icon: "🛡️", labelKey: "items.admin" };
 const DEFAULT_PATH = "/dashboard";
 
 function ToastHost() {
@@ -103,6 +117,7 @@ function ToastHost() {
 }
 
 function AiBadge() {
+  const { t } = useTranslation("nav");
   const { data } = useHealth();
   const llm = data?.llm ?? false;
   return (
@@ -112,7 +127,7 @@ function AiBadge() {
       }`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${llm ? "bg-signal" : "bg-ink-dim"}`} />
-      {llm ? "AI: on" : "AI: offline"}
+      {llm ? t("ai.on") : t("ai.off")}
     </span>
   );
 }
@@ -122,12 +137,13 @@ function Brand() {
 }
 
 function SidebarProgress() {
+  const { t } = useTranslation("nav");
   const { data: roadmap } = useRoadmap();
   if (!roadmap) return null;
   return (
     <div className="rounded-xl bg-surface-2 border border-grid p-2.5">
       <div className="text-xs font-medium text-ink-dim mb-1">
-        Roadmap: {roadmap.progress.done}/{roadmap.progress.total}
+        {t("roadmapProgress", { done: roadmap.progress.done, total: roadmap.progress.total })}
       </div>
       <ProgressBar value={roadmap.progress.done} max={roadmap.progress.total} tone="emerald" />
     </div>
@@ -184,6 +200,7 @@ function AdminGate({ children }: { children: ReactNode }) {
 }
 
 function Shell() {
+  const { t } = useTranslation("nav");
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -192,8 +209,18 @@ function Shell() {
   const isAdmin = session?.user?.role === "admin";
   const queryClient = useQueryClient();
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const go = (t: string) => navigate(`/${t}`);
-  const allItems = isAdmin ? [...ALL_ITEMS, ADMIN_ITEM] : ALL_ITEMS;
+  // Desktop-only — mobile already has its own compact top nav, not this sidebar. Persisted so a
+  // preference (e.g. "give the Kanban board more room") survives a reload.
+  const [sidebarCollapsed, setSidebarCollapsed] = useUi<boolean>("shell.sidebarCollapsed", false);
+  const go = (path: string) => navigate(`/${path}`);
+  // Resolved from NAV_DEF/ADMIN_ITEM_DEF's translation keys here (not at module load) — see
+  // those constants' own comment for why.
+  const nav = NAV_DEF.map((group) => ({
+    section: t(group.sectionKey),
+    items: group.items.map((it) => ({ ...it, label: t(it.labelKey) })),
+  }));
+  const adminItem: NavItem = { ...ADMIN_ITEM_DEF, label: t(ADMIN_ITEM_DEF.labelKey) };
+  const allItems = isAdmin ? [...nav.flatMap((g) => g.items), adminItem] : nav.flatMap((g) => g.items);
 
   async function logOut() {
     await signOut();
@@ -207,43 +234,70 @@ function Shell() {
   // global "wait for everything"), so all that's left here is a notification for a complete
   // loss of connection to the server.
   useEffect(() => {
-    if (connectionError) toast("Could not connect to the server", "error");
-  }, [connectionError, toast]);
+    if (connectionError) toast(t("connectionError"), "error");
+  }, [connectionError, toast, t]);
 
   return (
     <div className="min-h-screen lg:flex">
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 shrink-0 sticky top-0 h-screen border-r border-grid bg-surface/70 backdrop-blur-md p-3.5 gap-2.5 overflow-y-auto">
-        <div className="flex items-center justify-between">
-          <Brand />
-        </div>
-        <AiBadge />
+      {/* Desktop sidebar — collapsible (persisted) so pages that want the extra width, e.g. the
+          Vacancies Kanban board with its many status columns, can get it without losing the nav
+          entirely: a small floating button brings it right back. */}
+      {!sidebarCollapsed && (
+        <aside className="hidden lg:flex flex-col w-64 shrink-0 sticky top-0 h-screen border-r border-grid bg-surface/70 backdrop-blur-md p-3.5 gap-2.5 overflow-y-auto">
+          <div className="flex items-center justify-between">
+            <Brand />
+            <button
+              onClick={() => setSidebarCollapsed(true)}
+              aria-label={t("hideSidebar")}
+              title={t("hideSidebar")}
+              className="text-ink-dim hover:text-ink p-1 -m-1 rounded-lg hover:bg-surface-2"
+            >
+              «
+            </button>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <AiBadge />
+            <LanguageSwitcher />
+          </div>
+          <button
+            onClick={() => setPaletteOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-grid bg-surface text-xs text-ink-dim hover:border-signal/40 hover:text-ink transition-colors"
+          >
+            <span>🔎 {t("search")}</span>
+            <span className="ml-auto font-display text-[10px] bg-surface-2 rounded px-1.5 py-0.5 text-ink-dim">⌘K</span>
+          </button>
+          <nav className="flex flex-col gap-2.5 flex-1">
+            {nav.map((group) => (
+              <div key={group.section}>
+                <div className="font-display text-[11px] font-bold uppercase tracking-wider text-ink-dim px-3 mb-1">{group.section}</div>
+                <div className="flex flex-col gap-0.5">{group.items.map((it) => navBtn(it))}</div>
+              </div>
+            ))}
+            {isAdmin && (
+              <div>
+                <div className="font-display text-[11px] font-bold uppercase tracking-wider text-ink-dim px-3 mb-1">
+                  {t("sections.admin")}
+                </div>
+                <div className="flex flex-col gap-0.5">{navBtn(adminItem)}</div>
+              </div>
+            )}
+          </nav>
+          <SidebarProgress />
+          <Btn variant="ghost" size="sm" onClick={logOut}>
+            {t("logOut")}
+          </Btn>
+        </aside>
+      )}
+      {sidebarCollapsed && (
         <button
-          onClick={() => setPaletteOpen(true)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-grid bg-surface text-xs text-ink-dim hover:border-signal/40 hover:text-ink transition-colors"
+          onClick={() => setSidebarCollapsed(false)}
+          aria-label={t("showSidebar")}
+          title={t("showSidebar")}
+          className="hidden lg:flex fixed top-3 left-3 z-30 items-center justify-center w-8 h-8 rounded-lg border border-grid bg-surface/90 backdrop-blur-md text-ink-dim hover:text-ink hover:border-signal/40 shadow-sm"
         >
-          <span>🔎 Search…</span>
-          <span className="ml-auto font-display text-[10px] bg-surface-2 rounded px-1.5 py-0.5 text-ink-dim">⌘K</span>
+          »
         </button>
-        <nav className="flex flex-col gap-2.5 flex-1">
-          {NAV.map((group) => (
-            <div key={group.section}>
-              <div className="font-display text-[11px] font-bold uppercase tracking-wider text-ink-dim px-3 mb-1">{group.section}</div>
-              <div className="flex flex-col gap-0.5">{group.items.map((it) => navBtn(it))}</div>
-            </div>
-          ))}
-          {isAdmin && (
-            <div>
-              <div className="font-display text-[11px] font-bold uppercase tracking-wider text-ink-dim px-3 mb-1">Admin</div>
-              <div className="flex flex-col gap-0.5">{navBtn(ADMIN_ITEM)}</div>
-            </div>
-          )}
-        </nav>
-        <SidebarProgress />
-        <Btn variant="ghost" size="sm" onClick={logOut}>
-          Log out
-        </Btn>
-      </aside>
+      )}
 
       {/* Mobile top nav */}
       <div className="flex-1 min-w-0">
@@ -252,18 +306,18 @@ function Shell() {
             <Brand />
             <div className="ml-auto flex items-center gap-2">
               <AiBadge />
-              <Btn variant="ghost" size="sm" onClick={() => setPaletteOpen(true)} aria-label="Open command palette">
+              <Btn variant="ghost" size="sm" onClick={() => setPaletteOpen(true)} aria-label={t("openCommandPalette")}>
                 🔎
               </Btn>
               <Btn variant="ghost" size="sm" onClick={logOut}>
-                Log out
+                {t("logOut")}
               </Btn>
             </div>
           </div>
           <nav className="flex gap-1 overflow-x-auto px-3 pb-2 no-scrollbar">{allItems.map((it) => navBtn(it, true))}</nav>
         </header>
 
-        <main className="max-w-5xl mx-auto px-4 py-6">
+        <main className="max-w-7xl mx-auto px-4 py-6">
           <ErrorBoundary key={location.pathname}>
             <Suspense fallback={<CardsSkeleton count={2} />}>
               <Routes>
@@ -281,7 +335,7 @@ function Shell() {
                 <Route path="/learn" element={<LearnPlanWrapper />} />
                 <Route path="/study" element={<Study />} />
                 {/* Mock Interview and Skill Radar are now tabs inside Practice/Roadmap
-                    respectively (see NAV above) — old links/bookmarks still resolve. */}
+                    respectively (see NAV_DEF above) — old links/bookmarks still resolve. */}
                 <Route path="/mock" element={<Navigate to="/study" replace />} />
                 <Route path="/projects" element={<Projects />} />
                 <Route path="/radar" element={<Navigate to="/roadmap" replace />} />
@@ -310,7 +364,7 @@ function Shell() {
       <ToastHost />
       <CommandPalette
         items={allItems}
-        actions={[{ id: "logout", icon: "🚪", label: "Log out", onRun: logOut }]}
+        actions={[{ id: "logout", icon: "🚪", label: t("logOut"), onRun: logOut }]}
         open={paletteOpen}
         setOpen={setPaletteOpen}
       />

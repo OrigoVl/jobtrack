@@ -46,7 +46,7 @@ r.post(
     if (!req.file) throw new HttpError(400, "No file received");
     const text = await extractText(req.file.buffer, req.file.originalname, req.file.mimetype);
     if (!text || text.trim().length < 20) {
-      throw new HttpError(422, "Couldn't extract text from the file (it might be a scan or image).");
+      throw new HttpError(422, "Couldn't extract text from the file (it might be a scan or image).", null, "CV_EXTRACT_FAILED");
     }
     const profile = await getProfile(userId);
     // extractSkills and detectDomain are independent LLM calls over the same text (neither
@@ -79,6 +79,8 @@ r.post(
     const role = profile.domain || "specialist";
     let text = `Skills: ${merged.join(", ")}`;
     if (llmAvailable()) {
+      // No outputLocale here — this deliberately follows the RESUME's own language (already
+      // instructed below), not the UI's. Same reasoning as cv-improve further down this file.
       const llm = await chat(
         userId,
         "You write an ATS-friendly skills section for a resume.",
@@ -179,10 +181,15 @@ r.post(
     try {
       parsed = parseLinkedInArchive(req.file.buffer);
     } catch {
-      throw new HttpError(422, "Couldn't read the archive. It must be a .zip export from LinkedIn (Settings → Get a copy of your data).");
+      throw new HttpError(
+        422,
+        "Couldn't read the archive. It must be a .zip export from LinkedIn (Settings → Get a copy of your data).",
+        null,
+        "LINKEDIN_ARCHIVE_INVALID",
+      );
     }
     if (!parsed.name && !parsed.experience.length && !parsed.skills.length) {
-      throw new HttpError(422, "No Profile.csv / Positions.csv / Skills.csv found in the archive.");
+      throw new HttpError(422, "No Profile.csv / Positions.csv / Skills.csv found in the archive.", null, "LINKEDIN_ARCHIVE_MISSING_FILES");
     }
     const doc = CvDocSchema.parse(parsed);
     await setKvJson(userId, "cvDoc", doc);
@@ -231,6 +238,8 @@ r.post(
       kind === "summary"
         ? (SUMMARY_STYLE_GUIDES[style] ?? SUMMARY_STYLE_GUIDES.improve)
         : 'Rewrite this experience bullet using the formula "strong verb → what you did → technology → measurable result". One sentence, no fluff.';
+    // No outputLocale here — deliberately follows the resume's OWN language (instructed below),
+    // not the UI's, same as cv-skills-update above.
     const out = await chat(
       userId,
       `You are a resume editor for the role "${role}". Write concisely, with a focus on results, in the original language.`,

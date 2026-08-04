@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAddContact, useCompanies, useContacts, useDeleteContact, useUpdateContact } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, EmptyState, PageHeader, Spinner } from "../../shared/ui";
 import type { Contact, ContactInput } from "../../shared/types";
@@ -22,41 +23,42 @@ function ContactModal({
   saving: boolean;
   deleting: boolean;
 }) {
+  const { t } = useTranslation(["contacts", "common"]);
   const [form, setForm] = useState(draft);
   const { data: companies = [] } = useCompanies();
   const set = <K extends keyof ContactInput>(k: K, v: ContactInput[K]) => setForm((f) => ({ ...f, [k]: v }));
   const canSave = form.name.trim().length > 0;
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4">
-      <button type="button" aria-label="Close" onClick={onClose} className="fixed inset-0 bg-ink/50 cursor-default" />
+      <button type="button" aria-label={t("modal.closeAriaLabel")} onClick={onClose} className="fixed inset-0 bg-ink/50 cursor-default" />
       <Card className="relative w-full max-w-md space-y-3 max-h-[90vh] overflow-y-auto">
-        <div className="font-display font-semibold text-ink">{editingId ? "Edit contact" : "New contact"}</div>
+        <div className="font-display font-semibold text-ink">{editingId ? t("modal.editTitle") : t("modal.newTitle")}</div>
         <label className="block">
-          <span className="text-xs font-semibold text-ink-dim">Name</span>
+          <span className="text-xs font-semibold text-ink-dim">{t("modal.name")}</span>
           <input
             value={form.name}
             onChange={(e) => set("name", e.target.value)}
-            placeholder="e.g. Jane Recruiter"
+            placeholder={t("modal.namePlaceholder")}
             className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
           />
         </label>
         <label className="block">
-          <span className="text-xs font-semibold text-ink-dim">Role</span>
+          <span className="text-xs font-semibold text-ink-dim">{t("modal.role")}</span>
           <input
             value={form.role}
             onChange={(e) => set("role", e.target.value)}
-            placeholder="e.g. Engineering Manager"
+            placeholder={t("modal.rolePlaceholder")}
             className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
           />
         </label>
         <label className="block">
-          <span className="text-xs font-semibold text-ink-dim">Company (optional)</span>
+          <span className="text-xs font-semibold text-ink-dim">{t("modal.company")}</span>
           <select
             value={form.companyId ?? ""}
             onChange={(e) => set("companyId", e.target.value ? Number(e.target.value) : null)}
             className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
           >
-            <option value="">— none —</option>
+            <option value="">{t("modal.companyNone")}</option>
             {companies.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -66,7 +68,7 @@ function ContactModal({
         </label>
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
-            <span className="text-xs font-semibold text-ink-dim">Email</span>
+            <span className="text-xs font-semibold text-ink-dim">{t("modal.email")}</span>
             <input
               type="email"
               value={form.email}
@@ -75,7 +77,7 @@ function ContactModal({
             />
           </label>
           <label className="block">
-            <span className="text-xs font-semibold text-ink-dim">Last contacted</span>
+            <span className="text-xs font-semibold text-ink-dim">{t("modal.lastContacted")}</span>
             <input
               type="date"
               lang="en-US"
@@ -86,7 +88,7 @@ function ContactModal({
           </label>
         </div>
         <label className="block">
-          <span className="text-xs font-semibold text-ink-dim">LinkedIn URL</span>
+          <span className="text-xs font-semibold text-ink-dim">{t("modal.linkedinUrl")}</span>
           <input
             type="url"
             value={form.linkedinUrl}
@@ -96,26 +98,26 @@ function ContactModal({
           />
         </label>
         <label className="block">
-          <span className="text-xs font-semibold text-ink-dim">Notes</span>
+          <span className="text-xs font-semibold text-ink-dim">{t("modal.notes")}</span>
           <textarea
             value={form.notes}
             onChange={(e) => set("notes", e.target.value)}
-            placeholder="How you met, what they said, follow-up ideas…"
+            placeholder={t("modal.notesPlaceholder")}
             className="w-full h-20 mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
           />
         </label>
         <div className="flex items-center gap-2 pt-1">
           {editingId && (
             <Btn variant="danger" size="sm" onClick={onDelete} loading={deleting}>
-              Delete
+              {t("common:actions.delete")}
             </Btn>
           )}
           <div className="ml-auto flex gap-2">
             <Btn variant="ghost" size="sm" onClick={onClose}>
-              Cancel
+              {t("common:actions.cancel")}
             </Btn>
             <Btn size="sm" disabled={!canSave} loading={saving} onClick={() => onSave(form)}>
-              Save
+              {t("common:actions.save")}
             </Btn>
           </div>
         </div>
@@ -125,6 +127,7 @@ function ContactModal({
 }
 
 export function Contacts() {
+  const { t } = useTranslation(["contacts", "common"]);
   const { data: contacts, isLoading } = useContacts();
   const { data: companies = [] } = useCompanies();
   const addMutation = useAddContact();
@@ -165,15 +168,11 @@ export function Contacts() {
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Contacts"
-        subtitle="A lightweight networking tracker — recruiters, referrals, people you've met — separate from your Companies notes."
-        actions={<Btn onClick={openNew}>+ Add contact</Btn>}
-      />
+      <PageHeader title={t("title")} subtitle={t("subtitle")} actions={<Btn onClick={openNew}>{t("addContact")}</Btn>} />
 
       {!contacts || contacts.length === 0 ? (
         <Card>
-          <EmptyState icon="🧑‍🤝‍🧑" title="No contacts yet" hint="Add a recruiter, referral, or anyone worth following up with." />
+          <EmptyState icon="🧑‍🤝‍🧑" title={t("empty.title")} hint={t("empty.hint")} />
         </Card>
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
@@ -193,17 +192,17 @@ export function Contacts() {
                     <button
                       onClick={() => openEdit(c)}
                       className="text-xs text-ink-dim hover:text-signal px-1.5 py-1"
-                      aria-label={`Edit ${c.name}`}
+                      aria-label={t("editAriaLabel", { name: c.name })}
                     >
-                      Edit
+                      {t("common:actions.edit")}
                     </button>
                     <button
                       onClick={() => deleteMutation.mutate(c.id)}
                       disabled={isDeleting}
                       className="text-xs text-ink-dim hover:text-rose-600 px-1.5 py-1 disabled:opacity-50"
-                      aria-label={`Delete ${c.name}`}
+                      aria-label={t("deleteAriaLabel", { name: c.name })}
                     >
-                      {isDeleting ? <Spinner className="h-3 w-3" /> : "Delete"}
+                      {isDeleting ? <Spinner className="h-3 w-3" /> : t("common:actions.delete")}
                     </button>
                   </div>
                 </div>
@@ -215,10 +214,10 @@ export function Contacts() {
                   )}
                   {c.linkedinUrl && (
                     <a href={c.linkedinUrl} target="_blank" rel="noreferrer" className="text-signal hover:underline">
-                      LinkedIn ↗
+                      {t("linkedin")}
                     </a>
                   )}
-                  {c.lastContactAt && <span className="text-ink-dim">Last contact: {c.lastContactAt}</span>}
+                  {c.lastContactAt && <span className="text-ink-dim">{t("lastContact", { date: c.lastContactAt })}</span>}
                 </div>
                 {c.notes && <p className="text-xs text-ink-dim mt-2 whitespace-pre-wrap">{c.notes}</p>}
               </Card>

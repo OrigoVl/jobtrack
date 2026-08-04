@@ -22,3 +22,10 @@ if (dsn) {
 export function captureClientException(error: unknown, extra?: Record<string, unknown>): void {
   if (dsn) Sentry.captureException(error, extra ? { extra } : undefined);
 }
+
+/** Tags every subsequent event with the active UI language (see i18n/index.ts) — lets "only the
+ * uk build is broken" show up as a Sentry filter instead of a support ticket. No-op if Sentry
+ * isn't configured, same gating as captureClientException above. */
+export function setSentryLocaleTag(locale: string): void {
+  if (dsn) Sentry.setTag("locale", locale);
+}

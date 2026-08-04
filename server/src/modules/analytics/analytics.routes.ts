@@ -167,13 +167,13 @@ r.get(
     const role = profile.domain || "professional";
     const out = await chatJson(
       userId,
-      `You are a career mentor for a candidate (${role}) job-hunting. You analyze their state and give the 3 most important concrete actions for this week. Reply with ONLY valid JSON in English.`,
+      `You are a career mentor for a candidate (${role}) job-hunting. You analyze their state and give the 3 most important concrete actions for this week. Reply with ONLY valid JSON.`,
       `Search state (JSON): ${JSON.stringify(summary)}.\n` +
         `Give exactly 3 priority actions with an explanation of why now. Format strictly: {"actions":[{"title":"short action","why":"1 sentence why"}]}`,
       FocusActionsSchema,
       // "fast": prioritizing 3 actions from a structured funnel state — a light task, doesn't
       // need "smart"-tier; cheaper and faster for a card the user sees every day.
-      { maxTokens: 500, temperature: 0.5, cache: true, tier: "fast", feature: "focus-actions" },
+      { maxTokens: 500, temperature: 0.5, cache: true, tier: "fast", feature: "focus-actions", outputLocale: "app" },
     );
     const actions: FocusAction[] = out?.actions ?? [];
     // offline:true when the LLM didn't give valid actions (provider error/timeout/bad JSON even

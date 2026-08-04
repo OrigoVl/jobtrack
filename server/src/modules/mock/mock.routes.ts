@@ -29,13 +29,13 @@ r.post(
     const role = (await getProfile(userId)).domain || "professional";
     const out = await chatJson(
       userId,
-      `You are a friendly but demanding interviewer for the role "${role}". You evaluate the candidate's answer honestly. Respond with ONLY valid JSON in English.`,
+      `You are a friendly but demanding interviewer for the role "${role}". You evaluate the candidate's answer honestly. Respond with ONLY valid JSON.`,
       `Question: ${question}\n` +
         `Reference answer: ${reference || "—"}\n` +
         `Candidate's answer: ${answer.slice(0, 2000)}\n\n` +
         `Evaluate the answer. Return JSON strictly: {"score":<0-100>,"verdict":"1 sentence summary","good":["what's good, 1-3"],"missed":["what was missed/inaccurate, 1-3"],"tip":"1 concrete tip"}`,
       MockEvalSchema,
-      { maxTokens: 500, temperature: 0.3, cache: true, tier: "smart", feature: "mock-interview" },
+      { maxTokens: 500, temperature: 0.3, cache: true, tier: "smart", feature: "mock-interview", outputLocale: "app" },
     );
     if (!out) {
       // offline:true — the LLM call didn't produce a valid evaluation even after chatJson's

@@ -108,6 +108,31 @@ export interface JsonVacancyItem {
   notes: string;
 }
 
+// Some hand-maintained job-tracker.json files (e.g. a personal tracker kept in another
+// language/AI chat) use localized status labels instead of the app's canonical English wire
+// values — accept the common Ukrainian variants (including the app's own uk vacancyStatus
+// translations, see client/src/i18n/locales/uk/common.json, plus a couple of informal synonyms)
+// by normalizing them to a canonical VacancyStatus before the strict STATUSES check below.
+const STATUS_ALIASES: Record<string, VacancyStatus> = {
+  "хочу подати": "Want to apply",
+  "хочу подати заявку": "Want to apply",
+  подано: "Applied",
+  "подана заявка": "Applied",
+  "відправив cv": "Applied",
+  "відправила cv": "Applied",
+  скринінг: "Screening",
+  "технічне інтерв'ю": "Tech interview",
+  "тестове завдання": "Take-home task",
+  фінал: "Final",
+  офер: "Offer",
+  відмова: "Rejected",
+  "на паузі": "Paused",
+};
+
+function normalizeStatus(status: string): string {
+  return STATUS_ALIASES[status.trim().toLowerCase()] ?? status;
+}
+
 /**
  * Parses one item of an import array in an external tracker format
  * (`{company, pos, level, fit, status, applied, next, notes, url}` — e.g. job-tracker.json,
@@ -123,7 +148,7 @@ export function parseJsonVacancyItem(raw: unknown): JsonVacancyItem {
     .slice(0, 200);
   const level = asString(b.level).trim().slice(0, 40);
   const url = toUrl(b.url, "url");
-  const status = asString(b.status, "Want to apply");
+  const status = normalizeStatus(asString(b.status, "Want to apply"));
   if (!STATUSES.includes(status as VacancyStatus)) throw new HttpError(400, `Invalid status: "${status}"`);
   const fit = asString(b.fit, "med");
   if (!FITS.includes(fit as Fit)) throw new HttpError(400, `Invalid fit: "${fit}"`);

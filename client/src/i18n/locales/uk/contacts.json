@@ -1,0 +1,34 @@
+{
+  "title": "Контакти",
+  "subtitle": "Легкий трекер нетворкінгу — рекрутери, реферали, люди, з якими ти познайомився — окремо від нотаток у Компаніях.",
+  "addContact": "+ Додати контакт",
+  "empty": {
+    "title": "Контактів ще немає",
+    "hint": "Додай рекрутера, реферала чи будь-кого, з ким варто підтримувати зв'язок."
+  },
+  "editAriaLabel": "Редагувати {{name}}",
+  "deleteAriaLabel": "Видалити {{name}}",
+  "lastContact": "Останній контакт: {{date}}",
+  "linkedin": "LinkedIn ↗",
+  "modal": {
+    "closeAriaLabel": "Закрити",
+    "editTitle": "Редагувати контакт",
+    "newTitle": "Новий контакт",
+    "name": "Ім'я",
+    "namePlaceholder": "напр. Jane Recruiter",
+    "role": "Посада",
+    "rolePlaceholder": "напр. Engineering Manager",
+    "company": "Компанія (необов'язково)",
+    "companyNone": "— немає —",
+    "email": "Email",
+    "lastContacted": "Останній контакт",
+    "linkedinUrl": "LinkedIn URL",
+    "notes": "Нотатки",
+    "notesPlaceholder": "Як познайомились, що казали, ідеї для подальших кроків…"
+  },
+  "toasts": {
+    "contactAdded": "Контакт додано",
+    "saved": "Збережено",
+    "deleted": "Видалено"
+  }
+}

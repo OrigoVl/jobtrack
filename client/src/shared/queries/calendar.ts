@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import type { CalendarEventInput } from "../types";
 import { useToast } from "../use-toast";
+import { useMutationErrorToast } from "../use-error-toast";
 import { queryKeys } from "./keys";
 
 // `range` is part of the query key (like admin's `days`, see queries/admin.ts) — switching
@@ -17,38 +19,44 @@ export function useCombinedCalendar(range: { from?: string; to?: string }) {
 export function useAddCalendarEvent() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation("calendar");
+  const onError = useMutationErrorToast();
   return useMutation({
     mutationFn: (e: CalendarEventInput) => api.addCalendarEvent(e),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.calendarCombined });
-      toast("Event added", "success");
+      toast(t("toasts.added"), "success");
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
+    onError,
   });
 }
 
 export function useUpdateCalendarEvent() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation("calendar");
+  const onError = useMutationErrorToast();
   return useMutation({
     mutationFn: ({ id, patch }: { id: number; patch: Partial<CalendarEventInput> }) => api.updateCalendarEvent(id, patch),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.calendarCombined });
-      toast("Saved", "success");
+      toast(t("toasts.saved"), "success");
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
+    onError,
   });
 }
 
 export function useDeleteCalendarEvent() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation("calendar");
+  const onError = useMutationErrorToast();
   return useMutation({
     mutationFn: (id: number) => api.deleteCalendarEvent(id),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.calendarCombined });
-      toast("Deleted", "success");
+      toast(t("toasts.deleted"), "success");
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
+    onError,
   });
 }

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Btn, Card, Segmented } from "../../../shared/ui";
 import { useUi } from "../../../shared/ui-state";
 import type { CvDoc } from "../../../shared/types";
@@ -22,14 +24,14 @@ const ZOOM_OPTIONS = [
 ];
 
 /** Sections that are still empty and won't make it into the generated PDF — a quick informative hint. */
-function emptySectionLabels(doc: CvDoc): string[] {
+function emptySectionLabels(doc: CvDoc, t: TFunction<["cv", "common"]>): string[] {
   const checks: [boolean, string][] = [
-    [!doc.summary.trim(), "Profile"],
-    [doc.skills.length === 0, "Skills"],
-    [doc.experience.length === 0, "Experience"],
-    [doc.projects.filter(Boolean).length === 0, "Projects"],
-    [doc.education.filter(Boolean).length === 0, "Education"],
-    [(doc.languages ?? []).filter((l) => l.name.trim()).length === 0, "Languages"],
+    [!doc.summary.trim(), t("preview.emptyLabels.summary")],
+    [doc.skills.length === 0, t("preview.emptyLabels.skills")],
+    [doc.experience.length === 0, t("preview.emptyLabels.experience")],
+    [doc.projects.filter(Boolean).length === 0, t("preview.emptyLabels.projects")],
+    [doc.education.filter(Boolean).length === 0, t("preview.emptyLabels.education")],
+    [(doc.languages ?? []).filter((l) => l.name.trim()).length === 0, t("preview.emptyLabels.languages")],
   ];
   return checks.filter(([empty]) => empty).map(([, label]) => label);
 }
@@ -58,6 +60,7 @@ function ScaledFrame({
    * scriptable from the parent just like same-origin content, so this needs no CSP changes. */
   onSectionClick?: (section: string) => void;
 }) {
+  const { t } = useTranslation(["cv", "common"]);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(PAGE_WIDTH);
   const [contentHeight, setContentHeight] = useState(1200);
@@ -80,7 +83,7 @@ function ScaledFrame({
           className="shadow-xl ring-1 ring-ink/5 shrink-0 rounded-sm"
         >
           <iframe
-            title="CV preview"
+            title={t("preview.iframeTitlePreview")}
             srcDoc={html}
             onLoad={(e) => {
               const doc = e.currentTarget.contentDocument;
@@ -125,20 +128,21 @@ function PreviewToolbar({
   onToggleFullscreen?: () => void;
   fullscreenLabel?: string;
 }) {
+  const { t } = useTranslation(["cv", "common"]);
   return (
     <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-surface-2 flex-wrap">
       <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold text-ink-dim uppercase tracking-wide">Preview</span>
+        <span className="text-xs font-semibold text-ink-dim uppercase tracking-wide">{t("preview.toolbarLabel")}</span>
         <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full border border-grid bg-surface-2 text-ink-dim whitespace-nowrap">
           A4
         </span>
         <span
-          title="Approximate number of pages when printed to PDF — actual printing may differ slightly"
+          title={t("preview.pagesHintTitle")}
           className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full border whitespace-nowrap ${
             pages > 1 ? "bg-alert/10 text-alert border-alert/30" : "bg-signal/10 text-signal border-signal/30"
           }`}
         >
-          {pages > 1 ? `⚠ Page 1 / ${pages}` : "✓ 1 page"}
+          {pages > 1 ? t("preview.pageBadgeMulti", { pages }) : t("preview.pageBadgeSingle")}
         </span>
       </div>
       <div className="flex items-center gap-2">
@@ -148,13 +152,8 @@ function PreviewToolbar({
             ⛶
           </Btn>
         )}
-        <Btn
-          size="sm"
-          variant="ghost"
-          onClick={onExport}
-          title="The date/document title at the top of pages is disabled automatically; if it still shows up — turn off 'Headers and footers' in the print dialog"
-        >
-          ⬇️ PDF
+        <Btn size="sm" variant="ghost" onClick={onExport} title={t("preview.exportTitle")}>
+          {t("shared.pdfButton")}
         </Btn>
       </div>
     </div>
@@ -173,12 +172,13 @@ export function CvPreviewPanel({
   onExport: () => void;
   onSectionClick?: (section: string) => void;
 }) {
+  const { t } = useTranslation(["cv", "common"]);
   const [zoom, setZoom] = useUi("cvbuilder.previewZoom", 1);
   const [fullscreen, setFullscreen] = useState(false);
   const [contentHeight, setContentHeight] = useState(1200);
   const html = buildCvHtml(doc);
   const pages = Math.max(1, Math.ceil(contentHeight / A4_PAGE_HEIGHT));
-  const empties = emptySectionLabels(doc);
+  const empties = emptySectionLabels(doc, t);
   return (
     <>
       <Card className="p-0 overflow-hidden">
@@ -188,7 +188,7 @@ export function CvPreviewPanel({
           onZoomChange={setZoom}
           onExport={onExport}
           onToggleFullscreen={() => setFullscreen(true)}
-          fullscreenLabel="Fullscreen"
+          fullscreenLabel={t("preview.fullscreen")}
         />
         {/* Now the only element in the sticky column (Appearance/Presets moved to the "Design"
             tab on the left) — the preview can be given more visible height than when it was
@@ -200,10 +200,10 @@ export function CvPreviewPanel({
           onContentHeight={setContentHeight}
           onSectionClick={onSectionClick}
         />
-        <div className="px-4 py-1.5 text-[11px] text-ink-dim border-t border-surface-2">💡 Click a section in the preview to edit it</div>
+        <div className="px-4 py-1.5 text-[11px] text-ink-dim border-t border-surface-2">{t("preview.clickHint")}</div>
         {empties.length > 0 && (
           <div className="px-4 py-2 text-[11px] text-ink-dim border-t border-surface-2">
-            Empty sections (won't appear in the PDF): {empties.join(", ")}
+            {t("preview.emptySectionsHint", { sections: empties.join(", ") })}
           </div>
         )}
       </Card>
@@ -215,7 +215,7 @@ export function CvPreviewPanel({
         onClick={() => setFullscreen(true)}
         className="lg:hidden fixed bottom-5 right-5 z-30 rounded-full bg-signal text-white shadow-lg px-4 py-3 text-sm font-semibold flex items-center gap-1.5 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 focus-visible:ring-offset-2"
       >
-        👁 Preview
+        {t("preview.previewFab")}
         {pages > 1 && (
           <span className="text-alert/40" aria-hidden>
             ⚠
@@ -226,16 +226,16 @@ export function CvPreviewPanel({
         <div className="fixed inset-0 z-50 grid place-items-center p-3 md:p-6">
           <button
             type="button"
-            aria-label="Close preview"
+            aria-label={t("preview.closePreviewAria")}
             onClick={() => setFullscreen(false)}
             className="fixed inset-0 bg-ink/60 cursor-default"
           />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-full overflow-hidden flex flex-col">
             <div className="flex items-center justify-between px-4 py-2 border-b border-surface-2">
-              <span className="text-sm font-semibold text-ink">CV preview</span>
+              <span className="text-sm font-semibold text-ink">{t("preview.modalTitle")}</span>
               <button
                 onClick={() => setFullscreen(false)}
-                aria-label="Close"
+                aria-label={t("common:actions.close")}
                 className="text-ink-dim hover:text-ink-dim text-lg leading-none px-1"
               >
                 ✕

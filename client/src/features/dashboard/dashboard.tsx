@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { useHealth, useLearn, useProfile, useRoadmap, useStudy, useVacancies } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
 import { useToast } from "../../shared/use-toast";
+import { statusLabel } from "../../shared/status-labels";
 import {
   enableNotifications,
   disableNotifications,
@@ -14,6 +16,7 @@ import {
 import type { FocusWeek } from "../../shared/types";
 
 function FocusWeekCard({ llm }: { llm: boolean }) {
+  const { t } = useTranslation("dashboard");
   const [data, setData] = useState<FocusWeek | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -30,10 +33,10 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
   return (
     <Card className="!bg-gradient-to-br !from-signal/10 !to-white !border-signal/30">
       <div className="flex items-center gap-2 mb-2">
-        <span className="font-semibold text-signal">🎯 Focus of the week</span>
+        <span className="font-semibold text-signal">{t("focusWeek.heading")}</span>
         {data && !data.offline && llm && <Chip tone="indigo">AI</Chip>}
       </div>
-      {loading && <div className="text-sm text-ink-dim">✨ Analyzing your search status…</div>}
+      {loading && <div className="text-sm text-ink-dim">{t("focusWeek.analyzing")}</div>}
       {!loading && data && data.actions.length > 0 && (
         <ol className="space-y-2">
           {data.actions.map((a, i) => (
@@ -51,16 +54,13 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
           ))}
         </ol>
       )}
-      {!loading && (!data || data.actions.length === 0) && (
-        <div className="text-sm text-ink-dim">Add a few vacancies — and personalized priorities for the week will show up here.</div>
-      )}
-      {data?.offline && (
-        <div className="text-xs text-ink-dim mt-2">Basic tips (AI offline). Set a key in server/.env for personalized analysis.</div>
-      )}
+      {!loading && (!data || data.actions.length === 0) && <div className="text-sm text-ink-dim">{t("focusWeek.empty")}</div>}
+      {data?.offline && <div className="text-xs text-ink-dim mt-2">{t("focusWeek.offline")}</div>}
     </Card>
   );
 }
 export function Dashboard({ go }: { go: (t: string) => void }) {
+  const { t } = useTranslation("dashboard");
   const { data: vacancies = [], isLoading: loadingVacancies } = useVacancies();
   const { data: study } = useStudy();
   const { data: roadmap } = useRoadmap();
@@ -80,15 +80,12 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
   const onEnableNotifications = async () => {
     const ok = await enableNotifications();
     setNotifOn(ok);
-    toast(
-      ok ? "Reminders enabled — we'll check for overdue steps next time you open the app" : "Notification permission was not granted",
-      ok ? "success" : "error",
-    );
+    toast(ok ? t("notifications.enabledToast") : t("notifications.deniedToast"), ok ? "success" : "error");
   };
   const onDisableNotifications = () => {
     disableNotifications();
     setNotifOn(false);
-    toast("Reminders disabled", "success");
+    toast(t("notifications.disabledToast"), "success");
   };
   if (loadingVacancies) return <CardsSkeleton count={4} />;
   const active = vacancies.filter((x) => !["Rejected", "Paused", "Want to apply"].includes(x.status)).length;
@@ -106,35 +103,35 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Dashboard"
-        subtitle="Your job-search HQ: vacancy progress, upcoming steps, and quick access to everything."
+        title={t("title")}
+        subtitle={t("subtitle")}
         actions={profile?.domain ? <Chip tone="indigo">🎯 {profile.domain}</Chip> : undefined}
       />
 
       {vacancies.length <= 1 && (
         <Card className="!bg-signal/10 !border-signal/30">
-          <div className="font-semibold text-signal">👋 Getting started</div>
+          <div className="font-semibold text-signal">{t("gettingStarted.heading")}</div>
           <ol className="text-sm text-signal/80 mt-2 space-y-1 list-decimal pl-5">
-            <li>Add a few vacancies or import them on the "Vacancies" tab.</li>
-            <li>Click "Analyze all" — the app will detect each vacancy's stack itself.</li>
-            <li>Check the "Roadmap" and "Skill radar" — they'll show what to pick up for the market.</li>
+            <li>{t("gettingStarted.step1")}</li>
+            <li>{t("gettingStarted.step2")}</li>
+            <li>{t("gettingStarted.step3")}</li>
           </ol>
           <div className="flex gap-2 mt-3">
             <Btn size="sm" onClick={() => go("vacancies")}>
-              Add vacancies
+              {t("gettingStarted.addVacancies")}
             </Btn>
             <Btn size="sm" variant="ghost" onClick={() => go("roadmap")}>
-              Open the roadmap
+              {t("gettingStarted.openRoadmap")}
             </Btn>
           </div>
         </Card>
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {stat(vacancies.length, "Total vacancies")}
-        {stat(active, "Active", "text-signal")}
-        {stat(iv, "In interviews", "text-alert")}
-        {stat(`${study?.learned ?? 0}/${study?.total ?? 0}`, "Cards learned", "text-signal")}
+        {stat(vacancies.length, t("stats.totalVacancies"))}
+        {stat(active, t("stats.active"), "text-signal")}
+        {stat(iv, t("stats.inInterviews"), "text-alert")}
+        {stat(`${study?.learned ?? 0}/${study?.total ?? 0}`, t("stats.cardsLearned"), "text-signal")}
       </div>
 
       {vacancies.length > 0 && <FocusWeekCard llm={llm} />}
@@ -142,20 +139,20 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
       {roadmap && (
         <Card>
           <div className="flex items-center justify-between mb-2">
-            <div className="font-semibold text-ink">🗺️ Roadmap progress</div>
+            <div className="font-semibold text-ink">{t("roadmapProgress.heading")}</div>
             <button onClick={() => go("roadmap")} className="text-sm text-signal hover:underline">
-              Open →
+              {t("roadmapProgress.open")}
             </button>
           </div>
           <ProgressBar value={roadmap.progress.done} max={roadmap.progress.total} tone="emerald" />
           <div className="text-xs text-ink-dim mt-2">
-            {roadmap.progress.done} of {roadmap.progress.total} skills marked as known
+            {t("roadmapProgress.skillsKnown", { done: roadmap.progress.done, total: roadmap.progress.total })}
             {/* Deliberately not "mastered" — this reflects the roadmap's manual "know it" toggle,
                 not skills actually reinforced through Practice (see the separate "Cards learned" stat). */}
             {learn && learn.gaps.length > 0 && (
               <>
-                {" "}
-                · top-priority gap: <b className="text-ink">{learn.gaps[0].tech}</b>
+                {" · "}
+                {t("roadmapProgress.topGap", { tech: learn.gaps[0].tech })}
               </>
             )}
           </div>
@@ -165,29 +162,29 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
           <div className="flex items-center justify-between mb-2">
-            <div className="font-semibold text-ink">📅 Upcoming steps</div>
+            <div className="font-semibold text-ink">{t("upcomingSteps.heading")}</div>
             {notificationsSupported() &&
               (notifOn ? (
                 <button
                   onClick={onDisableNotifications}
-                  title="Disable reminders"
+                  title={t("upcomingSteps.disableReminders")}
                   className="text-[11px] text-signal hover:text-rose-600 hover:underline"
                 >
-                  🔔 Reminders enabled (turn off)
+                  {t("upcomingSteps.remindersEnabled")}
                 </button>
               ) : (
                 <button onClick={onEnableNotifications} className="text-[11px] text-signal hover:underline">
-                  🔔 Enable reminders
+                  {t("upcomingSteps.enableReminders")}
                 </button>
               ))}
           </div>
           {upcoming.length === 0 ? (
-            <div className="text-ink-dim text-sm">Nothing scheduled — add a "next step" date on your vacancies.</div>
+            <div className="text-ink-dim text-sm">{t("upcomingSteps.empty")}</div>
           ) : (
             upcoming.map((u) => (
               <div key={u.id} className="flex justify-between text-sm py-1.5 border-b border-surface-2 last:border-0">
                 <span>
-                  {u.company} — <span className="text-ink-dim">{u.status}</span>
+                  {u.company} — <span className="text-ink-dim">{statusLabel(u.status)}</span>
                 </span>
                 <span className="text-alert font-medium">{u.next}</span>
               </div>
@@ -195,21 +192,21 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
           )}
         </Card>
         <Card>
-          <div className="font-semibold mb-2 text-ink">⚡ Quick actions</div>
+          <div className="font-semibold mb-2 text-ink">{t("quickActions.heading")}</div>
           <div className="flex flex-wrap gap-2">
-            <Btn onClick={() => go("analyzer")}>🔍 Vacancy analysis</Btn>
+            <Btn onClick={() => go("analyzer")}>{t("quickActions.vacancyAnalysis")}</Btn>
             <Btn variant="ghost" onClick={() => go("roadmap")}>
-              🗺️ Roadmap
+              {t("quickActions.roadmap")}
             </Btn>
             <Btn variant="ghost" onClick={() => go("study")}>
-              🧠 Review
+              {t("quickActions.review")}
             </Btn>
             <Btn variant="ghost" onClick={() => go("cv")}>
-              📄 CV analysis
+              {t("quickActions.cvAnalysis")}
             </Btn>
           </div>
           <div className="text-xs text-ink-dim mt-3">
-            Cards due for review today: <b className="text-ink-dim">{study?.due.length ?? 0}</b>
+            {t("quickActions.cardsDueToday")} <b className="text-ink-dim">{study?.due.length ?? 0}</b>
           </div>
         </Card>
       </div>

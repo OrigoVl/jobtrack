@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLinkedInOptimize } from "../../shared/queries";
 import { Btn, Card, Chip } from "../../shared/ui";
 import type { LinkedInOptimizeResult } from "../../shared/types";
 
 /** Copy-to-clipboard button — shows "✓ Copied" for 2s, same pattern as ShareLinkCard's copy button. */
 function CopyButton({ text }: { text: string }) {
+  const { t } = useTranslation(["cv", "common"]);
   const [copied, setCopied] = useState(false);
   return (
     <Btn
@@ -16,7 +18,7 @@ function CopyButton({ text }: { text: string }) {
         setTimeout(() => setCopied(false), 2000);
       }}
     >
-      {copied ? "✓ Copied" : "Copy"}
+      {copied ? t("shared.copied") : t("shared.copy")}
     </Btn>
   );
 }
@@ -27,6 +29,7 @@ function CopyButton({ text }: { text: string }) {
  * approval) — this only produces text the user copies into their own profile themselves.
  */
 export function LinkedInOptimizerCard() {
+  const { t } = useTranslation(["cv", "common"]);
   const optimizeMutation = useLinkedInOptimize();
   const [result, setResult] = useState<LinkedInOptimizeResult | null>(null);
 
@@ -34,29 +37,26 @@ export function LinkedInOptimizerCard() {
     <Card>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <div className="text-sm font-semibold text-ink">💼 LinkedIn profile optimizer</div>
-          <p className="text-xs text-ink-dim mt-0.5 max-w-md">
-            Generates a headline + "About" section from your profile/CV — copy it straight into LinkedIn. No LinkedIn account access needed
-            or used.
-          </p>
+          <div className="text-sm font-semibold text-ink">{t("linkedin.title")}</div>
+          <p className="text-xs text-ink-dim mt-0.5 max-w-md">{t("linkedin.description")}</p>
         </div>
         <Btn size="sm" loading={optimizeMutation.isPending} onClick={() => optimizeMutation.mutate(undefined, { onSuccess: setResult })}>
-          {result ? "↻ Regenerate" : "Generate"}
+          {result ? t("linkedin.regenerate") : t("shared.generate")}
         </Btn>
       </div>
       {result && (
         <div className="mt-3 space-y-3">
-          {result.offline && <Chip tone="amber">Offline template — enable LLM in server/.env for a personalized version</Chip>}
+          {result.offline && <Chip tone="amber">{t("linkedin.offlineNotice")}</Chip>}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-semibold text-ink-dim uppercase tracking-wide">Headline</span>
+              <span className="text-xs font-semibold text-ink-dim uppercase tracking-wide">{t("linkedin.headlineLabel")}</span>
               <CopyButton text={result.headline} />
             </div>
             <div className="bg-surface-2 border border-grid rounded-lg p-2.5 text-sm text-ink">{result.headline}</div>
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-semibold text-ink-dim uppercase tracking-wide">About</span>
+              <span className="text-xs font-semibold text-ink-dim uppercase tracking-wide">{t("linkedin.aboutLabel")}</span>
               <CopyButton text={result.about} />
             </div>
             <div className="bg-surface-2 border border-grid rounded-lg p-2.5 text-sm text-ink whitespace-pre-wrap">{result.about}</div>

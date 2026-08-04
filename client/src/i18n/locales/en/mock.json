@@ -1,0 +1,39 @@
+{
+  "title": "Mock interview",
+  "subtitle": "An interview simulation: a random selection of questions and problems with a timer. Say your answer out loud, then check yourself.",
+  "start": {
+    "title": "Ready for a practice interview?",
+    "hint_one": "We'll give you a random selection from {{count}} question and problems. Answer out loud, keep the pace, and get a summary at the end.",
+    "hint_other": "We'll give you a random selection from {{count}} questions and problems. Answer out loud, keep the pace, and get a summary at the end.",
+    "questionsOption_one": "{{count}} question",
+    "questionsOption_other": "{{count}} questions",
+    "startButton": "▶ Start"
+  },
+  "finished": {
+    "title": "Interview finished!",
+    "hint_one": "You went through {{count}} question. The best way to reinforce this is to review the weak topics in \"Practice\".",
+    "hint_other": "You went through {{count}} questions. The best way to reinforce this is to review the weak topics in \"Practice\".",
+    "newSession": "🔄 New session"
+  },
+  "progress": "Question {{current}} / {{total}}",
+  "finish": "Finish",
+  "type": {
+    "card": "question",
+    "drill": "problem"
+  },
+  "answer": {
+    "ariaLabel": "Your answer to the question",
+    "placeholder": "Write your answer — AI will evaluate it and give feedback…",
+    "evaluate": "✨ Evaluate answer (AI)",
+    "aiOffline": "AI offline — set a key in server/.env",
+    "evaluateFailed": "Couldn't evaluate — try again."
+  },
+  "showAnswer": "👁 Show answer",
+  "next": "Next →",
+  "finishSession": "Finish 🏁",
+  "eval": {
+    "unavailable": "AI is unavailable for evaluation.",
+    "strengths": "✓ Strengths",
+    "missed": "△ What was missed"
+  }
+}

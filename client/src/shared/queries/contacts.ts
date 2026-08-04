@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import type { ContactInput } from "../types";
 import { useToast } from "../use-toast";
+import { useMutationErrorToast } from "../use-error-toast";
 import { queryKeys } from "./keys";
 
 export function useContacts() {
@@ -11,38 +13,44 @@ export function useContacts() {
 export function useAddContact() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation("contacts");
+  const onError = useMutationErrorToast();
   return useMutation({
     mutationFn: (c: Partial<ContactInput>) => api.addContact(c),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.contacts });
-      toast("Contact added", "success");
+      toast(t("toasts.contactAdded"), "success");
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
+    onError,
   });
 }
 
 export function useUpdateContact() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation("contacts");
+  const onError = useMutationErrorToast();
   return useMutation({
     mutationFn: ({ id, patch }: { id: number; patch: Partial<ContactInput> }) => api.updateContact(id, patch),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.contacts });
-      toast("Saved", "success");
+      toast(t("toasts.saved"), "success");
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
+    onError,
   });
 }
 
 export function useDeleteContact() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation("contacts");
+  const onError = useMutationErrorToast();
   return useMutation({
     mutationFn: (id: number) => api.deleteContact(id),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.contacts });
-      toast("Deleted", "success");
+      toast(t("toasts.deleted"), "success");
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
+    onError,
   });
 }

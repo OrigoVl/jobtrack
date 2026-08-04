@@ -1,0 +1,39 @@
+{
+  "sections": {
+    "jobSearch": "Job Search",
+    "growth": "Growth",
+    "profile": "Profile",
+    "admin": "Admin"
+  },
+  "items": {
+    "dashboard": "Dashboard",
+    "vacancies": "Vacancies",
+    "jobSearch": "Job Search",
+    "vacancyAnalysis": "Vacancy Analysis",
+    "companies": "Companies",
+    "contacts": "Contacts",
+    "analytics": "Analytics",
+    "calendar": "Calendar",
+    "roadmap": "Roadmap",
+    "intensivePlan": "Intensive plan",
+    "learningPlan": "Learning Plan",
+    "practice": "Practice",
+    "petProjects": "Pet Projects",
+    "resources": "Resources",
+    "cv": "CV",
+    "cvBuilder": "CV Builder",
+    "account": "Account",
+    "admin": "Admin"
+  },
+  "ai": {
+    "on": "AI: on",
+    "off": "AI: offline"
+  },
+  "search": "Search…",
+  "hideSidebar": "Hide sidebar",
+  "showSidebar": "Show sidebar",
+  "logOut": "Log out",
+  "roadmapProgress": "Roadmap: {{done}}/{{total}}",
+  "connectionError": "Could not connect to the server",
+  "openCommandPalette": "Open command palette"
+}

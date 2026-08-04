@@ -7,6 +7,7 @@ import { captureException } from "./sentry.js";
 export interface AppError extends Error {
   status?: number;
   details?: unknown;
+  code?: string;
 }
 
 export function errorHandler(err: AppError, req: Request, res: Response, _next: NextFunction): void {
@@ -18,5 +19,5 @@ export function errorHandler(err: AppError, req: Request, res: Response, _next: 
     // errors" and would clutter Sentry with noise instead of signaling real failures.
     captureException(err);
   }
-  res.status(status).json({ error: err.message || "Internal error", details: err.details ?? undefined });
+  res.status(status).json({ error: err.message || "Internal error", details: err.details ?? undefined, code: err.code });
 }

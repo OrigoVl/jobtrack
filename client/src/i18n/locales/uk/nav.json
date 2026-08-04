@@ -1,0 +1,39 @@
+{
+  "sections": {
+    "jobSearch": "Пошук роботи",
+    "growth": "Розвиток",
+    "profile": "Профіль",
+    "admin": "Адмін"
+  },
+  "items": {
+    "dashboard": "Дашборд",
+    "vacancies": "Вакансії",
+    "jobSearch": "Пошук вакансій",
+    "vacancyAnalysis": "Аналіз вакансії",
+    "companies": "Компанії",
+    "contacts": "Контакти",
+    "analytics": "Аналітика",
+    "calendar": "Календар",
+    "roadmap": "Дорожня карта",
+    "intensivePlan": "Інтенсив-план",
+    "learningPlan": "План навчання",
+    "practice": "Практика",
+    "petProjects": "Пет-проєкти",
+    "resources": "Ресурси",
+    "cv": "Резюме",
+    "cvBuilder": "Конструктор резюме",
+    "account": "Акаунт",
+    "admin": "Адмін"
+  },
+  "ai": {
+    "on": "ШІ: увімкнено",
+    "off": "ШІ: офлайн"
+  },
+  "search": "Пошук…",
+  "hideSidebar": "Сховати бічну панель",
+  "showSidebar": "Показати бічну панель",
+  "logOut": "Вийти",
+  "roadmapProgress": "Дорожня карта: {{done}}/{{total}}",
+  "connectionError": "Не вдалося підключитися до сервера",
+  "openCommandPalette": "Відкрити командну панель"
+}

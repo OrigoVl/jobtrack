@@ -1,5 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
+import { usePopover } from "./use-popover";
+import { PopoverPanel } from "./popover";
 
 type Variant = "primary" | "ghost" | "danger" | "subtle";
 type Size = "sm" | "md";
@@ -249,49 +251,25 @@ export function Section({
   );
 }
 
-/** A button that opens an absolutely-positioned panel below it — closes on outside click/Escape.
- * Used to group several related actions under one header button (e.g. "Import ▾") instead of a
- * row of equal-weight buttons. */
+const DROPDOWN_WIDTH = 220; // matches the panel's own min-w-[220px]
+
+/** A button that opens a panel below it — closes on outside click/Escape. Used to group several
+ * related actions under one header button (e.g. "Import ▾") instead of a row of equal-weight
+ * buttons. The panel is portaled (see shared/popover.tsx) so it isn't clipped when the button
+ * lives inside a scrollable container (a table, the Kanban board's horizontal scroller, …). */
 export function Dropdown({ label, align = "left", children }: { label: ReactNode; align?: "left" | "right"; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDocDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onDocDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  const { open, setOpen, anchorRef, panelRef, coords } = usePopover((rect) => {
+    const rawLeft = align === "right" ? rect.right - DROPDOWN_WIDTH : rect.left;
+    return { top: rect.bottom + 4, left: Math.min(Math.max(8, rawLeft), window.innerWidth - DROPDOWN_WIDTH - 8) };
+  });
   return (
-    <div ref={ref} className="relative inline-block">
-      <Btn size="sm" variant="ghost" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+    <div ref={anchorRef} className="relative inline-block">
+      <Btn size="sm" variant="ghost" onClick={() => setOpen(!open)} aria-expanded={open}>
         {label} <span className={`text-[10px] transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
       </Btn>
-      {open && (
-        // This div is a plain click-delegation wrapper — it has no interactive semantics of
-        // its own (the actual buttons/links/inputs inside it already have their own keyboard
-        // support); it only auto-closes the panel once *any* of those is activated, like a
-        // native <select> closing after picking an option.
-        // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
-        <div
-          className={`absolute z-20 mt-1 min-w-[220px] rounded-xl bg-surface border border-grid shadow-lg p-2 space-y-1 ${align === "right" ? "right-0" : "left-0"}`}
-          onClick={(e) => {
-            // Let items opt out via data-keep-open (e.g. a text input) — anything else inside
-            // the panel closes the dropdown once clicked, same as a native <select>.
-            if (!(e.target as HTMLElement).closest("[data-keep-open]")) setOpen(false);
-          }}
-        >
-          {children}
-        </div>
-      )}
+      <PopoverPanel open={open} panelRef={panelRef} coords={coords} onClose={() => setOpen(false)} className="min-w-[220px] p-2 space-y-1">
+        {children}
+      </PopoverPanel>
     </div>
   );
 }

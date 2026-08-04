@@ -134,7 +134,7 @@ r.post(
     const id = String(req.params.id);
     const v = await getVacancy(userId, id);
     if (!v) throw new HttpError(404, "Vacancy not found");
-    if (!v.url) throw new HttpError(400, "This vacancy has no URL");
+    if (!v.url) throw new HttpError(400, "This vacancy has no URL", null, "VACANCY_URL_MISSING");
     const text = await fetchVacancyText(v.url);
     const a = await quickAnalyze(userId, text);
     await updateVacancyEnrichment(userId, v.id, { stack: a.techs, level: a.level || v.level, fit: a.fit });
@@ -152,7 +152,13 @@ r.post(
   authed(async (_userId, req, res) => {
     const url = parseText(req.body, "url", { min: 5, max: 2000 });
     const text = await fetchVacancyText(url);
-    if (text.length < 50) throw new HttpError(422, "Could not extract text from the page (it may be empty or protected against scraping).");
+    if (text.length < 50)
+      throw new HttpError(
+        422,
+        "Could not extract text from the page (it may be empty or protected against scraping).",
+        null,
+        "VACANCY_FETCH_FAILED",
+      );
     res.json({ text: text.slice(0, 8000) });
   }),
 );
@@ -203,9 +209,9 @@ r.post(
       llmAvailable()
         ? chat(
             userId,
-            "You are a recruiter. Be concise, in English.",
+            "You are a recruiter. Be concise.",
             `Here is the vacancy text. List 5-8 key requirements as one list, and in 1 sentence assess whether a candidate with these skills fits: ${profile.skills.join(", ")}.\n\n${text.slice(0, 4000)}`,
-            { maxTokens: 500, cache: true, feature: "vacancy-analyze" },
+            { maxTokens: 500, cache: true, feature: "vacancy-analyze", outputLocale: "app" },
           )
         : Promise.resolve(null),
       embeddingsAvailable() && profile.cvText ? semanticSimilarity(userId, text, profile.cvText, "vacancy-analyze") : Promise.resolve(null),
@@ -283,7 +289,7 @@ r.post(
         ? (body as { items: unknown[] }).items
         : null;
     if (!items) throw new HttpError(400, "Expected an array of vacancies (or {items:[...]})");
-    if (items.length > 1000) throw new HttpError(400, "Too many items in one import (max 1000)");
+    if (items.length > 1000) throw new HttpError(400, "Too many items in one import (max 1000)", null, "VACANCY_IMPORT_TOO_MANY");
     let added = 0;
     let updated = 0;
     const errors: { index: number; message: string }[] = [];

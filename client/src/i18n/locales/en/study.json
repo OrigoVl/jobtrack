@@ -1,0 +1,77 @@
+{
+  "title": "Practice",
+  "subtitle": "Smart flashcards with spaced repetition (like Anki) + a drill mode with hands-on problems.",
+  "tabs": {
+    "flashcards": "🃏 Flashcards",
+    "drill": "⌨️ Drill",
+    "mock": "🎤 Mock interview"
+  },
+  "stats": {
+    "dueToday": "Due for review today: {{count}}",
+    "solved_one": "Solved: {{count}} problem of {{total}}",
+    "solved_other": "Solved: {{count}} problems of {{total}}"
+  },
+  "moreCards": "✨ More cards for \"{{topic}}\"",
+  "llmKeyRequired": "An LLM key is required",
+  "srs": {
+    "showAnswer": "👁 Show answer",
+    "grade": {
+      "again": "🔁 Again",
+      "hard": "😓 Hard",
+      "good": "✅ Good",
+      "easy": "🚀 Easy"
+    },
+    "empty": {
+      "title": "All cards for today are done!",
+      "hint": "Come back tomorrow — the intervals are calculated automatically by the SRS algorithm."
+    }
+  },
+  "drill": {
+    "allTopics": "All topics",
+    "difficulty": {
+      "any": "Any difficulty",
+      "easy": "easy",
+      "med": "medium",
+      "hard": "hard"
+    },
+    "unsolvedOnly": "unsolved only",
+    "moreProblems": "✨ More problems for \"{{tech}}\"",
+    "problemsCount_one": "{{count}} problem",
+    "problemsCount_other": "{{count}} problems",
+    "aiTailored": "✨ AI tailored for you",
+    "solvedBadge": "✓ solved",
+    "hintLabel": "Hint {{num}}:",
+    "hintsAiOffline": "AI is offline — enable a key in server/.env for hints.",
+    "showSolution": "👁 Show solution",
+    "hintButton": {
+      "first": "💡 Hint",
+      "another": "💡 Another hint",
+      "none": "💡 No more hints"
+    },
+    "reset": "↩︎ Reset",
+    "done": "✅ Done",
+    "previous": "← Previous",
+    "next": "Next →",
+    "empty": {
+      "title": "No problems match this filter",
+      "hint": "Try a different topic, difficulty, or turn off \"unsolved only\"."
+    }
+  },
+  "sandbox": {
+    "open": "🧪 Open sandbox (run code)",
+    "title": "🧪 JS Sandbox",
+    "run": "▶ Run",
+    "reset": "Reset",
+    "done": "Done (no console.log). Time: {{ms}} ms",
+    "time": "⏱ {{ms}} ms"
+  },
+  "toasts": {
+    "aiOffline": "AI offline — enable the key in server/.env",
+    "drillsAdded_one": "Added {{count}} new task for \"{{tech}}\"",
+    "drillsAdded_other": "Added {{count}} new tasks for \"{{tech}}\"",
+    "drillsNoneAdded": "No new tasks generated (all already exist)",
+    "cardsAdded_one": "Added {{count}} new card for \"{{topic}}\"",
+    "cardsAdded_other": "Added {{count}} new cards for \"{{topic}}\"",
+    "cardsNoneAdded": "No new cards generated (all already exist)"
+  }
+}

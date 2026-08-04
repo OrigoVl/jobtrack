@@ -1,0 +1,36 @@
+{
+  "title": "Skill roadmap",
+  "subtitle": "A personal roadmap built from the real skills in your vacancies and CV. Click the circle to mark progress — it's all saved.",
+  "view": {
+    "list": "🗺️ Roadmap",
+    "radar": "🎯 Radar"
+  },
+  "progress": {
+    "prefix": "Progress:",
+    "suffix_one": "/ {{count}} skill",
+    "suffix_other": "/ {{count}} skills"
+  },
+  "allAreas": "All areas",
+  "gapsOnly": "Gaps only",
+  "status": {
+    "todo": "Not started",
+    "learning": "Learning",
+    "done": "Know it"
+  },
+  "nodeStatusHint": "Click to change status (not started → learning → know it)",
+  "empty": {
+    "title": "Nothing here",
+    "hint": "No skills match this filter — try a different area, or turn off “Gaps only”."
+  },
+  "groupKnown": "{{done}}/{{total}} known",
+  "demandChip_one": "{{count}} vac.",
+  "demandChip_other": "{{count}} vac.",
+  "inProfile": "in profile",
+  "personalizing": "✨ Personalizing to your stack…",
+  "personalFocus": "✨ Personal focus:",
+  "whatToLearn": "What to learn",
+  "aiForYou": "AI for you",
+  "practiceProblems": "Practice problems: {{solved}}/{{total}} solved",
+  "practiceHint": "Practice in the \"Practice\" tab → filter by topic.",
+  "resourcesHeading": "Resources"
+}

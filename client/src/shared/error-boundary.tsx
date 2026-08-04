@@ -1,8 +1,9 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { withTranslation, type WithTranslation } from "react-i18next";
 import { Btn, Card } from "./ui";
 import { captureClientException } from "./sentry";
 
-interface Props {
+interface Props extends WithTranslation<["chrome", "common"]> {
   children: ReactNode;
 }
 
@@ -14,8 +15,11 @@ interface State {
  * Catches render errors in the component tree so one broken screen doesn't take down
  * the whole app with a white screen of death. The "Try again" button resets the error
  * boundary without reloading the page (other tabs' state in Context isn't lost).
+ *
+ * A class component (React's error boundary API requires it — no hook equivalent), so `t` is
+ * plugged in via the `withTranslation` HOC below rather than the usual `useTranslation` hook.
  */
-export class ErrorBoundary extends Component<Props, State> {
+class ErrorBoundaryBase extends Component<Props, State> {
   state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): State {
@@ -31,20 +35,21 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render(): ReactNode {
     const { error } = this.state;
+    const { t } = this.props;
     if (!error) return this.props.children;
     return (
       <div className="max-w-xl mx-auto mt-16 px-4">
         <Card className="text-center space-y-3">
           <div className="text-4xl">⚠️</div>
-          <h2 className="font-bold text-lg text-ink">Something went wrong</h2>
-          <p className="text-sm text-ink-dim">An unexpected error occurred on this screen. Other tabs and data are unaffected.</p>
+          <h2 className="font-bold text-lg text-ink">{t("errorBoundary.title")}</h2>
+          <p className="text-sm text-ink-dim">{t("errorBoundary.hint")}</p>
           <pre className="text-left text-xs bg-surface-2 border border-grid rounded-lg p-2.5 text-ink-dim overflow-x-auto">
             {error.message}
           </pre>
           <div className="flex justify-center gap-2">
-            <Btn onClick={this.reset}>Try again</Btn>
+            <Btn onClick={this.reset}>{t("errorBoundary.tryAgain")}</Btn>
             <Btn variant="ghost" onClick={() => window.location.assign("/dashboard")}>
-              Go to dashboard
+              {t("errorBoundary.goToDashboard")}
             </Btn>
           </div>
         </Card>
@@ -52,3 +57,5 @@ export class ErrorBoundary extends Component<Props, State> {
     );
   }
 }
+
+export const ErrorBoundary = withTranslation(["chrome", "common"])(ErrorBoundaryBase);

@@ -1,0 +1,90 @@
+{
+  "title": "Вакансії",
+  "subtitle": "Веди всі свої вакансії в одному місці. Встав посилання на вакансію (з будь-якого сайту — LinkedIn, Djinni, robota.ua, dou.ua тощо), і стек заповниться сам. У режимі Канбан перетягуй картки між статусами, використовуй меню картки «Перейти ▾», щоб одразу стрибнути в будь-який статус, або виділи картку і натисни ←/→ — без миші.",
+  "view": {
+    "table": "☰ Таблиця",
+    "board": "🗂 Канбан"
+  },
+  "addVacancy": "+ Додати вакансію",
+  "addFirst": "+ Додати першу",
+  "import": {
+    "heading": "📥 Імпорт із DOU",
+    "ariaLabel": "HTML або текст для імпорту з DOU",
+    "placeholder": "Встав HTML або текст збереженої таблиці вакансій DOU — ми витягнемо кожне посилання…",
+    "importing": "Імпортуємо і аналізуємо…",
+    "importLinks": "Імпортувати посилання"
+  },
+  "jsonImportExport": {
+    "heading": "🔄 Імпорт / експорт JSON",
+    "formatIntro": "Формат",
+    "formatSchema": "масив об'єктів",
+    "syncNote": "Вакансії з однаковим посиланням (або компанія+посада) оновлюються, решта додається — файл можна тримати деінде (наприклад, в іншому чаті) і просто перетягнути сюди для синхронізації.",
+    "fileAriaLabel": "Файл job-tracker.json для імпорту",
+    "importing": "Імпортуємо…",
+    "importFromFile": "⬆ Імпортувати з файлу",
+    "exportToFile": "⬇ Експортувати в job-tracker.json"
+  },
+  "empty": {
+    "title": "Поки що немає вакансій",
+    "hint": "Додай свою першу вакансію вручну або імпортуй список із DOU — застосунок побудує аналітику й дорожню карту на основі цього."
+  },
+  "table": {
+    "companyPosition": "Компанія / Посада",
+    "stack": "Стек",
+    "fit": "Відповідність",
+    "status": "Статус",
+    "applied": "Подано",
+    "nextStep": "Наступний крок",
+    "vacancyLinkPlaceholder": "Посилання на вакансію (з будь-якого сайту) → стек заповниться сам…",
+    "vacancyLinkAriaLabel": "Посилання на вакансію — {{company}}",
+    "openVacancy": "Відкрити вакансію",
+    "appliedDateAriaLabel": "Дата подання — {{company}}",
+    "nextStepDateAriaLabel": "Дата наступного кроку — {{company}}",
+    "daysWaiting_one": "{{count}} день очікування",
+    "daysWaiting_few": "{{count}} дні очікування",
+    "daysWaiting_many": "{{count}} днів очікування",
+    "daysWaiting_other": "{{count}} дні очікування",
+    "staleTooltip": "Більш ніж {{days}} днів без відповіді — варто нагадати рекрутеру"
+  },
+  "kanban": {
+    "columnAriaLabel_one": "Колонка «{{status}}», {{count}} вакансія",
+    "columnAriaLabel_few": "Колонка «{{status}}», {{count}} вакансії",
+    "columnAriaLabel_many": "Колонка «{{status}}», {{count}} вакансій",
+    "columnAriaLabel_other": "Колонка «{{status}}», {{count}} вакансії",
+    "cardStatus": "{{company}}, {{position}}. Статус: {{status}}.",
+    "leftArrowHint": " Стрілка вліво — «{{status}}».",
+    "rightArrowHint": " Стрілка вправо — «{{status}}».",
+    "move": "Перейти"
+  },
+  "toasts": {
+    "added": "Вакансію додано",
+    "deleted": "Вакансію видалено",
+    "stackPulled": "Стек підтягнуто з посилання: {{stack}}",
+    "linkSavedNoStack": "Посилання збережено (не вдалося автоматично визначити стек зі сторінки)",
+    "linkRemoved": "Посилання видалено",
+    "importAdded_one": "Додано {{count}} вакансію",
+    "importAdded_few": "Додано {{count}} вакансії",
+    "importAdded_many": "Додано {{count}} вакансій",
+    "importAdded_other": "Додано {{count}} вакансії",
+    "importNoNewLinks": "Нових посилань не знайдено",
+    "jsonImport": {
+      "added_one": "додано {{count}}",
+      "added_few": "додано {{count}}",
+      "added_many": "додано {{count}}",
+      "added_other": "додано {{count}}",
+      "updated_one": "оновлено {{count}}",
+      "updated_few": "оновлено {{count}}",
+      "updated_many": "оновлено {{count}}",
+      "updated_other": "оновлено {{count}}",
+      "skipped_one": "пропущено {{count}} (помилки формату)",
+      "skipped_few": "пропущено {{count}} (помилки формату)",
+      "skipped_many": "пропущено {{count}} (помилки формату)",
+      "skipped_other": "пропущено {{count}} (помилки формату)",
+      "noData": "Нових даних не знайдено"
+    },
+    "fetchAllProcessed_one": "Оброблено {{count}} вакансію — стек оновлено всюди",
+    "fetchAllProcessed_few": "Оброблено {{count}} вакансії — стек оновлено всюди",
+    "fetchAllProcessed_many": "Оброблено {{count}} вакансій — стек оновлено всюди",
+    "fetchAllProcessed_other": "Оброблено {{count}} вакансії — стек оновлено всюди"
+  }
+}

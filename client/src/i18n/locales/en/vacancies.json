@@ -1,0 +1,76 @@
+{
+  "title": "Vacancies",
+  "subtitle": "Track all your vacancies in one place. Paste a vacancy link (from any site — LinkedIn, Djinni, robota.ua, dou.ua, etc.) and the stack fills in itself. In Kanban view, drag cards between statuses, use a card's Move ▾ menu to jump straight to any status, or select a card and press ←/→ — no mouse needed.",
+  "view": {
+    "table": "☰ Table",
+    "board": "🗂 Kanban"
+  },
+  "addVacancy": "+ Add vacancy",
+  "addFirst": "+ Add the first one",
+  "import": {
+    "heading": "📥 Import from a DOU export",
+    "ariaLabel": "HTML or text to import from DOU",
+    "placeholder": "Paste the HTML or text of a saved DOU vacancies table — we'll extract every link…",
+    "importing": "Importing and analyzing…",
+    "importLinks": "Import links"
+  },
+  "jsonImportExport": {
+    "heading": "🔄 Import / export JSON",
+    "formatIntro": "Format",
+    "formatSchema": "an array of",
+    "syncNote": "Vacancies with the same link (or company+position) get updated, the rest get added — you can keep the file elsewhere (e.g. in another chat) and just drop it here to sync.",
+    "fileAriaLabel": "job-tracker.json file to import",
+    "importing": "Importing…",
+    "importFromFile": "⬆ Import from file",
+    "exportToFile": "⬇ Export to job-tracker.json"
+  },
+  "empty": {
+    "title": "No vacancies yet",
+    "hint": "Add your first vacancy by hand or import a list from DOU — the app will build the analytics and roadmap from there."
+  },
+  "table": {
+    "companyPosition": "Company / Position",
+    "stack": "Stack",
+    "fit": "Fit",
+    "status": "Status",
+    "applied": "Applied",
+    "nextStep": "Next step",
+    "vacancyLinkPlaceholder": "Vacancy link (from any site) → the stack fills in itself…",
+    "vacancyLinkAriaLabel": "Vacancy link — {{company}}",
+    "openVacancy": "Open the vacancy",
+    "appliedDateAriaLabel": "Applied date — {{company}}",
+    "nextStepDateAriaLabel": "Next step date — {{company}}",
+    "daysWaiting_one": "{{count}}d waiting",
+    "daysWaiting_other": "{{count}}d waiting",
+    "staleTooltip": "More than {{days}} days without a response — worth nudging the recruiter"
+  },
+  "kanban": {
+    "columnAriaLabel_one": "Column \"{{status}}\", {{count}} vacancy",
+    "columnAriaLabel_other": "Column \"{{status}}\", {{count}} vacancies",
+    "cardStatus": "{{company}}, {{position}}. Status: {{status}}.",
+    "leftArrowHint": " Left arrow — \"{{status}}\".",
+    "rightArrowHint": " Right arrow — \"{{status}}\".",
+    "move": "Move"
+  },
+  "toasts": {
+    "added": "Vacancy added",
+    "deleted": "Vacancy deleted",
+    "stackPulled": "Stack pulled from the link: {{stack}}",
+    "linkSavedNoStack": "Link saved (could not automatically detect the stack from the page)",
+    "linkRemoved": "Link removed",
+    "importAdded_one": "Added {{count}} vacancy",
+    "importAdded_other": "Added {{count}} vacancies",
+    "importNoNewLinks": "No new links found",
+    "jsonImport": {
+      "added_one": "added {{count}}",
+      "added_other": "added {{count}}",
+      "updated_one": "updated {{count}}",
+      "updated_other": "updated {{count}}",
+      "skipped_one": "skipped {{count}} (format errors)",
+      "skipped_other": "skipped {{count}} (format errors)",
+      "noData": "No new data found"
+    },
+    "fetchAllProcessed_one": "Processed {{count}} vacancy — stack updated everywhere",
+    "fetchAllProcessed_other": "Processed {{count}} vacancies — stack updated everywhere"
+  }
+}

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import type { ProjectsData } from "../types";
-import { useToast } from "../use-toast";
+import { useMutationErrorToast } from "../use-error-toast";
 import { queryKeys } from "./keys";
 
 export function useProjects() {
@@ -14,7 +14,7 @@ interface ProjectsCtx {
 
 export function useSetProjectItem() {
   const qc = useQueryClient();
-  const { toast } = useToast();
+  const onErrorToast = useMutationErrorToast();
   return useMutation<{ ok: boolean }, Error, { itemId: string; done: boolean }, ProjectsCtx>({
     mutationFn: ({ itemId, done }) => api.setProjectItem(itemId, done),
     onMutate: async ({ itemId, done }) => {
@@ -25,7 +25,7 @@ export function useSetProjectItem() {
     },
     onError: (e, _vars, ctx) => {
       if (ctx?.previous) qc.setQueryData(queryKeys.projects, ctx.previous);
-      toast(e instanceof Error ? e.message : "An error occurred", "error");
+      onErrorToast(e);
     },
   });
 }

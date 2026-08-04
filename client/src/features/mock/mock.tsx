@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useHealth, useStudy } from "../../shared/queries";
 import { Btn, Card, Chip, EmptyState, PageHeader } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
-import { plural } from "../../shared/format";
 import type { MockEvaluation } from "../../shared/types";
 
 /* ---------- Mock interview ---------- */
@@ -23,10 +23,11 @@ function sample<T>(arr: T[], n: number): T[] {
   return copy.slice(0, n);
 }
 function MockEvalCard({ ev }: { ev: MockEvaluation }) {
+  const { t } = useTranslation("mock");
   if (ev.offline || ev.score === null) {
     return (
       <div className="mt-3 text-sm text-alert bg-alert/10 border border-alert/30 rounded-lg p-2.5">
-        {ev.verdict || "AI is unavailable for evaluation."}
+        {ev.verdict || t("eval.unavailable")}
       </div>
     );
   }
@@ -47,7 +48,7 @@ function MockEvalCard({ ev }: { ev: MockEvaluation }) {
       </div>
       {ev.good && ev.good.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-signal">✓ Strengths</div>
+          <div className="text-xs font-semibold text-signal">{t("eval.strengths")}</div>
           <ul className="list-disc pl-5 text-sm text-ink">
             {ev.good.map((g, i) => (
               <li key={i}>{g}</li>
@@ -57,7 +58,7 @@ function MockEvalCard({ ev }: { ev: MockEvaluation }) {
       )}
       {ev.missed && ev.missed.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-rose-600">△ What was missed</div>
+          <div className="text-xs font-semibold text-rose-600">{t("eval.missed")}</div>
           <ul className="list-disc pl-5 text-sm text-ink">
             {ev.missed.map((m, i) => (
               <li key={i}>{m}</li>
@@ -77,6 +78,7 @@ function MockEvalCard({ ev }: { ev: MockEvaluation }) {
 // (see study.tsx), which already has its own header/tab-switcher for the combined "Practice /
 // Mock interview" screen.
 export function MockInterview({ embedded = false }: { embedded?: boolean } = {}) {
+  const { t } = useTranslation("mock");
   const { data: study } = useStudy();
   const { data: health } = useHealth();
   const llm = health?.llm ?? false;
@@ -89,8 +91,8 @@ export function MockInterview({ embedded = false }: { embedded?: boolean } = {})
   const [evaluation, setEvaluation] = useState<MockEvaluation | null>(null);
   const [evaluating, setEvaluating] = useState(false);
   useEffect(() => {
-    const t = setInterval(() => setSec((s) => s + 1), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setSec((s) => s + 1), 1000);
+    return () => clearInterval(timer);
   }, [idx, session]);
   useEffect(() => {
     setSec(0);
@@ -110,12 +112,7 @@ export function MockInterview({ embedded = false }: { embedded?: boolean } = {})
     setRevealed(false);
   };
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-  const header = embedded ? null : (
-    <PageHeader
-      title="Mock interview"
-      subtitle="An interview simulation: a random selection of questions and problems with a timer. Say your answer out loud, then check yourself."
-    />
-  );
+  const header = embedded ? null : <PageHeader title={t("title")} subtitle={t("subtitle")} />;
   if (!session) {
     return (
       <div className="space-y-4">
@@ -123,8 +120,8 @@ export function MockInterview({ embedded = false }: { embedded?: boolean } = {})
         <Card>
           <EmptyState
             icon="🎤"
-            title="Ready for a practice interview?"
-            hint={`We'll give you a random selection from ${plural(pool.length, "question")} and problems. Answer out loud, keep the pace, and get a summary at the end.`}
+            title={t("start.title")}
+            hint={t("start.hint", { count: pool.length })}
             action={
               <div className="flex items-center gap-2 justify-center flex-wrap">
                 <select
@@ -134,12 +131,12 @@ export function MockInterview({ embedded = false }: { embedded?: boolean } = {})
                 >
                   {[5, 8, 10, 15].map((n) => (
                     <option key={n} value={n}>
-                      {n} questions
+                      {t("start.questionsOption", { count: n })}
                     </option>
                   ))}
                 </select>
                 <Btn onClick={start} disabled={pool.length === 0}>
-                  ▶ Start
+                  {t("start.startButton")}
                 </Btn>
               </div>
             }
@@ -155,9 +152,9 @@ export function MockInterview({ embedded = false }: { embedded?: boolean } = {})
         <Card>
           <EmptyState
             icon="🏁"
-            title="Interview finished!"
-            hint={`You went through ${plural(session.length, "question")}. The best way to reinforce this is to review the weak topics in "Practice".`}
-            action={<Btn onClick={() => setSession(null)}>🔄 New session</Btn>}
+            title={t("finished.title")}
+            hint={t("finished.hint", { count: session.length })}
+            action={<Btn onClick={() => setSession(null)}>{t("finished.newSession")}</Btn>}
           />
         </Card>
       </div>
@@ -170,7 +167,7 @@ export function MockInterview({ embedded = false }: { embedded?: boolean } = {})
     try {
       setEvaluation(await api.evaluateMock(item.q, answer, item.a));
     } catch {
-      setEvaluation({ score: null, verdict: "Couldn't evaluate — try again." });
+      setEvaluation({ score: null, verdict: t("answer.evaluateFailed") });
     } finally {
       setEvaluating(false);
     }
@@ -179,33 +176,31 @@ export function MockInterview({ embedded = false }: { embedded?: boolean } = {})
     <div className="space-y-4">
       {header}
       <div className="flex items-center gap-3 text-xs text-ink-dim">
-        <span>
-          Question {idx + 1} / {session.length}
-        </span>
+        <span>{t("progress", { current: idx + 1, total: session.length })}</span>
         <span>⏱ {fmt(sec)}</span>
         <Btn size="sm" variant="subtle" className="ml-auto" onClick={() => setSession(null)}>
-          Finish
+          {t("finish")}
         </Btn>
       </div>
       <Card className="min-h-[240px] flex flex-col">
         <div className="flex items-center gap-2">
           <span className="text-xs uppercase tracking-wide text-signal font-bold">{item.cat}</span>
-          <Chip>{item.type === "card" ? "question" : "problem"}</Chip>
+          <Chip>{item.type === "card" ? t("type.card") : t("type.drill")}</Chip>
         </div>
         <div className="text-lg font-semibold mt-2 text-ink">{item.q}</div>
         <div className="mt-3">
           <textarea
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
-            aria-label="Your answer to the question"
-            placeholder="Write your answer — AI will evaluate it and give feedback…"
+            aria-label={t("answer.ariaLabel")}
+            placeholder={t("answer.placeholder")}
             className="w-full h-24 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
           />
           <div className="flex gap-2 mt-2 items-center">
             <Btn size="sm" variant="ghost" onClick={evaluate} loading={evaluating} disabled={!answer.trim()}>
-              ✨ Evaluate answer (AI)
+              {t("answer.evaluate")}
             </Btn>
-            {!llm && <span className="text-xs text-ink-dim">AI offline — set a key in server/.env</span>}
+            {!llm && <span className="text-xs text-ink-dim">{t("answer.aiOffline")}</span>}
           </div>
           {evaluation && <MockEvalCard ev={evaluation} />}
         </div>
@@ -216,7 +211,7 @@ export function MockInterview({ embedded = false }: { embedded?: boolean } = {})
         )}
         <div className="mt-auto pt-4 flex flex-wrap gap-2">
           {!revealed ? (
-            <Btn onClick={() => setRevealed(true)}>👁 Show answer</Btn>
+            <Btn onClick={() => setRevealed(true)}>{t("showAnswer")}</Btn>
           ) : (
             <Btn
               onClick={() => {
@@ -224,7 +219,7 @@ export function MockInterview({ embedded = false }: { embedded?: boolean } = {})
                 setRevealed(false);
               }}
             >
-              {idx + 1 < session.length ? "Next →" : "Finish 🏁"}
+              {idx + 1 < session.length ? t("next") : t("finishSession")}
             </Btn>
           )}
         </div>

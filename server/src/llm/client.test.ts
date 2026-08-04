@@ -275,6 +275,85 @@ describe("normalizeUsage()", () => {
   });
 });
 
+// outputLocale: "app" (default "en") opts a call into following the current request's UI
+// language (core/request-context.ts's getLocale(), see llm/client.ts's own ChatOptions doc) —
+// most call sites must NOT do this (see skill-extraction.ts/cv.routes.ts's own comments), so this
+// locks in exactly what changes when a call DOES opt in.
+describe("chat() outputLocale", () => {
+  beforeAll(async () => {
+    await import("dotenv/config");
+  });
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", undefined);
+    vi.stubEnv("LLM_PROVIDER", "openai");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("prepends a language instruction only when outputLocale is 'app' and the request locale isn't English", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }),
+    } as Response);
+    const { chat } = await import("./client.js");
+    const { runWithRequestContext } = await import("../core/request-context.js");
+    await runWithRequestContext("req-1", "uk", () => chat(BOOTSTRAP_USER_ID, "You are a mentor.", "user", { outputLocale: "app" }));
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body));
+    expect(body.messages[0].content).toBe("Respond in Ukrainian. You are a mentor.");
+  });
+
+  it("leaves the prompt untouched when outputLocale is omitted, even under a non-English request locale", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }),
+    } as Response);
+    const { chat } = await import("./client.js");
+    const { runWithRequestContext } = await import("../core/request-context.js");
+    await runWithRequestContext("req-1", "uk", () => chat(BOOTSTRAP_USER_ID, "You are a mentor.", "user"));
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body));
+    expect(body.messages[0].content).toBe("You are a mentor.");
+  });
+
+  it("leaves the prompt untouched when the request locale is English, even with outputLocale: 'app'", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }),
+    } as Response);
+    const { chat } = await import("./client.js");
+    const { runWithRequestContext } = await import("../core/request-context.js");
+    await runWithRequestContext("req-1", "en", () => chat(BOOTSTRAP_USER_ID, "You are a mentor.", "user", { outputLocale: "app" }));
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body));
+    expect(body.messages[0].content).toBe("You are a mentor.");
+  });
+
+  it("gives an 'en' and a 'uk' response for the same prompt separate cache keys", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }),
+    } as Response);
+    const { setLlmCache } = await import("../db/llm-cache.js");
+    const { chat } = await import("./client.js");
+    const { runWithRequestContext } = await import("../core/request-context.js");
+    await runWithRequestContext("req-1", "en", () =>
+      chat(BOOTSTRAP_USER_ID, "You are a mentor.", "user", { outputLocale: "app", cache: true }),
+    );
+    await runWithRequestContext("req-2", "uk", () =>
+      chat(BOOTSTRAP_USER_ID, "You are a mentor.", "user", { outputLocale: "app", cache: true }),
+    );
+    const keys = vi.mocked(setLlmCache).mock.calls.map((call) => call[0]);
+    expect(keys[0]).not.toBe(keys[1]);
+  });
+});
+
 // chatJson(): chat() in json mode + zod validation + one self-repair retry — replaces the manual
 // typeof/Array.isArray parsing that used to be duplicated in ~11 places across the server.
 describe("chatJson()", () => {

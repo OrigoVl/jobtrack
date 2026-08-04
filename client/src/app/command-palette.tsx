@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export interface PaletteNavItem {
   path: string;
@@ -28,6 +29,7 @@ export function CommandPalette({
   open: boolean;
   setOpen: (v: boolean) => void;
 }) {
+  const { t } = useTranslation(["chrome", "common"]);
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const navigate = useNavigate();
@@ -113,12 +115,14 @@ export function CommandPalette({
               run(active);
             }
           }}
-          placeholder="Jump to a page or run an action… (Dashboard, Vacancies, Log out…)"
-          aria-label="Command palette — jump to a page or run an action"
+          placeholder={t("commandPalette.placeholder")}
+          aria-label={t("commandPalette.ariaLabel")}
           className="w-full px-4 py-3.5 text-sm outline-none border-b border-surface-2"
         />
         <div className="max-h-80 overflow-y-auto py-1.5">
-          {results.length === 0 && <div className="px-4 py-6 text-center text-sm text-ink-dim">Nothing matches "{q}"</div>}
+          {results.length === 0 && (
+            <div className="px-4 py-6 text-center text-sm text-ink-dim">{t("commandPalette.noResults", { query: q })}</div>
+          )}
           {results.map((r, i) => (
             <button
               key={r.key}
@@ -134,9 +138,9 @@ export function CommandPalette({
           ))}
         </div>
         <div className="px-4 py-2 border-t border-surface-2 text-[11px] text-ink-dim flex gap-3">
-          <span>↑↓ navigate</span>
-          <span>↵ select</span>
-          <span>esc close</span>
+          <span>{t("commandPalette.navigateHint")}</span>
+          <span>{t("commandPalette.selectHint")}</span>
+          <span>{t("commandPalette.closeHint")}</span>
         </div>
       </div>
     </div>

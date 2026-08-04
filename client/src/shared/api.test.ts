@@ -4,6 +4,7 @@
 // silently sees a broken/blank screen instead of being sent back to /login.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "./api";
+import i18n from "../i18n";
 
 describe("req() 401 handling", () => {
   const realLocation = window.location;
@@ -46,5 +47,29 @@ describe("req() 401 handling", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: true, status: 200, json: async () => [] } as Response);
     await expect(api.vacancies()).resolves.toEqual([]);
     expect(window.location.href).toBe("");
+  });
+});
+
+describe("x-locale header", () => {
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await i18n.changeLanguage("en");
+  });
+
+  it("is sent on a plain JSON call, reflecting the active app language", async () => {
+    await i18n.changeLanguage("uk");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: true, status: 200, json: async () => [] } as Response);
+    await api.vacancies();
+    const [, opts] = fetchSpy.mock.calls[0]!;
+    expect((opts?.headers as Record<string, string>)["x-locale"]).toBe("uk");
+  });
+
+  it("is also sent on a FormData upload (which can't go through the shared JSON headers path)", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue({ ok: true, status: 200, json: async () => ({ text: "", skills: [], detected: [] }) } as Response);
+    await api.uploadCV(new File(["cv text"], "cv.txt", { type: "text/plain" }));
+    const [, opts] = fetchSpy.mock.calls[0]!;
+    expect((opts?.headers as Record<string, string>)["x-locale"]).toBe("en");
   });
 });

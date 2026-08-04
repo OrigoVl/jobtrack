@@ -223,11 +223,20 @@ export interface Company {
   questions: string[];
 }
 
+// `relevance`/`matchedTechs`/`gapTechs` are computed server-side (resources.service.ts) against
+// the caller's own profile skills + vacancy-derived demand — the same static guide, ranked/
+// flagged per user. `gapTechs.length > 0` is what the UI treats as "relevant to you".
+interface Scored {
+  relevance: number;
+  matchedTechs: string[];
+  gapTechs: string[];
+}
 export interface ResourcesData {
-  bestPractices: { group: string; links: Resource[] }[];
-  platforms: { group: string; name: string; url: string; note: string }[];
-  cheat: { title: string; items: string[] }[];
-  checklist: string[];
+  bestPractices: ({ group: string; links: Resource[] } & Scored)[];
+  platforms: ({ group: string; name: string; url: string; note: string } & Scored)[];
+  cheat: ({ title: string; items: string[] } & Scored)[];
+  checklist: { text: string; relevant: boolean }[];
+  focus: string;
 }
 
 export interface Toast {

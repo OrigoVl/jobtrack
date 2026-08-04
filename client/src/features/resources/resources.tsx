@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
-import { Btn, Card, PageHeader } from "../../shared/ui";
+import { Btn, Card, Chip, PageHeader } from "../../shared/ui";
 import type { ResourcesData } from "../../shared/types";
 
 /* ---------- Resources ---------- */
 export function Resources() {
+  const { t } = useTranslation(["resources", "common"]);
   const [d, setD] = useUi<ResourcesData | null>("resources.data", null);
   const [sub, setSub] = useUi<"bp" | "plat" | "cheat" | "check">("resources.sub", "bp");
   const [done, setDone] = useState<Record<string, boolean>>(() => {
@@ -32,22 +34,29 @@ export function Resources() {
   );
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Resources & references"
-        subtitle="The best guides, practice platforms, cheat sheets, and a prep checklist — all in one place."
-      />
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
+
+      <Card className="!bg-signal/10 !border-signal/30">
+        <div className="text-sm text-signal">
+          <span className="font-semibold">🎯 {t("focus.heading")}</span> {d.focus}
+        </div>
+      </Card>
+
       <div className="flex gap-2 flex-wrap">
-        {T("bp", "⭐ Best practices")}
-        {T("plat", "💻 Platforms")}
-        {T("cheat", "🗒 Cheat sheet")}
-        {T("check", `✅ Checklist (${checkN}/${d.checklist.length})`)}
+        {T("bp", t("tabs.bestPractices"))}
+        {T("plat", t("tabs.platforms"))}
+        {T("cheat", t("tabs.cheatSheet"))}
+        {T("check", t("tabs.checklist", { done: checkN, total: d.checklist.length }))}
       </div>
 
       {sub === "bp" && (
         <div className="grid md:grid-cols-2 gap-4">
           {d.bestPractices.map((g) => (
             <Card key={g.group}>
-              <div className="font-semibold mb-2 text-ink">{g.group}</div>
+              <div className="font-semibold mb-2 text-ink flex items-center gap-2">
+                {g.group}
+                {g.gapTechs.length > 0 && <Chip tone="emerald">🎯 {t("relevantChip")}</Chip>}
+              </div>
               <div className="flex flex-wrap gap-2">
                 {g.links.map((l) => (
                   <a
@@ -78,9 +87,12 @@ export function Resources() {
               <div className="font-semibold mb-2 text-ink">{grp}</div>
               {items.map((p) => (
                 <div key={p.url} className="flex justify-between gap-3 text-sm py-1.5 border-b border-surface-2 last:border-0">
-                  <a href={p.url} target="_blank" rel="noreferrer" className="text-signal whitespace-nowrap">
-                    {p.name} ↗
-                  </a>
+                  <span className="flex items-center gap-2 shrink-0">
+                    <a href={p.url} target="_blank" rel="noreferrer" className="text-signal whitespace-nowrap">
+                      {p.name} ↗
+                    </a>
+                    {p.gapTechs.length > 0 && <Chip tone="emerald">🎯</Chip>}
+                  </span>
                   <span className="text-ink-dim text-right">{p.note}</span>
                 </div>
               ))}
@@ -93,7 +105,10 @@ export function Resources() {
         <div className="grid md:grid-cols-2 gap-4">
           {d.cheat.map((c) => (
             <Card key={c.title}>
-              <div className="font-semibold mb-2 text-signal">{c.title}</div>
+              <div className="font-semibold mb-2 text-signal flex items-center gap-2">
+                {c.title}
+                {c.gapTechs.length > 0 && <Chip tone="emerald">🎯 {t("relevantChip")}</Chip>}
+              </div>
               <ul className="list-disc pl-5 text-sm text-ink space-y-1">
                 {c.items.map((it, i) => (
                   <li key={i}>{it}</li>
@@ -110,7 +125,10 @@ export function Resources() {
             {d.checklist.map((it, i) => (
               <label key={i} className="flex gap-2 items-start p-2 rounded-lg hover:bg-surface-2 cursor-pointer">
                 <input type="checkbox" checked={!!done[i]} onChange={() => toggle(i)} className="mt-1 accent-signal" />
-                <span className={done[i] ? "line-through text-ink-dim" : "text-ink"}>{it}</span>
+                <span className={done[i] ? "line-through text-ink-dim" : it.relevant ? "text-ink font-medium" : "text-ink"}>
+                  {it.relevant && !done[i] && <span title={t("relevantChip")}>🎯 </span>}
+                  {it.text}
+                </span>
               </label>
             ))}
           </div>

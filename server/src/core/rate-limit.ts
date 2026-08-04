@@ -54,7 +54,10 @@ export const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => req.path === "/health",
-  message: { error: "Too many requests. Try again in a few minutes." },
+  // `code` mirrors HttpError's optional 4th param (core/http.ts) even though this response never
+  // goes through errorHandler — express-rate-limit's handler writes `options.message` directly —
+  // so the client (shared/use-error-toast.ts) can map it to a translated message the same way.
+  message: { error: "Too many requests. Try again in a few minutes.", code: "RATE_LIMITED" },
   handler: logAndReject("api"),
   store: sharedStore("rl:api:"),
 });
@@ -68,7 +71,7 @@ export const aiLimiter = rateLimit({
   limit: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many AI requests. Wait a few minutes and try again." },
+  message: { error: "Too many AI requests. Wait a few minutes and try again.", code: "AI_RATE_LIMITED" },
   handler: logAndReject("ai"),
   store: sharedStore("rl:ai:"),
 });

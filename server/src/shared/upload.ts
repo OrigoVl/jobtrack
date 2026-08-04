@@ -31,7 +31,7 @@ const upload = multer({
       cb(null, true);
       return;
     }
-    cb(new HttpError(400, "Unsupported file type. Allowed: PDF, DOCX, DOC, TXT, ZIP."));
+    cb(new HttpError(400, "Unsupported file type. Allowed: PDF, DOCX, DOC, TXT, ZIP.", null, "UNSUPPORTED_FILE_TYPE"));
   },
 });
 

@@ -1,7 +1,29 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Btn, Section } from "../../../shared/ui";
 import type { CvPreset, CvSection } from "../../../shared/types";
-import { SECTION_LABELS } from "./cv-doc-utils";
+
+// Local translation-key map for the section-order UI's display labels — deliberately NOT
+// reusing cv-doc-utils.ts's SECTION_LABELS: that array feeds the actual exported/shared CV
+// document's headings, which must always stay in the CV's own language, never the app's UI
+// language (see cv-doc-utils.ts's doc comment). This editor chrome list needs its own i18n-aware
+// labels instead.
+const SECTION_LABEL_KEY: Record<
+  CvSection,
+  | "layoutPresets.sections.summary"
+  | "layoutPresets.sections.skills"
+  | "layoutPresets.sections.experience"
+  | "layoutPresets.sections.projects"
+  | "layoutPresets.sections.education"
+  | "layoutPresets.sections.languages"
+> = {
+  summary: "layoutPresets.sections.summary",
+  skills: "layoutPresets.sections.skills",
+  experience: "layoutPresets.sections.experience",
+  projects: "layoutPresets.sections.projects",
+  education: "layoutPresets.sections.education",
+  languages: "layoutPresets.sections.languages",
+};
 
 interface LayoutPresetsPanelProps {
   sectionOrder: CvSection[];
@@ -27,13 +49,14 @@ export function LayoutPresetsPanel({
   onDeletePreset,
   saving,
 }: LayoutPresetsPanelProps) {
+  const { t } = useTranslation(["cv", "common"]);
   const [secDrag, setSecDrag] = useState<number | null>(null);
   return (
     <>
-      <Section title="Section order" icon="↕️">
+      <Section title={t("layoutPresets.order.title")} icon="↕️">
         <div className="flex flex-col gap-1">
           {sectionOrder.map((key, i) => {
-            const label = SECTION_LABELS.find(([k]) => k === key)?.[1] ?? key;
+            const label = t(SECTION_LABEL_KEY[key]);
             return (
               <div
                 key={key}
@@ -48,7 +71,7 @@ export function LayoutPresetsPanel({
                   draggable
                   onDragStart={() => setSecDrag(i)}
                   onDragEnd={() => setSecDrag(null)}
-                  title="Drag to reorder"
+                  title={t("experienceCard.dragToReorder")}
                   className="cursor-grab active:cursor-grabbing select-none text-ink-dim hover:text-ink-dim"
                 >
                   ⠿
@@ -66,11 +89,13 @@ export function LayoutPresetsPanel({
             );
           })}
         </div>
-        <div className="text-[11px] text-ink-dim">
-          In "Two columns", Skills/Languages/Education go in the side column, the rest in the main one.
-        </div>
+        <div className="text-[11px] text-ink-dim">{t("layoutPresets.order.twoColHint")}</div>
       </Section>
-      <Section title="Presets" icon="💾" hint={presets.length ? `${presets.length} saved` : undefined}>
+      <Section
+        title={t("layoutPresets.presets.title")}
+        icon="💾"
+        hint={presets.length ? t("layoutPresets.presets.savedCount", { count: presets.length }) : undefined}
+      >
         {presets.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {presets.map((p) => (
@@ -83,7 +108,7 @@ export function LayoutPresetsPanel({
                 </button>
                 <button
                   onClick={() => onDeletePreset(p.name)}
-                  title="Delete"
+                  title={t("common:actions.delete")}
                   className="text-ink-dim hover:text-rose-500 leading-none px-1"
                 >
                   ✕
@@ -98,14 +123,14 @@ export function LayoutPresetsPanel({
             maxLength={40}
             onChange={(e) => onPresetNameChange(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && onSavePreset()}
-            placeholder="e.g. My blue compact"
+            placeholder={t("layoutPresets.presets.namePlaceholder")}
             className="flex-1 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
           />
           <Btn size="sm" onClick={onSavePreset} loading={saving}>
-            Save
+            {t("common:actions.save")}
           </Btn>
         </div>
-        <div className="text-[11px] text-ink-dim">A preset remembers the template, color, font, scale, photo style, and section order.</div>
+        <div className="text-[11px] text-ink-dim">{t("layoutPresets.presets.hint")}</div>
       </Section>
     </>
   );

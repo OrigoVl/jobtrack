@@ -1,0 +1,68 @@
+{
+  "title": "Job search",
+  "subtitle": "Real vacancies from aggregators (Remotive + Arbeitnow) matched to your skills. Found something interesting — add it to the tracker in one click.",
+  "search": {
+    "keywordsAriaLabel": "Keywords for the job search",
+    "keywordsPlaceholder": "e.g. react node typescript",
+    "searching": "Searching…",
+    "search": "🔎 Search",
+    "alertMeTitle": "Email me when new postings match this search",
+    "alertMe": "🔔 Alert me",
+    "sources": "Sources:",
+    "sourceAll": "All",
+    "sourceUkraine": "🇺🇦 Ukraine (DOU)",
+    "sourceRemote": "🌍 Remote",
+    "hint": "Empty query → we search by your top skills. \"Ukraine\" = DOU, \"Remote\" = Remotive + Arbeitnow."
+  },
+  "alerts": {
+    "heading": "🔔 Your job alerts",
+    "regionAll": "All regions",
+    "regionUkraine": "🇺🇦 Ukraine",
+    "regionRemote": "🌍 Remote",
+    "lastAlert": "Last alert {{date}}",
+    "noAlertsSent": "No alerts sent yet",
+    "deleteTitle": "Delete alert",
+    "deleteAriaLabel": "Delete alert for {{name}}"
+  },
+  "external": {
+    "heading": "🌐 Search on external sites",
+    "hint": "Djinni and LinkedIn don't have an open API (scraping would violate ToS). So here are ready-made search links with your query and a country filter for LinkedIn.",
+    "countryLabel": "Country (LinkedIn):",
+    "linkedin": "🔗 LinkedIn (with country filter)",
+    "djinni": "🟢 Djinni",
+    "dou": "🔵 DOU",
+    "workUa": "🟠 Work.ua",
+    "robotaUa": "🔴 robota.ua"
+  },
+  "countries": {
+    "remote": "🌍 Remote / anywhere",
+    "ua": "🇺🇦 Ukraine",
+    "pl": "🇵🇱 Poland",
+    "de": "🇩🇪 Germany",
+    "gb": "🇬🇧 United Kingdom",
+    "us": "🇺🇸 USA",
+    "nl": "🇳🇱 Netherlands",
+    "es": "🇪🇸 Spain"
+  },
+  "results": {
+    "searchFailedTitle": "Search failed",
+    "searchFailedHint": "A network or server problem. Try again.",
+    "nothingFoundTitle": "Nothing found",
+    "nothingFoundHintOffline": "The aggregators are unavailable (network/timeout). Try again later.",
+    "nothingFoundHint": "Try different keywords or a broader query.",
+    "found": "Found {{count}} for \"{{query}}\" · showing {{start}}–{{end}}",
+    "perPage": "Per page:",
+    "matches_one": "★ {{count}} match",
+    "matches_other": "★ {{count}} matches",
+    "open": "Open ↗",
+    "addedToTracker": "✓ in tracker",
+    "addToTracker": "➕ add to tracker",
+    "back": "← Back",
+    "pageOf": "Page {{current}} of {{totalPages}}",
+    "next": "Next →"
+  },
+  "toasts": {
+    "alertCreated": "Alert created — we'll email you when new postings match",
+    "alertDeleted": "Alert deleted"
+  }
+}

@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Btn } from "../../shared/ui";
 import { AuthLayout, AuthError, authInputClass } from "./auth-layout";
 import { GoogleButton } from "./google-button";
 import { signUp } from "../../shared/auth-client";
 
 export function Register() {
+  const { t } = useTranslation("auth");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,7 +22,7 @@ export function Register() {
     const { error: signUpError } = await signUp.email({ name, email, password });
     setLoading(false);
     if (signUpError) {
-      setError(signUpError.message || "Couldn't create an account.");
+      setError(signUpError.message || t("register.errors.generic"));
       return;
     }
     setRegistered(true);
@@ -28,11 +30,11 @@ export function Register() {
 
   if (registered) {
     return (
-      <AuthLayout title="Check your email" subtitle="We sent a verification link to finish creating your account.">
+      <AuthLayout title={t("register.checkEmail.title")} subtitle={t("register.checkEmail.subtitle")}>
         <p className="text-sm text-ink-dim">
-          Click the link in the email, then{" "}
+          {t("register.checkEmail.instructions")}{" "}
           <Link to="/login" className="text-signal hover:underline">
-            log in
+            {t("register.checkEmail.logIn")}
           </Link>
           .
         </p>
@@ -41,14 +43,21 @@ export function Register() {
   }
 
   return (
-    <AuthLayout title="Create an account" subtitle="Track your job search, get AI-personalized advice.">
+    <AuthLayout title={t("register.title")} subtitle={t("register.subtitle")}>
       <form onSubmit={onSubmit} className="space-y-3">
         {error && <AuthError message={error} />}
-        <input type="text" required placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} className={authInputClass} />
+        <input
+          type="text"
+          required
+          placeholder={t("fields.name")}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className={authInputClass}
+        />
         <input
           type="email"
           required
-          placeholder="Email"
+          placeholder={t("fields.email")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className={authInputClass}
@@ -57,20 +66,20 @@ export function Register() {
           type="password"
           required
           minLength={8}
-          placeholder="Password (min. 8 characters)"
+          placeholder={t("register.passwordPlaceholder")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className={authInputClass}
         />
         <Btn type="submit" loading={loading} className="w-full">
-          Create account
+          {t("register.submit")}
         </Btn>
         <GoogleButton />
       </form>
       <div className="mt-4 text-sm">
-        <span className="text-ink-dim">Already have an account? </span>
+        <span className="text-ink-dim">{t("register.alreadyHaveAccount")}</span>
         <Link to="/login" className="text-signal hover:underline">
-          Log in
+          {t("register.logIn")}
         </Link>
       </div>
     </AuthLayout>

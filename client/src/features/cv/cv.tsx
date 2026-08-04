@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useToast } from "../../shared/use-toast";
@@ -11,9 +13,9 @@ import { LinkedInOptimizerCard } from "./linkedin-optimizer-card";
 
 /** Composes vacancy text from fields already saved in the tracker (position/company/level/stack/notes) —
  * the same data set already shown in the vacancy table, assembled into one block for the LLM prompt. */
-function vacancyToText(v: Vacancy): string {
+function vacancyToText(v: Vacancy, t: TFunction<["cv", "common"]>): string {
   return [
-    `${v.position || "Vacancy"}${v.company ? ` — ${v.company}` : ""}`,
+    `${v.position || t("builder.vacancyMenu.fallback")}${v.company ? ` — ${v.company}` : ""}`,
     v.level ? `Level: ${v.level}` : "",
     v.stack.length ? `Stack: ${v.stack.join(", ")}` : "",
     v.notes,
@@ -56,16 +58,17 @@ export function CvReviewPanel({
   onAddKeyword?: (k: string) => void;
   onApplyRewrite?: (before: string, after: string) => void;
 }) {
+  const { t } = useTranslation(["cv", "common"]);
   const tone = review.score == null ? "bg-ink-dim" : review.score >= 75 ? "bg-signal" : review.score >= 50 ? "bg-alert" : "bg-rose-500";
   return (
     <Card className="space-y-3">
       <div className="flex items-center gap-2">
-        <span className="font-semibold text-ink">🔎 CV Review</span>
-        {review.offline && <Chip>offline</Chip>}
+        <span className="font-semibold text-ink">{t("reports.review.title")}</span>
+        {review.offline && <Chip>{t("shared.offline")}</Chip>}
         {review.score != null && (
           <span className="ml-auto text-2xl font-extrabold text-ink">
             {review.score}
-            <span className="text-xs text-ink-dim">/100</span>
+            <span className="text-xs text-ink-dim">{t("reports.per100")}</span>
           </span>
         )}
       </div>
@@ -77,7 +80,7 @@ export function CvReviewPanel({
       {review.summary && <Markdown text={review.summary} className="text-sm text-ink-dim space-y-2" />}
       {review.strengths.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-signal mb-1">✓ Strengths</div>
+          <div className="text-xs font-semibold text-signal mb-1">{t("reports.review.strengths")}</div>
           <ul className="list-disc pl-5 text-sm text-ink space-y-0.5">
             {review.strengths.map((s, i) => (
               <li key={i}>{s}</li>
@@ -87,7 +90,7 @@ export function CvReviewPanel({
       )}
       {review.issues.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-rose-600 mb-1">△ What to improve</div>
+          <div className="text-xs font-semibold text-rose-600 mb-1">{t("reports.review.improve")}</div>
           <div className="space-y-1.5">
             {review.issues.map((it, i) => (
               <div key={i} className="text-sm">
@@ -100,7 +103,8 @@ export function CvReviewPanel({
       {review.keywords.length > 0 && (
         <div>
           <div className="text-xs font-semibold text-ink-dim mb-1">
-            🔑 Add keywords (ATS / LinkedIn search){onAddKeyword && " — click to add to skills"}
+            {t("reports.review.addKeywordsTitle")}
+            {onAddKeyword && t("reports.clickToAddHint")}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {review.keywords.map((k) =>
@@ -123,7 +127,7 @@ export function CvReviewPanel({
       )}
       {review.rewrites.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-ink-dim mb-1">✍️ Rewrite stronger (outcome instead of process)</div>
+          <div className="text-xs font-semibold text-ink-dim mb-1">{t("reports.review.rewriteStronger")}</div>
           <div className="space-y-2">
             {review.rewrites.map((rw, i) => (
               <div key={i} className="text-sm rounded-lg border border-grid p-2 space-y-1">
@@ -131,7 +135,7 @@ export function CvReviewPanel({
                 <div className="text-signal">+ {rw.after}</div>
                 {onApplyRewrite && (
                   <Btn size="sm" variant="ghost" onClick={() => onApplyRewrite(rw.before, rw.after)}>
-                    ↳ apply to bullet
+                    {t("reports.review.applyToBullet")}
                   </Btn>
                 )}
               </div>
@@ -151,15 +155,16 @@ export function CvMatchPanel({
   onAddKeyword?: (k: string) => void;
   onApplySummary?: (s: string) => void;
 }) {
+  const { t } = useTranslation(["cv", "common"]);
   const tone = match.score >= 75 ? "bg-signal" : match.score >= 50 ? "bg-alert" : "bg-rose-500";
   return (
     <Card className="space-y-3">
       <div className="flex items-center gap-2">
-        <span className="font-semibold text-ink">🎯 Vacancy match</span>
-        {match.offline && <Chip>offline</Chip>}
+        <span className="font-semibold text-ink">{t("reports.match.title")}</span>
+        {match.offline && <Chip>{t("shared.offline")}</Chip>}
         <span className="ml-auto text-2xl font-extrabold text-ink">
           {match.score}
-          <span className="text-xs text-ink-dim">/100</span>
+          <span className="text-xs text-ink-dim">{t("reports.per100")}</span>
         </span>
       </div>
       <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
@@ -168,7 +173,7 @@ export function CvMatchPanel({
       {match.verdict && <Markdown text={match.verdict} className="text-sm text-ink-dim space-y-2" />}
       {match.matched.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-signal mb-1">✓ Already covered</div>
+          <div className="text-xs font-semibold text-signal mb-1">{t("reports.match.covered")}</div>
           <div className="flex flex-wrap gap-1.5">
             {match.matched.map((k) => (
               <Chip key={k} tone="emerald">
@@ -181,7 +186,8 @@ export function CvMatchPanel({
       {match.missing.length > 0 && (
         <div>
           <div className="text-xs font-semibold text-rose-600 mb-1">
-            △ Missing for this vacancy{onAddKeyword && " — click to add to skills"}
+            {t("reports.match.missingTitle")}
+            {onAddKeyword && t("reports.clickToAddHint")}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {match.missing.map((k) =>
@@ -202,7 +208,7 @@ export function CvMatchPanel({
       )}
       {match.suggestions.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-ink-dim mb-1">💡 What to do for this vacancy</div>
+          <div className="text-xs font-semibold text-ink-dim mb-1">{t("reports.match.whatToDo")}</div>
           <div className="space-y-1.5">
             {match.suggestions.map((s, i) => (
               <div key={i} className="text-sm">
@@ -214,11 +220,11 @@ export function CvMatchPanel({
       )}
       {match.tailoredSummary && (
         <div className="rounded-lg border border-signal/30 bg-signal/10/50 p-2.5 space-y-1.5">
-          <div className="text-xs font-semibold text-signal">✍️ Summary for this vacancy</div>
+          <div className="text-xs font-semibold text-signal">{t("reports.match.summaryForVacancy")}</div>
           <Markdown text={match.tailoredSummary} className="text-sm text-ink space-y-2" />
           {onApplySummary && (
             <Btn size="sm" onClick={() => onApplySummary(match.tailoredSummary)}>
-              Apply to summary
+              {t("reports.match.applyToSummary")}
             </Btn>
           )}
         </div>
@@ -227,6 +233,7 @@ export function CvMatchPanel({
   );
 }
 export function CVView({ llm }: { llm: boolean }) {
+  const { t } = useTranslation(["cv", "common"]);
   const { data: profile } = useProfile();
   const { data: vacancies = [] } = useVacancies();
   const saveProfileMutation = useSaveProfile();
@@ -252,7 +259,7 @@ export function CVView({ llm }: { llm: boolean }) {
   const pickCoverVacancy = (id: number) => {
     setCoverVacId(id);
     const vac = vacancies.find((v) => v.id === id);
-    if (vac) setVacText(vacancyToText(vac));
+    if (vac) setVacText(vacancyToText(vac, t));
   };
   const fetchCoverUrl = async () => {
     if (!coverUrl.trim()) return;
@@ -260,9 +267,9 @@ export function CVView({ llm }: { llm: boolean }) {
     try {
       setCoverVacId(0);
       setVacText((await api.fetchVacancyUrl(coverUrl.trim())).text);
-      toast("Vacancy text loaded", "success");
+      toast(t("cvPage.toasts.vacancyTextLoaded"), "success");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Failed to load the page", "error");
+      toast(e instanceof Error ? e.message : t("cvPage.toasts.loadPageError"), "error");
     } finally {
       setBusy("");
     }
@@ -314,14 +321,9 @@ export function CVView({ llm }: { llm: boolean }) {
       setDraft({ cvText: r.text, skills: r.skills });
       setAnalysis(r);
       await applyCvUpload(r);
-      toast(
-        r.cvDoc
-          ? "CV applied everywhere + parsed into the CV Builder"
-          : "CV applied everywhere (enable LLM for auto-parsing into the builder)",
-        "success",
-      );
+      toast(r.cvDoc ? t("cvPage.toasts.cvAppliedParsed") : t("cvPage.toasts.cvAppliedNoParsing"), "success");
     } catch (err) {
-      alert("Error: " + (err instanceof Error ? err.message : String(err)));
+      alert(t("cvPage.toasts.errorPrefix") + (err instanceof Error ? err.message : String(err)));
     } finally {
       setBusy("");
       e.target.value = "";
@@ -330,76 +332,73 @@ export function CVView({ llm }: { llm: boolean }) {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="CV and recommendations"
-        subtitle={
-          llm
-            ? "CV analysis against market demand + generation of the Skills section and cover letter."
-            : "Offline mode — enable LLM in server/.env for smart advice."
-        }
+        title={t("cvPage.title")}
+        subtitle={llm ? t("cvPage.subtitleLlm") : t("cvPage.subtitleOffline")}
         actions={
           <>
-            <Btn variant="ghost" onClick={() => exportPdf("CV", cvText)} disabled={!cvText.trim()}>
-              ⬇️ CV to PDF
+            <Btn variant="ghost" onClick={() => exportPdf(t("preview.iframeTitle"), cvText)} disabled={!cvText.trim()}>
+              {t("cvPage.exportPdf")}
             </Btn>
             <Btn loading={saveProfileMutation.isPending} onClick={() => saveProfileMutation.mutate({ skills, cvText, domain })}>
-              💾 Save
+              {t("shared.saveButton")}
             </Btn>
           </>
         }
       />
       <Card className="!py-3 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-ink-dim">Upload:</span>
+          <span className="text-xs font-semibold text-ink-dim">{t("cvPage.uploadLabel")}</span>
           <label
             className={`inline-flex items-center gap-1.5 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer transition-colors ${busy === "upload" ? "bg-signal/40 text-white" : "bg-signal text-white hover:opacity-90"}`}
           >
             {busy === "upload" ? (
               <>
-                <Spinner className="h-3 w-3" /> Processing…
+                <Spinner className="h-3 w-3" /> {t("cvPage.processing")}
               </>
             ) : (
-              "📎 CV (PDF / DOCX / TXT)"
+              t("cvPage.uploadCvLabel")
             )}
             <input type="file" accept=".pdf,.docx,.txt" onChange={onFile} className="hidden" disabled={busy === "upload"} />
           </label>
           <span className="mx-1 h-5 w-px bg-grid" aria-hidden />
-          <span className="text-xs font-semibold text-ink-dim">AI analysis:</span>
+          <span className="text-xs font-semibold text-ink-dim">{t("cvPage.aiAnalysisLabel")}</span>
           <Btn size="sm" variant="ghost" onClick={analyze} loading={busyAnalysis} disabled={!cvText.trim()}>
-            🔍 CV vs market
+            {t("cvPage.compareMarket")}
           </Btn>
           <Btn size="sm" variant="ghost" onClick={doReview} loading={busyReview} disabled={!cvText.trim()}>
-            🔎 Deep review
+            {t("cvPage.deepReview")}
           </Btn>
         </div>
         <details className="text-xs text-ink-dim border-t border-surface-2 pt-2.5">
-          <summary className="cursor-pointer select-none hover:text-ink font-medium">
-            How does this work, and how do I upload from LinkedIn?
-          </summary>
+          <summary className="cursor-pointer select-none hover:text-ink font-medium">{t("cvPage.howItWorksSummary")}</summary>
           <div className="mt-1.5 text-ink-dim">
-            One upload — and your CV works <b>everywhere</b>: market analysis, roadmap, learning plan, recommendations + auto-parsing into
-            sections in <b>the CV Builder</b>. <b>LinkedIn:</b> profile → «More» → «Save to PDF» → upload it here (direct LinkedIn parsing
-            is forbidden by its ToS).
+            <Trans i18nKey="cvPage.howItWorksBody" ns="cv" components={{ b: <b /> }} />
           </div>
         </details>
       </Card>
       <Card className="space-y-2">
         <Field
-          label="Profession / role — all AI advice adapts to it"
+          label={t("cvPage.domainLabel")}
           value={domain}
           onChange={(v) => patch({ domain: v })}
-          placeholder="e.g. Full-Stack developer, UX designer, Marketer…"
+          placeholder={t("cvPage.domainPlaceholder")}
           maxLength={120}
         />
         <label className="block">
-          <span className="text-xs font-semibold text-ink-dim">CV text (you can edit or paste manually)</span>
+          <span className="text-xs font-semibold text-ink-dim">{t("cvPage.cvTextLabel")}</span>
           <textarea
             value={cvText}
             onChange={(e) => patch({ cvText: e.target.value })}
-            placeholder="Paste or edit your resume text…"
+            placeholder={t("cvPage.cvTextPlaceholder")}
             className="w-full mt-0.5 h-32 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
           />
         </label>
-        <SkillsInput label="Skills" skills={skills} onChange={(skills) => patch({ skills })} placeholder="React, Node, TypeScript…" />
+        <SkillsInput
+          label={t("builder.sections.skills.title")}
+          skills={skills}
+          onChange={(skills) => patch({ skills })}
+          placeholder="React, Node, TypeScript…"
+        />
       </Card>
       {(analysis || review) &&
         (() => {
@@ -418,15 +417,15 @@ export function CVView({ llm }: { llm: boolean }) {
                   value={current}
                   onChange={setActiveReport}
                   options={[
-                    { value: "analysis", label: "🔍 CV vs market" },
-                    { value: "review", label: "🔎 Deep review" },
+                    { value: "analysis", label: t("cvPage.compareMarket") },
+                    { value: "review", label: t("cvPage.deepReview") },
                   ]}
                 />
               )}
               <div className="relative">
                 <button
                   onClick={() => (current === "analysis" ? setAnalysis(null) : setReview(null))}
-                  title="Hide"
+                  title={t("builder.reports.hide")}
                   className="absolute right-3 top-3 z-10 text-ink-dim hover:text-ink-dim text-sm"
                 >
                   ✕
@@ -444,9 +443,9 @@ export function CVView({ llm }: { llm: boolean }) {
         })()}
       <div className="grid md:grid-cols-2 gap-4 items-start">
         <Card className="space-y-2">
-          <div className="text-sm font-semibold text-ink">🔧 Update Skills section</div>
+          <div className="text-sm font-semibold text-ink">{t("cvPage.updateSkillsTitle")}</div>
           <Btn size="sm" variant="ghost" onClick={gen} loading={busy === "skills"}>
-            Generate
+            {t("shared.generate")}
           </Btn>
           {skillsOut && (
             <div className="mt-1 bg-surface-2 border border-grid rounded-lg p-2.5">
@@ -455,15 +454,15 @@ export function CVView({ llm }: { llm: boolean }) {
           )}
         </Card>
         <Card className="space-y-2">
-          <div className="text-sm font-semibold text-ink">✉️ Cover letter for a vacancy</div>
+          <div className="text-sm font-semibold text-ink">{t("cvPage.coverLetterTitle")}</div>
           {vacancies.length > 0 && (
             <select
               value={coverVacId}
               onChange={(e) => pickCoverVacancy(Number(e.target.value))}
-              aria-label="Select a vacancy from the tracker for the cover letter"
+              aria-label={t("cvPage.coverVacancyAria")}
               className="w-full bg-surface-2 border border-grid rounded-lg p-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-signal/50"
             >
-              <option value={0}>— select a vacancy from the tracker —</option>
+              <option value={0}>{t("cvPage.selectVacancyFromTracker")}</option>
               {vacancies.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.position}
@@ -477,12 +476,12 @@ export function CVView({ llm }: { llm: boolean }) {
               value={coverUrl}
               onChange={(e) => setCoverUrl(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && fetchCoverUrl()}
-              aria-label="Vacancy link for the cover letter"
-              placeholder="…or paste a vacancy link"
+              aria-label={t("cvPage.coverUrlAria")}
+              placeholder={t("cvPage.coverUrlPlaceholder")}
               className="flex-1 min-w-0 bg-surface-2 border border-grid rounded-lg p-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-signal/50"
             />
             <Btn size="sm" variant="subtle" onClick={fetchCoverUrl} loading={busy === "cover-url"} disabled={!coverUrl.trim()}>
-              Load
+              {t("cvPage.load")}
             </Btn>
           </div>
           <textarea
@@ -491,17 +490,17 @@ export function CVView({ llm }: { llm: boolean }) {
               setVacText(e.target.value);
               setCoverVacId(0);
             }}
-            aria-label="Vacancy text for the cover letter"
-            placeholder="…or paste the vacancy text manually"
+            aria-label={t("cvPage.coverTextAria")}
+            placeholder={t("cvPage.coverTextPlaceholder")}
             className="w-full h-16 bg-surface-2 border border-grid rounded-lg p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-signal/50"
           />
           <div className="flex gap-2 flex-wrap">
             <Btn size="sm" variant="ghost" onClick={genCover} loading={busy === "cover"} disabled={!vacText.trim()}>
-              Generate letter
+              {t("cvPage.generateLetter")}
             </Btn>
             {cover && (
-              <Btn size="sm" variant="ghost" onClick={() => exportPdf("Cover Letter", cover)}>
-                ⬇️ PDF
+              <Btn size="sm" variant="ghost" onClick={() => exportPdf(t("cvPage.coverLetterPdfTitle"), cover)}>
+                {t("shared.pdfButton")}
               </Btn>
             )}
           </div>

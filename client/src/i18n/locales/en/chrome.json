@@ -1,0 +1,26 @@
+{
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "hint": "An unexpected error occurred on this screen. Other tabs and data are unaffected.",
+    "tryAgain": "Try again",
+    "goToDashboard": "Go to dashboard"
+  },
+  "skillsInput": {
+    "removeSkill": "Remove {{skill}}",
+    "searchPlaceholder": "Search skill…",
+    "suggestions": "Suggestions"
+  },
+  "commandPalette": {
+    "placeholder": "Jump to a page or run an action… (Dashboard, Vacancies, Log out…)",
+    "ariaLabel": "Command palette — jump to a page or run an action",
+    "noResults": "Nothing matches \"{{query}}\"",
+    "navigateHint": "↑↓ navigate",
+    "selectHint": "↵ select",
+    "closeHint": "esc close"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "hint": "There's no page at this address — it may have moved, or the link might be out of date.",
+    "backToDashboard": "Back to Dashboard"
+  }
+}

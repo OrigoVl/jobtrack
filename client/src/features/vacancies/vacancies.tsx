@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useUi } from "../../shared/ui-state";
 import {
   useAddVacancy,
@@ -10,11 +11,11 @@ import {
 } from "../../shared/queries";
 import { api } from "../../shared/api";
 import { useToast } from "../../shared/use-toast";
-import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Spinner } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Chip, Dropdown, EmptyState, PageHeader, Spinner } from "../../shared/ui";
 import { DateInput } from "../../shared/date-input";
-import { plural } from "../../shared/format";
 import { STATUSES, type Fit, type Vacancy, type VacancyStatus } from "../../shared/types";
-import { fitTone, fitText } from "../../shared/fit-tone";
+import { fitTone, fitText, fitLabel } from "../../shared/fit-tone";
+import { statusLabel } from "../../shared/status-labels";
 import {
   STATUS_SELECT_CLASS,
   STATUS_DOT_CLASS,
@@ -53,6 +54,7 @@ function isStaleApplication(status: string, days: number | null): boolean {
 
 /* ---------- Vacancies board (drag-and-drop + keyboard) ---------- */
 function VacancyBoard() {
+  const { t } = useTranslation(["vacancies", "common"]);
   const { data: vacancies = [] } = useVacancies();
   const updateVacancyMutation = useUpdateVacancy();
   const [over, setOver] = useState<string | null>(null);
@@ -85,7 +87,7 @@ function VacancyBoard() {
           <div
             key={status}
             role="list"
-            aria-label={`Column "${status}", ${plural(items.length, "vacancy", "vacancies")}`}
+            aria-label={t("kanban.columnAriaLabel", { status: statusLabel(status), count: items.length })}
             onDragOver={(e) => {
               e.preventDefault();
               setOver(status);
@@ -99,7 +101,7 @@ function VacancyBoard() {
             <div className="flex items-center justify-between px-1.5 py-1 mb-1.5">
               <span className="flex items-center gap-1.5 text-xs font-bold text-ink-dim">
                 <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT_CLASS[status] ?? DEFAULT_STATUS_DOT_CLASS}`} />
-                {status}
+                {statusLabel(status)}
               </span>
               <span className="text-[11px] text-ink-dim">{items.length}</span>
             </div>
@@ -110,6 +112,10 @@ function VacancyBoard() {
                 // keyboard move) — updateVacancyMutation is one hook for the whole board, so
                 // scope by variables.id so the spinner doesn't flash on every card at once.
                 const isSaving = updateVacancyMutation.isPending && updateVacancyMutation.variables?.id === v.id;
+                const cardAriaLabel =
+                  t("kanban.cardStatus", { company: v.company, position: v.position, status: statusLabel(status) }) +
+                  (idx > 0 ? t("kanban.leftArrowHint", { status: statusLabel(STATUSES[idx - 1]!) }) : "") +
+                  (idx < STATUSES.length - 1 ? t("kanban.rightArrowHint", { status: statusLabel(STATUSES[idx + 1]!) }) : "");
                 return (
                   <div
                     key={v.id}
@@ -118,9 +124,7 @@ function VacancyBoard() {
                     }}
                     role="button"
                     tabIndex={0}
-                    aria-label={`${v.company}, ${v.position}. Status: ${status}.${idx > 0 ? ` Left arrow — "${STATUSES[idx - 1]}".` : ""}${
-                      idx < STATUSES.length - 1 ? ` Right arrow — "${STATUSES[idx + 1]}".` : ""
-                    }`}
+                    aria-label={cardAriaLabel}
                     draggable
                     onDragStart={(e) => e.dataTransfer.setData("text/plain", String(v.id))}
                     onKeyDown={(e) => {
@@ -134,15 +138,38 @@ function VacancyBoard() {
                     }}
                     className={`relative bg-white border border-grid border-l-4 ${STATUS_BORDER_L_CLASS[status] ?? DEFAULT_STATUS_BORDER_L_CLASS} rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-card focus:outline-none focus:ring-2 focus:ring-signal/50 transition-opacity ${isSaving ? "opacity-60" : ""}`}
                   >
-                    {isSaving && (
-                      <span className="absolute top-1.5 right-1.5 text-signal" aria-label="Saving…">
-                        <Spinner className="h-3 w-3" />
-                      </span>
-                    )}
-                    <div className="font-semibold text-sm text-ink truncate">{v.company}</div>
-                    <div className="text-xs text-ink-dim truncate">{v.position}</div>
+                    <div className="flex items-start justify-between gap-1">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-sm text-ink truncate">{v.company}</div>
+                        <div className="text-xs text-ink-dim truncate">{v.position}</div>
+                      </div>
+                      <div className="shrink-0">
+                        {isSaving ? (
+                          <span className="text-signal inline-flex" aria-label={t("common:state.saving")}>
+                            <Spinner className="h-3 w-3" />
+                          </span>
+                        ) : (
+                          // Jumping straight to any status (not just the adjacent one drag/←/→
+                          // give you) — the fast path for e.g. "Want to apply" → "Rejected" without
+                          // dragging across the whole board or repeating an arrow key.
+                          <Dropdown label={t("kanban.move")} align="right">
+                            {STATUSES.filter((s) => s !== status).map((s) => (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => updateVacancyMutation.mutate({ id: v.id, patch: { status: s } })}
+                                className="w-full flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-left hover:bg-surface-2"
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT_CLASS[s] ?? DEFAULT_STATUS_DOT_CLASS}`} />
+                                {statusLabel(s)}
+                              </button>
+                            ))}
+                          </Dropdown>
+                        )}
+                      </div>
+                    </div>
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      <Chip tone={fitTone[v.fit]}>{v.fit}</Chip>
+                      <Chip tone={fitTone[v.fit]}>{fitLabel(v.fit)}</Chip>
                       {v.stack.slice(0, 2).map((s) => (
                         <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim">
                           {s}
@@ -164,6 +191,7 @@ function VacancyBoard() {
 
 /* ---------- Vacancies ---------- */
 export function Vacancies() {
+  const { t } = useTranslation(["vacancies", "common"]);
   const { data: vacancies = [], isLoading } = useVacancies();
   const addVacancyMutation = useAddVacancy();
   const updateVacancyMutation = useUpdateVacancy();
@@ -203,48 +231,47 @@ export function Vacancies() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Vacancies"
-        subtitle="Track all your vacancies in one place. Paste a vacancy link (from any site — LinkedIn, Djinni, robota.ua, dou.ua, etc.) and the stack fills in itself. In Kanban view, drag cards between statuses (or select a card and press ←/→ — no mouse needed)."
+        title={t("title")}
+        subtitle={t("subtitle")}
         actions={
           <div className="flex gap-2 flex-wrap">
             <div className="flex gap-1 bg-surface-2 rounded-lg p-0.5">
               <Btn variant={view === "table" ? "primary" : "subtle"} size="sm" onClick={() => setView("table")}>
-                ☰ Table
+                {t("view.table")}
               </Btn>
               <Btn variant={view === "board" ? "primary" : "subtle"} size="sm" onClick={() => setView("board")}>
-                🗂 Kanban
+                {t("view.board")}
               </Btn>
             </div>
             <Btn
               loading={addVacancyMutation.isPending}
               onClick={() => addVacancyMutation.mutate({ company: "New company", position: "Position" })}
             >
-              + Add vacancy
+              {t("addVacancy")}
             </Btn>
           </div>
         }
       />
 
       <Card>
-        <div className="text-sm font-semibold mb-2 text-ink">📥 Import from a DOU export</div>
+        <div className="text-sm font-semibold mb-2 text-ink">{t("import.heading")}</div>
         <textarea
           value={imp}
           onChange={(e) => setImp(e.target.value)}
-          aria-label="HTML or text to import from DOU"
-          placeholder="Paste the HTML or text of a saved DOU vacancies table — we'll extract every link…"
+          aria-label={t("import.ariaLabel")}
+          placeholder={t("import.placeholder")}
           className="w-full h-20 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
         />
         <Btn className="mt-2" variant="ghost" onClick={doImport} disabled={!imp} loading={importVacanciesMutation.isPending}>
-          {importVacanciesMutation.isPending ? "Importing and analyzing…" : "Import links"}
+          {importVacanciesMutation.isPending ? t("import.importing") : t("import.importLinks")}
         </Btn>
       </Card>
 
       <Card>
-        <div className="text-sm font-semibold mb-1 text-ink">🔄 Import / export JSON</div>
+        <div className="text-sm font-semibold mb-1 text-ink">{t("jsonImportExport.heading")}</div>
         <p className="text-xs text-ink-dim mb-2">
-          Format <code>job-tracker.json</code> — an array of <code>{"{company, pos, level, fit, status, applied, next, notes, url}"}</code>.
-          Vacancies with the same link (or company+position) get updated, the rest get added — you can keep the file elsewhere (e.g. in
-          another chat) and just drop it here to sync.
+          {t("jsonImportExport.formatIntro")} <code>job-tracker.json</code> — {t("jsonImportExport.formatSchema")}{" "}
+          <code>{"{company, pos, level, fit, status, applied, next, notes, url}"}</code>. {t("jsonImportExport.syncNote")}
         </p>
         <div className="flex gap-2 flex-wrap">
           <input
@@ -253,13 +280,13 @@ export function Vacancies() {
             accept="application/json,.json"
             onChange={onImportJsonFile}
             className="hidden"
-            aria-label="job-tracker.json file to import"
+            aria-label={t("jsonImportExport.fileAriaLabel")}
           />
           <Btn variant="ghost" onClick={() => jsonFileInputRef.current?.click()} loading={importJsonMutation.isPending}>
-            {importJsonMutation.isPending ? "Importing…" : "⬆ Import from file"}
+            {importJsonMutation.isPending ? t("jsonImportExport.importing") : t("jsonImportExport.importFromFile")}
           </Btn>
           <Btn variant="ghost" onClick={onExportJson} disabled={vacancies.length === 0}>
-            ⬇ Export to job-tracker.json
+            {t("jsonImportExport.exportToFile")}
           </Btn>
         </div>
       </Card>
@@ -268,14 +295,14 @@ export function Vacancies() {
         <Card>
           <EmptyState
             icon="📋"
-            title="No vacancies yet"
-            hint="Add your first vacancy by hand or import a list from DOU — the app will build the analytics and roadmap from there."
+            title={t("empty.title")}
+            hint={t("empty.hint")}
             action={
               <Btn
                 loading={addVacancyMutation.isPending}
                 onClick={() => addVacancyMutation.mutate({ company: "New company", position: "Position" })}
               >
-                + Add the first one
+                {t("addFirst")}
               </Btn>
             }
           />
@@ -289,12 +316,12 @@ export function Vacancies() {
               <thead>
                 <tr className="text-ink-dim text-xs text-left bg-surface-2 border-b border-grid">
                   <th className="p-3 w-10 text-right">#</th>
-                  <th className="p-3">Company / Position</th>
-                  <th className="p-3">Stack</th>
-                  <th className="p-3">Fit</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Applied</th>
-                  <th className="p-3">Next step</th>
+                  <th className="p-3">{t("table.companyPosition")}</th>
+                  <th className="p-3">{t("table.stack")}</th>
+                  <th className="p-3">{t("table.fit")}</th>
+                  <th className="p-3">{t("table.status")}</th>
+                  <th className="p-3">{t("table.applied")}</th>
+                  <th className="p-3">{t("table.nextStep")}</th>
                   <th className="p-3"></th>
                 </tr>
               </thead>
@@ -324,8 +351,8 @@ export function Vacancies() {
                             type="url"
                             defaultValue={row.url}
                             onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { url: e.target.value } })}
-                            placeholder="Vacancy link (from any site) → the stack fills in itself…"
-                            aria-label={`Vacancy link — ${row.company}`}
+                            placeholder={t("table.vacancyLinkPlaceholder")}
+                            aria-label={t("table.vacancyLinkAriaLabel", { company: row.company })}
                             className="bg-transparent text-signal text-[11px] flex-1 min-w-0 outline-none focus:bg-white focus:ring-1 focus:ring-signal/40 rounded px-1"
                           />
                           {row.url && (
@@ -333,7 +360,7 @@ export function Vacancies() {
                               href={row.url}
                               target="_blank"
                               rel="noreferrer"
-                              title="Open the vacancy"
+                              title={t("table.openVacancy")}
                               className="text-signal text-xs shrink-0"
                             >
                               ↗
@@ -342,7 +369,7 @@ export function Vacancies() {
                         </div>
                         {isSavingRow && (
                           <div className="flex items-center gap-1 text-[11px] text-signal mt-0.5">
-                            <Spinner className="h-3 w-3" /> Saving…
+                            <Spinner className="h-3 w-3" /> {t("common:state.saving")}
                           </div>
                         )}
                       </td>
@@ -365,9 +392,9 @@ export function Vacancies() {
                           onChange={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { fit: e.target.value as Fit } })}
                           className={`bg-surface-2 border border-grid rounded px-1.5 py-1 text-xs font-medium ${fitText[row.fit]}`}
                         >
-                          <option value="high">High</option>
-                          <option value="med">Med</option>
-                          <option value="low">Low</option>
+                          <option value="high">{fitLabel("high")}</option>
+                          <option value="med">{fitLabel("med")}</option>
+                          <option value="low">{fitLabel("low")}</option>
                         </select>
                       </td>
                       <td className="p-3">
@@ -379,7 +406,9 @@ export function Vacancies() {
                           }`}
                         >
                           {STATUSES.map((s) => (
-                            <option key={s}>{s}</option>
+                            <option key={s} value={s}>
+                              {statusLabel(s)}
+                            </option>
                           ))}
                         </select>
                       </td>
@@ -387,7 +416,7 @@ export function Vacancies() {
                         <DateInput
                           value={row.applied}
                           onChange={(iso) => updateVacancyMutation.mutate({ id: row.id, patch: { applied: iso } })}
-                          aria-label={`Applied date — ${row.company}`}
+                          aria-label={t("table.appliedDateAriaLabel", { company: row.company })}
                           className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-signal/40 rounded px-1 text-xs"
                         />
                         {daysSinceApplied(row.applied) != null && (
@@ -397,11 +426,11 @@ export function Vacancies() {
                             }`}
                             title={
                               isStaleApplication(row.status, daysSinceApplied(row.applied))
-                                ? `More than ${STALE_APPLICATION_DAYS} days without a response — worth nudging the recruiter`
+                                ? t("table.staleTooltip", { days: STALE_APPLICATION_DAYS })
                                 : undefined
                             }
                           >
-                            {daysSinceApplied(row.applied)}d waiting
+                            {t("table.daysWaiting", { count: daysSinceApplied(row.applied)! })}
                           </div>
                         )}
                       </td>
@@ -409,7 +438,7 @@ export function Vacancies() {
                         <DateInput
                           value={row.next}
                           onChange={(iso) => updateVacancyMutation.mutate({ id: row.id, patch: { next: iso } })}
-                          aria-label={`Next step date — ${row.company}`}
+                          aria-label={t("table.nextStepDateAriaLabel", { company: row.company })}
                           className="bg-transparent w-32 outline-none focus:bg-white focus:ring-1 focus:ring-signal/40 rounded px-1 text-xs"
                         />
                       </td>
@@ -418,7 +447,7 @@ export function Vacancies() {
                           onClick={() => deleteVacancyMutation.mutate(row.id)}
                           disabled={isDeletingRow}
                           className="text-ink-dim hover:text-rose-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Delete"
+                          title={t("common:actions.delete")}
                         >
                           {isDeletingRow ? <Spinner className="h-3.5 w-3.5" /> : "✕"}
                         </button>

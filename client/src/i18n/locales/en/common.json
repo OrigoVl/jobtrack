@@ -1,0 +1,51 @@
+{
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "close": "Close",
+    "search": "Search"
+  },
+  "state": {
+    "loading": "Loading…",
+    "saving": "Saving…"
+  },
+  "vacancyStatus": {
+    "wantToApply": "Want to apply",
+    "applied": "Applied",
+    "screening": "Screening",
+    "techInterview": "Tech interview",
+    "takeHomeTask": "Take-home task",
+    "final": "Final",
+    "offer": "Offer",
+    "rejected": "Rejected",
+    "paused": "Paused"
+  },
+  "dateInput": {
+    "openCalendar": "Open calendar",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "datePlaceholder": "mm/dd/yyyy",
+    "dateTimePlaceholder": "mm/dd/yyyy, HH:mm"
+  },
+  "fit": {
+    "high": "High",
+    "med": "Med",
+    "low": "Low"
+  },
+  "errors": {
+    "generic": "An error occurred",
+    "UNSUPPORTED_FILE_TYPE": "Unsupported file type. Allowed: PDF, DOCX, DOC, TXT, ZIP.",
+    "CV_EXTRACT_FAILED": "Couldn't extract text from the file (it might be a scan or image).",
+    "LINKEDIN_ARCHIVE_INVALID": "Couldn't read the archive. It must be a .zip export from LinkedIn (Settings → Get a copy of your data).",
+    "LINKEDIN_ARCHIVE_MISSING_FILES": "No Profile.csv / Positions.csv / Skills.csv found in the archive.",
+    "CV_SHARE_NOT_FOUND": "This CV link doesn't exist or has been disabled",
+    "VACANCY_FETCH_FAILED": "Could not extract text from the page (it may be empty or protected against scraping).",
+    "VACANCY_URL_MISSING": "This vacancy has no URL",
+    "VACANCY_IMPORT_TOO_MANY": "Too many items in one import (max 1000)",
+    "RATE_LIMITED": "Too many requests. Try again in a few minutes.",
+    "AI_RATE_LIMITED": "Too many AI requests. Wait a few minutes and try again."
+  }
+}

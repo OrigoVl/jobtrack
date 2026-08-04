@@ -6,6 +6,8 @@ import { contextLogger } from "../core/logger.js";
 import { hashString } from "../shared/hash.js";
 import { env } from "../config/env.js";
 import { insertLlmUsage, type LlmUsageOutcome } from "../telemetry/telemetry.repo.js";
+import { getLocale } from "../core/request-context.js";
+import type { AppLocale } from "../shared/locale.js";
 
 export type LlmTier = "fast" | "smart";
 type LlmProvider = "openai" | "anthropic";
@@ -23,6 +25,35 @@ export interface ChatOptions {
    * one; every real call site should pass it. Falls back to "unspecified" if omitted.
    */
   feature?: string;
+  /**
+   * Whether this call's PROSE should follow the current request's UI language
+   * (core/request-context.ts's getLocale(), sourced from the client's X-Locale header) —
+   * `"app"` opts in; the default `"en"` keeps the previous, locale-independent behavior.
+   *
+   * Deliberately NOT a global default: roughly a third of this app's LLM prompts must never
+   * follow the UI locale — either their output is matched against English identifiers downstream
+   * (shared/skill-extraction.ts's extractSkills/detectDomain: translating those silently breaks
+   * skill/vacancy matching, and that module's own cache is global and NOT keyed by locale, so a
+   * translated result could leak across users), or they deliberately follow the SOURCE
+   * DOCUMENT's language instead of the UI's (CV review/tailoring, cover letters — see
+   * cv.routes.ts/writing.routes.ts/cv-linkedin.service.ts's own "respond in the resume's/
+   * original language" instructions, left as-is). Only pass `"app"` for genuinely UI-facing
+   * prose (study hints, interview feedback, the vacancy fit summary, etc.).
+   */
+  outputLocale?: "app" | "en";
+}
+
+const LANGUAGE_NAME: Record<AppLocale, string> = { en: "English", uk: "Ukrainian" };
+
+/** Prepends a language instruction to `system` when the caller opted in via `outputLocale:
+ * "app"` and the current request's locale isn't English — folded into BOTH the cache-key hash
+ * and the actual provider call below, so an `en` and a `uk` response for the same prompt never
+ * collide in llm_cache. */
+function withLocaleInstruction(system: string, outputLocale: "app" | "en"): string {
+  if (outputLocale !== "app") return system;
+  const locale = getLocale();
+  if (locale === "en") return system;
+  return `Respond in ${LANGUAGE_NAME[locale]}. ${system}`;
 }
 
 export function llmAvailable(): boolean {
@@ -67,15 +98,26 @@ export async function chat<T extends object = Record<string, unknown>>(
 // per-user/per-feature usage views (Phase 5/6) — the cache itself stays content-hash-keyed and
 // deliberately global (see db/llm-cache.ts), not per-user.
 export async function chat(userId: UserId, system: string, user: string, options: ChatOptions = {}): Promise<LlmResult> {
-  const { json = false, maxTokens = 900, temperature = 0.4, cache = false, tier = "fast", feature = "unspecified" } = options;
+  const {
+    json = false,
+    maxTokens = 900,
+    temperature = 0.4,
+    cache = false,
+    tier = "fast",
+    feature = "unspecified",
+    outputLocale = "en",
+  } = options;
   if (!llmAvailable()) return null;
+  // Folded in before both the cache key and the actual provider call below — see
+  // withLocaleInstruction's own comment for why an `en`/`uk` response never collides in cache.
+  const effectiveSystem = withLocaleInstruction(system, outputLocale);
   const mode = json ? "json" : "text";
   // The cache key deliberately includes `tier` (not the specific model/provider) — for the same
   // system+user+tier, the same "quality class" of response is expected regardless of which
   // provider (primary or fallback) ultimately answered; and changing OPENAI_MODEL/
   // ANTHROPIC_MODEL in .env for the same tier still correctly does NOT invalidate the old cache
   // (as before) — this is an acceptable tradeoff, the same one that existed before the fallback logic.
-  const cacheKey = cache ? "llm:" + hashString([tier, mode, system, user].join("|")) : null;
+  const cacheKey = cache ? "llm:" + hashString([tier, mode, effectiveSystem, user].join("|")) : null;
   if (cacheKey) {
     const hit = await getLlmCache<{ value: LlmResult }>(cacheKey);
     if (hit) {
@@ -97,7 +139,7 @@ export async function chat(userId: UserId, system: string, user: string, options
     }
   }
   const started = Date.now();
-  const { result, provider, model, usage } = await callProvider(system, user, { json, maxTokens, temperature, tier });
+  const { result, provider, model, usage } = await callProvider(effectiveSystem, user, { json, maxTokens, temperature, tier });
   recordLlmUsage({
     userId,
     feature,

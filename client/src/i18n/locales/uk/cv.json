@@ -1,0 +1,360 @@
+{
+  "shared": {
+    "offline": "офлайн",
+    "copy": "Копіювати",
+    "copied": "✓ Скопійовано",
+    "generate": "Згенерувати",
+    "saveButton": "💾 Зберегти",
+    "pdfButton": "⬇️ PDF"
+  },
+  "templates": {
+    "classic": "Класична",
+    "compact": "Компактна",
+    "academic": "Академічна",
+    "twocol": "Дві колонки",
+    "minimal": "Мінімалістична",
+    "sidebar": "Бічна панель",
+    "timeline": "Хронологія"
+  },
+  "builder": {
+    "header": {
+      "title": "Конструктор резюме",
+      "subtitle": "Структуроване резюме з фокусом на результати. Заповни його з наявного резюме, відредагуй і експортуй у PDF.",
+      "exportPdf": "⬇️ Експортувати PDF",
+      "exportPdfTitle": "У діалозі друку браузера дата/назва документа вгорі сторінок вимикаються автоматично; якщо вони все ж з'являються — вимкни «Колонтитули»"
+    },
+    "importMenu": {
+      "label": "📎 Імпорт",
+      "fromFile": "📎 З файлу резюме",
+      "parsing": "Аналізуємо…",
+      "linkedin": "🔗 LinkedIn (.zip)",
+      "importingLinkedin": "Імпортуємо…",
+      "fromProfileText": "З тексту профілю (ШІ)",
+      "linkedinHelpSummary": "Де взяти .zip з LinkedIn?",
+      "linkedinHelpBody": "LinkedIn → <b>Налаштування та конфіденційність → Конфіденційність даних → Отримати копію своїх даних</b> → «Чи потрібно щось особливе» (Профіль, Посади, Навички, Освіта) → отримай архів на пошту → завантаж <b>.zip</b> сюди."
+    },
+    "vacancyMenu": {
+      "label": "🎯 Вакансія",
+      "fallback": "Вакансія",
+      "compareAgainst": "Порівняти резюме з",
+      "noVacancies": "Спочатку додай вакансії в трекер",
+      "selectPlaceholder": "— обери вакансію —"
+    },
+    "compareButton": "🎯 Порівняти",
+    "tailorButton": "✨ Адаптувати резюме",
+    "tailorButtonTitle": "Переставити навички/пункти та переписати підсумок під обрану вакансію",
+    "aiAssistantButton": "🤖 ШІ-асистент",
+    "suggest": {
+      "message": "У твоєму профілі вже є текст резюме, але конструктор ще порожній. Розібрати його на розділи автоматично?",
+      "parseCv": "🪄 Розібрати резюме",
+      "later": "Пізніше"
+    },
+    "reports": {
+      "hide": "Приховати",
+      "tabs": {
+        "tips": "🔎 Поради",
+        "match": "🎯 Відповідність вакансії",
+        "tailor": "✨ Адаптоване резюме"
+      },
+      "tailor": {
+        "title": "✨ Адаптовано",
+        "titleFor": "✨ Адаптовано для «{{vacancy}}»",
+        "reorderedSkills_one": "{{count}} навичку",
+        "reorderedSkills_few": "{{count}} навички",
+        "reorderedSkills_many": "{{count}} навичок",
+        "reorderedSkills_other": "{{count}} навички",
+        "reorderedBullets_one": "{{count}} пункт",
+        "reorderedBullets_few": "{{count}} пункти",
+        "reorderedBullets_many": "{{count}} пунктів",
+        "reorderedBullets_other": "{{count}} пункти",
+        "reordered": "Переставлено {{skills}} і {{bullets}}, щоб на першому місці було те, що потрібно для цієї вакансії.",
+        "reorderedWithSummary": "Переставлено {{skills}} і {{bullets}}, щоб на першому місці було те, що потрібно для цієї вакансії, а також переписано підсумок.",
+        "noChangeNeeded": "Твоє резюме вже акцентує на тому, що потрібно для цієї вакансії — переставляти нічого не довелося.",
+        "applyToCv": "✅ Застосувати до резюме",
+        "exportTailoredPdf": "⬇️ Експортувати адаптований PDF"
+      },
+      "match": {
+        "summaryUpdatedToast": "Підсумок оновлено під вакансію"
+      }
+    },
+    "sections": {
+      "emptyHint": "порожньо",
+      "addedCount_one": "{{count}} додано",
+      "addedCount_few": "{{count}} додано",
+      "addedCount_many": "{{count}} додано",
+      "addedCount_other": "{{count}} додано",
+      "itemsCount_one": "{{count}} елемент",
+      "itemsCount_few": "{{count}} елементи",
+      "itemsCount_many": "{{count}} елементів",
+      "itemsCount_other": "{{count}} елементи",
+      "general": { "title": "Загальне" },
+      "experience": {
+        "title": "Досвід",
+        "entries_one": "{{count}} запис",
+        "entries_few": "{{count}} записи",
+        "entries_many": "{{count}} записів",
+        "entries_other": "{{count}} записи"
+      },
+      "skills": { "title": "Навички", "searchPlaceholder": "Пошук навички…" },
+      "projects": { "title": "Проєкти" },
+      "education": { "title": "Освіта" },
+      "languages": { "title": "Мови" },
+      "design": { "title": "Дизайн" }
+    },
+    "toasts": {
+      "enterPresetName": "Введи назву пресету",
+      "presetSaved": "Пресет «{{name}}» збережено",
+      "presetApplied": "Застосовано «{{name}}»",
+      "skillAlreadyExists": "«{{skill}}» вже є серед навичок",
+      "skillAdded": "«{{skill}}» додано до навичок",
+      "bulletUpdated": "Пункт у «{{entry}}» оновлено",
+      "entryFallback": "запис {{n}}",
+      "bulletNotFound": "Не вдалося знайти схожий пункт — текст скопійовано в буфер обміну",
+      "selectVacancy": "Обери вакансію зі списку",
+      "matchOffline": "Базове порівняння (увімкни ШІ для точнішого результату)",
+      "matchReady": "Порівняння готове",
+      "matchError": "Помилка порівняння",
+      "tailorOffline": "Адаптовано офлайн — навички/пункти переставлено (увімкни ШІ, щоб також переписати підсумок)",
+      "tailorReady": "Резюме адаптовано під вакансію",
+      "tailorError": "Помилка адаптації",
+      "tailorApplied": "Адаптовану версію застосовано в конструкторі — не забудь зберегти",
+      "needMoreDetails": "Заповни більше деталей резюме для аналізу",
+      "reviewOffline": "Базовий аналіз (увімкни ШІ для глибшого аналізу)",
+      "reviewReady": "Аналіз готовий",
+      "analysisError": "Помилка аналізу",
+      "cvSaved": "Резюме збережено",
+      "aiOffline": "ШІ офлайн — увімкни ключ",
+      "parsedFromText": "Розібрано з твого резюме на розділи",
+      "linkedinImported": "Профіль імпортовано з LinkedIn",
+      "importError": "Помилка імпорту",
+      "cvUploadedParsed": "Резюме розібрано в конструкторі й застосовано всюди",
+      "cvUploadedNoParsing": "Резюме завантажено (увімкни ШІ для автоматичного розбору на розділи)",
+      "uploadError": "Помилка завантаження"
+    }
+  },
+  "generalSection": {
+    "name": "Ім'я",
+    "roleTitle": "Посада / роль",
+    "rolePlaceholder": "Full-Stack Developer",
+    "contacts": "Контакти",
+    "contactsPlaceholder": "email · LinkedIn · GitHub",
+    "summary": "Підсумок",
+    "summaryChips": {
+      "improve": "✨ Покращити",
+      "shorter": "✂️ Коротше",
+      "ats": "🎯 ATS",
+      "technical": "🛠 Технічний",
+      "leadership": "🧭 Лідерство"
+    }
+  },
+  "experienceCard": {
+    "empty": "Ще немає записів про досвід",
+    "addFirst": "+ Додати досвід",
+    "add": "+ Додати",
+    "dragToReorder": "Перетягни, щоб змінити порядок",
+    "entryFallback": "Запис {{n}}",
+    "noRole": "Без посади",
+    "role": "Посада",
+    "company": "Компанія",
+    "period": "Період",
+    "periodPlaceholder": "2022 — дотепер",
+    "achievements": "Досягнення (по одному в рядку)",
+    "resultFocus": "✨ фокус на результат"
+  },
+  "extraSections": {
+    "projects": { "label": "Проєкти (по одному в рядку)" },
+    "education": { "label": "Освіта (по одному в рядку)" },
+    "languages": {
+      "native": "Рідна",
+      "conversational": "Розмовний",
+      "noneYet": "Поки що немає",
+      "addLanguage": "+ Додати мову",
+      "hint": "Додай мови та рівень володіння — вони з'являться окремим розділом у резюме.",
+      "languageN": "Мова {{n}}",
+      "namePlaceholder": "Англійська",
+      "level": "Рівень"
+    }
+  },
+  "appearance": {
+    "template": { "title": "Шаблон" },
+    "style": {
+      "title": "Стиль",
+      "serif": "Із засічками",
+      "sans": "Без засічок",
+      "accent": "Акцент",
+      "font": "Шрифт",
+      "textScale": "Масштаб тексту"
+    },
+    "photo": {
+      "title": "Фото",
+      "hidden": "приховано",
+      "added": "додано",
+      "none": "немає",
+      "invalidFileToast": "Обери файл зображення (PNG/JPG)",
+      "tooLargeToast": "Зображення завелике (макс. 8 МБ)",
+      "change": "🔄 Змінити",
+      "add": "🖼 Додати",
+      "remove": "Видалити",
+      "shape": "Форма",
+      "circle": "● Коло",
+      "square": "■ Квадрат",
+      "position": "Позиція",
+      "left": "← Зліва",
+      "right": "Справа →",
+      "showInPdf": "Показувати фото в PDF",
+      "addedToast": "Фото додано"
+    }
+  },
+  "layoutPresets": {
+    "order": {
+      "title": "Порядок розділів",
+      "twoColHint": "У шаблоні «Дві колонки» Навички/Мови/Освіта йдуть у бічній колонці, решта — в основній."
+    },
+    "sections": {
+      "summary": "Профіль",
+      "skills": "Навички",
+      "experience": "Досвід",
+      "projects": "Проєкти",
+      "education": "Освіта",
+      "languages": "Мови"
+    },
+    "presets": {
+      "title": "Пресети",
+      "savedCount_one": "{{count}} збережено",
+      "savedCount_few": "{{count}} збережено",
+      "savedCount_many": "{{count}} збережено",
+      "savedCount_other": "{{count}} збережено",
+      "namePlaceholder": "напр. Мій синій компактний",
+      "hint": "Пресет запам'ятовує шаблон, колір, шрифт, масштаб, стиль фото та порядок розділів."
+    }
+  },
+  "photoCropper": {
+    "title": "Обрізати фото",
+    "dragAria": "Перетягуй або використовуй стрілки для позиціонування фото",
+    "zoom": "Масштаб",
+    "zoomAria": "Масштаб фото",
+    "dragToPosition": "Перетягни, щоб розташувати",
+    "done": "Готово"
+  },
+  "preview": {
+    "toolbarLabel": "Перегляд",
+    "pagesHintTitle": "Приблизна кількість сторінок при друку в PDF — фактичний друк може дещо відрізнятися",
+    "pageBadgeMulti": "⚠ Сторінка 1 / {{pages}}",
+    "pageBadgeSingle": "✓ 1 сторінка",
+    "fullscreen": "На весь екран",
+    "exportTitle": "Дата/назва документа вгорі сторінок вимикається автоматично; якщо вона все ж з'являється — вимкни «Колонтитули» в діалозі друку",
+    "clickHint": "💡 Клацни розділ у перегляді, щоб відредагувати його",
+    "emptySectionsHint": "Порожні розділи (не потраплять у PDF): {{sections}}",
+    "previewFab": "👁 Перегляд",
+    "closePreviewAria": "Закрити перегляд",
+    "modalTitle": "Перегляд резюме",
+    "iframeTitle": "Резюме",
+    "iframeTitlePreview": "Перегляд резюме",
+    "emptyLabels": {
+      "summary": "Профіль",
+      "skills": "Навички",
+      "experience": "Досвід",
+      "projects": "Проєкти",
+      "education": "Освіта",
+      "languages": "Мови"
+    }
+  },
+  "completeness": {
+    "title": "Повнота резюме",
+    "missingHint": "Бракує: {{items}}",
+    "checks": {
+      "generalInfo": "Загальна інформація",
+      "summary": "Підсумок",
+      "skills": "Навички",
+      "experience": "Досвід",
+      "projects": "Проєкти",
+      "education": "Освіта",
+      "languages": "Мови"
+    }
+  },
+  "shareLink": {
+    "title": "🔗 Публічне посилання на резюме",
+    "description": "Будь-хто з цим посиланням може переглянути копію твого резюме лише для читання — вхід не потрібен. Зручно для надсилання поштою чи в особистих повідомленнях замість вкладення PDF.",
+    "create": "Створити публічне посилання",
+    "disable": "Вимкнути",
+    "reenable": "Увімкнути знову",
+    "linkAria": "Публічне посилання на резюме",
+    "regenerate": "↻ Перегенерувати",
+    "regenerateTitle": "Згенерувати нове посилання — старе перестане працювати",
+    "toasts": {
+      "created": "Публічне посилання створено",
+      "enabled": "Публічне посилання увімкнено",
+      "disabled": "Публічне посилання вимкнено"
+    }
+  },
+  "reports": {
+    "per100": "/100",
+    "clickToAddHint": " — клацни, щоб додати до навичок",
+    "review": {
+      "title": "🔎 Огляд резюме",
+      "strengths": "✓ Сильні сторони",
+      "improve": "△ Що покращити",
+      "addKeywordsTitle": "🔑 Додай ключові слова (ATS / пошук LinkedIn)",
+      "rewriteStronger": "✍️ Переписати сильніше (результат замість процесу)",
+      "applyToBullet": "↳ застосувати до пункту"
+    },
+    "match": {
+      "title": "🎯 Відповідність вакансії",
+      "covered": "✓ Вже враховано",
+      "missingTitle": "△ Бракує для цієї вакансії",
+      "whatToDo": "💡 Що зробити для цієї вакансії",
+      "summaryForVacancy": "✍️ Підсумок для цієї вакансії",
+      "applyToSummary": "Застосувати до підсумку"
+    }
+  },
+  "cvPage": {
+    "title": "Резюме та рекомендації",
+    "subtitleLlm": "Аналіз резюме порівняно з ринковим попитом + генерація розділу навичок і супровідного листа.",
+    "subtitleOffline": "Офлайн-режим — увімкни ШІ в server/.env для розумних порад.",
+    "exportPdf": "⬇️ Резюме в PDF",
+    "uploadLabel": "Завантажити:",
+    "processing": "Обробляємо…",
+    "uploadCvLabel": "📎 Резюме (PDF / DOCX / TXT)",
+    "aiAnalysisLabel": "ШІ-аналіз:",
+    "compareMarket": "🔍 Резюме проти ринку",
+    "deepReview": "🔎 Глибокий огляд",
+    "howItWorksSummary": "Як це працює і як завантажити з LinkedIn?",
+    "howItWorksBody": "Одне завантаження — і твоє резюме працює <b>всюди</b>: аналіз ринку, дорожня карта, план навчання, рекомендації + автоматичний розбір на розділи в <b>Конструкторі резюме</b>. <b>LinkedIn:</b> профіль → «Ще» → «Зберегти в PDF» → завантаж це тут (пряме зчитування з LinkedIn заборонено його умовами використання).",
+    "domainLabel": "Професія / роль — усі поради ШІ підлаштовуються під неї",
+    "domainPlaceholder": "напр. Full-Stack розробник, UX-дизайнер, Маркетолог…",
+    "cvTextLabel": "Текст резюме (можна редагувати або вставити вручну)",
+    "cvTextPlaceholder": "Встав або відредагуй текст свого резюме…",
+    "updateSkillsTitle": "🔧 Оновити розділ навичок",
+    "coverLetterTitle": "✉️ Супровідний лист для вакансії",
+    "coverVacancyAria": "Обери вакансію з трекера для супровідного листа",
+    "selectVacancyFromTracker": "— обери вакансію з трекера —",
+    "coverUrlAria": "Посилання на вакансію для супровідного листа",
+    "coverUrlPlaceholder": "…або встав посилання на вакансію",
+    "load": "Завантажити",
+    "coverTextAria": "Текст вакансії для супровідного листа",
+    "coverTextPlaceholder": "…або встав текст вакансії вручну",
+    "generateLetter": "Згенерувати лист",
+    "coverLetterPdfTitle": "Супровідний лист",
+    "toasts": {
+      "vacancyTextLoaded": "Текст вакансії завантажено",
+      "loadPageError": "Не вдалося завантажити сторінку",
+      "cvAppliedParsed": "Резюме застосовано всюди + розібрано в Конструкторі резюме",
+      "cvAppliedNoParsing": "Резюме застосовано всюди (увімкни ШІ для автоматичного розбору в конструкторі)",
+      "errorPrefix": "Помилка: "
+    }
+  },
+  "linkedin": {
+    "title": "💼 Оптимізатор профілю LinkedIn",
+    "description": "Генерує заголовок і розділ «About» на основі твого профілю/резюме — скопіюй прямо в LinkedIn. Доступ до акаунта LinkedIn не потрібен і не використовується.",
+    "regenerate": "↻ Перегенерувати",
+    "offlineNotice": "Офлайн-шаблон — увімкни ШІ в server/.env для персоналізованої версії",
+    "headlineLabel": "Заголовок",
+    "aboutLabel": "About"
+  },
+  "publicShare": {
+    "notFoundTitle": "Це посилання на резюме не існує або вимкнено",
+    "notFoundHint": "Перевір посилання ще раз або запитай у власника нове.",
+    "footer": "Створено на DevRadar — веди свій пошук роботи безкоштовно",
+    "iframeTitle": "Резюме"
+  }
+}

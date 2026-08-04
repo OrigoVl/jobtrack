@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useAddVacancy, useFetchAllVacancies } from "../../shared/queries";
@@ -9,6 +10,7 @@ import { fitText } from "../../shared/fit-tone";
 
 /* ---------- Analyzer ---------- */
 export function Analyzer() {
+  const { t } = useTranslation(["analyzer", "common"]);
   const addVacancyMutation = useAddVacancy();
   const fetchAllVacanciesMutation = useFetchAllVacancies();
   const [text, setText] = useUi("analyzer.text", "");
@@ -37,24 +39,18 @@ export function Analyzer() {
   };
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Vacancy analysis"
-        subtitle="Paste a vacancy's text — I'll detect the stack, level, and gaps against your profile. Added/parsed skills immediately flow into the radar, roadmap, and analytics."
-      />
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
 
       <Card>
-        <div className="text-sm font-semibold mb-1 text-ink">🔗 Auto-parse by links</div>
-        <p className="text-xs text-ink-dim mb-2">
-          Goes through every added vacancy, fetches the text from its link, and updates the stack/level/fit. Data shows up immediately in
-          Skill radar, Analytics, and Roadmap.
-        </p>
+        <div className="text-sm font-semibold mb-1 text-ink">{t("autoParse.heading")}</div>
+        <p className="text-xs text-ink-dim mb-2">{t("autoParse.description")}</p>
         <Btn onClick={fetchAll} loading={batchBusy}>
-          {batchBusy ? "Analyzing all vacancies…" : "🔗 Analyze all vacancies"}
+          {batchBusy ? t("autoParse.analyzing") : t("autoParse.button")}
         </Btn>
         {batch && (
           <div className="mt-3 text-sm">
             <div className="text-ink-dim mb-2">
-              Processed: <b>{batch.processed}</b>
+              {t("autoParse.processed")} <b>{batch.processed}</b>
             </div>
             <div className="space-y-1 max-h-64 overflow-auto">
               {batch.results.map((r) => (
@@ -78,34 +74,34 @@ export function Analyzer() {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          aria-label="Vacancy text to analyze"
-          placeholder="Paste the vacancy's text…"
+          aria-label={t("textarea.ariaLabel")}
+          placeholder={t("textarea.placeholder")}
           className="w-full h-40 bg-surface-2 border border-grid rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
         />
         <Btn className="mt-2" onClick={run} loading={busy} disabled={!text}>
-          {busy ? "Analyzing…" : "Analyze"}
+          {busy ? t("textarea.analyzing") : t("textarea.analyze")}
         </Btn>
       </Card>
 
       {res && (
         <Card className="space-y-3">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-ink-dim">Fit:</span>
+            <span className="text-sm text-ink-dim">{t("result.fit")}</span>
             <span className={"font-bold " + fitText[res.fit]}>{res.fit.toUpperCase()}</span>
             {res.level && <Chip>{res.level}</Chip>}
             {res.semanticFit != null && (
               <Chip tone={res.semanticFit >= 0.75 ? "emerald" : res.semanticFit >= 0.5 ? "amber" : "rose"}>
-                🧠 Semantic similarity to CV: {Math.round(res.semanticFit * 100)}%
+                {t("result.semanticFit", { percent: Math.round(res.semanticFit * 100) })}
               </Chip>
             )}
           </div>
           <div>
-            <div className="text-xs text-ink-dim mb-1">✅ Match with your stack</div>
+            <div className="text-xs text-ink-dim mb-1">{t("result.match")}</div>
             <div className="flex flex-wrap gap-1">
               {res.match.length ? (
-                res.match.map((t) => (
-                  <Chip key={t} tone="emerald">
-                    {t}
+                res.match.map((m) => (
+                  <Chip key={m} tone="emerald">
+                    {m}
                   </Chip>
                 ))
               ) : (
@@ -114,22 +110,22 @@ export function Analyzer() {
             </div>
           </div>
           <div>
-            <div className="text-xs text-ink-dim mb-1">⚠️ Gaps (what to pick up)</div>
+            <div className="text-xs text-ink-dim mb-1">{t("result.gaps")}</div>
             <div className="flex flex-wrap gap-1">
               {res.gap.length ? (
-                res.gap.map((t) => (
-                  <Chip key={t} tone="rose">
-                    {t}
+                res.gap.map((g) => (
+                  <Chip key={g} tone="rose">
+                    {g}
                   </Chip>
                 ))
               ) : (
-                <span className="text-ink-dim text-sm">None — you cover the stack!</span>
+                <span className="text-ink-dim text-sm">{t("result.noGaps")}</span>
               )}
             </div>
           </div>
           {res.summary && (
             <div className="border-t border-surface-2 pt-3">
-              <div className="text-xs text-ink-dim mb-1">🤖 AI summary</div>
+              <div className="text-xs text-ink-dim mb-1">{t("result.aiSummary")}</div>
               <Markdown text={res.summary} />
             </div>
           )}
@@ -140,7 +136,7 @@ export function Analyzer() {
               addVacancyMutation.mutate({ company: "From analysis", position: "", stack: res.techs, fit: res.fit, level: res.level })
             }
           >
-            + Add this vacancy to the tracker
+            {t("result.addToTracker")}
           </Btn>
         </Card>
       )}

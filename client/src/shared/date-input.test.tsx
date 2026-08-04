@@ -48,6 +48,17 @@ describe("DateInput", () => {
     fireEvent.change(input, { target: { value: "" } });
     expect(onChange).toHaveBeenCalledWith("");
   });
+
+  it("opens a calendar popover with the picker button and commits the clicked day", () => {
+    const onChange = vi.fn();
+    render(<DateInput value="2026-07-01" onChange={onChange} aria-label="Applied date" />);
+    fireEvent.click(screen.getByLabelText("Open calendar"));
+    fireEvent.click(screen.getByRole("button", { name: /July 15, 2026/ }));
+    expect(onChange).toHaveBeenCalledWith("2026-07-15");
+    expect(screen.getByLabelText("Applied date")).toHaveValue("07/15/2026");
+    // Picking a day closes the popover.
+    expect(screen.queryByLabelText("Previous month")).not.toBeInTheDocument();
+  });
 });
 
 describe("DateTimeInput", () => {
@@ -102,5 +113,23 @@ describe("DateTimeInput", () => {
     render(<DateTimeInput value="" onChange={onChange} aria-label="Event start" />);
     fireEvent.change(screen.getByLabelText("Event start"), { target: { value: "073120262565" } });
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("picking a day from the calendar popover keeps the existing time of day", () => {
+    const onChange = vi.fn();
+    render(<DateTimeInput value="2026-07-31T14:30" onChange={onChange} aria-label="Event start" />);
+    fireEvent.click(screen.getByLabelText("Open calendar"));
+    fireEvent.click(screen.getByRole("button", { name: /July 15, 2026/ }));
+    expect(onChange).toHaveBeenCalledWith("2026-07-15T14:30");
+  });
+
+  it("picking a day on an empty field defaults the time to 09:00", () => {
+    const onChange = vi.fn();
+    render(<DateTimeInput value="" onChange={onChange} aria-label="Event start" />);
+    fireEvent.click(screen.getByLabelText("Open calendar"));
+    // No selected value yet → the popover falls back to the current month; click "today" (marked
+    // via aria-current) rather than a hardcoded date so this doesn't rot as real time passes.
+    fireEvent.click(screen.getByRole("button", { current: "date" }));
+    expect(onChange).toHaveBeenCalledWith(expect.stringMatching(/T09:00$/));
   });
 });

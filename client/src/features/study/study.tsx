@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import {
@@ -14,13 +15,13 @@ import {
 import { runJs } from "./runner";
 import { Btn, Card, Chip, EmptyState, PageHeader } from "../../shared/ui";
 import { MockInterview } from "../mock/mock";
-import { plural } from "../../shared/format";
 import type { Drill } from "../../shared/types";
 
 const RUNNABLE_CATS = new Set(["JavaScript", "Algorithms"]);
 
 /* ---------- Study ---------- */
 function DrillSandbox({ drill }: { drill: Drill }) {
+  const { t } = useTranslation("study");
   const starter = useMemo(() => `${drill.sol}\n\n// Call the function and print the result: console.log(...)\n`, [drill.sol]);
   const [code, setCode] = useState(starter);
   const [result, setResult] = useState<{ logs: string[]; error: string | null; ms: number } | null>(null);
@@ -29,14 +30,14 @@ function DrillSandbox({ drill }: { drill: Drill }) {
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} className="mt-3 text-sm text-signal font-medium hover:underline self-start">
-        🧪 Open sandbox (run code)
+        {t("sandbox.open")}
       </button>
     );
   }
   return (
     <div className="mt-3 border border-grid rounded-lg overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-1.5 bg-surface-2 border-b border-grid">
-        <span className="text-xs font-semibold text-ink-dim">🧪 JS Sandbox</span>
+        <span className="text-xs font-semibold text-ink-dim">{t("sandbox.title")}</span>
         <div className="ml-auto flex gap-1">
           <Btn
             size="sm"
@@ -50,7 +51,7 @@ function DrillSandbox({ drill }: { drill: Drill }) {
               }
             }}
           >
-            ▶ Run
+            {t("sandbox.run")}
           </Btn>
           <Btn
             size="sm"
@@ -60,7 +61,7 @@ function DrillSandbox({ drill }: { drill: Drill }) {
               setResult(null);
             }}
           >
-            Reset
+            {t("sandbox.reset")}
           </Btn>
         </div>
       </div>
@@ -82,15 +83,16 @@ function DrillSandbox({ drill }: { drill: Drill }) {
               </div>
             ))
           ) : (
-            <div className="text-ink-dim">Done (no console.log). Time: {result.ms} ms</div>
+            <div className="text-ink-dim">{t("sandbox.done", { ms: result.ms })}</div>
           )}
-          {!result.error && result.logs.length > 0 && <div className="text-ink-dim mt-1">⏱ {result.ms} ms</div>}
+          {!result.error && result.logs.length > 0 && <div className="text-ink-dim mt-1">{t("sandbox.time", { ms: result.ms })}</div>}
         </div>
       )}
     </div>
   );
 }
 export function Study() {
+  const { t } = useTranslation("study");
   const { data: study } = useStudy();
   const { data: learn } = useLearn();
   const { data: health } = useHealth();
@@ -127,8 +129,8 @@ export function Study() {
       (!onlyUnsolved || drillProgress[d.id] !== "solved"),
   );
   useEffect(() => {
-    const t = setInterval(() => setSec((s) => s + 1), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setSec((s) => s + 1), 1000);
+    return () => clearInterval(timer);
   }, [i, mode]);
   useEffect(() => {
     setSec(0);
@@ -153,7 +155,7 @@ export function Study() {
       setLoadingHint(true);
       try {
         const res = await api.drillHint(drill.id);
-        setHints(res.offline || res.hints.length === 0 ? ["AI is offline — enable a key in server/.env for hints."] : res.hints);
+        setHints(res.offline || res.hints.length === 0 ? [t("drill.hintsAiOffline")] : res.hints);
         setHintsShown(1);
       } finally {
         setLoadingHint(false);
@@ -184,8 +186,8 @@ export function Study() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Practice"
-        subtitle="Smart flashcards with spaced repetition (like Anki) + a drill mode with hands-on problems."
+        title={t("title")}
+        subtitle={t("subtitle")}
         actions={
           <div className="flex gap-1">
             <Btn
@@ -197,7 +199,7 @@ export function Study() {
                 setShow(false);
               }}
             >
-              🃏 Flashcards
+              {t("tabs.flashcards")}
             </Btn>
             <Btn
               variant={mode === "drill" ? "primary" : "ghost"}
@@ -208,10 +210,10 @@ export function Study() {
                 setShow(false);
               }}
             >
-              ⌨️ Drill
+              {t("tabs.drill")}
             </Btn>
             <Btn variant={mode === "mock" ? "primary" : "ghost"} size="sm" onClick={() => setMode("mock")}>
-              🎤 Mock interview
+              {t("tabs.mock")}
             </Btn>
           </div>
         }
@@ -221,12 +223,8 @@ export function Study() {
           <span>
             ⏱ {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, "0")}
           </span>
-          {mode === "srs" && <span>Due for review today: {due.length}</span>}
-          {mode === "drill" && (
-            <span>
-              Solved: {plural(solvedCount, "problem")} of {drills.length}
-            </span>
-          )}
+          {mode === "srs" && <span>{t("stats.dueToday", { count: due.length })}</span>}
+          {mode === "drill" && <span>{t("stats.solved", { count: solvedCount, total: drills.length })}</span>}
           {mode === "srs" && cardTopic && (
             <Btn
               size="sm"
@@ -235,9 +233,9 @@ export function Study() {
               onClick={onGenerateCards}
               loading={generatingCards}
               disabled={!llm}
-              title={llm ? "" : "An LLM key is required"}
+              title={llm ? "" : t("llmKeyRequired")}
             >
-              ✨ More cards for "{cardTopic}"
+              {t("moreCards", { topic: cardTopic })}
             </Btn>
           )}
         </div>
@@ -253,20 +251,20 @@ export function Study() {
             {show && <div className="mt-3 pt-3 border-t border-surface-2 text-ink">{card.a}</div>}
             <div className="mt-auto pt-4 flex flex-wrap gap-2">
               {!show ? (
-                <Btn onClick={() => setShow(true)}>👁 Show answer</Btn>
+                <Btn onClick={() => setShow(true)}>{t("srs.showAnswer")}</Btn>
               ) : (
                 <>
                   <Btn variant="ghost" className="!bg-rose-50 !text-rose-700 !border-rose-200" onClick={() => grade(1)}>
-                    🔁 Again
+                    {t("srs.grade.again")}
                   </Btn>
                   <Btn variant="ghost" className="!bg-alert/10 !text-alert !border-alert/30" onClick={() => grade(2)}>
-                    😓 Hard
+                    {t("srs.grade.hard")}
                   </Btn>
                   <Btn variant="ghost" className="!bg-signal/10 !text-signal !border-signal/30" onClick={() => grade(3)}>
-                    ✅ Good
+                    {t("srs.grade.good")}
                   </Btn>
                   <Btn variant="ghost" className="!bg-sky-50 !text-sky-700 !border-sky-200" onClick={() => grade(4)}>
-                    🚀 Easy
+                    {t("srs.grade.easy")}
                   </Btn>
                 </>
               )}
@@ -274,11 +272,7 @@ export function Study() {
           </Card>
         ) : (
           <Card>
-            <EmptyState
-              icon="🎉"
-              title="All cards for today are done!"
-              hint="Come back tomorrow — the intervals are calculated automatically by the SRS algorithm."
-            />
+            <EmptyState icon="🎉" title={t("srs.empty.title")} hint={t("srs.empty.hint")} />
           </Card>
         ))}
 
@@ -296,7 +290,7 @@ export function Study() {
             >
               {cats.map((c) => (
                 <option key={c} value={c}>
-                  {c === "all" ? "All topics" : c}
+                  {c === "all" ? t("drill.allTopics") : c}
                 </option>
               ))}
             </select>
@@ -309,10 +303,10 @@ export function Study() {
               }}
               className="text-sm border border-grid rounded-lg px-3 py-1.5 bg-white text-ink"
             >
-              <option value="all">Any difficulty</option>
-              <option value="easy">easy</option>
-              <option value="med">medium</option>
-              <option value="hard">hard</option>
+              <option value="all">{t("drill.difficulty.any")}</option>
+              <option value="easy">{t("drill.difficulty.easy")}</option>
+              <option value="med">{t("drill.difficulty.med")}</option>
+              <option value="hard">{t("drill.difficulty.hard")}</option>
             </select>
             <label className="text-sm text-ink-dim flex items-center gap-1.5 cursor-pointer">
               <input
@@ -324,7 +318,7 @@ export function Study() {
                   setShow(false);
                 }}
               />
-              unsolved only
+              {t("drill.unsolvedOnly")}
             </label>
             <div className="ml-auto flex items-center gap-2">
               {genTech && (
@@ -334,12 +328,12 @@ export function Study() {
                   onClick={onGenerate}
                   loading={generating}
                   disabled={!llm}
-                  title={llm ? "" : "An LLM key is required"}
+                  title={llm ? "" : t("llmKeyRequired")}
                 >
-                  ✨ More problems for "{genTech}"
+                  {t("drill.moreProblems", { tech: genTech })}
                 </Btn>
               )}
-              <span className="text-xs text-ink-dim">{plural(filteredDrills.length, "problem")}</span>
+              <span className="text-xs text-ink-dim">{t("drill.problemsCount", { count: filteredDrills.length })}</span>
             </div>
           </div>
           {drill ? (
@@ -347,10 +341,10 @@ export function Study() {
               <div className="flex items-center gap-2">
                 <span className="text-xs uppercase tracking-wide text-signal font-bold">{drill.cat}</span>
                 <Chip>{drill.lvl}</Chip>
-                {drill.generated && <Chip tone="indigo">✨ AI tailored for you</Chip>}
+                {drill.generated && <Chip tone="indigo">{t("drill.aiTailored")}</Chip>}
                 {drillProgress[drill.id] === "solved" && (
                   <span className="text-xs font-semibold text-signal bg-signal/10 border border-signal/30 rounded-full px-2 py-0.5">
-                    ✓ solved
+                    {t("drill.solvedBadge")}
                   </span>
                 )}
                 <span className="text-xs text-ink-dim ml-auto">
@@ -362,7 +356,7 @@ export function Study() {
                 <div className="mt-3 space-y-1.5">
                   {hints.slice(0, hintsShown).map((h, idx) => (
                     <div key={`${drill.id}-hint-${idx}`} className="text-sm text-alert bg-alert/10 border border-alert/30 rounded-lg p-2.5">
-                      💡 <b>Hint {idx + 1}:</b> {h}
+                      💡 <b>{t("drill.hintLabel", { num: idx + 1 })}</b> {h}
                     </div>
                   ))}
                 </div>
@@ -375,15 +369,19 @@ export function Study() {
               )}
               {RUNNABLE_CATS.has(drill.cat) && <DrillSandbox key={drill.id} drill={drill} />}
               <div className="mt-auto pt-4 flex flex-wrap gap-2">
-                {!show && <Btn onClick={() => setShow(true)}>👁 Show solution</Btn>}
+                {!show && <Btn onClick={() => setShow(true)}>{t("drill.showSolution")}</Btn>}
                 {!show && (
                   <Btn variant="ghost" onClick={revealHint} loading={loadingHint} disabled={hints.length > 0 && hintsShown >= hints.length}>
-                    {hintsShown === 0 ? "💡 Hint" : hintsShown < hints.length ? "💡 Another hint" : "💡 No more hints"}
+                    {hintsShown === 0
+                      ? t("drill.hintButton.first")
+                      : hintsShown < hints.length
+                        ? t("drill.hintButton.another")
+                        : t("drill.hintButton.none")}
                   </Btn>
                 )}
                 {drillProgress[drill.id] === "solved" ? (
                   <Btn variant="ghost" onClick={() => setDrillStatusMutation.mutate({ id: drill.id, status: "todo" })}>
-                    ↩︎ Reset
+                    {t("drill.reset")}
                   </Btn>
                 ) : (
                   <Btn
@@ -391,7 +389,7 @@ export function Study() {
                     className="!bg-signal/10 !text-signal !border-signal/30"
                     onClick={() => setDrillStatusMutation.mutate({ id: drill.id, status: "solved" })}
                   >
-                    ✅ Done
+                    {t("drill.done")}
                   </Btn>
                 )}
                 <Btn
@@ -401,7 +399,7 @@ export function Study() {
                     setShow(false);
                   }}
                 >
-                  ← Previous
+                  {t("drill.previous")}
                 </Btn>
                 <Btn
                   variant="ghost"
@@ -410,17 +408,13 @@ export function Study() {
                     setShow(false);
                   }}
                 >
-                  Next →
+                  {t("drill.next")}
                 </Btn>
               </div>
             </Card>
           ) : (
             <Card>
-              <EmptyState
-                icon="🔍"
-                title="No problems match this filter"
-                hint='Try a different topic, difficulty, or turn off "unsolved only".'
-              />
+              <EmptyState icon="🔍" title={t("drill.empty.title")} hint={t("drill.empty.hint")} />
             </Card>
           )}
         </>

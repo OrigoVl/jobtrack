@@ -13,6 +13,7 @@ import logger from "./core/logger.js";
 import { errorHandler } from "./core/error-handler.js";
 import { apiLimiter } from "./core/rate-limit.js";
 import { runWithRequestContext } from "./core/request-context.js";
+import { DEFAULT_LOCALE, isAppLocale } from "./shared/locale.js";
 import { auth } from "./auth/auth.js";
 import routes from "./routes.js";
 
@@ -86,8 +87,18 @@ app.use(
 // Thread the reqId (issued by pino-http above) through AsyncLocalStorage so that code without
 // direct access to `req` (the LLM client, deep services) can attach it to its own logs via
 // core/logger.ts#contextLogger() — end-to-end correlation of a single request across logs.
+// Locale rides the same context (see request-context.ts) — read here from the client's X-Locale
+// header (shared/api.ts, auth-client.ts) so it's available to better-auth's email callbacks
+// below AND to llm/client.ts deep in the stack, from one middleware. An unrecognized/missing
+// header value falls back to the default rather than rejecting the request — this header is
+// metadata about presentation, never something a request should 400 over.
 app.use((req, _res, next) => {
-  runWithRequestContext(req.id != null ? String(req.id) : randomUUID(), next);
+  // Node normalizes a repeated header into an array — a client only ever sends one, but treat
+  // that case as "no locale" rather than throwing.
+  const rawLocale = req.headers["x-locale"];
+  const headerValue = typeof rawLocale === "string" ? rawLocale : undefined;
+  const locale = headerValue && isAppLocale(headerValue) ? headerValue : DEFAULT_LOCALE;
+  runWithRequestContext(req.id != null ? String(req.id) : randomUUID(), locale, next);
 });
 
 // better-auth's handler reads the raw request body itself — it MUST be mounted before

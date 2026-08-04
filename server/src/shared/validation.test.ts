@@ -89,6 +89,15 @@ describe("parseJsonVacancyItem", () => {
     expect(() => parseJsonVacancyItem({ ...validItem, fit: "ultra" })).toThrow(HttpError);
   });
 
+  it("normalizes common Ukrainian status labels to the canonical wire value", () => {
+    expect(parseJsonVacancyItem({ ...validItem, status: "Хочу подати" }).status).toBe("Want to apply");
+    expect(parseJsonVacancyItem({ ...validItem, status: "Відправив CV" }).status).toBe("Applied");
+    expect(parseJsonVacancyItem({ ...validItem, status: "Скринінг" }).status).toBe("Screening");
+    expect(parseJsonVacancyItem({ ...validItem, status: "Відмова" }).status).toBe("Rejected");
+    // case/whitespace-insensitive
+    expect(parseJsonVacancyItem({ ...validItem, status: "  скринінг  " }).status).toBe("Screening");
+  });
+
   it("rejects a non-ISO applied/next date", () => {
     expect(() => parseJsonVacancyItem({ ...validItem, applied: "26.07.2026" })).toThrow(HttpError);
   });

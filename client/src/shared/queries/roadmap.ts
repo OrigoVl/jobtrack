@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import type { RoadmapData, RoadmapStatus } from "../types";
-import { useToast } from "../use-toast";
+import { useMutationErrorToast } from "../use-error-toast";
 import { queryKeys } from "./keys";
 
 export function useRoadmap() {
@@ -31,7 +31,7 @@ interface RoadmapCtx {
 /** Optimistic toggling of skill status with rollback on network error. */
 export function useSetRoadmapStatus() {
   const qc = useQueryClient();
-  const { toast } = useToast();
+  const onErrorToast = useMutationErrorToast();
   return useMutation<{ ok: boolean }, Error, { tech: string; status: RoadmapStatus }, RoadmapCtx>({
     mutationFn: ({ tech, status }) => api.setRoadmapStatus(tech, status),
     onMutate: async ({ tech, status }) => {
@@ -42,7 +42,7 @@ export function useSetRoadmapStatus() {
     },
     onError: (e, _vars, ctx) => {
       if (ctx?.previous) qc.setQueryData(queryKeys.roadmap, ctx.previous);
-      toast(e instanceof Error ? e.message : "An error occurred", "error");
+      onErrorToast(e);
     },
   });
 }

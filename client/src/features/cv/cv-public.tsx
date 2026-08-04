@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useCvPublic } from "../../shared/queries";
 import { buildCvHtml } from "./builder/cv-doc-utils";
 
@@ -11,6 +12,7 @@ import { buildCvHtml } from "./builder/cv-doc-utils";
  * those are CV Builder-only editor UX that doesn't belong on a public page.
  */
 export function CvPublic() {
+  const { t } = useTranslation(["cv", "common"]);
   const { slug = "" } = useParams();
   const { data, isLoading, isError } = useCvPublic(slug);
   const [frameHeight, setFrameHeight] = useState(800);
@@ -18,17 +20,17 @@ export function CvPublic() {
   return (
     <div className="min-h-screen bg-bg flex flex-col">
       <div className="flex-1">
-        {isLoading && <div className="text-center text-ink-dim text-sm py-20">Loading…</div>}
+        {isLoading && <div className="text-center text-ink-dim text-sm py-20">{t("common:state.loading")}</div>}
         {isError && (
           <div className="max-w-md mx-auto text-center py-20 px-4">
             <div className="text-4xl mb-3">🔗</div>
-            <div className="font-display font-semibold text-ink">This CV link doesn't exist or has been disabled</div>
-            <p className="text-sm text-ink-dim mt-2">Double-check the link, or ask its owner for a fresh one.</p>
+            <div className="font-display font-semibold text-ink">{t("publicShare.notFoundTitle")}</div>
+            <p className="text-sm text-ink-dim mt-2">{t("publicShare.notFoundHint")}</p>
           </div>
         )}
         {data && (
           <iframe
-            title="CV"
+            title={t("publicShare.iframeTitle")}
             srcDoc={buildCvHtml(data.doc)}
             onLoad={(e) => setFrameHeight(e.currentTarget.contentDocument?.documentElement.scrollHeight ?? 800)}
             style={{ width: "100%", height: frameHeight, border: 0 }}
@@ -45,7 +47,7 @@ export function CvPublic() {
         rel="noreferrer"
         className="block text-center text-xs text-ink-dim py-3 border-t border-grid hover:text-signal transition-colors"
       >
-        Built with DevRadar — track your own job search free
+        {t("publicShare.footer")}
       </a>
     </div>
   );

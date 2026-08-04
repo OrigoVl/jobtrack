@@ -38,9 +38,9 @@ r.get(
   asyncHandler(async (req, res) => {
     const slug = String(req.params.slug || "");
     const share = await getShareBySlug(slug);
-    if (!share || !share.enabled) throw new HttpError(404, "This CV link doesn't exist or has been disabled");
+    if (!share || !share.enabled) throw new HttpError(404, "This CV link doesn't exist or has been disabled", null, "CV_SHARE_NOT_FOUND");
     const stored = await getKvJson(share.userId, "cvDoc");
-    if (!stored) throw new HttpError(404, "This CV link doesn't exist or has been disabled");
+    if (!stored) throw new HttpError(404, "This CV link doesn't exist or has been disabled", null, "CV_SHARE_NOT_FOUND");
     res.json({ doc: CvDocSchema.parse(stored) });
   }),
 );

@@ -23,6 +23,10 @@ r.post(
     const vt = String(vacancyText || "");
     const techs = extractTechs(vt).map((t) => t.name);
     const matched = techs.filter((t) => profile.skills.includes(t));
+    // No outputLocale — a cover letter should follow the VACANCY's language, not the UI's (a
+    // Ukrainian-UI user applying to a US company shouldn't get a Ukrainian letter). Hardcoded to
+    // English for now rather than detecting the vacancy's language — a real enhancement, but a
+    // separate one from this app's i18n rollout, not something to bundle in here.
     const text = await chat(
       userId,
       "You write short, personalized cover letters in English. To the point, no cliches or filler, a warm professional tone. Don't invent facts that aren't in the resume.",

@@ -1,0 +1,38 @@
+{
+  "title": "Analytics",
+  "subtitle": "Your application funnel and technology demand — all computed from real data.",
+  "empty": {
+    "title": "Empty for now",
+    "hint": "Add vacancies and their stack — the charts will fill in on their own."
+  },
+  "funnel": {
+    "heading": "Application funnel"
+  },
+  "funnelReached": {
+    "heading": "How many vacancies ever reached this stage",
+    "description": "Unlike the \"Application funnel\" above (where things stand now), this shows how many vacancies passed through each stage at least once, ever, regardless of how it ended up (e.g. a rejection at the interview stage still counts here)."
+  },
+  "conversion": {
+    "heading": "Conversion between stages",
+    "description": "What share of vacancies that reached a stage also reached the next one — shows where your funnel actually \"filters\"."
+  },
+  "stageDurations": {
+    "heading": "Where each step \"gets stuck\" the longest",
+    "description": "Average number of days between a vacancy entering this stage and its next status change.",
+    "unit": "d",
+    "average": "Average"
+  },
+  "demand": {
+    "heading": "Technology demand (from added vacancies)"
+  },
+  "radar": {
+    "title": "Skill radar",
+    "subtitle": "Your skills against real market demand (computed from the stack of added vacancies). Where green is smaller than purple — that's a gap.",
+    "empty": {
+      "title": "No data yet",
+      "hint": "Add vacancies or analyze their stack — and the radar will show up automatically."
+    },
+    "marketDemand": "Market demand",
+    "you": "You"
+  }
+}

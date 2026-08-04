@@ -119,7 +119,7 @@ export async function getDynamicKnowledge(
   const role = profile.domain || "professional";
   const out = await chatJson(
     userId,
-    `You are a mentor for the role "${role}". Respond with ONLY valid JSON in English.`,
+    `You are a mentor for the role "${role}". Respond with ONLY valid JSON.`,
     `The candidate already knows: ${skills.join(", ") || "—"}.\n` +
       `They need to pick up "${tech}"${count ? ` (required in ${count} vacancies from the list)` : ""}.\n` +
       `Build bridges from their familiar stack to the new one; don't duplicate what they already know.\n` +
@@ -128,7 +128,7 @@ export async function getDynamicKnowledge(
       `"learn":["5-7 concrete topics from easy to advanced, interview-oriented"],` +
       `"resources":[{"t":"name","u":"https URL of official docs or a well-known tutorial"}]}`,
     DynamicKnowledgeSchema,
-    { maxTokens: 650, temperature: 0.4, tier: "smart", feature: "knowledge" },
+    { maxTokens: 650, temperature: 0.4, tier: "smart", feature: "knowledge", outputLocale: "app" },
   );
   if (!out || out.learn.length === 0) {
     return { ...shared, focus: out?.focus ?? null, learn: base.learn, resources: base.resources, source: "static" };

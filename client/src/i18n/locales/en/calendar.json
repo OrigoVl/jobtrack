@@ -1,0 +1,51 @@
+{
+  "title": "Calendar",
+  "subtitle": "Interviews, calls, deadlines and reminders — plus your vacancies' next steps and SRS due-cards — in one connected view.",
+  "addEvent": "Add event",
+  "addEventShort": "+ Add",
+  "today": "Today",
+  "eventType": {
+    "interview": "Interview",
+    "call": "Call",
+    "deadline": "Deadline",
+    "reminder": "Reminder",
+    "other": "Other"
+  },
+  "legend": {
+    "vacancyStep": "Vacancy step",
+    "srsDue": "SRS due"
+  },
+  "dayAriaLabel_one": "{{date}}, {{count}} event",
+  "dayAriaLabel_other": "{{date}}, {{count}} events",
+  "dayAriaLabelNoEvents": "{{date}}",
+  "empty": {
+    "title": "Nothing on this day",
+    "hint": "Add an event, or check back once a vacancy step or SRS review is due."
+  },
+  "nextStep": "Next step",
+  "goToVacancies": "→ Vacancies",
+  "goToStudy": "→ Study",
+  "flashcardsDue_one": "{{count}} flashcard due for review",
+  "flashcardsDue_other": "{{count}} flashcards due for review",
+  "untitledEvent": "Untitled event",
+  "editAriaLabel": "Edit {{title}}",
+  "deleteAriaLabel": "Delete {{title}}",
+  "modal": {
+    "editEvent": "Edit event",
+    "newEvent": "New event",
+    "titleLabel": "Title",
+    "titlePlaceholder": "e.g. On-site interview at Acme",
+    "starts": "Starts",
+    "endsOptional": "Ends (optional)",
+    "type": "Type",
+    "linkedVacancy": "Linked vacancy (optional)",
+    "none": "— none —",
+    "position": "Position",
+    "notes": "Notes"
+  },
+  "toasts": {
+    "added": "Event added",
+    "saved": "Saved",
+    "deleted": "Deleted"
+  }
+}

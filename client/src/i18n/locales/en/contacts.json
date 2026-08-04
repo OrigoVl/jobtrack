@@ -1,0 +1,34 @@
+{
+  "title": "Contacts",
+  "subtitle": "A lightweight networking tracker — recruiters, referrals, people you've met — separate from your Companies notes.",
+  "addContact": "+ Add contact",
+  "empty": {
+    "title": "No contacts yet",
+    "hint": "Add a recruiter, referral, or anyone worth following up with."
+  },
+  "editAriaLabel": "Edit {{name}}",
+  "deleteAriaLabel": "Delete {{name}}",
+  "lastContact": "Last contact: {{date}}",
+  "linkedin": "LinkedIn ↗",
+  "modal": {
+    "closeAriaLabel": "Close",
+    "editTitle": "Edit contact",
+    "newTitle": "New contact",
+    "name": "Name",
+    "namePlaceholder": "e.g. Jane Recruiter",
+    "role": "Role",
+    "rolePlaceholder": "e.g. Engineering Manager",
+    "company": "Company (optional)",
+    "companyNone": "— none —",
+    "email": "Email",
+    "lastContacted": "Last contacted",
+    "linkedinUrl": "LinkedIn URL",
+    "notes": "Notes",
+    "notesPlaceholder": "How you met, what they said, follow-up ideas…"
+  },
+  "toasts": {
+    "contactAdded": "Contact added",
+    "saved": "Saved",
+    "deleted": "Deleted"
+  }
+}

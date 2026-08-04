@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import type { StudyState } from "../types";
 import { useToast } from "../use-toast";
+import { useMutationErrorToast } from "../use-error-toast";
 import { queryKeys } from "./keys";
 
 export function useStudy() {
@@ -10,11 +12,11 @@ export function useStudy() {
 
 export function useGradeCard() {
   const qc = useQueryClient();
-  const { toast } = useToast();
+  const onError = useMutationErrorToast();
   return useMutation({
     mutationFn: ({ cardId, grade }: { cardId: string; grade: number }) => api.grade(cardId, grade),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.study }),
-    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
+    onError,
   });
 }
 
@@ -24,7 +26,7 @@ interface DrillCtx {
 
 export function useSetDrillStatus() {
   const qc = useQueryClient();
-  const { toast } = useToast();
+  const onErrorToast = useMutationErrorToast();
   return useMutation<{ ok: boolean }, Error, { id: string; status: "solved" | "todo" }, DrillCtx>({
     mutationFn: ({ id, status }) => api.setDrillStatus(id, status),
     onMutate: async ({ id, status }) => {
@@ -43,7 +45,7 @@ export function useSetDrillStatus() {
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.roadmap }),
     onError: (e, _vars, ctx) => {
       if (ctx?.previous) qc.setQueryData(queryKeys.study, ctx.previous);
-      toast(e instanceof Error ? e.message : "An error occurred", "error");
+      onErrorToast(e);
     },
   });
 }
@@ -51,39 +53,35 @@ export function useSetDrillStatus() {
 export function useGenerateDrills() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation("study");
+  const onError = useMutationErrorToast();
   return useMutation({
     mutationFn: (tech: string) => api.generateDrills(tech),
     onSuccess: async (res, tech) => {
       await Promise.all([qc.invalidateQueries({ queryKey: queryKeys.study }), qc.invalidateQueries({ queryKey: queryKeys.roadmap })]);
       toast(
-        res.offline
-          ? "AI offline — enable the key in server/.env"
-          : res.added
-            ? `Added ${res.added} new tasks for "${tech}"`
-            : "No new tasks generated (all already exist)",
+        res.offline ? t("toasts.aiOffline") : res.added ? t("toasts.drillsAdded", { count: res.added, tech }) : t("toasts.drillsNoneAdded"),
         res.added ? "success" : "info",
       );
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
+    onError,
   });
 }
 
 export function useGenerateCards() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation("study");
+  const onError = useMutationErrorToast();
   return useMutation({
     mutationFn: (topic: string) => api.generateCards(topic),
     onSuccess: async (res, topic) => {
       await qc.invalidateQueries({ queryKey: queryKeys.study });
       toast(
-        res.offline
-          ? "AI offline — enable the key in server/.env"
-          : res.added
-            ? `Added ${res.added} new cards for "${topic}"`
-            : "No new cards generated (all already exist)",
+        res.offline ? t("toasts.aiOffline") : res.added ? t("toasts.cardsAdded", { count: res.added, topic }) : t("toasts.cardsNoneAdded"),
         res.added ? "success" : "info",
       );
     },
-    onError: (e) => toast(e instanceof Error ? e.message : "An error occurred", "error"),
+    onError,
   });
 }

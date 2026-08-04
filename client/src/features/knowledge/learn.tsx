@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useLearn } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Chip, PageHeader } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
-import { plural } from "../../shared/format";
 import type { KnowledgeData, LearnGap } from "../../shared/types";
 
 /* ---------- Learn Plan ---------- */
 function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolean; defaultOpen: boolean }) {
+  const { t } = useTranslation(["learn", "common"]);
   const [dyn, setDyn] = useState<KnowledgeData | null>(null);
   const [loading, setLoading] = useState(false);
   const loadedRef = useRef(false);
@@ -36,19 +37,19 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
     >
       <summary className="cursor-pointer px-4 py-3 flex items-center gap-2 select-none">
         <span className="font-semibold text-ink">{gap.tech}</span>
-        <Chip tone="rose">{gap.count} vac.</Chip>
-        {dyn?.source === "ai" && <Chip tone="indigo">AI for you</Chip>}
-        <span className="ml-auto text-ink-dim text-sm">expand</span>
+        <Chip tone="rose">{t("gapDetails.vacancyCount", { count: gap.count })}</Chip>
+        {dyn?.source === "ai" && <Chip tone="indigo">{t("gapDetails.aiForYou")}</Chip>}
+        <span className="ml-auto text-ink-dim text-sm">{t("gapDetails.expand")}</span>
       </summary>
       <div className="px-4 pb-4 border-t border-surface-2 space-y-3">
-        {loading && <div className="text-xs text-ink-dim mt-3">✨ Personalizing topics to your stack…</div>}
+        {loading && <div className="text-xs text-ink-dim mt-3">{t("gapDetails.personalizing")}</div>}
         {dyn?.focus && (
           <div className="rounded-lg bg-signal/10 border border-signal/20 p-2.5 text-sm text-signal mt-3">
-            <span className="font-semibold">✨ Personal focus:</span> <Markdown text={dyn.focus} inline />
+            <span className="font-semibold">{t("gapDetails.personalFocus")}</span> <Markdown text={dyn.focus} inline />
           </div>
         )}
         <div>
-          <div className="text-xs text-ink-dim mt-3 mb-1">What to learn</div>
+          <div className="text-xs text-ink-dim mt-3 mb-1">{t("gapDetails.whatToLearn")}</div>
           <ul className="list-disc pl-5 text-sm text-ink space-y-1">
             {topics.map((l, i) => (
               <li key={i}>{l}</li>
@@ -56,7 +57,7 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
           </ul>
         </div>
         <div>
-          <div className="text-xs text-ink-dim mb-1">Resources</div>
+          <div className="text-xs text-ink-dim mb-1">{t("gapDetails.resources")}</div>
           <div className="flex flex-wrap gap-2">
             {resources.map((r) => (
               <a
@@ -73,7 +74,7 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
         </div>
         {gap.drills.length > 0 && (
           <div>
-            <div className="text-xs text-ink-dim mb-1">Practice problems (the "Practice" tab)</div>
+            <div className="text-xs text-ink-dim mb-1">{t("gapDetails.practiceProblems")}</div>
             <ul className="list-disc pl-5 text-sm text-ink-dim space-y-1">
               {gap.drills.map((d, i) => (
                 <li key={i}>
@@ -88,6 +89,7 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
   );
 }
 export function LearnPlan({ llm }: { llm: boolean }) {
+  const { t } = useTranslation(["learn", "common"]);
   const { data: learn, isLoading } = useLearn();
   const [plan, setPlan] = useUi("learn.plan", "");
   const [busy, setBusy] = useState(false);
@@ -95,11 +97,7 @@ export function LearnPlan({ llm }: { llm: boolean }) {
     setBusy(true);
     try {
       const r = await api.learnPlan();
-      setPlan(
-        r.offline
-          ? "A personal AI plan is only available with the LLM enabled (set a key in server/.env). Below are materials prioritized by demand."
-          : r.plan || "",
-      );
+      setPlan(r.offline ? t("offlinePlanFallback") : r.plan || "");
     } finally {
       setBusy(false);
     }
@@ -109,17 +107,17 @@ export function LearnPlan({ llm }: { llm: boolean }) {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Learning plan"
-        subtitle={`Built dynamically from ${plural(learn.totalVacancies, "added vacancy", "added vacancies")}, compared against your profile. Close gaps top to bottom.`}
+        title={t("title")}
+        subtitle={t("subtitle", { count: learn.totalVacancies })}
         actions={
           <Btn onClick={genPlan} loading={busy} disabled={!llm}>
-            🤖 Personal plan (AI)
+            {t("personalPlanButton")}
           </Btn>
         }
       />
       {learn.strengths.length > 0 && (
         <Card>
-          <div className="text-xs text-ink-dim mb-1">✅ Your strengths against demand</div>
+          <div className="text-xs text-ink-dim mb-1">{t("strengths")}</div>
           <div className="flex flex-wrap gap-1">
             {learn.strengths.slice(0, 12).map((s) => (
               <Chip key={s.tech} tone="emerald">
@@ -131,15 +129,15 @@ export function LearnPlan({ llm }: { llm: boolean }) {
       )}
       {plan && (
         <Card>
-          <div className="text-sm font-semibold mb-2 text-ink">🤖 Your personal plan</div>
+          <div className="text-sm font-semibold mb-2 text-ink">{t("yourPlan")}</div>
           <Markdown text={plan} />
         </Card>
       )}
 
-      <div className="text-sm text-ink-dim">⚠️ Gaps by priority ({learn.gaps.length}):</div>
+      <div className="text-sm text-ink-dim">{t("gapsByPriority", { count: learn.gaps.length })}</div>
       {learn.gaps.length === 0 && (
         <Card>
-          <div className="text-signal font-medium">🎉 You cover the entire stack of added vacancies!</div>
+          <div className="text-signal font-medium">{t("allCovered")}</div>
         </Card>
       )}
       {learn.gaps.map((g, idx) => (

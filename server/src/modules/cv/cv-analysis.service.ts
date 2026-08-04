@@ -133,9 +133,12 @@ export async function reviewCv(userId: UserId, cvText: string): Promise<CvReview
   const role = profile.domain || "specialist";
   const demand = await demandMap(userId);
   if (!llmAvailable()) return { offline: true, ...heuristicReview(cvText) };
+  // outputLocale: "app" here is correct (unlike the resume-editing prompts in cv.routes.ts) —
+  // this is FEEDBACK ABOUT the resume, shown to the user in their own UI, not text destined for
+  // the resume document itself.
   const out = await chatJson(
     userId,
-    `You are an experienced technical recruiter and career coach for the role "${role}". You give honest, actionable feedback on resumes. Respond with ONLY valid JSON, in English.`,
+    `You are an experienced technical recruiter and career coach for the role "${role}". You give honest, actionable feedback on resumes. Respond with ONLY valid JSON.`,
     `Candidate's resume:\n${cvText}\n\n` +
       `Market demand (skills from job postings): ${JSON.stringify(demand)}.\n` +
       `Evaluate the resume on these principles: focus on RESULTS (not process), quantitative metrics, strong verbs, ATS keywords matching demand, specifics on AI/tools (exactly what and what impact).\n` +
@@ -151,7 +154,7 @@ export async function reviewCv(userId: UserId, cvText: string): Promise<CvReview
     // invalid and silently (HTTP 200, so the r.ok check above didn't catch it) falls back to the
     // offline heuristic — this is exactly what the reported bug looked like ("I click Advice
     // and get generic text").
-    { maxTokens: 2200, temperature: 0.4, cache: true, tier: "smart", feature: "cv-review" },
+    { maxTokens: 2200, temperature: 0.4, cache: true, tier: "smart", feature: "cv-review", outputLocale: "app" },
   );
   // offline:true (NOT false) — what follows is the same offline heuristic used when the LLM is
   // disabled (llmAvailable()===false above). A false "offline:false" here meant the client (and
@@ -203,9 +206,11 @@ function heuristicMatch(cvText: string, jobText: string, reason: FallbackReason 
 export async function matchCv(userId: UserId, cvText: string, jobTitle: string, jobText: string): Promise<CvMatch & { offline: boolean }> {
   const combined = `${jobTitle}\n${jobText}`;
   if (!llmAvailable()) return { offline: true, ...heuristicMatch(cvText, combined) };
+  // Same reasoning as reviewCv above — this is gap-analysis FEEDBACK shown to the user, so it
+  // follows the app's UI locale (outputLocale: "app" below), not the resume's own language.
   const out = await chatJson(
     userId,
-    "You are a technical recruiter. You compare a candidate's resume against the requirements of a SPECIFIC vacancy and give a targeted gap analysis. Respond with ONLY valid JSON, in English. Don't invent experience that isn't in the resume.",
+    "You are a technical recruiter. You compare a candidate's resume against the requirements of a SPECIFIC vacancy and give a targeted gap analysis. Respond with ONLY valid JSON. Don't invent experience that isn't in the resume.",
     `Vacancy: ${jobTitle}\nRequirements/description/stack:\n${jobText}\n\nCandidate's resume:\n${cvText}\n\n` +
       `Return JSON strictly: {"score":<0-100 how well the CV fits this vacancy>,` +
       `"verdict":"1-2 sentence verdict",` +
@@ -215,7 +220,7 @@ export async function matchCv(userId: UserId, cvText: string, jobTitle: string, 
       `"tailoredSummary":"a summary tailored to this vacancy, 2-3 sentences, based only on the candidate's real experience"}`,
     CvMatchSchema,
     // maxTokens 1800 (not 1000) — the same risk of generation being cut off as in reviewCv above.
-    { maxTokens: 1800, temperature: 0.4, cache: true, tier: "smart", feature: "cv-match" },
+    { maxTokens: 1800, temperature: 0.4, cache: true, tier: "smart", feature: "cv-match", outputLocale: "app" },
   );
   // Same fix as in reviewCv above: this is the offline heuristic, not an LLM result.
   if (!out) return { offline: true, ...heuristicMatch(cvText, combined, "llm-failed") };

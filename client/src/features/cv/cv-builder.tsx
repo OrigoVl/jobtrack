@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useToast } from "../../shared/use-toast";
@@ -32,6 +33,7 @@ function vacancyLabel(vac: Vacancy): string {
 
 /* ---------- CV Builder ---------- */
 export function CvBuilder({ llm }: { llm: boolean }) {
+  const { t } = useTranslation(["cv", "common"]);
   const { data: profile } = useProfile();
   const { data: vacancies = [] } = useVacancies();
   const applyCvUpload = useApplyCvUpload();
@@ -93,7 +95,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   const savePreset = async () => {
     const name = presetName.trim();
     if (!name) {
-      toast("Enter a preset name", "error");
+      toast(t("builder.toasts.enterPresetName"), "error");
       return;
     }
     const next = [...presets.filter((p) => p.name.toLowerCase() !== name.toLowerCase()), { name, theme }];
@@ -102,22 +104,22 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       const r = await api.saveCvPresets(next);
       setPresets(r.presets);
       setPresetName("");
-      toast(`Preset "${name}" saved`, "success");
+      toast(t("builder.toasts.presetSaved", { name }), "success");
     } finally {
       setBusy("");
     }
   };
   const applyPreset = (p: CvPreset) => {
     setTheme(p.theme);
-    toast(`Applied "${p.name}"`, "info");
+    toast(t("builder.toasts.presetApplied", { name: p.name }), "info");
   };
   const addSkill = (k: string) => {
     if (doc.skills.some((s) => s.toLowerCase() === k.toLowerCase())) {
-      toast(`"${k}" already in skills`, "info");
+      toast(t("builder.toasts.skillAlreadyExists", { skill: k }), "info");
       return;
     }
     set({ skills: [...doc.skills, k] });
-    toast(`Added "${k}" to skills`, "success");
+    toast(t("builder.toasts.skillAdded", { skill: k }), "success");
   };
   const applyRewrite = (before: string, after: string) => {
     const norm = (s: string) =>
@@ -142,16 +144,21 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           ei === best.ei ? { ...e, bullets: e.bullets.map((bl, bi) => (bi === best.bi ? after : bl)) } : e,
         ),
       });
-      toast(`Updated the bullet in "${doc.experience[best.ei].role || `entry ${best.ei + 1}`}"`, "success");
+      toast(
+        t("builder.toasts.bulletUpdated", {
+          entry: doc.experience[best.ei].role || t("builder.toasts.entryFallback", { n: best.ei + 1 }),
+        }),
+        "success",
+      );
       return;
     }
     navigator.clipboard?.writeText(after).catch(() => undefined);
-    toast("Couldn't find a similar bullet — text copied to clipboard", "info");
+    toast(t("builder.toasts.bulletNotFound"), "info");
   };
   const doMatch = async () => {
     const vac = vacancies.find((v) => v.id === matchVacId);
     if (!vac) {
-      toast("Select a vacancy from the list", "error");
+      toast(t("builder.toasts.selectVacancy"), "error");
       return;
     }
     setBusyMatch(true);
@@ -159,9 +166,9 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       const r = await api.matchVacancy(cvDocToText(doc), vacancyLabel(vac), vacancyJobText(vac));
       setMatch(r);
       setActiveReport("match");
-      toast(r.offline ? "Basic comparison (enable LLM for accurate results)" : "Comparison ready", r.offline ? "info" : "success");
+      toast(r.offline ? t("builder.toasts.matchOffline") : t("builder.toasts.matchReady"), r.offline ? "info" : "success");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Comparison error", "error");
+      toast(e instanceof Error ? e.message : t("builder.toasts.matchError"), "error");
     } finally {
       setBusyMatch(false);
     }
@@ -173,7 +180,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   const doTailor = async () => {
     const vac = vacancies.find((v) => v.id === matchVacId);
     if (!vac) {
-      toast("Select a vacancy from the list", "error");
+      toast(t("builder.toasts.selectVacancy"), "error");
       return;
     }
     setBusyTailor(true);
@@ -181,14 +188,9 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       const r = await api.tailorCv(doc, vacancyLabel(vac), vacancyJobText(vac));
       setTailored(r);
       setActiveReport("tailor");
-      toast(
-        r.match.offline
-          ? "Tailored offline — skills/bullets reordered (enable LLM for a rewritten summary too)"
-          : "CV tailored for this vacancy",
-        r.match.offline ? "info" : "success",
-      );
+      toast(r.match.offline ? t("builder.toasts.tailorOffline") : t("builder.toasts.tailorReady"), r.match.offline ? "info" : "success");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Tailoring error", "error");
+      toast(e instanceof Error ? e.message : t("builder.toasts.tailorError"), "error");
     } finally {
       setBusyTailor(false);
     }
@@ -196,12 +198,12 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   const applyTailored = () => {
     if (!tailored) return;
     setDoc(tailored.doc);
-    toast("Tailored version applied to the builder — remember to Save", "success");
+    toast(t("builder.toasts.tailorApplied"), "success");
   };
   const doReview = async () => {
     const text = cvDocToText(doc);
     if (text.trim().length < 30) {
-      toast("Fill in more CV details for analysis", "error");
+      toast(t("builder.toasts.needMoreDetails"), "error");
       return;
     }
     setBusyReview(true);
@@ -209,9 +211,9 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       const r = await api.reviewCV(text);
       setReview(r);
       setActiveReport("review");
-      toast(r.offline ? "Basic analysis (enable LLM for deeper analysis)" : "Analysis ready", r.offline ? "info" : "success");
+      toast(r.offline ? t("builder.toasts.reviewOffline") : t("builder.toasts.reviewReady"), r.offline ? "info" : "success");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Analysis error", "error");
+      toast(e instanceof Error ? e.message : t("builder.toasts.analysisError"), "error");
     } finally {
       setBusyReview(false);
     }
@@ -232,7 +234,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     setBusy("save");
     try {
       setDoc(await api.saveCvDoc(doc));
-      toast("CV saved", "success");
+      toast(t("builder.toasts.cvSaved"), "success");
     } finally {
       setBusy("");
     }
@@ -242,7 +244,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     try {
       const r = await api.generateCvDoc(profile?.cvText || "");
       if (r.doc) setDoc(r.doc);
-      toast(r.offline ? "AI offline — enable the key" : "Parsed from your CV into sections", r.offline ? "info" : "success");
+      toast(r.offline ? t("builder.toasts.aiOffline") : t("builder.toasts.parsedFromText"), r.offline ? "info" : "success");
     } finally {
       setBusy("");
     }
@@ -253,9 +255,9 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     try {
       const r = await api.importLinkedIn(file);
       if (r.doc) setDoc(r.doc);
-      toast("Profile imported from LinkedIn", "success");
+      toast(t("builder.toasts.linkedinImported"), "success");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Import error", "error");
+      toast(e instanceof Error ? e.message : t("builder.toasts.importError"), "error");
     } finally {
       setBusy("");
     }
@@ -267,12 +269,9 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       const r = await api.uploadCV(file);
       await applyCvUpload(r);
       setDoc(r.cvDoc ?? (await api.cvDoc()));
-      toast(
-        r.cvDoc ? "CV parsed into the builder and applied everywhere" : "CV uploaded (enable LLM for auto-parsing into sections)",
-        "success",
-      );
+      toast(r.cvDoc ? t("builder.toasts.cvUploadedParsed") : t("builder.toasts.cvUploadedNoParsing"), "success");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Upload error", "error");
+      toast(e instanceof Error ? e.message : t("builder.toasts.uploadError"), "error");
     } finally {
       setBusy("");
     }
@@ -333,19 +332,15 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="CV Builder"
-        subtitle="A structured resume focused on outcomes. Fill it in from your existing CV, edit it, and export to PDF."
+        title={t("builder.header.title")}
+        subtitle={t("builder.header.subtitle")}
         actions={
           <>
-            <Btn
-              variant="ghost"
-              onClick={() => exportCvDoc(doc)}
-              title="In the browser's print dialog, the date/document title at the top of pages are disabled automatically; if they still appear — turn off «Headers and footers»"
-            >
-              ⬇️ Export PDF
+            <Btn variant="ghost" onClick={() => exportCvDoc(doc)} title={t("builder.header.exportPdfTitle")}>
+              {t("builder.header.exportPdf")}
             </Btn>
             <Btn onClick={save} loading={busy === "save"}>
-              💾 Save
+              {t("shared.saveButton")}
             </Btn>
           </>
         }
@@ -354,14 +349,14 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           equal-weight buttons, plus Compare/AI Assistant — Save/Export stayed above as the
           only two primary-looking actions. */}
       <div className="flex items-center gap-2 flex-wrap">
-        <Dropdown label="📎 Import">
+        <Dropdown label={t("builder.importMenu.label")}>
           <label className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm cursor-pointer hover:bg-surface-2">
             {busy === "upload" ? (
               <>
-                <Spinner className="h-3.5 w-3.5" /> Parsing…
+                <Spinner className="h-3.5 w-3.5" /> {t("builder.importMenu.parsing")}
               </>
             ) : (
-              "📎 From CV file"
+              t("builder.importMenu.fromFile")
             )}
             <input
               type="file"
@@ -374,10 +369,10 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           <label className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm cursor-pointer hover:bg-surface-2">
             {busy === "li" ? (
               <>
-                <Spinner className="h-3.5 w-3.5" /> Importing…
+                <Spinner className="h-3.5 w-3.5" /> {t("builder.importMenu.importingLinkedin")}
               </>
             ) : (
-              "🔗 LinkedIn (.zip)"
+              t("builder.importMenu.linkedin")
             )}
             <input
               type="file"
@@ -393,20 +388,27 @@ export function CvBuilder({ llm }: { llm: boolean }) {
             disabled={!llm || busy === "gen"}
             className="w-full flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-left hover:bg-surface-2 disabled:opacity-40"
           >
-            {busy === "gen" ? <Spinner className="h-3.5 w-3.5" /> : "🪄"} From profile text (AI)
+            {busy === "gen" ? <Spinner className="h-3.5 w-3.5" /> : "🪄"} {t("builder.importMenu.fromProfileText")}
           </button>
           <details className="text-xs text-ink-dim px-2 pt-1" data-keep-open>
-            <summary className="cursor-pointer select-none hover:text-ink font-medium">Where do I get a LinkedIn .zip?</summary>
+            <summary className="cursor-pointer select-none hover:text-ink font-medium">
+              {t("builder.importMenu.linkedinHelpSummary")}
+            </summary>
             <div className="mt-1.5 text-ink-dim">
-              LinkedIn → <b>Settings & Privacy → Data Privacy → Get a copy of your data</b> → «Want something in particular» (Profile,
-              Positions, Skills, Education) → get the archive by email → upload the <b>.zip</b> here.
+              <Trans i18nKey="builder.importMenu.linkedinHelpBody" ns="cv" components={{ b: <b /> }} />
             </div>
           </details>
         </Dropdown>
-        <Dropdown label={matchVacId ? `🎯 ${vacancies.find((v) => v.id === matchVacId)?.position ?? "Vacancy"}` : "🎯 Vacancy"}>
-          <div className="text-xs font-semibold text-ink-dim px-1 pb-1">Compare CV against</div>
+        <Dropdown
+          label={
+            matchVacId
+              ? `🎯 ${vacancies.find((v) => v.id === matchVacId)?.position ?? t("builder.vacancyMenu.fallback")}`
+              : t("builder.vacancyMenu.label")
+          }
+        >
+          <div className="text-xs font-semibold text-ink-dim px-1 pb-1">{t("builder.vacancyMenu.compareAgainst")}</div>
           {vacancies.length === 0 ? (
-            <div className="text-xs text-ink-dim px-1 py-1">Add vacancies to the tracker first</div>
+            <div className="text-xs text-ink-dim px-1 py-1">{t("builder.vacancyMenu.noVacancies")}</div>
           ) : (
             <select
               data-keep-open
@@ -414,7 +416,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
               onChange={(e) => setMatchVacId(Number(e.target.value))}
               className="w-full bg-surface-2 border border-grid rounded-lg p-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
             >
-              <option value={0}>— select a vacancy —</option>
+              <option value={0}>{t("builder.vacancyMenu.selectPlaceholder")}</option>
               {vacancies.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.position}
@@ -425,7 +427,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           )}
         </Dropdown>
         <Btn size="sm" variant="ghost" onClick={doMatch} loading={busyMatch} disabled={!matchVacId}>
-          🎯 Compare
+          {t("builder.compareButton")}
         </Btn>
         <Btn
           size="sm"
@@ -433,26 +435,24 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           onClick={doTailor}
           loading={busyTailor}
           disabled={!matchVacId}
-          title="Reorder skills/bullets and rewrite the summary for the selected vacancy"
+          title={t("builder.tailorButtonTitle")}
         >
-          ✨ Tailor CV
+          {t("builder.tailorButton")}
         </Btn>
         <span className="mx-1 h-5 w-px bg-grid" aria-hidden />
         <Btn size="sm" variant="ghost" onClick={doReview} loading={busyReview}>
-          🤖 AI Assistant
+          {t("builder.aiAssistantButton")}
         </Btn>
       </div>
       {!dismissedSuggest && llm && !!profile?.cvText?.trim() && !doc.name && !doc.summary && doc.experience.length === 0 && (
         <Card className="!py-3 bg-alert/10 border-alert/30 flex items-center gap-3">
           <span className="text-lg">💡</span>
-          <div className="text-sm text-ink flex-1">
-            Your profile already has CV text, but the builder is still empty. Parse it into sections automatically?
-          </div>
+          <div className="text-sm text-ink flex-1">{t("builder.suggest.message")}</div>
           <Btn size="sm" onClick={fromText} loading={busy === "gen"}>
-            🪄 Parse CV
+            {t("builder.suggest.parseCv")}
           </Btn>
           <Btn size="sm" variant="ghost" onClick={() => setDismissedSuggest(true)}>
-            Later
+            {t("builder.suggest.later")}
           </Btn>
         </Card>
       )}
@@ -481,36 +481,51 @@ export function CvBuilder({ llm }: { llm: boolean }) {
                   onChange={setActiveReport}
                   options={(
                     [
-                      { value: "review", label: "🔎 Tips" },
-                      { value: "match", label: "🎯 Vacancy match" },
-                      { value: "tailor", label: "✨ Tailored CV" },
+                      { value: "review", label: t("builder.reports.tabs.tips") },
+                      { value: "match", label: t("builder.reports.tabs.match") },
+                      { value: "tailor", label: t("builder.reports.tabs.tailor") },
                     ] as const
                   ).filter((o) => available.includes(o.value))}
                 />
               )}
               <div className="relative">
-                <button onClick={hide} title="Hide" className="absolute right-3 top-3 z-10 text-ink-dim hover:text-ink-dim text-sm">
+                <button
+                  onClick={hide}
+                  title={t("builder.reports.hide")}
+                  className="absolute right-3 top-3 z-10 text-ink-dim hover:text-ink-dim text-sm"
+                >
                   ✕
                 </button>
                 {current === "tailor" && tailored ? (
                   <div className="space-y-2">
                     <Card className="!py-3.5 bg-signal/10 border-signal/30 space-y-2.5">
                       <div className="flex items-center gap-2 flex-wrap pr-6">
-                        <span className="font-semibold text-ink">✨ Tailored{tailorVac ? ` for "${vacancyLabel(tailorVac)}"` : ""}</span>
-                        {tailored.match.offline && <Chip>offline</Chip>}
+                        <span className="font-semibold text-ink">
+                          {tailorVac
+                            ? t("builder.reports.tailor.titleFor", { vacancy: vacancyLabel(tailorVac) })
+                            : t("builder.reports.tailor.title")}
+                        </span>
+                        {tailored.match.offline && <Chip>{t("shared.offline")}</Chip>}
                       </div>
                       <p className="text-sm text-ink">
                         {tailorChanged
-                          ? `Reordered ${tailored.reordered.skills} skill${tailored.reordered.skills === 1 ? "" : "s"} and ${tailored.reordered.bullets} bullet${tailored.reordered.bullets === 1 ? "" : "s"} to lead with what this vacancy asks for` +
-                            (tailored.match.tailoredSummary ? ", and rewrote the summary." : ".")
-                          : "Your CV already leads with what this vacancy asks for — nothing needed reordering."}
+                          ? t(
+                              tailored.match.tailoredSummary
+                                ? "builder.reports.tailor.reorderedWithSummary"
+                                : "builder.reports.tailor.reordered",
+                              {
+                                skills: t("builder.reports.tailor.reorderedSkills", { count: tailored.reordered.skills }),
+                                bullets: t("builder.reports.tailor.reorderedBullets", { count: tailored.reordered.bullets }),
+                              },
+                            )
+                          : t("builder.reports.tailor.noChangeNeeded")}
                       </p>
                       <div className="flex gap-2 flex-wrap">
                         <Btn size="sm" onClick={applyTailored}>
-                          ✅ Apply to CV
+                          {t("builder.reports.tailor.applyToCv")}
                         </Btn>
                         <Btn size="sm" variant="ghost" onClick={() => exportCvDoc(tailored.doc)}>
-                          ⬇️ Export tailored PDF
+                          {t("builder.reports.tailor.exportTailoredPdf")}
                         </Btn>
                       </div>
                     </Card>
@@ -522,7 +537,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
                     onAddKeyword={addSkill}
                     onApplySummary={(s) => {
                       set({ summary: s });
-                      toast("Summary updated for the vacancy", "success");
+                      toast(t("builder.reports.match.summaryUpdatedToast"), "success");
                     }}
                   />
                 ) : (
@@ -547,15 +562,17 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           {accordion(
             "general",
             "🧑",
-            "General",
+            t("builder.sections.general.title"),
             doc.name || undefined,
             <GeneralSection doc={doc} onChange={set} llm={llm} busyStyle={busyStyle} onImproveSummary={improveSummary} />,
           )}
           {accordion(
             "experience",
             "💼",
-            "Experience",
-            doc.experience.length ? `${doc.experience.length} entries` : "empty",
+            t("builder.sections.experience.title"),
+            doc.experience.length
+              ? t("builder.sections.experience.entries", { count: doc.experience.length })
+              : t("builder.sections.emptyHint"),
             <ExperienceCard
               experience={doc.experience}
               onAdd={() => set({ experience: [...doc.experience, { role: "", company: "", period: "", bullets: [] }] })}
@@ -571,36 +588,46 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           {accordion(
             "skills",
             "🧩",
-            "Skills",
-            doc.skills.length ? `${doc.skills.length} added` : "empty",
-            <SkillsInput label="Skills" hideLabel skills={doc.skills} onChange={(skills) => set({ skills })} placeholder="Search skill…" />,
+            t("builder.sections.skills.title"),
+            doc.skills.length ? t("builder.sections.addedCount", { count: doc.skills.length }) : t("builder.sections.emptyHint"),
+            <SkillsInput
+              label={t("builder.sections.skills.title")}
+              hideLabel
+              skills={doc.skills}
+              onChange={(skills) => set({ skills })}
+              placeholder={t("builder.sections.skills.searchPlaceholder")}
+            />,
           )}
           {accordion(
             "projects",
             "🚀",
-            "Projects",
-            doc.projects.filter(Boolean).length ? `${doc.projects.filter(Boolean).length} items` : "empty",
+            t("builder.sections.projects.title"),
+            doc.projects.filter(Boolean).length
+              ? t("builder.sections.itemsCount", { count: doc.projects.filter(Boolean).length })
+              : t("builder.sections.emptyHint"),
             <ProjectsSection projects={doc.projects} onChange={(v) => set({ projects: v.split("\n") })} />,
           )}
           {accordion(
             "education",
             "🎓",
-            "Education",
-            doc.education.filter(Boolean).length ? `${doc.education.filter(Boolean).length} items` : "empty",
+            t("builder.sections.education.title"),
+            doc.education.filter(Boolean).length
+              ? t("builder.sections.itemsCount", { count: doc.education.filter(Boolean).length })
+              : t("builder.sections.emptyHint"),
             <EducationSection education={doc.education} onChange={(v) => set({ education: v.split("\n") })} />,
           )}
           {accordion(
             "languages",
             "🌍",
-            "Languages",
-            langs.length ? `${langs.length} added` : "empty",
+            t("builder.sections.languages.title"),
+            langs.length ? t("builder.sections.addedCount", { count: langs.length }) : t("builder.sections.emptyHint"),
             <LanguagesSection languages={langs} onChange={(languages) => set({ languages })} />,
           )}
           {accordion(
             "design",
             "🎨",
-            "Design",
-            TEMPLATE_LABELS[theme.template],
+            t("builder.sections.design.title"),
+            t(TEMPLATE_LABEL_KEYS[theme.template]),
             <div className="space-y-2">
               <AppearancePanel doc={doc} theme={theme} onSetTheme={setTheme} onSetPhoto={(photo) => set({ photo })} />
               <LayoutPresetsPanel
@@ -627,12 +654,21 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   );
 }
 
-const TEMPLATE_LABELS: Record<CvTheme["template"], string> = {
-  classic: "Classic",
-  compact: "Compact",
-  academic: "Academic",
-  twocol: "Two columns",
-  minimal: "Minimal",
-  sidebar: "Sidebar",
-  timeline: "Timeline",
+const TEMPLATE_LABEL_KEYS: Record<
+  CvTheme["template"],
+  | "templates.classic"
+  | "templates.compact"
+  | "templates.academic"
+  | "templates.twocol"
+  | "templates.minimal"
+  | "templates.sidebar"
+  | "templates.timeline"
+> = {
+  classic: "templates.classic",
+  compact: "templates.compact",
+  academic: "templates.academic",
+  twocol: "templates.twocol",
+  minimal: "templates.minimal",
+  sidebar: "templates.sidebar",
+  timeline: "templates.timeline",
 };

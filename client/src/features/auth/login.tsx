@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Btn } from "../../shared/ui";
 import { AuthLayout, AuthError, authInputClass } from "./auth-layout";
 import { GoogleButton } from "./google-button";
 import { signIn } from "../../shared/auth-client";
 
 export function Login() {
+  const { t } = useTranslation("auth");
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,9 +22,7 @@ export function Login() {
     setLoading(false);
     if (signInError) {
       setError(
-        signInError.code === "EMAIL_NOT_VERIFIED"
-          ? "Verify your email first — check your inbox for the link we sent when you registered."
-          : signInError.message || "Couldn't sign in — check your email and password.",
+        signInError.code === "EMAIL_NOT_VERIFIED" ? t("login.errors.emailNotVerified") : signInError.message || t("login.errors.generic"),
       );
       return;
     }
@@ -30,13 +30,13 @@ export function Login() {
   }
 
   return (
-    <AuthLayout title="Log in" subtitle="Welcome back.">
+    <AuthLayout title={t("login.title")} subtitle={t("login.subtitle")}>
       <form onSubmit={onSubmit} className="space-y-3">
         {error && <AuthError message={error} />}
         <input
           type="email"
           required
-          placeholder="Email"
+          placeholder={t("fields.email")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className={authInputClass}
@@ -44,22 +44,22 @@ export function Login() {
         <input
           type="password"
           required
-          placeholder="Password"
+          placeholder={t("login.passwordPlaceholder")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className={authInputClass}
         />
         <Btn type="submit" loading={loading} className="w-full">
-          Log in
+          {t("login.submit")}
         </Btn>
         <GoogleButton />
       </form>
       <div className="mt-4 flex justify-between text-sm">
         <Link to="/register" className="text-signal hover:underline">
-          Create an account
+          {t("login.createAccount")}
         </Link>
         <Link to="/forgot-password" className="text-ink-dim hover:underline">
-          Forgot password?
+          {t("login.forgotPassword")}
         </Link>
       </div>
     </AuthLayout>

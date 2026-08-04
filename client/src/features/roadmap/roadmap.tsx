@@ -1,20 +1,68 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
-import { Btn, Card, CardsSkeleton, Chip, PageHeader, ProgressBar, Segmented } from "../../shared/ui";
+import { Card, CardsSkeleton, Chip, EmptyState, PageHeader, ProgressBar, Segmented } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
 import { useUi } from "../../shared/ui-state";
 import { useHealth, useRoadmap, useSetRoadmapStatus } from "../../shared/queries";
 import { SkillRadar } from "../analytics/charts";
 import type { KnowledgeData, RoadmapNode, RoadmapStatus } from "../../shared/types";
 
-const STATUS_META: Record<RoadmapStatus, { label: string; text: string; badge: string; icon: string }> = {
-  done: { label: "Know it", text: "text-signal", badge: "bg-signal text-white", icon: "✓" },
-  learning: { label: "Learning", text: "text-alert", badge: "bg-alert text-white", icon: "…" },
-  todo: { label: "Not started", text: "text-ink-dim", badge: "bg-white", icon: "" },
+// A Record (not a template literal built from the runtime status) so each value stays a literal
+// key i18next's typed t() can verify against roadmap.json — same trick as calendar.tsx's TYPE_KEY,
+// for the same reason. Unlike shared/status-labels.ts's statusKey() (VacancyStatus is typed as a
+// loose `string` for legacy-data reasons), RoadmapStatus is a genuine closed union, so no runtime
+// fallback/cast is needed here.
+const STATUS_LABEL_KEY: Record<RoadmapStatus, "status.done" | "status.learning" | "status.todo"> = {
+  done: "status.done",
+  learning: "status.learning",
+  todo: "status.todo",
+};
+const STATUS_META: Record<RoadmapStatus, { text: string; badge: string; ring: string; border: string }> = {
+  done: { text: "text-signal", badge: "bg-signal text-white", ring: "ring-4 ring-signal/15", border: "border-signal" },
+  learning: { text: "text-alert", badge: "bg-alert text-white", ring: "ring-4 ring-alert/15", border: "border-alert" },
+  todo: { text: "text-ink-dim", badge: "bg-surface", ring: "", border: "border-grid" },
+};
+const CARD_TINT: Record<RoadmapStatus, string> = {
+  done: "bg-signal/[0.04] border-signal/25 hover:border-signal/60",
+  learning: "bg-alert/[0.05] border-alert/25 hover:border-alert/60",
+  todo: "bg-surface border-grid hover:border-signal/40",
 };
 const NEXT: Record<RoadmapStatus, RoadmapStatus> = { todo: "learning", learning: "done", done: "todo" };
+const ICON: Record<RoadmapStatus, string> = { done: "✓", learning: "…", todo: "" };
+
+/** A ring-shaped progress readout (SVG donut) — the "instrument panel" stand-in for a linear bar,
+ * used both for the page-level total and each group's mini summary. Local to this feature: nothing
+ * else in the app needs a circular progress meter yet, so it isn't promoted to shared/ui.tsx. */
+function RadialProgress({ value, max, size = 88, stroke = 8 }: { value: number; max: number; size?: number; stroke?: number }) {
+  const pct = max > 0 ? Math.min(1, value / max) : 0;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90 shrink-0">
+      <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} className="stroke-surface-2" fill="none" />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        strokeWidth={stroke}
+        strokeDasharray={c}
+        strokeDashoffset={c * (1 - pct)}
+        strokeLinecap="round"
+        fill="none"
+        className="stroke-signal transition-[stroke-dashoffset] duration-700 ease-out"
+      />
+    </svg>
+  );
+}
+
+const pill = (active: boolean) =>
+  `shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${
+    active ? "bg-signal text-white border-signal shadow-sm" : "bg-surface-2 text-ink-dim border-grid hover:text-ink hover:border-signal/40"
+  }`;
 
 function Node({ node }: { node: RoadmapNode }) {
+  const { t } = useTranslation(["roadmap", "common"]);
   const { data: health } = useHealth();
   const llm = health?.llm ?? false;
   const setRoadmapStatusMutation = useSetRoadmapStatus();
@@ -33,41 +81,41 @@ function Node({ node }: { node: RoadmapNode }) {
   const learn = dyn?.learn ?? node.learn;
   const resources = dyn?.resources ?? node.resources;
   const meta = STATUS_META[node.status];
-  const border = node.status === "done" ? "border-signal" : node.status === "learning" ? "border-alert" : "border-grid";
+  const statusLabel = t(STATUS_LABEL_KEY[node.status]);
   return (
     <div className="relative pl-8">
       <button
         onClick={() => setRoadmapStatusMutation.mutate({ tech: node.tech, status: NEXT[node.status] })}
-        title="Click to change status (not started → learning → know it)"
-        className={`absolute left-0 top-2 z-10 w-6 h-6 rounded-full border-2 ${border} ${meta.badge} flex items-center justify-center text-xs font-bold transition-colors`}
+        title={t("nodeStatusHint")}
+        className={`absolute left-0 top-2 z-10 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all ${meta.badge} ${meta.border} ${meta.ring}`}
       >
-        {meta.icon}
+        {ICON[node.status]}
       </button>
-      <div className="rounded-xl border border-grid bg-white hover:border-signal/40 transition-colors">
+      <div className={`rounded-xl border transition-colors ${CARD_TINT[node.status]}`}>
         <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
           <span className="font-semibold text-ink">{node.tech}</span>
-          {node.demand > 0 && <Chip tone="indigo">{node.demand} vac.</Chip>}
-          {node.known && <Chip tone="emerald">in profile</Chip>}
+          {node.demand > 0 && <Chip tone="indigo">{t("demandChip", { count: node.demand })}</Chip>}
+          {node.known && <Chip tone="emerald">{t("inProfile")}</Chip>}
           {node.drillsTotal > 0 && (
             <Chip tone={node.drillsSolved === node.drillsTotal ? "emerald" : "slate"}>
               ⌨ {node.drillsSolved}/{node.drillsTotal}
             </Chip>
           )}
-          <span className={`ml-auto text-xs font-medium ${meta.text}`}>{meta.label}</span>
+          <span className={`ml-auto text-xs font-medium ${meta.text}`}>{statusLabel}</span>
           <span className="text-ink-dim text-xs w-3">{open ? "▾" : "▸"}</span>
         </button>
         {open && (
           <div className="px-3 pb-3 border-t border-surface-2 pt-3 space-y-3">
-            {loadingDyn && <div className="text-xs text-ink-dim">✨ Personalizing to your stack…</div>}
+            {loadingDyn && <div className="text-xs text-ink-dim">{t("personalizing")}</div>}
             {dyn?.focus && (
               <div className="rounded-lg bg-signal/10 border border-signal/20 p-2.5 text-sm text-signal">
-                <span className="font-semibold">✨ Personal focus:</span> <Markdown text={dyn.focus} inline />
+                <span className="font-semibold">{t("personalFocus")}</span> <Markdown text={dyn.focus} inline />
               </div>
             )}
             <div>
               <div className="text-xs font-semibold text-ink-dim mb-1 flex items-center gap-1.5">
-                What to learn
-                {dyn?.source === "ai" && <Chip tone="indigo">AI for you</Chip>}
+                {t("whatToLearn")}
+                {dyn?.source === "ai" && <Chip tone="indigo">{t("aiForYou")}</Chip>}
               </div>
               <ul className="list-disc pl-5 text-sm text-ink space-y-1">
                 {learn.map((l, i) => (
@@ -78,15 +126,15 @@ function Node({ node }: { node: RoadmapNode }) {
             {node.drillsTotal > 0 && (
               <div>
                 <div className="text-xs font-semibold text-ink-dim mb-1">
-                  Practice problems: {node.drillsSolved}/{node.drillsTotal} solved
+                  {t("practiceProblems", { solved: node.drillsSolved, total: node.drillsTotal })}
                 </div>
                 <ProgressBar value={node.drillsSolved} max={node.drillsTotal} tone="emerald" />
-                <div className="text-xs text-ink-dim mt-1">Practice in the "Practice" tab → filter by topic.</div>
+                <div className="text-xs text-ink-dim mt-1">{t("practiceHint")}</div>
               </div>
             )}
             {resources.length > 0 && (
               <div>
-                <div className="text-xs font-semibold text-ink-dim mb-1">Resources</div>
+                <div className="text-xs font-semibold text-ink-dim mb-1">{t("resourcesHeading")}</div>
                 <div className="flex flex-wrap gap-2">
                   {resources.map((r) => (
                     <a
@@ -110,6 +158,7 @@ function Node({ node }: { node: RoadmapNode }) {
 }
 
 export function Roadmap() {
+  const { t } = useTranslation(["roadmap", "common"]);
   const { data: roadmap, isLoading } = useRoadmap();
   const [onlyGaps, setOnlyGaps] = useUi("roadmap.onlyGaps", false);
   const [group, setGroup] = useUi<string>("roadmap.group", "all");
@@ -120,6 +169,7 @@ export function Roadmap() {
   if (isLoading) return <CardsSkeleton count={3} />;
   if (!roadmap) return null;
   const { done, learning, total } = roadmap.progress;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const groups = roadmap.groups
     .filter((g) => group === "all" || g.group === group)
     .map((g) => ({ ...g, nodes: onlyGaps ? g.nodes.filter((n) => n.status !== "done") : g.nodes }))
@@ -127,15 +177,15 @@ export function Roadmap() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Skill roadmap"
-        subtitle="A personal roadmap built from the real skills in your vacancies and CV. Click the circle to mark progress — it's all saved."
+        title={t("title")}
+        subtitle={t("subtitle")}
         actions={
           <Segmented
             value={view}
             onChange={setView}
             options={[
-              { value: "list", label: "🗺️ Roadmap" },
-              { value: "radar", label: "🎯 Radar" },
+              { value: "list", label: t("view.list") },
+              { value: "radar", label: t("view.radar") },
             ]}
           />
         }
@@ -145,58 +195,79 @@ export function Roadmap() {
         <SkillRadar embedded />
       ) : (
         <>
-          <Card>
-            <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-              <div className="text-sm font-semibold text-ink">
-                Progress: <span className="text-signal">{done}</span> / {total} skills
+          <Card className="relative overflow-hidden">
+            {/* faint radar-sweep rings — a quiet nod to the "DevRadar" theme, not a literal chart */}
+            <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 w-56 h-56 rounded-full border border-signal/10" />
+            <div aria-hidden className="pointer-events-none absolute -right-4 -top-4 w-28 h-28 rounded-full border border-signal/10" />
+            <div className="flex flex-wrap items-center gap-5">
+              <div className="relative shrink-0">
+                <RadialProgress value={done} max={total} />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="font-display text-lg font-bold text-ink">{pct}%</span>
+                </div>
               </div>
-              <div className="flex items-center gap-3 text-xs text-ink-dim">
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-full bg-signal" /> know it
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-full bg-alert" /> learning ({learning})
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-full border-2 border-grid bg-white" /> not started
-                </span>
+              <div className="flex-1 min-w-[200px]">
+                <div className="text-sm font-semibold text-ink mb-2">
+                  {t("progress.prefix")} <span className="text-signal">{done}</span> {t("progress.suffix", { count: total })}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Chip tone="emerald">
+                    <span className="w-1.5 h-1.5 rounded-full bg-signal" /> {t(STATUS_LABEL_KEY.done)} · {done}
+                  </Chip>
+                  <Chip tone="amber">
+                    <span className="w-1.5 h-1.5 rounded-full bg-alert" /> {t(STATUS_LABEL_KEY.learning)} · {learning}
+                  </Chip>
+                  <Chip tone="slate">
+                    <span className="w-1.5 h-1.5 rounded-full border border-grid bg-surface" /> {t(STATUS_LABEL_KEY.todo)} ·{" "}
+                    {total - done - learning}
+                  </Chip>
+                </div>
               </div>
             </div>
-            <ProgressBar value={done} max={total} tone="emerald" />
-            <div className="flex items-center gap-2 flex-wrap mt-4">
-              <select
-                value={group}
-                onChange={(e) => setGroup(e.target.value)}
-                className="bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 text-sm text-ink"
-              >
-                <option value="all">All areas</option>
-                {roadmap.groups.map((g) => (
-                  <option key={g.group} value={g.group}>
-                    {g.group}
-                  </option>
-                ))}
-              </select>
-              <Btn variant={onlyGaps ? "primary" : "ghost"} size="sm" onClick={() => setOnlyGaps(!onlyGaps)}>
-                {onlyGaps ? "✓ Gaps only" : "Gaps only"}
-              </Btn>
+
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-4 mt-4 border-t border-grid">
+              <button onClick={() => setGroup("all")} className={pill(group === "all")}>
+                {t("allAreas")}
+              </button>
+              {roadmap.groups.map((g) => (
+                <button key={g.group} onClick={() => setGroup(g.group)} className={pill(group === g.group)}>
+                  {g.group} <span className="opacity-60">· {g.nodes.length}</span>
+                </button>
+              ))}
+              <span className="w-px h-5 bg-grid mx-1 shrink-0" />
+              <button onClick={() => setOnlyGaps(!onlyGaps)} className={pill(onlyGaps)}>
+                {onlyGaps ? `✓ ${t("gapsOnly")}` : t("gapsOnly")}
+              </button>
             </div>
           </Card>
 
-          <div className="grid md:grid-cols-2 gap-4 items-start">
-            {groups.map((g) => (
-              <Card key={g.group}>
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-sm font-bold uppercase tracking-wide text-ink-dim">{g.group}</span>
-                  <span className="text-xs text-ink-dim">· {g.nodes.length}</span>
-                </div>
-                <div className="relative space-y-3 before:absolute before:left-3 before:top-3 before:bottom-3 before:w-px before:bg-grid">
-                  {g.nodes.map((n) => (
-                    <Node key={n.tech} node={n} />
-                  ))}
-                </div>
-              </Card>
-            ))}
-          </div>
+          {groups.length === 0 ? (
+            <Card>
+              <EmptyState icon="✨" title={t("empty.title")} hint={t("empty.hint")} />
+            </Card>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4 items-start">
+              {groups.map((g) => {
+                const groupDone = g.nodes.filter((n) => n.status === "done").length;
+                return (
+                  <Card key={g.group}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <RadialProgress value={groupDone} max={g.nodes.length} size={36} stroke={4} />
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold uppercase tracking-wide text-ink font-display truncate">{g.group}</div>
+                        <div className="text-xs text-ink-dim">{t("groupKnown", { done: groupDone, total: g.nodes.length })}</div>
+                      </div>
+                    </div>
+                    <div className="relative space-y-3 before:absolute before:left-3 before:top-3 before:bottom-3 before:w-px before:bg-grid">
+                      {g.nodes.map((n) => (
+                        <Node key={n.tech} node={n} />
+                      ))}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </>
       )}
     </div>

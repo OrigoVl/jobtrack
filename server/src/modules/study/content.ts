@@ -1,4 +1,8 @@
 // Full content migrated from the study guide (107 flashcards + 43 drills).
+import type { AppLocale } from "../../shared/locale.js";
+import { CARDS_UK } from "./content-cards.uk.js";
+import { DRILLS_UK } from "./content-drills.uk.js";
+
 export interface Card {
   id: string;
   cat: string;
@@ -1762,3 +1766,13 @@ Components:
     exp: "The classic push vs pull dilemma. The key is a hybrid for 'hot users', cursor pagination, and caching pre-built feeds.",
   },
 ];
+
+/** Picks the static card/drill pool for the request's locale — CARDS/DRILLS stay the stable
+ * English default (and the only arrays other, non-locale-aware call sites should keep using
+ * directly); getCards/getDrills are what any NEW locale-aware call site should call instead. */
+export function getCards(locale: AppLocale): Card[] {
+  return locale === "uk" ? CARDS_UK : CARDS;
+}
+export function getDrills(locale: AppLocale): DrillItem[] {
+  return locale === "uk" ? DRILLS_UK : DRILLS;
+}

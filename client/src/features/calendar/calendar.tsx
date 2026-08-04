@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   useCombinedCalendar,
   useAddCalendarEvent,
@@ -16,7 +17,8 @@ import {
   type CalendarEventInput,
   type CalendarVacancyStep,
 } from "../../shared/types";
-import { buildMonthCells, fromLocalInput, toLocalInput, ymd } from "./calendar-date-utils";
+import { fromLocalInput, toLocalInput } from "./calendar-date-utils";
+import { buildMonthCells, ymd } from "../../shared/calendar-grid";
 
 const TYPE_DOT: Record<CalendarEventType, string> = {
   interview: "bg-signal",
@@ -32,17 +34,22 @@ const TYPE_CHIP: Record<CalendarEventType, string> = {
   reminder: "bg-alert/10 text-alert border-alert/30",
   other: "bg-surface-2 text-ink-dim border-grid",
 };
-const TYPE_LABEL: Record<CalendarEventType, string> = {
-  interview: "Interview",
-  call: "Call",
-  deadline: "Deadline",
-  reminder: "Reminder",
-  other: "Other",
+// A Record (not a template literal) so each value stays a literal key i18next's typed t() can
+// verify against calendar.json — same trick as shared/fit-tone.ts's FIT_KEY, for the same reason.
+const TYPE_KEY: Record<
+  CalendarEventType,
+  "eventType.interview" | "eventType.call" | "eventType.deadline" | "eventType.reminder" | "eventType.other"
+> = {
+  interview: "eventType.interview",
+  call: "eventType.call",
+  deadline: "eventType.deadline",
+  reminder: "eventType.reminder",
+  other: "eventType.other",
 };
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-const MONTH_LABEL = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
-const TIME_LABEL = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
+// Month/weekday/time labels follow the app's active language (i18n.language) — computed inside
+// CalendarPage below via useMemo, not as module-level constants like these used to be, since
+// they now depend on a value that can change at runtime (see shared/calendar-panel.tsx for the
+// same pattern and the reasoning: this must track the chosen app language, not navigator/OS locale).
 
 const EMPTY_DRAFT: CalendarEventInput = { title: "", notes: "", startAt: "", endAt: null, type: "other", vacancyId: null };
 
@@ -63,27 +70,28 @@ function EventModal({
   saving: boolean;
   deleting: boolean;
 }) {
+  const { t } = useTranslation(["calendar", "common"]);
   const [form, setForm] = useState(draft);
   const { data: vacancies = [] } = useVacancies();
   const set = <K extends keyof CalendarEventInput>(k: K, v: CalendarEventInput[K]) => setForm((f) => ({ ...f, [k]: v }));
   const canSave = form.title.trim().length > 0 && form.startAt.length > 0;
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4">
-      <button type="button" aria-label="Close" onClick={onClose} className="fixed inset-0 bg-ink/50 cursor-default" />
+      <button type="button" aria-label={t("common:actions.close")} onClick={onClose} className="fixed inset-0 bg-ink/50 cursor-default" />
       <Card className="relative w-full max-w-md space-y-3 max-h-[90vh] overflow-y-auto">
-        <div className="font-display font-semibold text-ink">{editingId ? "Edit event" : "New event"}</div>
+        <div className="font-display font-semibold text-ink">{editingId ? t("modal.editEvent") : t("modal.newEvent")}</div>
         <label className="block">
-          <span className="text-xs font-semibold text-ink-dim">Title</span>
+          <span className="text-xs font-semibold text-ink-dim">{t("modal.titleLabel")}</span>
           <input
             value={form.title}
             onChange={(e) => set("title", e.target.value)}
-            placeholder="e.g. On-site interview at Acme"
+            placeholder={t("modal.titlePlaceholder")}
             className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
           />
         </label>
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
-            <span className="text-xs font-semibold text-ink-dim">Starts</span>
+            <span className="text-xs font-semibold text-ink-dim">{t("modal.starts")}</span>
             <DateTimeInput
               value={toLocalInput(form.startAt)}
               onChange={(local) => set("startAt", fromLocalInput(local) ?? "")}
@@ -91,7 +99,7 @@ function EventModal({
             />
           </label>
           <label className="block">
-            <span className="text-xs font-semibold text-ink-dim">Ends (optional)</span>
+            <span className="text-xs font-semibold text-ink-dim">{t("modal.endsOptional")}</span>
             <DateTimeInput
               value={toLocalInput(form.endAt)}
               onChange={(local) => set("endAt", fromLocalInput(local))}
@@ -100,36 +108,36 @@ function EventModal({
           </label>
         </div>
         <label className="block">
-          <span className="text-xs font-semibold text-ink-dim">Type</span>
+          <span className="text-xs font-semibold text-ink-dim">{t("modal.type")}</span>
           <select
             value={form.type}
             onChange={(e) => set("type", e.target.value as CalendarEventType)}
             className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
           >
-            {CALENDAR_EVENT_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {TYPE_LABEL[t]}
+            {CALENDAR_EVENT_TYPES.map((ty) => (
+              <option key={ty} value={ty}>
+                {t(TYPE_KEY[ty])}
               </option>
             ))}
           </select>
         </label>
         <label className="block">
-          <span className="text-xs font-semibold text-ink-dim">Linked vacancy (optional)</span>
+          <span className="text-xs font-semibold text-ink-dim">{t("modal.linkedVacancy")}</span>
           <select
             value={form.vacancyId ?? ""}
             onChange={(e) => set("vacancyId", e.target.value ? Number(e.target.value) : null)}
             className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
           >
-            <option value="">— none —</option>
+            <option value="">{t("modal.none")}</option>
             {vacancies.map((v) => (
               <option key={v.id} value={v.id}>
-                {v.company} — {v.position || "Position"}
+                {v.company} — {v.position || t("modal.position")}
               </option>
             ))}
           </select>
         </label>
         <label className="block">
-          <span className="text-xs font-semibold text-ink-dim">Notes</span>
+          <span className="text-xs font-semibold text-ink-dim">{t("modal.notes")}</span>
           <textarea
             value={form.notes}
             onChange={(e) => set("notes", e.target.value)}
@@ -139,15 +147,15 @@ function EventModal({
         <div className="flex items-center gap-2 pt-1">
           {editingId && (
             <Btn variant="danger" size="sm" onClick={onDelete} loading={deleting}>
-              Delete
+              {t("common:actions.delete")}
             </Btn>
           )}
           <div className="ml-auto flex gap-2">
             <Btn variant="ghost" size="sm" onClick={onClose}>
-              Cancel
+              {t("common:actions.cancel")}
             </Btn>
             <Btn size="sm" disabled={!canSave} loading={saving} onClick={() => onSave(form)}>
-              Save
+              {t("common:actions.save")}
             </Btn>
           </div>
         </div>
@@ -157,6 +165,7 @@ function EventModal({
 }
 
 export function CalendarPage() {
+  const { t, i18n } = useTranslation(["calendar", "common"]);
   const navigate = useNavigate();
   const today = new Date();
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() });
@@ -166,6 +175,23 @@ export function CalendarPage() {
   const cells = useMemo(() => buildMonthCells(cursor.year, cursor.month), [cursor]);
   const from = cells[0]!.key;
   const to = cells[cells.length - 1]!.key;
+
+  const monthLabel = useMemo(() => new Intl.DateTimeFormat(i18n.language, { month: "long", year: "numeric" }), [i18n.language]);
+  const timeLabel = useMemo(() => new Intl.DateTimeFormat(i18n.language, { hour: "numeric", minute: "2-digit" }), [i18n.language]);
+  // Derived from the grid's own first week (guaranteed Monday-first, see calendar-grid.ts)
+  // rather than a hardcoded array — can't drift out of sync with the actual layout.
+  const weekdayShort = useMemo(() => new Intl.DateTimeFormat(i18n.language, { weekday: "short" }), [i18n.language]);
+  const weekdays = useMemo(() => cells.slice(0, 7).map((c) => weekdayShort.format(c.date)), [cells, weekdayShort]);
+  // Full weekday/month/day, used both for each day cell's accessible name and the selected-day
+  // heading below — locale-aware (not hardcoded "en-US" like this used to be).
+  const fullDateLabel = useMemo(
+    () => new Intl.DateTimeFormat(i18n.language, { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+    [i18n.language],
+  );
+  const selectedDayLabel = useMemo(
+    () => new Intl.DateTimeFormat(i18n.language, { weekday: "long", month: "long", day: "numeric" }),
+    [i18n.language],
+  );
 
   const { data, isLoading } = useCombinedCalendar({ from, to });
   const addMutation = useAddCalendarEvent();
@@ -235,46 +261,46 @@ export function CalendarPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Calendar"
-        subtitle="Interviews, calls, deadlines and reminders — plus your vacancies' next steps and SRS due-cards — in one connected view."
+        title={t("title")}
+        subtitle={t("subtitle")}
         actions={
           <Btn onClick={() => openNew(selectedDay)}>
-            <span aria-hidden>+</span> Add event
+            <span aria-hidden>+</span> {t("addEvent")}
           </Btn>
         }
       />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1.5">
-          <Btn variant="ghost" size="sm" aria-label="Previous month" onClick={() => goMonth(-1)}>
+          <Btn variant="ghost" size="sm" aria-label={t("common:dateInput.previousMonth")} onClick={() => goMonth(-1)}>
             ‹
           </Btn>
           <div className="font-display font-semibold text-ink min-w-[10rem] text-center">
-            {MONTH_LABEL.format(new Date(cursor.year, cursor.month, 1))}
+            {monthLabel.format(new Date(cursor.year, cursor.month, 1))}
           </div>
-          <Btn variant="ghost" size="sm" aria-label="Next month" onClick={() => goMonth(1)}>
+          <Btn variant="ghost" size="sm" aria-label={t("common:dateInput.nextMonth")} onClick={() => goMonth(1)}>
             ›
           </Btn>
         </div>
         <Btn variant="ghost" size="sm" onClick={goToday}>
-          Today
+          {t("today")}
         </Btn>
         <div className="ml-auto flex flex-wrap gap-1.5">
-          {CALENDAR_EVENT_TYPES.map((t) => (
-            <span key={t} className="inline-flex items-center gap-1 text-[11px] text-ink-dim">
-              <span className={`w-1.5 h-1.5 rounded-full ${TYPE_DOT[t]}`} /> {TYPE_LABEL[t]}
+          {CALENDAR_EVENT_TYPES.map((ty) => (
+            <span key={ty} className="inline-flex items-center gap-1 text-[11px] text-ink-dim">
+              <span className={`w-1.5 h-1.5 rounded-full ${TYPE_DOT[ty]}`} /> {t(TYPE_KEY[ty])}
             </span>
           ))}
           <span className="inline-flex items-center gap-1 text-[11px] text-ink-dim">
-            <span className="w-1.5 h-1.5 rounded-full bg-alert" /> Vacancy step
+            <span className="w-1.5 h-1.5 rounded-full bg-alert" /> {t("legend.vacancyStep")}
           </span>
-          <span className="inline-flex items-center gap-1 text-[11px] text-ink-dim">🧠 SRS due</span>
+          <span className="inline-flex items-center gap-1 text-[11px] text-ink-dim">🧠 {t("legend.srsDue")}</span>
         </div>
       </div>
 
       <Card className="!p-2 md:!p-3">
         <div className="grid grid-cols-7 gap-1 mb-1">
-          {WEEKDAYS.map((w) => (
+          {weekdays.map((w) => (
             <div key={w} className="font-display text-[11px] font-bold uppercase tracking-wider text-ink-dim text-center py-1">
               {w}
             </div>
@@ -293,7 +319,11 @@ export function CalendarPage() {
                 type="button"
                 onClick={() => setSelectedDay(cell.key)}
                 aria-current={isToday ? "date" : undefined}
-                aria-label={`${cell.date.toDateString()}${events.length ? `, ${events.length} event(s)` : ""}`}
+                aria-label={
+                  events.length
+                    ? t("dayAriaLabel", { date: fullDateLabel.format(cell.date), count: events.length })
+                    : t("dayAriaLabelNoEvents", { date: fullDateLabel.format(cell.date) })
+                }
                 className={`relative rounded-lg border p-1.5 text-left min-h-[64px] sm:min-h-[76px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${
                   isSelected ? "border-signal bg-signal/10" : "border-grid hover:bg-surface-2"
                 } ${cell.inMonth ? "" : "opacity-40"}`}
@@ -303,7 +333,7 @@ export function CalendarPage() {
                   {events.slice(0, 3).map((e) => (
                     <span key={e.id} className={`w-1.5 h-1.5 rounded-full ${TYPE_DOT[e.type]}`} title={e.title} />
                   ))}
-                  {steps.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-alert" title="Vacancy next step" />}
+                  {steps.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-alert" title={t("legend.vacancyStep")} />}
                   {due > 0 && <span className="text-[10px] leading-none text-ink-dim">🧠{due}</span>}
                 </div>
               </button>
@@ -314,16 +344,14 @@ export function CalendarPage() {
 
       <Card>
         <div className="flex items-center justify-between mb-2">
-          <div className="font-display font-semibold text-ink">
-            {new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date(`${selectedDay}T00:00`))}
-          </div>
+          <div className="font-display font-semibold text-ink">{selectedDayLabel.format(new Date(`${selectedDay}T00:00`))}</div>
           <Btn size="sm" variant="ghost" onClick={() => openNew(selectedDay)}>
-            + Add
+            {t("addEventShort")}
           </Btn>
         </div>
 
         {selectedSteps.length === 0 && selectedDue === 0 && selectedEvents.length === 0 ? (
-          <EmptyState icon="🗓️" title="Nothing on this day" hint="Add an event, or check back once a vacancy step or SRS review is due." />
+          <EmptyState icon="🗓️" title={t("empty.title")} hint={t("empty.hint")} />
         ) : (
           <div className="space-y-2">
             {selectedSteps.map((s) => (
@@ -332,11 +360,11 @@ export function CalendarPage() {
                 onClick={() => navigate("/vacancies")}
                 className="w-full flex items-center gap-2 text-sm text-left px-2.5 py-2 rounded-lg border border-alert/30 bg-alert/10 hover:bg-alert/20 transition-colors"
               >
-                <Chip tone="amber">Next step</Chip>
+                <Chip tone="amber">{t("nextStep")}</Chip>
                 <span className="text-ink">
-                  {s.company} — <span className="text-ink-dim">{s.position || "Position"}</span>
+                  {s.company} — <span className="text-ink-dim">{s.position || t("modal.position")}</span>
                 </span>
-                <span className="ml-auto text-ink-dim text-xs">→ Vacancies</span>
+                <span className="ml-auto text-ink-dim text-xs">{t("goToVacancies")}</span>
               </button>
             ))}
             {selectedDue > 0 && (
@@ -345,10 +373,8 @@ export function CalendarPage() {
                 className="w-full flex items-center gap-2 text-sm text-left px-2.5 py-2 rounded-lg border border-signal/30 bg-signal/10 hover:bg-signal/20 transition-colors"
               >
                 <span aria-hidden>🧠</span>
-                <span className="text-ink">
-                  {selectedDue} flashcard{selectedDue === 1 ? "" : "s"} due for review
-                </span>
-                <span className="ml-auto text-ink-dim text-xs">→ Study</span>
+                <span className="text-ink">{t("flashcardsDue", { count: selectedDue })}</span>
+                <span className="ml-auto text-ink-dim text-xs">{t("goToStudy")}</span>
               </button>
             )}
             {selectedEvents.map((e) => {
@@ -358,14 +384,14 @@ export function CalendarPage() {
                   <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${TYPE_DOT[e.type]}`} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm text-ink">{e.title || "Untitled event"}</span>
+                      <span className="font-medium text-sm text-ink">{e.title || t("untitledEvent")}</span>
                       <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${TYPE_CHIP[e.type]}`}>
-                        {TYPE_LABEL[e.type]}
+                        {t(TYPE_KEY[e.type])}
                       </span>
                     </div>
                     <div className="text-xs text-ink-dim mt-0.5">
-                      {TIME_LABEL.format(new Date(e.startAt))}
-                      {e.endAt && ` – ${TIME_LABEL.format(new Date(e.endAt))}`}
+                      {timeLabel.format(new Date(e.startAt))}
+                      {e.endAt && ` – ${timeLabel.format(new Date(e.endAt))}`}
                     </div>
                     {e.notes && <div className="text-xs text-ink-dim mt-1 whitespace-pre-wrap">{e.notes}</div>}
                   </div>
@@ -373,17 +399,17 @@ export function CalendarPage() {
                     <button
                       onClick={() => openEdit(e)}
                       className="text-xs text-ink-dim hover:text-signal px-1.5 py-1"
-                      aria-label={`Edit ${e.title}`}
+                      aria-label={t("editAriaLabel", { title: e.title })}
                     >
-                      Edit
+                      {t("common:actions.edit")}
                     </button>
                     <button
                       onClick={() => deleteMutation.mutate(e.id)}
                       disabled={isDeleting}
                       className="text-xs text-ink-dim hover:text-rose-600 px-1.5 py-1 disabled:opacity-50"
-                      aria-label={`Delete ${e.title}`}
+                      aria-label={t("deleteAriaLabel", { title: e.title })}
                     >
-                      {isDeleting ? <Spinner className="h-3 w-3" /> : "Delete"}
+                      {isDeleting ? <Spinner className="h-3 w-3" /> : t("common:actions.delete")}
                     </button>
                   </div>
                 </div>

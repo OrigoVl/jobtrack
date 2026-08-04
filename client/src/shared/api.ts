@@ -38,6 +38,7 @@ import type {
   StudyState,
   Vacancy,
 } from "./types";
+import i18n from "../i18n";
 
 const base = "/api";
 const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
@@ -52,17 +53,34 @@ function handleUnauthorized(): void {
   }
 }
 
-async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const res = await fetch(base + path, {
-    headers: { "content-type": "application/json" },
-    ...opts,
-  });
+// Shared by every fetch call site below (the JSON path in req(), and the two FormData uploads
+// that can't go through req() itself — see importLinkedIn/uploadCV) so the 401/error-body
+// handling lives in exactly one place.
+async function handleResponse<T>(res: Response): Promise<T> {
   if (res.status === 401) handleUnauthorized();
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error || `HTTP ${res.status}`);
+    const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+    // `code` (server/src/core/http.ts's HttpError optional 4th param, surfaced by
+    // core/error-handler.ts / core/rate-limit.ts) lets shared/use-error-toast.ts show a
+    // translated message for the handful of error sites a normal user can trigger, instead of
+    // always showing the raw (English-only) `message`.
+    const err = new Error(body.error || `HTTP ${res.status}`) as Error & { code?: string };
+    err.code = body.code;
+    throw err;
   }
   return res.json() as Promise<T>;
+}
+
+async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
+  const { headers, ...rest } = opts;
+  const res = await fetch(base + path, {
+    // x-locale: read server-side (server/src/core/request-context.ts) to pick the language for
+    // AI-generated prose (server/src/llm/client.ts's opt-in outputLocale) and any pre-translated
+    // static content — see the i18n plan's Phase A Step 6.
+    headers: { "content-type": "application/json", "x-locale": i18n.language, ...(headers as Record<string, string> | undefined) },
+    ...rest,
+  });
+  return handleResponse<T>(res);
 }
 
 export const api = {
@@ -105,26 +123,16 @@ export const api = {
   importLinkedIn: async (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
-    const res = await fetch(`${base}/cv/linkedin-import`, { method: "POST", body: fd });
-    if (res.status === 401) handleUnauthorized();
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
-      throw new Error(body.error || `HTTP ${res.status}`);
-    }
-    return res.json() as Promise<{ doc: CvDoc }>;
+    // No "content-type" here — the browser sets its own multipart boundary for FormData; setting
+    // one manually would break the upload.
+    const res = await fetch(`${base}/cv/linkedin-import`, { method: "POST", body: fd, headers: { "x-locale": i18n.language } });
+    return handleResponse<{ doc: CvDoc }>(res);
   },
   uploadCV: async (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
-    const res = await fetch(`${base}/cv/upload`, { method: "POST", body: fd });
-    if (res.status === 401) handleUnauthorized();
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
-      throw new Error(body.error || `HTTP ${res.status}`);
-    }
-    return res.json() as Promise<
-      { text: string; skills: string[]; detected: string[]; domain?: string; cvDoc?: CvDoc | null } & CvAnalysis
-    >;
+    const res = await fetch(`${base}/cv/upload`, { method: "POST", body: fd, headers: { "x-locale": i18n.language } });
+    return handleResponse<{ text: string; skills: string[]; detected: string[]; domain?: string; cvDoc?: CvDoc | null } & CvAnalysis>(res);
   },
   skillsUpdate: (completed: string[]) =>
     req<{ skills: string[]; text: string }>("/cv/skills-update", { method: "POST", body: JSON.stringify({ completed }) }),

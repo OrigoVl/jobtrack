@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Btn } from "../../shared/ui";
 import { AuthLayout, AuthError, authInputClass } from "./auth-layout";
 import { requestPasswordReset } from "../../shared/auth-client";
 
 export function ForgotPassword() {
+  const { t } = useTranslation("auth");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,28 +28,28 @@ export function ForgotPassword() {
   }
 
   if (sent) {
-    return <AuthLayout title="Check your email" subtitle="If that email is registered, we sent a link to reset your password." />;
+    return <AuthLayout title={t("forgotPassword.sent.title")} subtitle={t("forgotPassword.sent.subtitle")} />;
   }
 
   return (
-    <AuthLayout title="Reset your password" subtitle="Enter your email and we'll send a reset link.">
+    <AuthLayout title={t("forgotPassword.title")} subtitle={t("forgotPassword.subtitle")}>
       <form onSubmit={onSubmit} className="space-y-3">
         {error && <AuthError message={error} />}
         <input
           type="email"
           required
-          placeholder="Email"
+          placeholder={t("fields.email")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className={authInputClass}
         />
         <Btn type="submit" loading={loading} className="w-full">
-          Send reset link
+          {t("forgotPassword.submit")}
         </Btn>
       </form>
       <div className="mt-4 text-sm">
         <Link to="/login" className="text-signal hover:underline">
-          Back to log in
+          {t("forgotPassword.backToLogin")}
         </Link>
       </div>
     </AuthLayout>

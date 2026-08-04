@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import type { Vacancy } from "../types";
 import { useToast } from "../use-toast";
-import { plural } from "../format";
+import { useMutationErrorToast } from "../use-error-toast";
 import { queryKeys } from "./keys";
 import { useInvalidateAll, useInvalidateDerived } from "./derived";
 
@@ -10,14 +11,10 @@ export function useVacancies() {
   return useQuery({ queryKey: queryKeys.vacancies, queryFn: api.vacancies });
 }
 
-function useMutationErrorToast() {
-  const { toast } = useToast();
-  return (e: unknown) => toast(e instanceof Error ? e.message : "An error occurred", "error");
-}
-
 export function useAddVacancy() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation("vacancies");
   const onError = useMutationErrorToast();
   const invalidateDerived = useInvalidateDerived();
   return useMutation({
@@ -25,7 +22,7 @@ export function useAddVacancy() {
     onSuccess: async (row) => {
       qc.setQueryData<Vacancy[]>(queryKeys.vacancies, (cur) => [row, ...(cur ?? [])]);
       await invalidateDerived();
-      toast("Vacancy added", "success");
+      toast(t("toasts.added"), "success");
     },
     onError,
   });
@@ -34,6 +31,7 @@ export function useAddVacancy() {
 export function useUpdateVacancy() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation("vacancies");
   const onError = useMutationErrorToast();
   const invalidateDerived = useInvalidateDerived();
   return useMutation({
@@ -49,10 +47,10 @@ export function useUpdateVacancy() {
       if (variables.patch.url !== undefined && variables.patch.url !== prevUrl) {
         toast(
           row.stack.length > 0
-            ? `Stack pulled from the link: ${row.stack.slice(0, 5).join(", ")}${row.stack.length > 5 ? "…" : ""}`
+            ? t("toasts.stackPulled", { stack: `${row.stack.slice(0, 5).join(", ")}${row.stack.length > 5 ? "…" : ""}` })
             : variables.patch.url
-              ? "Link saved (could not automatically detect the stack from the page)"
-              : "Link removed",
+              ? t("toasts.linkSavedNoStack")
+              : t("toasts.linkRemoved"),
           row.stack.length > 0 ? "success" : "info",
         );
       }
@@ -64,6 +62,7 @@ export function useUpdateVacancy() {
 export function useDeleteVacancy() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation("vacancies");
   const onError = useMutationErrorToast();
   const invalidateDerived = useInvalidateDerived();
   return useMutation({
@@ -71,7 +70,7 @@ export function useDeleteVacancy() {
     onSuccess: async (_res, id) => {
       qc.setQueryData<Vacancy[]>(queryKeys.vacancies, (cur) => cur?.filter((x) => x.id !== id) ?? cur);
       await invalidateDerived();
-      toast("Vacancy deleted", "success");
+      toast(t("toasts.deleted"), "success");
     },
     onError,
   });
@@ -79,13 +78,14 @@ export function useDeleteVacancy() {
 
 export function useImportVacancies() {
   const { toast } = useToast();
+  const { t } = useTranslation("vacancies");
   const onError = useMutationErrorToast();
   const invalidateAll = useInvalidateAll();
   return useMutation({
     mutationFn: (html: string) => api.importVacancies(html),
     onSuccess: async (res) => {
       await invalidateAll();
-      toast(res.added ? `Added ${plural(res.added, "vacancy", "vacancies")}` : "No new links found", res.added ? "success" : "info");
+      toast(res.added ? t("toasts.importAdded", { count: res.added }) : t("toasts.importNoNewLinks"), res.added ? "success" : "info");
     },
     onError,
   });
@@ -93,6 +93,7 @@ export function useImportVacancies() {
 
 export function useImportVacanciesJson() {
   const { toast } = useToast();
+  const { t } = useTranslation("vacancies");
   const onError = useMutationErrorToast();
   const invalidateAll = useInvalidateAll();
   return useMutation({
@@ -100,11 +101,11 @@ export function useImportVacanciesJson() {
     onSuccess: async (res) => {
       await invalidateAll();
       const parts: string[] = [];
-      if (res.added) parts.push(`added ${res.added}`);
-      if (res.updated) parts.push(`updated ${res.updated}`);
-      if (res.skipped) parts.push(`skipped ${res.skipped} (format errors)`);
+      if (res.added) parts.push(t("toasts.jsonImport.added", { count: res.added }));
+      if (res.updated) parts.push(t("toasts.jsonImport.updated", { count: res.updated }));
+      if (res.skipped) parts.push(t("toasts.jsonImport.skipped", { count: res.skipped }));
       const ok = res.added > 0 || res.updated > 0;
-      toast(parts.length ? parts.join(", ") : "No new data found", ok ? "success" : "error");
+      toast(parts.length ? parts.join(", ") : t("toasts.jsonImport.noData"), ok ? "success" : "error");
     },
     onError,
   });
@@ -112,13 +113,14 @@ export function useImportVacanciesJson() {
 
 export function useFetchAllVacancies() {
   const { toast } = useToast();
+  const { t } = useTranslation("vacancies");
   const onError = useMutationErrorToast();
   const invalidateAll = useInvalidateAll();
   return useMutation({
     mutationFn: () => api.fetchAllVacancies(),
     onSuccess: async (res) => {
       await invalidateAll();
-      toast(`Processed ${plural(res.processed, "vacancy", "vacancies")} — stack updated everywhere`, "success");
+      toast(t("toasts.fetchAllProcessed", { count: res.processed }), "success");
     },
     onError,
   });

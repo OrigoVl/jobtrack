@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { useProjects, useSetProjectItem } from "../../shared/queries";
 import { Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared/ui";
 
 /* ---------- Pet projects ---------- */
 export function Projects() {
+  const { t } = useTranslation(["projects", "common"]);
   const { data: projects, isLoading } = useProjects();
   const setProjectItemMutation = useSetProjectItem();
   if (isLoading || !projects) return <CardsSkeleton count={3} />;
@@ -11,13 +13,9 @@ export function Projects() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Pet projects"
-        subtitle="A ladder of 4 projects on your vacancies' stack. Each closes a specific gap and becomes proof of skills on GitHub. Check off the Definition of Done items."
-        actions={
-          <Chip tone="emerald">
-            {doneItems} / {totalItems} done
-          </Chip>
-        }
+        title={t("title")}
+        subtitle={t("subtitle")}
+        actions={<Chip tone="emerald">{t("doneCount", { done: doneItems, total: totalItems })}</Chip>}
       />
       <div className="grid lg:grid-cols-2 gap-4">
         {projects.projects.map((p) => {
@@ -39,10 +37,8 @@ export function Projects() {
               <p className="text-sm text-ink-dim mt-3">{p.goal}</p>
               <div className="mt-3">
                 <div className="flex justify-between text-xs text-ink-dim mb-1">
-                  <span>Definition of Done</span>
-                  <span>
-                    {done} / {p.dod.length}
-                  </span>
+                  <span>{t("definitionOfDone")}</span>
+                  <span>{t("progress", { done, total: p.dod.length })}</span>
                 </div>
                 <ProgressBar value={done} max={p.dod.length} tone="emerald" />
               </div>

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Btn } from "../../shared/ui";
 import { AuthLayout, AuthError, authInputClass } from "./auth-layout";
 import { resetPassword } from "../../shared/auth-client";
 
 export function ResetPassword() {
+  const { t } = useTranslation("auth");
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const token = params.get("token") || "";
@@ -14,9 +16,9 @@ export function ResetPassword() {
 
   if (!token) {
     return (
-      <AuthLayout title="Invalid reset link" subtitle="This link is missing its token — request a new one.">
+      <AuthLayout title={t("resetPassword.invalidLink.title")} subtitle={t("resetPassword.invalidLink.subtitle")}>
         <Link to="/forgot-password" className="text-signal hover:underline text-sm">
-          Request a new reset link
+          {t("resetPassword.invalidLink.requestNew")}
         </Link>
       </AuthLayout>
     );
@@ -29,27 +31,27 @@ export function ResetPassword() {
     const { error: resetError } = await resetPassword({ newPassword: password, token });
     setLoading(false);
     if (resetError) {
-      setError(resetError.message || "That link may have expired — request a new one.");
+      setError(resetError.message || t("resetPassword.errors.generic"));
       return;
     }
     navigate("/login", { replace: true });
   }
 
   return (
-    <AuthLayout title="Set a new password">
+    <AuthLayout title={t("resetPassword.title")}>
       <form onSubmit={onSubmit} className="space-y-3">
         {error && <AuthError message={error} />}
         <input
           type="password"
           required
           minLength={8}
-          placeholder="New password (min. 8 characters)"
+          placeholder={t("resetPassword.passwordPlaceholder")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className={authInputClass}
         />
         <Btn type="submit" loading={loading} className="w-full">
-          Set new password
+          {t("resetPassword.submit")}
         </Btn>
       </form>
     </AuthLayout>

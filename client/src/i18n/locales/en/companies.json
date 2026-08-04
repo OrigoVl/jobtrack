@@ -1,0 +1,18 @@
+{
+  "title": "Companies",
+  "subtitle": "Keep notes on companies and a bank of 'what they asked here' questions — so you can prep with focus.",
+  "nameAriaLabel": "Company name",
+  "namePlaceholder": "Company name",
+  "add": "+ Add",
+  "empty": {
+    "title": "No companies yet",
+    "hint": "Add a company to keep notes and a bank of interview questions."
+  },
+  "notesAriaLabel": "Notes about {{name}}",
+  "notesPlaceholder": "Notes (stack, people, salary, impressions)…",
+  "questionsAriaLabel": "Questions asked at {{name}}",
+  "questionsPlaceholder": "Questions they asked (one per line)…",
+  "toasts": {
+    "saved": "Saved"
+  }
+}

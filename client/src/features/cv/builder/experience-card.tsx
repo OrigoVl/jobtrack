@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Btn, Collapse } from "../../../shared/ui";
 import { Field } from "../../../shared/view-kit";
 import type { CvExperience } from "../../../shared/types";
@@ -28,6 +29,7 @@ export function ExperienceCard({
   onImproveBullets,
   focusIndex,
 }: ExperienceCardProps) {
+  const { t } = useTranslation(["cv", "common"]);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   // Only one entry expanded at a time — matches the accordion behavior of the rest of the
   // editor (avoids the old "wall of tall cards" scroll problem). New entries open immediately
@@ -43,9 +45,9 @@ export function ExperienceCard({
   if (experience.length === 0) {
     return (
       <div className="text-center py-6 space-y-2">
-        <div className="text-sm text-ink-dim">No experience entries yet</div>
+        <div className="text-sm text-ink-dim">{t("experienceCard.empty")}</div>
         <Btn size="sm" onClick={add}>
-          + Add experience
+          {t("experienceCard.addFirst")}
         </Btn>
       </div>
     );
@@ -55,7 +57,7 @@ export function ExperienceCard({
     <div className="space-y-2">
       <div className="flex justify-end">
         <Btn size="sm" variant="ghost" onClick={add}>
-          + Add
+          {t("experienceCard.add")}
         </Btn>
       </div>
       {experience.map((e, i) => {
@@ -85,15 +87,17 @@ export function ExperienceCard({
                 }}
                 onDragEnd={() => setDragIdx(null)}
                 onClick={(ev) => ev.stopPropagation()}
-                title="Drag to reorder"
+                title={t("experienceCard.dragToReorder")}
                 className="cursor-grab active:cursor-grabbing select-none text-ink-dim hover:text-ink-dim text-lg leading-none"
               >
                 ⠿
               </button>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-ink truncate">{e.company || `Entry ${i + 1}`}</div>
+                <div className="text-sm font-semibold text-ink truncate">
+                  {e.company || t("experienceCard.entryFallback", { n: i + 1 })}
+                </div>
                 <div className="text-xs text-ink-dim truncate">
-                  {e.role || "No role"}
+                  {e.role || t("experienceCard.noRole")}
                   {e.period ? ` · ${e.period}` : ""}
                 </div>
               </div>
@@ -112,19 +116,19 @@ export function ExperienceCard({
                   </Btn>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <Field label="Role" value={e.role} onChange={(v) => onSet(i, { role: v })} maxLength={160} />
-                  <Field label="Company" value={e.company} onChange={(v) => onSet(i, { company: v })} maxLength={160} />
+                  <Field label={t("experienceCard.role")} value={e.role} onChange={(v) => onSet(i, { role: v })} maxLength={160} />
+                  <Field label={t("experienceCard.company")} value={e.company} onChange={(v) => onSet(i, { company: v })} maxLength={160} />
                   <Field
-                    label="Period"
+                    label={t("experienceCard.period")}
                     value={e.period}
                     onChange={(v) => onSet(i, { period: v })}
-                    placeholder="2022 — present"
+                    placeholder={t("experienceCard.periodPlaceholder")}
                     maxLength={60}
                   />
                 </div>
                 <label className="block">
                   <span className="text-xs font-semibold text-ink-dim flex items-center gap-2">
-                    Achievements (one per line)
+                    {t("experienceCard.achievements")}
                     <Btn
                       size="sm"
                       variant="ghost"
@@ -132,7 +136,7 @@ export function ExperienceCard({
                       loading={busyKey === `b${i}`}
                       disabled={!llm || e.bullets.filter(Boolean).length === 0}
                     >
-                      ✨ result-focus
+                      {t("experienceCard.resultFocus")}
                     </Btn>
                   </span>
                   <textarea
@@ -150,7 +154,7 @@ export function ExperienceCard({
                       setExpanded(null);
                     }}
                   >
-                    Delete
+                    {t("common:actions.delete")}
                   </Btn>
                 </div>
               </div>

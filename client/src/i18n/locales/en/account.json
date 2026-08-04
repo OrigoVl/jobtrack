@@ -1,0 +1,16 @@
+{
+  "title": "Account",
+  "subtitle": "Export your data, or permanently delete your account.",
+  "export": {
+    "heading": "Export your data",
+    "description": "Downloads a JSON file with your profile, vacancies, companies, and study progress — everything you've created in DevRadar.",
+    "button": "Export my data"
+  },
+  "deleteAccount": {
+    "heading": "Delete your account",
+    "description": "Permanently deletes your account and everything in it — vacancies, companies, CV, study progress. This cannot be undone.",
+    "confirmationSent": "Check your email — click the link we sent to confirm the deletion. Nothing has been deleted yet.",
+    "genericError": "Couldn't start account deletion. Try again.",
+    "button": "Delete my account"
+  }
+}

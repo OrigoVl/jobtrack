@@ -1,39 +1,44 @@
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useAddVacancy, useAddSavedSearch, useDeleteSavedSearch, useProfile, useSavedSearches } from "../../shared/queries";
 import { Btn, Card, Chip, EmptyState, PageHeader, Segmented, Spinner } from "../../shared/ui";
-import { plural } from "../../shared/format";
 import type { JobResult, JobSearchRegion, JobSearchResult } from "../../shared/types";
 
 /** Job alerts (saved searches) — a re-runs-every-few-hours background email digest of newly
  * appeared postings for a query/region (see the "🔔 Alert me" button next to the search bar
  * below, and server/src/modules/saved-searches/). Just the list + delete here. */
 function SavedSearchesCard() {
+  const { t, i18n } = useTranslation(["jobs", "common"]);
   const { data: searches, isLoading } = useSavedSearches();
   const deleteMutation = useDeleteSavedSearch();
   if (isLoading) return null;
   if (!searches || searches.length === 0) return null;
   return (
     <Card>
-      <div className="text-sm font-semibold text-ink mb-2">🔔 Your job alerts</div>
+      <div className="text-sm font-semibold text-ink mb-2">{t("alerts.heading")}</div>
       <div className="space-y-1.5">
         {searches.map((s) => {
           const isDeleting = deleteMutation.isPending && deleteMutation.variables === s.id;
           return (
             <div key={s.id} className="flex items-center gap-2 text-sm px-2.5 py-1.5 rounded-lg border border-grid">
               <span className="font-medium text-ink truncate">{s.label || s.query}</span>
-              <Chip>{s.region === "all" ? "All regions" : s.region === "ua" ? "🇺🇦 Ukraine" : "🌍 Remote"}</Chip>
+              <Chip>
+                {s.region === "all" ? t("alerts.regionAll") : s.region === "ua" ? t("alerts.regionUkraine") : t("alerts.regionRemote")}
+              </Chip>
               <span className="text-xs text-ink-dim ml-auto whitespace-nowrap">
-                {s.lastNotifiedAt ? `Last alert ${new Date(s.lastNotifiedAt).toLocaleDateString()}` : "No alerts sent yet"}
+                {s.lastNotifiedAt
+                  ? t("alerts.lastAlert", { date: new Date(s.lastNotifiedAt).toLocaleDateString(i18n.language) })
+                  : t("alerts.noAlertsSent")}
               </span>
               <button
                 onClick={() => deleteMutation.mutate(s.id)}
                 disabled={isDeleting}
                 className="text-ink-dim hover:text-rose-500 disabled:opacity-50 shrink-0"
-                aria-label={`Delete alert for ${s.label || s.query}`}
-                title="Delete alert"
+                aria-label={t("alerts.deleteAriaLabel", { name: s.label || s.query })}
+                title={t("alerts.deleteTitle")}
               >
                 {isDeleting ? <Spinner className="h-3.5 w-3.5" /> : "✕"}
               </button>
@@ -46,31 +51,58 @@ function SavedSearchesCard() {
 }
 
 /* ---------- Job search (aggregators) ---------- */
-const LI_COUNTRIES: { code: string; label: string; geoId?: string; wt?: string }[] = [
-  { code: "remote", label: "🌍 Remote / anywhere", wt: "2" },
-  { code: "ua", label: "🇺🇦 Ukraine", geoId: "102264497" },
-  { code: "pl", label: "🇵🇱 Poland", geoId: "105072130" },
-  { code: "de", label: "🇩🇪 Germany", geoId: "101282230" },
-  { code: "gb", label: "🇬🇧 United Kingdom", geoId: "101165590" },
-  { code: "us", label: "🇺🇸 USA", geoId: "103644278" },
-  { code: "nl", label: "🇳🇱 Netherlands", geoId: "102890719" },
-  { code: "es", label: "🇪🇸 Spain", geoId: "105646813" },
+// Country codes + LinkedIn search params — pure data, no user-facing text (labels are looked up
+// via `t()` inside the component, see `countryLabel` below).
+const LI_COUNTRIES: { code: string; geoId?: string; wt?: string }[] = [
+  { code: "remote", wt: "2" },
+  { code: "ua", geoId: "102264497" },
+  { code: "pl", geoId: "105072130" },
+  { code: "de", geoId: "101282230" },
+  { code: "gb", geoId: "101165590" },
+  { code: "us", geoId: "103644278" },
+  { code: "nl", geoId: "102890719" },
+  { code: "es", geoId: "105646813" },
 ];
-function externalLinks(q: string, country: { geoId?: string; wt?: string }): { label: string; url: string }[] {
-  const e = encodeURIComponent(q.trim());
-  const li = new URLSearchParams({ keywords: q.trim() });
-  if (country.geoId) li.set("geoId", country.geoId);
-  if (country.wt) li.set("f_WT", country.wt);
-  const slug = (q.trim() || "jobs").replace(/\s+/g, "-").toLowerCase();
-  return [
-    { label: "🔗 LinkedIn (with country filter)", url: `https://www.linkedin.com/jobs/search/?${li.toString()}` },
-    { label: "🟢 Djinni", url: `https://djinni.co/jobs/?all-keywords=${e}` },
-    { label: "🔵 DOU", url: `https://jobs.dou.ua/vacancies/?search=${e}` },
-    { label: "🟠 Work.ua", url: `https://www.work.ua/jobs/?search=${e}` },
-    { label: "🔴 robota.ua", url: `https://robota.ua/zapros/${encodeURIComponent(slug)}/ukraine` },
-  ];
-}
 export function Jobs() {
+  const { t } = useTranslation(["jobs", "common"]);
+  // Explicit switch (not a dynamic `t(`countries.${code}`)`) so every key stays a literal i18next
+  // can type-check — same reasoning as shared/status-labels.ts's statusLabel.
+  const countryLabel = (code: string): string => {
+    switch (code) {
+      case "remote":
+        return t("countries.remote");
+      case "ua":
+        return t("countries.ua");
+      case "pl":
+        return t("countries.pl");
+      case "de":
+        return t("countries.de");
+      case "gb":
+        return t("countries.gb");
+      case "us":
+        return t("countries.us");
+      case "nl":
+        return t("countries.nl");
+      case "es":
+        return t("countries.es");
+      default:
+        return code;
+    }
+  };
+  const externalLinks = (q: string, country: { geoId?: string; wt?: string }): { label: string; url: string }[] => {
+    const e = encodeURIComponent(q.trim());
+    const li = new URLSearchParams({ keywords: q.trim() });
+    if (country.geoId) li.set("geoId", country.geoId);
+    if (country.wt) li.set("f_WT", country.wt);
+    const slug = (q.trim() || "jobs").replace(/\s+/g, "-").toLowerCase();
+    return [
+      { label: t("external.linkedin"), url: `https://www.linkedin.com/jobs/search/?${li.toString()}` },
+      { label: t("external.djinni"), url: `https://djinni.co/jobs/?all-keywords=${e}` },
+      { label: t("external.dou"), url: `https://jobs.dou.ua/vacancies/?search=${e}` },
+      { label: t("external.workUa"), url: `https://www.work.ua/jobs/?search=${e}` },
+      { label: t("external.robotaUa"), url: `https://robota.ua/zapros/${encodeURIComponent(slug)}/ukraine` },
+    ];
+  };
   const { data: profile } = useProfile();
   const addVacancyMutation = useAddVacancy();
   const { data: savedSearches = [] } = useSavedSearches();
@@ -115,58 +147,50 @@ export function Jobs() {
   };
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Job search"
-        subtitle="Real vacancies from aggregators (Remotive + Arbeitnow) matched to your skills. Found something interesting — add it to the tracker in one click."
-      />
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
       <Card>
         <div className="flex gap-2 flex-wrap">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && search()}
-            aria-label="Keywords for the job search"
-            placeholder={profile?.skills.slice(0, 3).join(" ") || "e.g. react node typescript"}
+            aria-label={t("search.keywordsAriaLabel")}
+            placeholder={profile?.skills.slice(0, 3).join(" ") || t("search.keywordsPlaceholder")}
             className="flex-1 min-w-[220px] bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
           />
           <Btn onClick={search} loading={loading}>
-            {loading ? "Searching…" : "🔎 Search"}
+            {loading ? t("search.searching") : t("search.search")}
           </Btn>
           <Btn
             variant="ghost"
-            title="Email me when new postings match this search"
+            title={t("search.alertMeTitle")}
             disabled={!effectiveQ.trim() || savedSearches.some((s) => s.query === effectiveQ.trim() && s.region === region)}
             loading={addSavedSearchMutation.isPending}
             onClick={() => addSavedSearchMutation.mutate({ query: effectiveQ.trim(), region, label: effectiveQ.trim() })}
           >
-            🔔 Alert me
+            {t("search.alertMe")}
           </Btn>
         </div>
         <div className="flex items-center gap-2 mt-2 flex-wrap">
-          <span className="text-xs font-semibold text-ink-dim">Sources:</span>
+          <span className="text-xs font-semibold text-ink-dim">{t("search.sources")}</span>
           <Segmented
             value={region}
             onChange={setRegion}
             options={[
-              { value: "all", label: "All" },
-              { value: "ua", label: "🇺🇦 Ukraine (DOU)" },
-              { value: "remote", label: "🌍 Remote" },
+              { value: "all", label: t("search.sourceAll") },
+              { value: "ua", label: t("search.sourceUkraine") },
+              { value: "remote", label: t("search.sourceRemote") },
             ]}
           />
         </div>
-        <div className="text-xs text-ink-dim mt-2">
-          Empty query → we search by your top skills. "Ukraine" = DOU, "Remote" = Remotive + Arbeitnow.
-        </div>
+        <div className="text-xs text-ink-dim mt-2">{t("search.hint")}</div>
       </Card>
       <SavedSearchesCard />
       <Card>
-        <div className="text-sm font-semibold text-ink mb-1">🌐 Search on external sites</div>
-        <div className="text-xs text-ink-dim mb-2">
-          Djinni and LinkedIn don't have an open API (scraping would violate ToS). So here are ready-made search links with your query and a
-          country filter for LinkedIn.
-        </div>
+        <div className="text-sm font-semibold text-ink mb-1">{t("external.heading")}</div>
+        <div className="text-xs text-ink-dim mb-2">{t("external.hint")}</div>
         <div className="flex gap-2 items-center flex-wrap mb-2">
-          <span className="text-xs font-semibold text-ink-dim">Country (LinkedIn):</span>
+          <span className="text-xs font-semibold text-ink-dim">{t("external.countryLabel")}</span>
           <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
@@ -174,7 +198,7 @@ export function Jobs() {
           >
             {LI_COUNTRIES.map((c) => (
               <option key={c.code} value={c.code}>
-                {c.label}
+                {countryLabel(c.code)}
               </option>
             ))}
           </select>
@@ -195,19 +219,15 @@ export function Jobs() {
       </Card>
       {isError && !loading && (
         <Card>
-          <EmptyState icon="⚠️" title="Search failed" hint="A network or server problem. Try again." />
+          <EmptyState icon="⚠️" title={t("results.searchFailedTitle")} hint={t("results.searchFailedHint")} />
         </Card>
       )}
       {data && data.jobs.length === 0 && (
         <Card>
           <EmptyState
             icon="🔍"
-            title="Nothing found"
-            hint={
-              data.offline
-                ? "The aggregators are unavailable (network/timeout). Try again later."
-                : "Try different keywords or a broader query."
-            }
+            title={t("results.nothingFoundTitle")}
+            hint={data.offline ? t("results.nothingFoundHintOffline") : t("results.nothingFoundHint")}
           />
         </Card>
       )}
@@ -222,10 +242,10 @@ export function Jobs() {
             <div className="space-y-2">
               <div ref={listTopRef} className="scroll-mt-4 flex items-center gap-2 flex-wrap">
                 <div className="text-sm text-ink-dim">
-                  Found {data.count} for "{data.query}" · showing {start + 1}–{start + pageJobs.length}
+                  {t("results.found", { count: data.count, query: data.query, start: start + 1, end: start + pageJobs.length })}
                 </div>
                 <div className="ml-auto flex items-center gap-1.5 text-xs text-ink-dim">
-                  <span>Per page:</span>
+                  <span>{t("results.perPage")}</span>
                   <Segmented
                     value={pageSize}
                     onChange={(n) => {
@@ -245,15 +265,15 @@ export function Jobs() {
                   <Card key={job.url} className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-ink">{job.position}</span>
-                      {job.matchCount > 0 && <Chip tone="emerald">★ {plural(job.matchCount, "match", "matches")}</Chip>}
+                      {job.matchCount > 0 && <Chip tone="emerald">{t("results.matches", { count: job.matchCount })}</Chip>}
                       <Chip>{job.source}</Chip>
                       <span className="text-xs text-ink-dim ml-auto">{job.location}</span>
                     </div>
                     <div className="text-sm text-ink-dim">{job.company}</div>
                     {job.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1">
-                        {job.tags.slice(0, 8).map((t) => (
-                          <Chip key={t}>{t}</Chip>
+                        {job.tags.slice(0, 8).map((tag) => (
+                          <Chip key={tag}>{tag}</Chip>
                         ))}
                       </div>
                     )}
@@ -264,10 +284,10 @@ export function Jobs() {
                         rel="noreferrer"
                         className="text-sm px-3 py-1.5 rounded-lg bg-surface-2 text-signal hover:bg-grid transition-colors"
                       >
-                        Open ↗
+                        {t("results.open")}
                       </a>
                       <Btn size="sm" variant="ghost" loading={isAdding} onClick={() => addJob(job)} disabled={added[job.url]}>
-                        {added[job.url] ? "✓ in tracker" : "➕ add to tracker"}
+                        {added[job.url] ? t("results.addedToTracker") : t("results.addToTracker")}
                       </Btn>
                     </div>
                   </Card>
@@ -276,13 +296,11 @@ export function Jobs() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-3 pt-1">
                   <Btn size="sm" variant="ghost" onClick={() => goPage(current - 1)} disabled={current <= 1}>
-                    ← Back
+                    {t("results.back")}
                   </Btn>
-                  <span className="text-sm text-ink-dim">
-                    Page {current} of {totalPages}
-                  </span>
+                  <span className="text-sm text-ink-dim">{t("results.pageOf", { current, totalPages })}</span>
                   <Btn size="sm" variant="ghost" onClick={() => goPage(current + 1)} disabled={current >= totalPages}>
-                    Next →
+                    {t("results.next")}
                   </Btn>
                 </div>
               )}

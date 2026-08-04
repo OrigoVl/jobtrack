@@ -1,0 +1,51 @@
+{
+  "actions": {
+    "save": "Зберегти",
+    "cancel": "Скасувати",
+    "delete": "Видалити",
+    "edit": "Редагувати",
+    "add": "Додати",
+    "close": "Закрити",
+    "search": "Пошук"
+  },
+  "state": {
+    "loading": "Завантаження…",
+    "saving": "Збереження…"
+  },
+  "vacancyStatus": {
+    "wantToApply": "Хочу подати заявку",
+    "applied": "Подано",
+    "screening": "Скринінг",
+    "techInterview": "Технічне інтерв'ю",
+    "takeHomeTask": "Тестове завдання",
+    "final": "Фінал",
+    "offer": "Офер",
+    "rejected": "Відмова",
+    "paused": "На паузі"
+  },
+  "dateInput": {
+    "openCalendar": "Відкрити календар",
+    "previousMonth": "Попередній місяць",
+    "nextMonth": "Наступний місяць",
+    "datePlaceholder": "mm/dd/yyyy",
+    "dateTimePlaceholder": "mm/dd/yyyy, HH:mm"
+  },
+  "fit": {
+    "high": "Високий",
+    "med": "Середній",
+    "low": "Низький"
+  },
+  "errors": {
+    "generic": "Сталася помилка",
+    "UNSUPPORTED_FILE_TYPE": "Непідтримуваний тип файлу. Дозволено: PDF, DOCX, DOC, TXT, ZIP.",
+    "CV_EXTRACT_FAILED": "Не вдалося витягнути текст із файлу (можливо, це скан або зображення).",
+    "LINKEDIN_ARCHIVE_INVALID": "Не вдалося прочитати архів. Це має бути .zip-експорт із LinkedIn (Налаштування → Отримати копію своїх даних).",
+    "LINKEDIN_ARCHIVE_MISSING_FILES": "В архіві не знайдено Profile.csv / Positions.csv / Skills.csv.",
+    "CV_SHARE_NOT_FOUND": "Це посилання на CV не існує або вимкнене",
+    "VACANCY_FETCH_FAILED": "Не вдалося витягнути текст зі сторінки (можливо, вона порожня або захищена від скрапінгу).",
+    "VACANCY_URL_MISSING": "У цієї вакансії немає посилання",
+    "VACANCY_IMPORT_TOO_MANY": "Забагато елементів в одному імпорті (максимум 1000)",
+    "RATE_LIMITED": "Забагато запитів. Спробуйте ще раз за кілька хвилин.",
+    "AI_RATE_LIMITED": "Забагато запитів до AI. Зачекайте кілька хвилин і спробуйте знову."
+  }
+}

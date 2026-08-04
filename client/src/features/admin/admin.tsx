@@ -1,4 +1,5 @@
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useTranslation } from "react-i18next";
 import { Card, CardsSkeleton, Chip, EmptyState, PageHeader, Segmented } from "../../shared/ui";
 import { useUi } from "../../shared/ui-state";
 import { money } from "../../shared/format";
@@ -13,11 +14,7 @@ const TOOLTIP = {
   color: "#0e1613", // --ink
 } as const;
 
-const DAY_RANGES = [
-  { value: 7, label: "7d" },
-  { value: 30, label: "30d" },
-  { value: 90, label: "90d" },
-];
+const DAY_RANGE_VALUES = [7, 30, 90];
 
 function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -30,34 +27,36 @@ function StatCard({ label, value, hint }: { label: string; value: string; hint?:
 }
 
 function OverviewTab({ days }: { days: number }) {
+  const { t } = useTranslation(["admin", "common"]);
   const { data, isLoading } = useAdminOverview(days);
   if (isLoading) return <CardsSkeleton count={2} />;
   if (!data) return null;
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-      <StatCard label="Total users" value={String(data.totalUsers)} />
-      <StatCard label="Total vacancies" value={String(data.totalVacancies)} />
-      <StatCard label={`LLM cost (${days}d)`} value={money(data.llmCostUsd)} hint="estimated, see LLM cost tab" />
-      <StatCard label={`LLM calls (${days}d)`} value={String(data.llmCalls)} />
+      <StatCard label={t("overview.totalUsers")} value={String(data.totalUsers)} />
+      <StatCard label={t("overview.totalVacancies")} value={String(data.totalVacancies)} />
+      <StatCard label={t("overview.llmCostLabel", { days })} value={money(data.llmCostUsd)} hint={t("overview.llmCostHint")} />
+      <StatCard label={t("overview.llmCallsLabel", { days })} value={String(data.llmCalls)} />
     </div>
   );
 }
 
 function UsersTab() {
+  const { t, i18n } = useTranslation(["admin", "common"]);
   const { data, isLoading } = useAdminUsers(50, 0);
   if (isLoading) return <CardsSkeleton count={1} />;
-  if (!data || data.users.length === 0) return <EmptyState icon="👥" title="No users yet" />;
+  if (!data || data.users.length === 0) return <EmptyState icon="👥" title={t("users.empty.title")} />;
   return (
     <Card className="overflow-x-auto">
       <table className="w-full text-sm" role="table">
         <thead>
           <tr className="text-left text-xs font-semibold text-ink-dim border-b border-grid">
-            <th className="py-2 pr-3">Name</th>
-            <th className="py-2 pr-3">Email</th>
-            <th className="py-2 pr-3">Role</th>
-            <th className="py-2 pr-3">Joined</th>
-            <th className="py-2 pr-3 text-right">Vacancies</th>
-            <th className="py-2 text-right">LLM calls (recent)</th>
+            <th className="py-2 pr-3">{t("users.table.name")}</th>
+            <th className="py-2 pr-3">{t("users.table.email")}</th>
+            <th className="py-2 pr-3">{t("users.table.role")}</th>
+            <th className="py-2 pr-3">{t("users.table.joined")}</th>
+            <th className="py-2 pr-3 text-right">{t("users.table.vacancies")}</th>
+            <th className="py-2 text-right">{t("users.table.llmCallsRecent")}</th>
           </tr>
         </thead>
         <tbody>
@@ -69,43 +68,42 @@ function UsersTab() {
                 {u.role === "admin" ? <Chip tone="indigo">admin</Chip> : <Chip>user</Chip>}
                 {u.banned && (
                   <Chip tone="rose" key="banned">
-                    banned
+                    {t("users.table.bannedBadge")}
                   </Chip>
                 )}
               </td>
-              <td className="py-2 pr-3 text-ink-dim">{new Date(u.createdAt).toLocaleDateString()}</td>
+              <td className="py-2 pr-3 text-ink-dim">{new Date(u.createdAt).toLocaleDateString(i18n.language)}</td>
               <td className="py-2 pr-3 text-right">{u.vacancyCount}</td>
               <td className="py-2 text-right">{u.llmCallsRecent}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div className="text-xs text-ink-dim mt-2">
-        Showing {data.users.length} of {data.total}.
-      </div>
+      <div className="text-xs text-ink-dim mt-2">{t("users.showingSummary", { count: data.users.length, total: data.total })}</div>
     </Card>
   );
 }
 
 function LlmCostTab({ days }: { days: number }) {
+  const { t } = useTranslation(["admin", "common"]);
   const { data, isLoading } = useAdminLlmUsage(days);
   if (isLoading) return <CardsSkeleton count={2} />;
   if (!data) return null;
   if (data.totalCalls === 0) {
     return (
       <Card>
-        <EmptyState icon="🤖" title="No LLM usage yet" hint="Calls will show up here once users start using AI features." />
+        <EmptyState icon="🤖" title={t("llm.empty.title")} hint={t("llm.empty.hint")} />
       </Card>
     );
   }
   return (
     <div className="space-y-4">
       <div className="grid sm:grid-cols-2 gap-3">
-        <StatCard label={`Total cost (${days}d)`} value={money(data.totalCostUsd)} hint="estimated — see llm/pricing.ts" />
-        <StatCard label={`Total calls (${days}d)`} value={String(data.totalCalls)} />
+        <StatCard label={t("llm.totalCostLabel", { days })} value={money(data.totalCostUsd)} hint={t("llm.totalCostHint")} />
+        <StatCard label={t("llm.totalCallsLabel", { days })} value={String(data.totalCalls)} />
       </div>
       <Card>
-        <div className="text-sm font-semibold mb-3 text-ink">Cost by feature</div>
+        <div className="text-sm font-semibold mb-3 text-ink">{t("llm.costByFeature")}</div>
         <div style={{ height: Math.max(160, data.byFeature.length * 40) }}>
           <ResponsiveContainer>
             <BarChart data={data.byFeature} layout="vertical">
@@ -122,7 +120,7 @@ function LlmCostTab({ days }: { days: number }) {
         </div>
       </Card>
       <Card>
-        <div className="text-sm font-semibold mb-3 text-ink">Cost by day</div>
+        <div className="text-sm font-semibold mb-3 text-ink">{t("llm.costByDay")}</div>
         <div style={{ height: 240 }}>
           <ResponsiveContainer>
             <BarChart data={data.byDay}>
@@ -139,20 +137,21 @@ function LlmCostTab({ days }: { days: number }) {
 }
 
 function ProductAnalyticsTab({ days }: { days: number }) {
+  const { t } = useTranslation(["admin", "common"]);
   const { data, isLoading } = useAdminProductEvents(days);
   if (isLoading) return <CardsSkeleton count={2} />;
   if (!data) return null;
   if (data.byName.length === 0) {
     return (
       <Card>
-        <EmptyState icon="📈" title="No product events yet" hint="Job searches and other tracked actions will show up here." />
+        <EmptyState icon="📈" title={t("product.empty.title")} hint={t("product.empty.hint")} />
       </Card>
     );
   }
   return (
     <div className="space-y-4">
       <Card>
-        <div className="text-sm font-semibold mb-3 text-ink">Events by type</div>
+        <div className="text-sm font-semibold mb-3 text-ink">{t("product.eventsByType")}</div>
         <div className="flex flex-wrap gap-2">
           {data.byName.map((n) => (
             <Chip key={n.name} tone="indigo">
@@ -163,7 +162,7 @@ function ProductAnalyticsTab({ days }: { days: number }) {
       </Card>
       {data.searchesByDay.length > 0 && (
         <Card>
-          <div className="text-sm font-semibold mb-3 text-ink">Job searches by day</div>
+          <div className="text-sm font-semibold mb-3 text-ink">{t("product.searchesByDay")}</div>
           <div style={{ height: 240 }}>
             <ResponsiveContainer>
               <BarChart data={data.searchesByDay}>
@@ -178,7 +177,7 @@ function ProductAnalyticsTab({ days }: { days: number }) {
       )}
       {data.topSearchQueries.length > 0 && (
         <Card>
-          <div className="text-sm font-semibold mb-3 text-ink">Top search queries</div>
+          <div className="text-sm font-semibold mb-3 text-ink">{t("product.topSearchQueries")}</div>
           <div className="space-y-1.5">
             {data.topSearchQueries.map((q) => (
               <div key={q.query} className="flex items-center gap-3 text-sm">
@@ -194,12 +193,13 @@ function ProductAnalyticsTab({ days }: { days: number }) {
 }
 
 function LogsTab({ logsDashboardUrl }: { logsDashboardUrl: string | null | undefined }) {
+  const { t } = useTranslation(["admin", "common"]);
   return (
     <Card>
       <EmptyState
         icon="🪵"
-        title="Logs & errors live in the external tracker"
-        hint="Not duplicated in this panel — see the README for why (retention/cost/PII reasons). Configure LOGS_DASHBOARD_URL to link it here."
+        title={t("logs.empty.title")}
+        hint={t("logs.empty.hint")}
         action={
           logsDashboardUrl ? (
             <a
@@ -208,7 +208,7 @@ function LogsTab({ logsDashboardUrl }: { logsDashboardUrl: string | null | undef
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 text-sm font-semibold text-signal hover:text-signal"
             >
-              Open dashboard ↗
+              {t("logs.openDashboard")}
             </a>
           ) : undefined
         }
@@ -218,26 +218,30 @@ function LogsTab({ logsDashboardUrl }: { logsDashboardUrl: string | null | undef
 }
 
 type Tab = "overview" | "users" | "llm" | "product" | "logs";
-const TABS: { value: Tab; label: string }[] = [
-  { value: "overview", label: "Overview" },
-  { value: "users", label: "Users" },
-  { value: "llm", label: "LLM cost" },
-  { value: "product", label: "Product" },
-  { value: "logs", label: "Logs & errors" },
+type TabLabelKey = `tabs.${keyof (typeof import("../../i18n/locales/en/admin.json"))["tabs"]}`;
+const TAB_DEF: { value: Tab; labelKey: TabLabelKey }[] = [
+  { value: "overview", labelKey: "tabs.overview" },
+  { value: "users", labelKey: "tabs.users" },
+  { value: "llm", labelKey: "tabs.llm" },
+  { value: "product", labelKey: "tabs.product" },
+  { value: "logs", labelKey: "tabs.logs" },
 ];
 
 export function Admin() {
+  const { t } = useTranslation(["admin", "common"]);
   const [tab, setTab] = useUi<Tab>("admin.tab", "overview");
   const [days, setDays] = useUi<number>("admin.days", 30);
   const { data: overview } = useAdminOverview(days);
+  const tabs = TAB_DEF.map((tb) => ({ value: tb.value, label: t(tb.labelKey) }));
+  const dayRanges = DAY_RANGE_VALUES.map((value) => ({ value, label: t("dayRange.label", { count: value }) }));
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Admin"
-        subtitle="Users & activity, LLM cost, and product analytics — aggregates only, no CV text or per-user search history."
-        actions={tab !== "users" && tab !== "logs" ? <Segmented value={days} onChange={setDays} options={DAY_RANGES} /> : undefined}
+        title={t("page.title")}
+        subtitle={t("page.subtitle")}
+        actions={tab !== "users" && tab !== "logs" ? <Segmented value={days} onChange={setDays} options={dayRanges} /> : undefined}
       />
-      <Segmented value={tab} onChange={setTab} options={TABS} />
+      <Segmented value={tab} onChange={setTab} options={tabs} />
       {tab === "overview" && <OverviewTab days={days} />}
       {tab === "users" && <UsersTab />}
       {tab === "llm" && <LlmCostTab days={days} />}

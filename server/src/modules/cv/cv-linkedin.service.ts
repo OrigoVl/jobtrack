@@ -35,6 +35,10 @@ function offlineLinkedInOptimize(profile: Profile): LinkedInOptimizeResult {
 export async function optimizeLinkedInProfile(userId: UserId, profile: Profile): Promise<LinkedInOptimizeResult> {
   if (!llmAvailable()) return offlineLinkedInOptimize(profile);
   const role = profile.domain?.trim() || "specialist";
+  // No outputLocale — a LinkedIn profile is written to match the candidate's OWN CV/target
+  // market, same reasoning as cv.routes.ts's cv-skills-update/cv-improve (follows the resume's
+  // language, not the UI's). Hardcoded to English for now, same caveat as writing.routes.ts's
+  // cover letter — a real language-detection enhancement would be separate from this i18n rollout.
   const out = await chatJson(
     userId,
     "You are a career coach who writes concise, effective LinkedIn profiles. Respond ONLY with valid JSON in English.",

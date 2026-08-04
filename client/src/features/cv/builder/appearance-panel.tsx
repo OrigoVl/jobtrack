@@ -1,17 +1,29 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Btn, Segmented, Section } from "../../../shared/ui";
 import { useToast } from "../../../shared/use-toast";
 import type { CvDoc, CvTheme } from "../../../shared/types";
 import { PhotoCropper } from "./photo-cropper";
 
-const TEMPLATES: [CvTheme["template"], string][] = [
-  ["classic", "Classic"],
-  ["compact", "Compact"],
-  ["academic", "Academic"],
-  ["twocol", "Two columns"],
-  ["minimal", "Minimal"],
-  ["sidebar", "Sidebar"],
-  ["timeline", "Timeline"],
+const TEMPLATE_KEYS: [
+  CvTheme["template"],
+  (
+    | "templates.classic"
+    | "templates.compact"
+    | "templates.academic"
+    | "templates.twocol"
+    | "templates.minimal"
+    | "templates.sidebar"
+    | "templates.timeline"
+  ),
+][] = [
+  ["classic", "templates.classic"],
+  ["compact", "templates.compact"],
+  ["academic", "templates.academic"],
+  ["twocol", "templates.twocol"],
+  ["minimal", "templates.minimal"],
+  ["sidebar", "templates.sidebar"],
+  ["timeline", "templates.timeline"],
 ];
 
 interface AppearancePanelProps {
@@ -23,16 +35,17 @@ interface AppearancePanelProps {
 
 /** Choosing a template, style (accent/font/scale), and photo (with cropping). */
 export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: AppearancePanelProps) {
+  const { t } = useTranslation(["cv", "common"]);
   const { toast } = useToast();
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const pickPhoto = (file?: File) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      toast("Choose an image file (PNG/JPG)", "error");
+      toast(t("appearance.photo.invalidFileToast"), "error");
       return;
     }
     if (file.size > 8 * 1024 * 1024) {
-      toast("Image too large (max 8 MB)", "error");
+      toast(t("appearance.photo.tooLargeToast"), "error");
       return;
     }
     setCropSrc(URL.createObjectURL(file));
@@ -41,25 +54,31 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
     if (cropSrc) URL.revokeObjectURL(cropSrc);
     setCropSrc(null);
   };
+  const fontLabel = (font: CvTheme["font"]) => (font === "serif" ? t("appearance.style.serif") : t("appearance.style.sans"));
   return (
     <>
-      <Section title="Template" icon="🧩" defaultOpen hint={TEMPLATES.find(([id]) => id === theme.template)?.[1]}>
+      <Section
+        title={t("appearance.template.title")}
+        icon="🧩"
+        defaultOpen
+        hint={t(TEMPLATE_KEYS.find(([id]) => id === theme.template)?.[1] ?? "templates.classic")}
+      >
         <div className="grid grid-cols-2 gap-2">
-          {TEMPLATES.map(([id, label]) => (
+          {TEMPLATE_KEYS.map(([id, labelKey]) => (
             <button
               key={id}
               onClick={() => onSetTheme({ template: id })}
               className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${theme.template === id ? "border-signal bg-signal/10 text-signal" : "border-grid text-ink-dim hover:bg-surface-2"}`}
             >
-              {label}
+              {t(labelKey)}
             </button>
           ))}
         </div>
       </Section>
-      <Section title="Style" icon="🎨" hint={`${theme.font === "serif" ? "Serif" : "Sans"} · ${Math.round(theme.scale * 100)}%`}>
+      <Section title={t("appearance.style.title")} icon="🎨" hint={`${fontLabel(theme.font)} · ${Math.round(theme.scale * 100)}%`}>
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <label className="flex items-center gap-2 text-sm text-ink-dim">
-            Accent
+            {t("appearance.style.accent")}
             <input
               type="color"
               value={theme.accent}
@@ -68,20 +87,20 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             />
           </label>
           <div className="flex items-center gap-2 text-sm text-ink-dim">
-            Font
+            {t("appearance.style.font")}
             <Segmented
               value={theme.font}
               onChange={(v) => onSetTheme({ font: v })}
               options={[
-                { value: "sans", label: "Sans" },
-                { value: "serif", label: "Serif" },
+                { value: "sans", label: t("appearance.style.sans") },
+                { value: "serif", label: t("appearance.style.serif") },
               ]}
             />
           </div>
         </div>
         <label className="block text-sm text-ink-dim">
           <div className="flex justify-between">
-            <span>Text scale</span>
+            <span>{t("appearance.style.textScale")}</span>
             <span className="text-ink-dim">{Math.round(theme.scale * 100)}%</span>
           </div>
           <input
@@ -91,12 +110,18 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             step={0.05}
             value={theme.scale}
             onChange={(e) => onSetTheme({ scale: Number(e.target.value) })}
-            aria-label="Text scale"
+            aria-label={t("appearance.style.textScale")}
             className="w-full mt-1 accent-signal"
           />
         </label>
       </Section>
-      <Section title="Photo" icon="🖼" hint={doc.photo ? (theme.showPhoto === false ? "hidden" : "added") : "none"}>
+      <Section
+        title={t("appearance.photo.title")}
+        icon="🖼"
+        hint={
+          doc.photo ? (theme.showPhoto === false ? t("appearance.photo.hidden") : t("appearance.photo.added")) : t("appearance.photo.none")
+        }
+      >
         <div className="flex items-center gap-3">
           {doc.photo ? (
             <img
@@ -113,7 +138,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
           )}
           <div className="flex gap-1.5 flex-wrap">
             <label className="inline-flex items-center gap-1 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer bg-surface-2 text-ink border border-grid hover:bg-grid">
-              {doc.photo ? "🔄 Change" : "🖼 Add"}
+              {doc.photo ? t("appearance.photo.change") : t("appearance.photo.add")}
               <input
                 type="file"
                 accept="image/*"
@@ -126,30 +151,30 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             </label>
             {doc.photo && (
               <Btn size="sm" variant="danger" onClick={() => onSetPhoto("")}>
-                Remove
+                {t("appearance.photo.remove")}
               </Btn>
             )}
           </div>
         </div>
         <div className="flex items-center justify-between gap-2 text-xs text-ink-dim">
-          <span>Shape</span>
+          <span>{t("appearance.photo.shape")}</span>
           <Segmented
             value={theme.photoShape ?? "circle"}
             onChange={(v) => onSetTheme({ photoShape: v })}
             options={[
-              { value: "circle", label: "● Circle" },
-              { value: "square", label: "■ Square" },
+              { value: "circle", label: t("appearance.photo.circle") },
+              { value: "square", label: t("appearance.photo.square") },
             ]}
           />
         </div>
         <div className="flex items-center justify-between gap-2 text-xs text-ink-dim">
-          <span>Position</span>
+          <span>{t("appearance.photo.position")}</span>
           <Segmented
             value={theme.photoPos ?? "left"}
             onChange={(v) => onSetTheme({ photoPos: v })}
             options={[
-              { value: "left", label: "← Left" },
-              { value: "right", label: "Right →" },
+              { value: "left", label: t("appearance.photo.left") },
+              { value: "right", label: t("appearance.photo.right") },
             ]}
           />
         </div>
@@ -160,7 +185,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             onChange={(e) => onSetTheme({ showPhoto: e.target.checked })}
             className="accent-signal"
           />
-          Show photo in the PDF
+          {t("appearance.photo.showInPdf")}
         </label>
       </Section>
       {cropSrc && (
@@ -170,7 +195,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
           onDone={(dataUrl) => {
             onSetPhoto(dataUrl);
             closeCrop();
-            toast("Photo added", "success");
+            toast(t("appearance.photo.addedToast"), "success");
           }}
         />
       )}

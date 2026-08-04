@@ -1,0 +1,70 @@
+{
+  "title": "Пошук вакансій",
+  "subtitle": "Реальні вакансії з агрегаторів (Remotive + Arbeitnow), підібрані під твої навички. Знайшов щось цікаве — додай до трекера в один клік.",
+  "search": {
+    "keywordsAriaLabel": "Ключові слова для пошуку вакансій",
+    "keywordsPlaceholder": "напр. react node typescript",
+    "searching": "Шукаємо…",
+    "search": "🔎 Шукати",
+    "alertMeTitle": "Надсилати листа, коли з'являться нові вакансії за цим запитом",
+    "alertMe": "🔔 Сповіщати мене",
+    "sources": "Джерела:",
+    "sourceAll": "Усі",
+    "sourceUkraine": "🇺🇦 Україна (DOU)",
+    "sourceRemote": "🌍 Remote",
+    "hint": "Порожній запит → шукаємо за твоїми топовими навичками. «Україна» = DOU, «Remote» = Remotive + Arbeitnow."
+  },
+  "alerts": {
+    "heading": "🔔 Твої сповіщення про вакансії",
+    "regionAll": "Усі регіони",
+    "regionUkraine": "🇺🇦 Україна",
+    "regionRemote": "🌍 Remote",
+    "lastAlert": "Останнє сповіщення {{date}}",
+    "noAlertsSent": "Сповіщень ще не надсилали",
+    "deleteTitle": "Видалити сповіщення",
+    "deleteAriaLabel": "Видалити сповіщення для {{name}}"
+  },
+  "external": {
+    "heading": "🌐 Пошук на зовнішніх сайтах",
+    "hint": "У Djinni та LinkedIn немає відкритого API (скрапінг порушив би умови використання). Тож ось готові посилання для пошуку за твоїм запитом і фільтром країни для LinkedIn.",
+    "countryLabel": "Країна (LinkedIn):",
+    "linkedin": "🔗 LinkedIn (з фільтром країни)",
+    "djinni": "🟢 Djinni",
+    "dou": "🔵 DOU",
+    "workUa": "🟠 Work.ua",
+    "robotaUa": "🔴 robota.ua"
+  },
+  "countries": {
+    "remote": "🌍 Remote / будь-де",
+    "ua": "🇺🇦 Україна",
+    "pl": "🇵🇱 Польща",
+    "de": "🇩🇪 Німеччина",
+    "gb": "🇬🇧 Велика Британія",
+    "us": "🇺🇸 США",
+    "nl": "🇳🇱 Нідерланди",
+    "es": "🇪🇸 Іспанія"
+  },
+  "results": {
+    "searchFailedTitle": "Помилка пошуку",
+    "searchFailedHint": "Проблема з мережею чи сервером. Спробуй ще раз.",
+    "nothingFoundTitle": "Нічого не знайдено",
+    "nothingFoundHintOffline": "Агрегатори тимчасово недоступні (мережа/таймаут). Спробуй пізніше.",
+    "nothingFoundHint": "Спробуй інші ключові слова або ширший запит.",
+    "found": "Знайдено {{count}} за запитом «{{query}}» · показано {{start}}–{{end}}",
+    "perPage": "На сторінці:",
+    "matches_one": "★ {{count}} збіг",
+    "matches_few": "★ {{count}} збіги",
+    "matches_many": "★ {{count}} збігів",
+    "matches_other": "★ {{count}} збігу",
+    "open": "Відкрити ↗",
+    "addedToTracker": "✓ у трекері",
+    "addToTracker": "➕ додати в трекер",
+    "back": "← Назад",
+    "pageOf": "Сторінка {{current}} з {{totalPages}}",
+    "next": "Далі →"
+  },
+  "toasts": {
+    "alertCreated": "Сповіщення створено — надішлемо листа, коли з'являться нові вакансії",
+    "alertDeleted": "Сповіщення видалено"
+  }
+}

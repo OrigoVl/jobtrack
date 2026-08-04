@@ -12,6 +12,14 @@ const DomainSchema = z.object({ domain: z.string().catch("") });
 // Works for ANY industry via the LLM; offline — falls back to the tech dictionary (IT).
 // Cached by the text's hash, so we don't pay twice for the same CV/vacancy.
 // Shared between the vacancies and cv modules — hence it lives in shared/, not in either one.
+//
+// i18n note: NEITHER chatJson() call below gets `outputLocale: "app"` — deliberately, not an
+// oversight. Their output is deduped into profile.skills and set-intersected against vacancy
+// tech names elsewhere (e.g. vacancies.routes.ts) — translating skill names would silently break
+// that matching. Just as important: the cache here (`skx:`/`domain:` below) is keyed by a plain
+// hash of the input text, NOT by locale like llm/client.ts's own cache — a Ukrainian-language
+// result cached under that key would leak to the next request with the same CV/vacancy text,
+// regardless of that request's own locale. Keep this English-only, always.
 
 function dedupe(values: string[]): string[] {
   const seen = new Map<string, string>();

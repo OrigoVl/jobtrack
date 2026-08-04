@@ -5,12 +5,19 @@ import type { UserId } from "../db/user-id.js";
 export class HttpError extends Error {
   status: number;
   details: unknown;
+  // Stable machine-readable identifier (UPPER_SNAKE_CASE) for the handful of error sites a
+  // normal user can actually trigger and see as a toast — lets the client map the error to a
+  // translated message (client/src/shared/use-error-toast.ts) instead of showing the raw,
+  // untranslated English `message` string. Optional: most of the ~60 other HttpError sites are
+  // edge cases that don't need a code and just fall back to `message`.
+  code?: string;
 
-  constructor(status: number, message: string, details: unknown = null) {
+  constructor(status: number, message: string, details: unknown = null, code?: string) {
     super(message);
     this.name = "HttpError";
     this.status = status;
     this.details = details;
+    this.code = code;
   }
 }
 

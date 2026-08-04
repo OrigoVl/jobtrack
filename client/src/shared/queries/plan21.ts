@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import type { Plan21Data } from "../types";
-import { useToast } from "../use-toast";
+import { useMutationErrorToast } from "../use-error-toast";
 import { queryKeys } from "./keys";
 
 export function usePlan21() {
@@ -14,7 +14,7 @@ interface Plan21Ctx {
 
 export function useSetPlanDay() {
   const qc = useQueryClient();
-  const { toast } = useToast();
+  const onErrorToast = useMutationErrorToast();
   return useMutation<{ ok: boolean }, Error, { dayId: string; done: boolean }, Plan21Ctx>({
     mutationFn: ({ dayId, done }) => api.setPlanDay(dayId, done),
     onMutate: async ({ dayId, done }) => {
@@ -25,7 +25,7 @@ export function useSetPlanDay() {
     },
     onError: (e, _vars, ctx) => {
       if (ctx?.previous) qc.setQueryData(queryKeys.plan21, ctx.previous);
-      toast(e instanceof Error ? e.message : "An error occurred", "error");
+      onErrorToast(e);
     },
   });
 }

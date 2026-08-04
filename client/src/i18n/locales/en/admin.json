@@ -1,0 +1,65 @@
+{
+  "page": {
+    "title": "Admin",
+    "subtitle": "Users & activity, LLM cost, and product analytics — aggregates only, no CV text or per-user search history."
+  },
+  "tabs": {
+    "overview": "Overview",
+    "users": "Users",
+    "llm": "LLM cost",
+    "product": "Product",
+    "logs": "Logs & errors"
+  },
+  "dayRange": {
+    "label": "{{count}}d"
+  },
+  "overview": {
+    "totalUsers": "Total users",
+    "totalVacancies": "Total vacancies",
+    "llmCostLabel": "LLM cost ({{days}}d)",
+    "llmCostHint": "estimated, see LLM cost tab",
+    "llmCallsLabel": "LLM calls ({{days}}d)"
+  },
+  "users": {
+    "empty": {
+      "title": "No users yet"
+    },
+    "table": {
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "joined": "Joined",
+      "vacancies": "Vacancies",
+      "llmCallsRecent": "LLM calls (recent)",
+      "bannedBadge": "banned"
+    },
+    "showingSummary": "Showing {{count}} of {{total}}."
+  },
+  "llm": {
+    "empty": {
+      "title": "No LLM usage yet",
+      "hint": "Calls will show up here once users start using AI features."
+    },
+    "totalCostLabel": "Total cost ({{days}}d)",
+    "totalCostHint": "estimated — see llm/pricing.ts",
+    "totalCallsLabel": "Total calls ({{days}}d)",
+    "costByFeature": "Cost by feature",
+    "costByDay": "Cost by day"
+  },
+  "product": {
+    "empty": {
+      "title": "No product events yet",
+      "hint": "Job searches and other tracked actions will show up here."
+    },
+    "eventsByType": "Events by type",
+    "searchesByDay": "Job searches by day",
+    "topSearchQueries": "Top search queries"
+  },
+  "logs": {
+    "empty": {
+      "title": "Logs & errors live in the external tracker",
+      "hint": "Not duplicated in this panel — see the README for why (retention/cost/PII reasons). Configure LOGS_DASHBOARD_URL to link it here."
+    },
+    "openDashboard": "Open dashboard ↗"
+  }
+}
