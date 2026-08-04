@@ -29,8 +29,8 @@ const TYPE_DOT: Record<CalendarEventType, string> = {
 };
 const TYPE_CHIP: Record<CalendarEventType, string> = {
   interview: "bg-signal/10 text-signal border-signal/30",
-  call: "bg-sky-50 text-sky-700 border-sky-200",
-  deadline: "bg-rose-50 text-rose-700 border-rose-200",
+  call: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800",
+  deadline: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800",
   reminder: "bg-alert/10 text-alert border-alert/30",
   other: "bg-surface-2 text-ink-dim border-grid",
 };

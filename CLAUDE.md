@@ -53,6 +53,15 @@ Don't declare a task finished on the basis of "it should work" — actually run 
   domain, typed cache keys). No global "god context" — pages subscribe only to what they need.
 - **Env vars**: never read `process.env` directly outside `server/src/config/env.ts` — add new
   vars to the Zod schema there, they're validated fail-fast at startup.
+- **pgvector columns**: a `vector(...)` column (`drizzle-orm/pg-core`) needs the `vector` Postgres
+  extension, which plain `postgres:16-alpine` doesn't have — the docker-compose Postgres image is
+  `pgvector/pgvector:pg16` specifically so `CREATE EXTENSION vector` (in the migration SQL) works;
+  don't revert that image. PGlite-based tests (`db/test-db.ts`) need the same extension loaded via
+  `@electric-sql/pglite-pgvector`'s `vector` import passed to `new PGlite({ extensions: { vector } })`
+  — without it every integration test that runs migrations fails, not just ones touching the
+  vector column. Never `select()`/select-star a table that has a vector column in a repository
+  function whose result reaches an API response — project an explicit column list instead (see
+  `vacancies.repo.ts`'s `VACANCY_COLUMNS`), or the embedding silently leaks into the JSON response.
 - **LLM calls**: use `chat()` (`server/src/llm/client.ts`) for plain text, `chatJson<T>(system,
   user, zodSchema, options)` for structured JSON output — it validates with the schema and does
   one self-repair retry on mismatch, don't hand-roll `typeof`/`Array.isArray` narrowing for new
@@ -74,6 +83,27 @@ Don't declare a task finished on the basis of "it should work" — actually run 
   `import()` inside the function, not a static top-level one) specifically so modules that only
   need `HttpError`/`asyncHandler` — and their unit tests — don't transitively open a real
   Postgres connection just by importing this file.
+- **i18n (client)**: `react-i18next`, one namespace-per-feature JSON pair under
+  `client/src/i18n/locales/{en,uk}/<namespace>.json`. A new namespace must be registered in BOTH
+  `client/src/i18n/index.ts` (the `resources` object) and `client/src/i18n/i18next.d.ts` (the
+  type augmentation) or `t()` won't resolve/typecheck. Reuse `common.json`'s shared keys
+  (`actions.*`, `state.*`, `errors.*`) via `useTranslation(["ownNs", "common"])` instead of
+  duplicating them. Never translate a persisted wire value (`VacancyStatus`, `Fit`,
+  `RoadmapStatus`, tech/skill/company names) — translate its *display* label instead, via a small
+  `Record<WireValue, "literal.key">` lookup (see `shared/fit-tone.ts`) when the union is small and
+  closed, or the `statusLabel()` / `i18n.t(key as any, {defaultValue})` escape hatch
+  (`shared/status-labels.ts`) when it isn't.
+- **i18n (server)**: `getLocale()` (`core/request-context.ts`, populated by `app.ts`'s middleware
+  from the client's `X-Locale` header) is the only source of the active locale — never read the
+  header directly in a route/service. `chat()`'s `outputLocale?: "app" | "en"` (`llm/client.ts`)
+  is opt-in per call site: only for prose the UI locale should own (interview feedback, CV
+  review, focus-of-week); leave it off for anything persisted/matched by an English identifier
+  (`shared/skill-extraction.ts`) or that must follow the *document's* own language, not the UI's
+  (CV export, cover letters). Static content (flashcards/drills/knowledge base/resources/pet
+  projects) ships as an English file plus a `<name>.uk.ts` sibling with a `get<Thing>(locale)`
+  selector (see `study/content.ts`'s `getCards`/`getDrills`) — never a top-level import of one
+  file's export into the other; that's a real circular-import bug (see `knowledge-base.ts`'s
+  lazily-evaluated `getKbUk()` for the fix) since the two modules import each other's values.
 
 ## Testing philosophy
 

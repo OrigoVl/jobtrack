@@ -65,11 +65,12 @@ test("navigates to Vacancies from a vacancy's next-step marker on the calendar",
   await page.goto("/vacancies");
   // Built from local Y/M/D (not toISOString/UTC) — must match the same "today" the calendar's
   // own local `ymd()` helper computes (see features/calendar/calendar.tsx). vacancies.tsx's
-  // "Next step" field is a native `<input type="date">`, which Playwright's `.fill()` expects
-  // in ISO "YYYY-MM-DD" — not the localized display string a user would see.
+  // "Next step" field is shared/date-input.tsx's locale-independent DateInput — a masked text
+  // input, not a native `<input type="date">` — so `.fill()` needs its "mm/dd/yyyy" display
+  // format, not ISO "YYYY-MM-DD" (the value DateInput's onChange emits back to the caller).
   const now = new Date();
   const pad2 = (n: number) => String(n).padStart(2, "0");
-  const todayIso = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+  const todayDisplay = `${pad2(now.getMonth() + 1)}/${pad2(now.getDate())}/${now.getFullYear()}`;
 
   const [addRes] = await Promise.all([
     page.waitForResponse((r) => r.url().includes("/api/vacancies") && r.request().method() === "POST"),
@@ -78,7 +79,7 @@ test("navigates to Vacancies from a vacancy's next-step marker on the calendar",
   expect(addRes.ok()).toBeTruthy();
   const vacancy = (await addRes.json()) as { id: number; company: string };
 
-  await page.getByLabel(`Next step date — ${vacancy.company}`).fill(todayIso);
+  await page.getByLabel(`Next step date — ${vacancy.company}`).fill(todayDisplay);
   await page.waitForResponse((r) => r.url().includes(`/api/vacancies/${vacancy.id}`) && r.request().method() === "PUT");
 
   await page.goto("/calendar");

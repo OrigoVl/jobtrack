@@ -14,7 +14,8 @@ const VARIANT: Record<Variant, string> = {
   primary: "bg-signal text-white shadow-sm hover:opacity-90 active:opacity-100",
   ghost: "bg-surface-2 text-ink border border-grid hover:bg-grid/50",
   subtle: "bg-transparent text-ink-dim hover:bg-surface-2",
-  danger: "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100",
+  danger:
+    "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800 dark:hover:bg-rose-900",
 };
 const SIZE: Record<Size, string> = { sm: "px-2.5 py-1.5 text-xs", md: "px-3.5 py-2 text-sm" };
 
@@ -79,7 +80,7 @@ const CHIP_TONE = {
   indigo: "bg-signal/10 text-signal border-signal/30",
   emerald: "bg-signal/10 text-signal border-signal/30",
   amber: "bg-alert/10 text-alert border-alert/30",
-  rose: "bg-rose-50 text-rose-700 border-rose-200",
+  rose: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800",
 } as const;
 
 export function Chip({ tone = "slate", children }: { tone?: keyof typeof CHIP_TONE; children: ReactNode }) {

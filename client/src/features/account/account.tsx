@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Btn, Card, PageHeader } from "../../shared/ui";
 import { deleteUser } from "../../shared/auth-client";
 import { LanguageSwitcher } from "../../shared/language-switcher";
+import { ThemeSwitcher } from "../../shared/theme-switcher";
 
 export function Account() {
   const { t } = useTranslation(["account", "common"]);
@@ -33,6 +34,12 @@ export function Account() {
       </Card>
 
       <Card>
+        <div className="text-sm font-semibold text-ink">{t("theme.heading")}</div>
+        <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">{t("theme.description")}</p>
+        <ThemeSwitcher />
+      </Card>
+
+      <Card>
         <div className="text-sm font-semibold text-ink">{t("export.heading")}</div>
         <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">{t("export.description")}</p>
         {/* A plain download link, not a fetch()+blob dance — the server already sets
@@ -43,8 +50,8 @@ export function Account() {
         </Btn>
       </Card>
 
-      <Card className="border-rose-200">
-        <div className="text-sm font-semibold text-rose-700">{t("deleteAccount.heading")}</div>
+      <Card className="border-rose-200 dark:border-rose-800">
+        <div className="text-sm font-semibold text-rose-700 dark:text-rose-300">{t("deleteAccount.heading")}</div>
         <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">{t("deleteAccount.description")}</p>
         {deleteRequested ? (
           <p className="text-sm text-signal bg-signal/10 border border-signal/30 rounded-lg px-3 py-2">

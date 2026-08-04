@@ -8,6 +8,7 @@ import { useHealth, useRoadmap } from "../shared/queries";
 import { CardsSkeleton, ProgressBar, Btn } from "../shared/ui";
 import { useUi } from "../shared/ui-state";
 import { LanguageSwitcher } from "../shared/language-switcher";
+import { ThemeSwitcher } from "../shared/theme-switcher";
 import { ErrorBoundary } from "../shared/error-boundary";
 import { useSession, signOut } from "../shared/auth-client";
 import { CommandPalette } from "./command-palette";
@@ -255,8 +256,9 @@ function Shell() {
               «
             </button>
           </div>
+          <AiBadge />
           <div className="flex items-center justify-between gap-2">
-            <AiBadge />
+            <ThemeSwitcher />
             <LanguageSwitcher />
           </div>
           <button

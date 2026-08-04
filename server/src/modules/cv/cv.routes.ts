@@ -109,7 +109,7 @@ r.post(
   aiLimiter,
   authed(async (userId, req, res) => {
     const cvText = String(req.body?.cvText || (await getProfile(userId)).cvText || "").slice(0, 8000);
-    if (cvText.trim().length < 30) throw new HttpError(400, "Not enough CV text to review");
+    if (cvText.trim().length < 30) throw new HttpError(400, "Not enough CV text to review", null, "CV_TEXT_TOO_SHORT");
     res.json(await reviewCv(userId, cvText));
   }),
 );
@@ -122,8 +122,8 @@ r.post(
     const cvText = String(req.body?.cvText || (await getProfile(userId)).cvText || "").slice(0, 8000);
     const jobTitle = String(req.body?.jobTitle || "").slice(0, 200);
     const jobText = String(req.body?.jobText || "").slice(0, 4000);
-    if (cvText.trim().length < 30) throw new HttpError(400, "Not enough CV text to compare");
-    if (!jobTitle.trim() && !jobText.trim()) throw new HttpError(400, "No vacancy data to compare against");
+    if (cvText.trim().length < 30) throw new HttpError(400, "Not enough CV text to compare", null, "CV_TEXT_TOO_SHORT");
+    if (!jobTitle.trim() && !jobText.trim()) throw new HttpError(400, "No vacancy data to compare against", null, "CV_NO_VACANCY_DATA");
     res.json(await matchCv(userId, cvText, jobTitle, jobText));
   }),
 );
@@ -136,8 +136,9 @@ r.post(
     const doc = CvDocSchema.parse(req.body?.doc);
     const jobTitle = String(req.body?.jobTitle || "").slice(0, 200);
     const jobText = String(req.body?.jobText || "").slice(0, 4000);
-    if (!jobTitle.trim() && !jobText.trim()) throw new HttpError(400, "No vacancy data to tailor for");
-    if (!doc.skills.length && !doc.experience.length && !doc.summary.trim()) throw new HttpError(400, "Fill in the CV first");
+    if (!jobTitle.trim() && !jobText.trim()) throw new HttpError(400, "No vacancy data to tailor for", null, "CV_NO_VACANCY_DATA");
+    if (!doc.skills.length && !doc.experience.length && !doc.summary.trim())
+      throw new HttpError(400, "Fill in the CV first", null, "CV_FILL_IN_FIRST");
     res.json(await tailorCv(userId, doc, jobTitle, jobText));
   }),
 );

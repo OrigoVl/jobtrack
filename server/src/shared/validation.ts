@@ -181,7 +181,7 @@ export interface CompanyInput {
 export function parseCompanyInput(body: unknown): CompanyInput {
   const b = (body || {}) as Record<string, unknown>;
   const name = asString(b.name).trim().slice(0, 200);
-  if (!name) throw new HttpError(400, "Company name is required");
+  if (!name) throw new HttpError(400, "Company name is required", null, "COMPANY_NAME_REQUIRED");
   return {
     name,
     notes: asString(b.notes).slice(0, 5000),

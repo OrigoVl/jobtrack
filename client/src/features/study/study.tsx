@@ -254,7 +254,11 @@ export function Study() {
                 <Btn onClick={() => setShow(true)}>{t("srs.showAnswer")}</Btn>
               ) : (
                 <>
-                  <Btn variant="ghost" className="!bg-rose-50 !text-rose-700 !border-rose-200" onClick={() => grade(1)}>
+                  <Btn
+                    variant="ghost"
+                    className="!bg-rose-50 !text-rose-700 !border-rose-200 dark:!bg-rose-950 dark:!text-rose-300 dark:!border-rose-800"
+                    onClick={() => grade(1)}
+                  >
                     {t("srs.grade.again")}
                   </Btn>
                   <Btn variant="ghost" className="!bg-alert/10 !text-alert !border-alert/30" onClick={() => grade(2)}>
@@ -263,7 +267,11 @@ export function Study() {
                   <Btn variant="ghost" className="!bg-signal/10 !text-signal !border-signal/30" onClick={() => grade(3)}>
                     {t("srs.grade.good")}
                   </Btn>
-                  <Btn variant="ghost" className="!bg-sky-50 !text-sky-700 !border-sky-200" onClick={() => grade(4)}>
+                  <Btn
+                    variant="ghost"
+                    className="!bg-sky-50 !text-sky-700 !border-sky-200 dark:!bg-sky-950 dark:!text-sky-300 dark:!border-sky-800"
+                    onClick={() => grade(4)}
+                  >
                     {t("srs.grade.easy")}
                   </Btn>
                 </>
@@ -286,7 +294,7 @@ export function Study() {
                 setI(0);
                 setShow(false);
               }}
-              className="text-sm border border-grid rounded-lg px-3 py-1.5 bg-white text-ink"
+              className="text-sm border border-grid rounded-lg px-3 py-1.5 bg-surface text-ink"
             >
               {cats.map((c) => (
                 <option key={c} value={c}>
@@ -301,7 +309,7 @@ export function Study() {
                 setI(0);
                 setShow(false);
               }}
-              className="text-sm border border-grid rounded-lg px-3 py-1.5 bg-white text-ink"
+              className="text-sm border border-grid rounded-lg px-3 py-1.5 bg-surface text-ink"
             >
               <option value="all">{t("drill.difficulty.any")}</option>
               <option value="easy">{t("drill.difficulty.easy")}</option>

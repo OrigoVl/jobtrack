@@ -23,7 +23,7 @@ r.put(
   "/cv/share",
   authed(async (userId, req, res) => {
     const existing = await getShareByUserId(userId);
-    if (!existing) throw new HttpError(404, "No share link yet — generate one first");
+    if (!existing) throw new HttpError(404, "No share link yet — generate one first", null, "CV_SHARE_NOT_GENERATED");
     const enabled = Boolean(req.body?.enabled);
     res.json(await setShareEnabled(userId, enabled));
   }),

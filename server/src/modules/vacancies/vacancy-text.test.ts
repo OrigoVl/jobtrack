@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeFit, stripHtml } from "./vacancy-text.js";
+import { computeFit, stripHtml, vacancyEmbeddingText } from "./vacancy-text.js";
 
 describe("computeFit", () => {
   it("returns high when matches clearly outweigh gaps", () => {
@@ -56,5 +56,35 @@ describe("stripHtml", () => {
 
   it("replaces numeric HTML entities with a space", () => {
     expect(stripHtml("Node&#160;JS")).toBe("Node JS");
+  });
+});
+
+describe("vacancyEmbeddingText", () => {
+  it("combines position, company, level, stack, and notes into one blob", () => {
+    const text = vacancyEmbeddingText({
+      position: "Backend Engineer",
+      company: "Acme",
+      level: "Senior",
+      stack: ["Node.js", "PostgreSQL"],
+      notes: "Fully remote, EU timezone.",
+    });
+    expect(text).toBe("Backend Engineer at Acme. Level: Senior. Stack: Node.js, PostgreSQL. Fully remote, EU timezone.");
+  });
+
+  it("omits a section entirely when its field is empty, rather than leaving a blank placeholder", () => {
+    const text = vacancyEmbeddingText({ position: "Backend Engineer", company: "Acme", level: "", stack: [], notes: "" });
+    expect(text).toBe("Backend Engineer at Acme.");
+    expect(text).not.toMatch(/Level:|Stack:/);
+  });
+
+  it("returns an empty string for a vacancy with no meaningful content at all", () => {
+    expect(vacancyEmbeddingText({ position: "", company: "", level: "", stack: [], notes: "" })).toBe("");
+  });
+
+  it("falls back to a placeholder company/position rather than an empty 'at' clause when only one side is known", () => {
+    expect(vacancyEmbeddingText({ position: "Backend Engineer", company: "", level: "", stack: [], notes: "" })).toBe(
+      "Backend Engineer at an unknown company.",
+    );
+    expect(vacancyEmbeddingText({ position: "", company: "Acme", level: "", stack: [], notes: "" })).toBe("Unknown position at Acme.");
   });
 });

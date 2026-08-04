@@ -10,7 +10,7 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
             📡 DevRadar
           </div>
         </div>
-        <div className="rounded-2xl bg-white border border-grid shadow-card p-6">
+        <div className="rounded-2xl bg-surface border border-grid shadow-card p-6">
           <h1 className="text-lg font-bold text-ink">{title}</h1>
           {subtitle && <p className="text-sm text-ink-dim mt-1">{subtitle}</p>}
           <div className="mt-5">{children}</div>
@@ -21,7 +21,11 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
 }
 
 export function AuthError({ message }: { message: string }) {
-  return <div className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{message}</div>;
+  return (
+    <div className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 dark:text-rose-300 dark:bg-rose-950 dark:border-rose-800">
+      {message}
+    </div>
+  );
 }
 
 export const authInputClass =

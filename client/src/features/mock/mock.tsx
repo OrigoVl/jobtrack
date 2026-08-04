@@ -127,7 +127,7 @@ export function MockInterview({ embedded = false }: { embedded?: boolean } = {})
                 <select
                   value={count}
                   onChange={(e) => setCount(Number(e.target.value))}
-                  className="text-sm border border-grid rounded-lg px-3 py-2 bg-white text-ink"
+                  className="text-sm border border-grid rounded-lg px-3 py-2 bg-surface text-ink"
                 >
                   {[5, 8, 10, 15].map((n) => (
                     <option key={n} value={n}>

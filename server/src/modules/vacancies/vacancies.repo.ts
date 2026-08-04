@@ -8,14 +8,34 @@ import { vacancies } from "../../db/schema/index.js";
 import type { UserId } from "../../db/user-id.js";
 import type { VacancyRow } from "../../db/types.js";
 
+// An explicit column list, NOT `db.select()` (select-star) — `vacancies` also carries an
+// `embedding` column (a 1536-number vector, see db/schema/app.ts and findSimilarVacancies below)
+// that must never reach the client: it's sizeable dead weight over the wire, and serves no
+// purpose in the UI. Every read below uses this instead of select-star specifically so a future
+// column addition can't silently leak into an API response again by accident.
+const VACANCY_COLUMNS = {
+  id: vacancies.id,
+  company: vacancies.company,
+  position: vacancies.position,
+  level: vacancies.level,
+  url: vacancies.url,
+  status: vacancies.status,
+  fit: vacancies.fit,
+  applied: vacancies.applied,
+  next: vacancies.next,
+  notes: vacancies.notes,
+  stack: vacancies.stack,
+  created: vacancies.created,
+};
+
 export async function listVacancies(userId: UserId, page?: { limit: number; offset: number }): Promise<VacancyRow[]> {
-  const q = db.select().from(vacancies).where(eq(vacancies.userId, userId)).orderBy(desc(vacancies.id));
+  const q = db.select(VACANCY_COLUMNS).from(vacancies).where(eq(vacancies.userId, userId)).orderBy(desc(vacancies.id));
   return page ? q.limit(page.limit).offset(page.offset) : q;
 }
 
 export async function getVacancy(userId: UserId, id: number | string): Promise<VacancyRow | undefined> {
   const [row] = await db
-    .select()
+    .select(VACANCY_COLUMNS)
     .from(vacancies)
     .where(and(eq(vacancies.userId, userId), eq(vacancies.id, Number(id))));
   return row;
@@ -23,7 +43,7 @@ export async function getVacancy(userId: UserId, id: number | string): Promise<V
 
 export async function findVacancyByUrl(userId: UserId, url: string): Promise<VacancyRow | undefined> {
   const [row] = await db
-    .select()
+    .select(VACANCY_COLUMNS)
     .from(vacancies)
     .where(and(eq(vacancies.userId, userId), eq(vacancies.url, url)));
   return row;
@@ -31,7 +51,7 @@ export async function findVacancyByUrl(userId: UserId, url: string): Promise<Vac
 
 export async function findVacancyByCompanyPosition(userId: UserId, company: string, position: string): Promise<VacancyRow | undefined> {
   const [row] = await db
-    .select()
+    .select(VACANCY_COLUMNS)
     .from(vacancies)
     .where(
       and(
@@ -144,9 +164,63 @@ export async function deleteVacancy(userId: UserId, id: number | string): Promis
 
 export async function listVacanciesWithUrl(userId: UserId): Promise<VacancyRow[]> {
   return db
-    .select()
+    .select(VACANCY_COLUMNS)
     .from(vacancies)
     .where(and(eq(vacancies.userId, userId), isNotNull(vacancies.url), ne(vacancies.url, "")));
+}
+
+/** Just the embedding column for one vacancy — the only place `vacancies.embedding` is ever
+ * selected directly (findSimilarVacancies needs a reference vector; every other read goes
+ * through VACANCY_COLUMNS, which excludes it). `undefined` — no such vacancy for this user;
+ * `null` — the vacancy exists but has no embedding yet (offline, or not enough text). */
+export async function getVacancyEmbedding(userId: UserId, id: number | string): Promise<number[] | null | undefined> {
+  const [row] = await db
+    .select({ embedding: vacancies.embedding })
+    .from(vacancies)
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, Number(id))));
+  return row?.embedding;
+}
+
+/** Best-effort: called fire-and-forget after create/update (see vacancies.routes.ts) whenever the
+ * vacancy's embeddable text changed — never awaited by the request that triggered it, so a slow
+ * or failed embeddings call never adds latency to saving a vacancy. `null` clears a stale
+ * embedding (e.g. the vacancy's text became empty) rather than leaving a now-inaccurate vector
+ * around for findSimilarVacancies to keep matching against. */
+export async function updateVacancyEmbedding(userId: UserId, id: number | string, embedding: number[] | null): Promise<void> {
+  await db
+    .update(vacancies)
+    .set({ embedding })
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, Number(id))));
+}
+
+export interface SimilarVacancy extends VacancyRow {
+  /** Cosine similarity to the reference embedding, roughly in [0,1] (1 = identical direction) —
+   * `1 - cosine_distance`, per pgvector's `<=>` operator. Not clamped: unlike
+   * llm/embeddings.ts#semanticSimilarity, this never sees a negative case in practice (OpenAI's
+   * text embeddings point in broadly similar directions for any two pieces of English prose), so
+   * clamping was judged not worth obscuring an unexpected raw value if the model ever changes. */
+  similarity: number;
+}
+
+/**
+ * The `limit` other vacancies (same user, excluding `excludeId`, excluding any vacancy that has
+ * no embedding yet) whose embedding is closest to `embedding` by cosine distance — pgvector's
+ * `<=>` operator, using the `vacancies_embedding_idx` HNSW index (db/schema/app.ts) for an
+ * approximate-nearest-neighbor search instead of a full table scan. Returns `[]` (not an error)
+ * if `embedding` is unavailable — see vacancies.routes.ts's `/vacancies/:id/similar`, which is
+ * the only call site.
+ */
+export async function findSimilarVacancies(userId: UserId, embedding: number[], excludeId: number, limit = 5): Promise<SimilarVacancy[]> {
+  // pgvector's text input format for a vector literal is "[0.1,0.2,...]" — `::vector` tells
+  // Postgres to parse the string parameter as one instead of leaving it as `unknown`/text.
+  const vectorLiteral = sql`${JSON.stringify(embedding)}::vector`;
+  const distance = sql<number>`${vacancies.embedding} <=> ${vectorLiteral}`;
+  return db
+    .select({ ...VACANCY_COLUMNS, similarity: sql<number>`1 - (${distance})`.as("similarity") })
+    .from(vacancies)
+    .where(and(eq(vacancies.userId, userId), ne(vacancies.id, excludeId), isNotNull(vacancies.embedding)))
+    .orderBy(distance)
+    .limit(limit);
 }
 
 export async function countVacancies(userId: UserId): Promise<number> {

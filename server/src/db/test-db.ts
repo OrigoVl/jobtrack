@@ -9,6 +9,7 @@
 // returns via `vi.doMock("<path-to>/client.js", () => ({ default: testDb }))` BEFORE a dynamic
 // `import()` of the repository module under test (see companies.repo.test.ts).
 import { PGlite } from "@electric-sql/pglite";
+import { vector } from "@electric-sql/pglite-pgvector";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { fileURLToPath } from "url";
@@ -19,9 +20,13 @@ import type { UserId } from "./user-id.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = path.join(__dirname, "..", "..", "drizzle");
 
-/** A fresh, empty, fully-migrated in-process Postgres — one per test file/suite, never shared. */
+/** A fresh, empty, fully-migrated in-process Postgres — one per test file/suite, never shared.
+ * The `vector` extension (`@electric-sql/pglite-pgvector`, PGlite's official pgvector build) is
+ * loaded so the real migrations — including `CREATE EXTENSION vector` and the `vacancies.embedding`
+ * column (db/schema/app.ts) — apply exactly as they do against real Postgres, not a hand-edited
+ * approximation. */
 export async function createTestDb() {
-  const client = new PGlite();
+  const client = new PGlite({ extensions: { vector } });
   const db = drizzle(client, { schema });
   await migrate(db, { migrationsFolder });
   return db;

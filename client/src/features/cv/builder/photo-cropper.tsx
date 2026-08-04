@@ -48,7 +48,7 @@ export function PhotoCropper({ src, onCancel, onDone }: { src: string; onCancel:
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4">
       <button type="button" aria-label={t("common:actions.close")} onClick={onCancel} className="fixed inset-0 bg-ink/50 cursor-default" />
-      <div className="relative bg-white rounded-2xl p-5 shadow-xl w-[320px] space-y-3">
+      <div className="relative bg-surface rounded-2xl p-5 shadow-xl w-[320px] space-y-3">
         <div className="text-sm font-semibold text-ink">{t("photoCropper.title")}</div>
         <div
           role="button"

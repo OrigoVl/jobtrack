@@ -10,6 +10,7 @@ import {
   timestamp,
   real,
   boolean,
+  vector,
   index,
   uniqueIndex,
   primaryKey,
@@ -46,6 +47,13 @@ export const vacancies = pgTable(
     // format byte-identical, since recencyWeight() and analytics chart bucketing parse/compare
     // this value directly as a string.
     created: date({ mode: "string" }).notNull().defaultNow(),
+    // Embedding of a synthesized "position at company. Level: X. Stack: ...notes" text blob
+    // (shared/vacancy-text.ts's vacancyEmbeddingText()) — computed best-effort on create/update
+    // when OpenAI embeddings are available (llm/embeddings.ts#embeddingsAvailable()), left NULL
+    // otherwise/offline (never blocks the request). 1536 dims matches text-embedding-3-small
+    // (llm/embeddings.ts#EMBEDDING_MODEL). Never returned to the client — see vacancies.repo.ts's
+    // explicit column projection (VACANCY_COLUMNS), which deliberately omits it.
+    embedding: vector("embedding", { dimensions: 1536 }),
   },
   (t) => [
     // Covers `ORDER BY id DESC` scoped to one user — the /vacancies list query.
@@ -53,6 +61,10 @@ export const vacancies = pgTable(
     // Covers the import path's existence check (`SELECT id WHERE url=?`), scoped per user.
     // Deliberately non-unique: many rows have url='' and pre-existing data may have dupes.
     index("vacancies_user_url_idx").on(t.userId, t.url),
+    // Approximate nearest-neighbor search for findSimilarVacancies() — HNSW is pgvector's
+    // recommended default index type (better query performance than IVFFlat, no separate
+    // "training" build step). Requires `CREATE EXTENSION vector` (see the migration SQL).
+    index("vacancies_embedding_idx").using("hnsw", t.embedding.op("vector_cosine_ops")),
     // FK target for vacancy_status_history's composite FK below.
     uniqueIndex("vacancies_user_id_key").on(t.userId, t.id),
   ],

@@ -27,7 +27,7 @@ r.post(
   "/contacts",
   authed(async (userId, req, res) => {
     const b = parseContactInput(req.body, { partial: false });
-    if (!b.name) throw new HttpError(400, "Contact name is required");
+    if (!b.name) throw new HttpError(400, "Contact name is required", null, "CONTACT_NAME_REQUIRED");
     await assertOwnCompanyOrNull(userId, b.companyId);
     const contact = await createContact(userId, {
       name: b.name,
@@ -46,7 +46,7 @@ r.put(
   "/contacts/:id",
   authed(async (userId, req, res) => {
     const id = Number(req.params.id);
-    if (!(await getContact(userId, id))) throw new HttpError(404, "Contact not found");
+    if (!(await getContact(userId, id))) throw new HttpError(404, "Contact not found", null, "CONTACT_NOT_FOUND");
     const b = parseContactInput(req.body, { partial: true });
     if (Object.prototype.hasOwnProperty.call(b, "companyId")) await assertOwnCompanyOrNull(userId, b.companyId);
     res.json(await updateContact(userId, id, b));

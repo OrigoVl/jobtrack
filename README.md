@@ -8,6 +8,7 @@ A full-featured, lightweight full-stack app: **analyzes job postings and CVs, su
 ## What it does
 
 - **🌐 Any profession** — with an LLM, skills and role are inferred from the CV and job postings (not just IT), and AI advice adapts accordingly. Offline — falls back to an IT tech dictionary.
+- **🇺🇦 English / Ukrainian** — a language switcher (sidebar, or the Account page) that translates every page, toast, and email, plus AI-generated feedback and the study/knowledge-base content, with the choice persisted across reloads.
 - **📋 Job postings** — CRUD, inline table editing, color-coded status (table + Kanban), auto-fills stack/level/fit from a URL (from any public job site) when adding/editing a link, import from a DOU export, JSON import/export (upsert by `url`/company+position).
 - **🔔 Reminders** — optional browser Web Notifications for overdue/today's "next steps."
 - **🔍 Job analysis** — skills and level (LLM or offline dictionary), match/gaps against your profile, semantic CV↔job similarity (embeddings, with an OpenAI key).
@@ -85,6 +86,42 @@ Faster/cheaper than an LLM wherever the task doesn't require "understanding" tex
 - **Vector embeddings** (`llm/embeddings.ts`) — OpenAI `text-embedding-3-small` for semantic CV↔job similarity (OpenAI key only).
 - **Funnel conversion and average time in status** (`db/vacancy-history.ts`) — derived metrics from the status-change history log.
 
+### Semantic vacancy similarity (pgvector)
+
+Every vacancy gets its embedding computed and stored automatically (best-effort, fire-and-forget — never adds latency to saving a vacancy) whenever its content changes, from a short synthesized "position at company. Level: X. Stack: ..." blob (`vacancies/vacancy-text.ts#vacancyEmbeddingText`). `GET /api/vacancies/:id/similar` returns the most semantically similar OTHER vacancies you've tracked, ranked by cosine distance via Postgres' [pgvector](https://github.com/pgvector/pgvector) extension and an HNSW index (`vacancies.repo.ts#findSimilarVacancies`) — an actual approximate-nearest-neighbor search, not a full-table brute-force scan.
+
+- **Requires the `pgvector/pgvector:pg16` Postgres image** (already the default in `docker-compose.yml`) instead of plain `postgres:16-alpine` — a bare Postgres image can't `CREATE EXTENSION vector` (the `.control`/`.so` files aren't present). If you're running Postgres yourself outside Docker, install the [pgvector extension](https://github.com/pgvector/pgvector#installation) on it first.
+- **Vacancies added before this feature shipped** have no embedding yet — run `npx tsx server/scripts/backfill-vacancy-embeddings.ts` (add `--dry-run` to preview first) once to fill them in.
+- Offline (no OpenAI key) — `/vacancies/:id/similar` returns an empty list rather than an error, the same "degrade gracefully" convention as every other optional AI feature here.
+- Tests run against PGlite (`db/test-db.ts`) with the `@electric-sql/pglite-pgvector` extension loaded, so the exact same migration (`drizzle/0005_stormy_shocker.sql`, including `CREATE EXTENSION vector` and the HNSW index) is exercised in CI as in production, not a hand-approximated schema.
+
+## Internationalization (i18n)
+
+Full English/Ukrainian localization — switching language changes every page and toast **and** the
+language of AI-generated prose (interview feedback, CV review, focus-of-the-week) and the static
+study/knowledge-base/resources content, not just the UI chrome.
+
+- **Client** — `react-i18next`, with translations split one JSON file pair per feature namespace
+  (`client/src/i18n/locales/{en,uk}/<namespace>.json`) instead of one giant file. This is what
+  makes translation keys type-safe (a typo or a key missing in one locale is a `tsc` error, see
+  `client/src/i18n/i18next.d.ts`) and lets each page's translations be added independently of the
+  others.
+- **Persisted values stay in English.** A vacancy's `VacancyStatus`/`Fit`, or a roadmap skill's
+  `RoadmapStatus`, are never translated in place — they're stored in Postgres and matched by name
+  elsewhere in the code. Only the *displayed label* is translated (`shared/status-labels.ts`,
+  `shared/fit-tone.ts`), so switching language never touches the underlying data.
+- **Server** — the client sends the active language as an `X-Locale` header on every request
+  (including better-auth's own routes, so verification/reset-password/delete-account emails are
+  localized too); `core/request-context.ts`'s `getLocale()` reads it back out request-scoped, via
+  `AsyncLocalStorage`. LLM calls opt in per call site (`chat()`'s `outputLocale: "app"`) — only
+  for prose the UI language should own; a CV review written for a US recruiter, a cover letter, or
+  a LinkedIn optimizer suggestion still follows the *document's* own language, not the UI's, and
+  skill extraction stays English-only since its output is matched against vacancy tech names.
+- **Static content** (flashcards, drills, the knowledge base, pet projects, resources) is
+  pre-translated once and checked in as data — an English source file plus a `<name>.uk.ts`
+  sibling, picked by `getLocale()` at request time (see `study/content.ts`'s `getCards`/
+  `getDrills`) — not machine-translated live on every request.
+
 ## Logging
 
 Structured JSON logging via `pino` (colorized output through `pino-pretty` in dev, clean JSON to stdout in production).
@@ -142,7 +179,7 @@ jobtrack/
 │       ├── db/               # Postgres client (migrate-on-boot), schema/ (Drizzle), kv, bootstrap, llm-cache
 │       ├── llm/              # OpenAI/Anthropic client with graceful fallback + response cache + cost estimation (pricing.ts)
 │       ├── telemetry/        # fire-and-forget llm_usage/product_events inserts (see admin module)
-│       ├── shared/           # tech-dict, skill-extraction, validation (DTO+SSRF), demand, hash, slug, upload
+│       ├── shared/           # tech-dict, skill-extraction, validation (DTO+SSRF), demand, hash, slug, upload, locale.ts
 │       └── modules/         # one folder per API domain:
 │           ├── vacancies/   # job CRUD + job-text analysis
 │           ├── jobs/        # search across external aggregators (DOU/Remotive/Arbeitnow)
@@ -158,11 +195,13 @@ jobtrack/
     └── src/
         ├── main.tsx, index.css      # entrypoint
         ├── app/App.tsx              # routing (React Router), sidebar/shell, providers
+        ├── i18n/                    # react-i18next bootstrap; locales/{en,uk}/<namespace>.json; type-safe keys (i18next.d.ts)
         ├── shared/                  # cross-cutting things shared by all features:
         │   ├── api.ts               # single typed contract with the backend
         │   ├── queries/             # TanStack Query hooks per domain (cache, invalidation, optimistic mutations)
         │   ├── toast.tsx            # ToastProvider/useToast
         │   ├── ui-state.ts          # useUi — persistent UI state for tabs
+        │   ├── language-switcher.tsx, status-labels.ts, fit-tone.ts  # EN/UK toggle; wire-value → translated label
         │   ├── types.ts             # shared DTO types (mirror the backend)
         │   └── ui.tsx               # UI kit (Btn, Card, Chip, PageHeader, Skeleton…)
         └── features/                # one folder per screen domain (mirrors server/src/modules):
@@ -182,7 +221,7 @@ Data and mutations flow through **TanStack Query** (`shared/queries/*`) — each
 
 - A full interview calendar (currently just basic Web Notifications).
 - Deduplication when manually adding a job posting (SimHash dedup currently only applies to `/jobs/search` and imports).
-- Store an embedding for every added job posting and build semantic search/recommendations across the whole DB (worth considering `sqlite-vec` instead of a brute-force cosine similarity in JS).
+- Surface `/vacancies/:id/similar` (see "Semantic vacancy similarity" above) in the UI itself — it's a working API today, not yet wired into any page.
 - The offline fallback for `POST /cv/match` still doesn't use `semanticFit` — only token overlap.
 
 ### Multi-tenancy

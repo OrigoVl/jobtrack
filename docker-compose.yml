@@ -29,7 +29,14 @@ services:
   #   restart: unless-stopped
 
   postgres:
-    image: postgres:16-alpine
+    # pgvector/pgvector — the official pgvector project image, a drop-in postgres:16 with the
+    # `vector` extension binary already installed (a plain postgres:16-alpine image can't
+    # `CREATE EXTENSION vector` — the .control/.so files simply aren't present). Needed for
+    # per-vacancy embeddings + semantic similarity search (see vacancies.repo.ts#findSimilarVacancies,
+    # drizzle/0005_stormy_shocker.sql). Same data directory layout as postgres:16, so the existing
+    # `jobtrack-pg` volume survives switching images — no data migration needed, just re-create the
+    # container (`docker compose up -d postgres` picks up the new image).
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: jobtrack
       POSTGRES_PASSWORD: jobtrack

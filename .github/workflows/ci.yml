@@ -106,7 +106,11 @@ jobs:
     # which use PGlite (in-process, no service container needed).
     services:
       postgres:
-        image: postgres:16-alpine
+        # pgvector/pgvector, not plain postgres — the e2e server's migrate-on-boot runs
+        # `CREATE EXTENSION vector` (drizzle/0005_stormy_shocker.sql, for per-vacancy semantic
+        # similarity, see README's "Semantic vacancy similarity" section), which a bare Postgres
+        # image can't do. Matches docker-compose.yml's local postgres service.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: jobtrack
           POSTGRES_PASSWORD: jobtrack

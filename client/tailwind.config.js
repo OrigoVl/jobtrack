@@ -9,6 +9,13 @@
 const withOpacity = (varName) => `rgb(var(${varName}) / <alpha-value>)`;
 
 export default {
+  // Most colors are CSS variables (above) that already flip with `data-theme`, no `dark:` variant
+  // needed. A handful of semantic colors deliberately stay on Tailwind's raw palette (danger/rose,
+  // and the vacancy-pipeline sky/violet/fuchsia/zinc stage colors — see status-tone.ts) since
+  // they're not part of the brand token system; those DO need an explicit `dark:` variant, and
+  // without this line Tailwind's default "media" strategy would follow the OS preference instead
+  // of our own toggle (shared/theme.ts sets `data-theme` directly, not a `dark` class).
+  darkMode: ["selector", '[data-theme="dark"]'],
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {

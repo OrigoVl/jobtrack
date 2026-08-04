@@ -4,16 +4,19 @@
 // the Kanban board (the column's color indicator), so status reads at a glance without hovering.
 import type { VacancyStatus } from "./types";
 
+// bg-*-50/text-*-700 pairs are light-mode-only (no CSS-variable token for these pipeline-stage
+// colors, see the file header) — each needs an explicit dark: variant, or it renders as a pale,
+// near-white block against the dark surface instead of a subtle tinted one.
 export const STATUS_SELECT_CLASS: Record<VacancyStatus, string> = {
   "Want to apply": "bg-surface-2 text-ink border-grid",
-  Applied: "bg-sky-50 text-sky-700 border-sky-200",
+  Applied: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800",
   Screening: "bg-signal/10 text-signal border-signal/30",
-  "Tech interview": "bg-violet-50 text-violet-700 border-violet-200",
-  "Take-home task": "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
+  "Tech interview": "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-800",
+  "Take-home task": "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-950 dark:text-fuchsia-300 dark:border-fuchsia-800",
   Final: "bg-alert/10 text-alert border-alert/30",
   Offer: "bg-signal/10 text-signal border-signal/30",
-  Rejected: "bg-rose-50 text-rose-700 border-rose-200",
-  Paused: "bg-zinc-100 text-zinc-600 border-zinc-200",
+  Rejected: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800",
+  Paused: "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
 };
 
 export const STATUS_DOT_CLASS: Record<VacancyStatus, string> = {

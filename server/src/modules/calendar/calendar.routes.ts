@@ -53,7 +53,7 @@ r.put(
   "/calendar/events/:id",
   authed(async (userId, req, res) => {
     const id = Number(req.params.id);
-    if (!(await getCalendarEvent(userId, id))) throw new HttpError(404, "Event not found");
+    if (!(await getCalendarEvent(userId, id))) throw new HttpError(404, "Event not found", null, "CALENDAR_EVENT_NOT_FOUND");
     const b = parseCalendarEventInput(req.body, { partial: true });
     if (Object.prototype.hasOwnProperty.call(b, "vacancyId")) await assertOwnVacancyOrNull(userId, b.vacancyId);
     const event = await updateCalendarEvent(userId, id, b);

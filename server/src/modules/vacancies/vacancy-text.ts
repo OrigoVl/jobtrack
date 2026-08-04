@@ -46,3 +46,20 @@ export function computeFit(match: string[], gap: string[], demand: Record<string
   const probability = 1 / (1 + Math.exp(-6 * (ratio - 0.5)));
   return probability >= 0.65 ? "high" : probability >= 0.35 ? "med" : "low";
 }
+
+/**
+ * Synthesizes a short natural-language blob from a vacancy's own structured fields, for
+ * embedding (see llm/embeddings.ts#embed, vacancies.repo.ts#findSimilarVacancies). Deliberately
+ * built from what's ALWAYS present on every vacancy row (not the raw fetched job-posting text,
+ * which isn't persisted) so every vacancy — imported, manually added, enriched or not — gets a
+ * consistent, always-fresh embedding input. Returns "" for a vacancy with no meaningful content
+ * yet (blank position/company/stack/notes) — callers should treat that as "nothing to embed".
+ */
+export function vacancyEmbeddingText(v: { position: string; company: string; level: string; stack: string[]; notes: string }): string {
+  const parts: string[] = [];
+  if (v.position || v.company) parts.push(`${v.position || "Unknown position"} at ${v.company || "an unknown company"}.`);
+  if (v.level) parts.push(`Level: ${v.level}.`);
+  if (v.stack.length) parts.push(`Stack: ${v.stack.join(", ")}.`);
+  if (v.notes.trim()) parts.push(v.notes.trim());
+  return parts.join(" ").trim();
+}

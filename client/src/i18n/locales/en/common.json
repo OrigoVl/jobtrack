@@ -46,6 +46,14 @@
     "VACANCY_URL_MISSING": "This vacancy has no URL",
     "VACANCY_IMPORT_TOO_MANY": "Too many items in one import (max 1000)",
     "RATE_LIMITED": "Too many requests. Try again in a few minutes.",
-    "AI_RATE_LIMITED": "Too many AI requests. Wait a few minutes and try again."
+    "AI_RATE_LIMITED": "Too many AI requests. Wait a few minutes and try again.",
+    "CONTACT_NAME_REQUIRED": "Contact name is required",
+    "CONTACT_NOT_FOUND": "This contact no longer exists",
+    "COMPANY_NAME_REQUIRED": "Company name is required",
+    "CALENDAR_EVENT_NOT_FOUND": "This event no longer exists",
+    "CV_SHARE_NOT_GENERATED": "No share link yet — generate one first",
+    "CV_TEXT_TOO_SHORT": "There isn't enough CV content yet — add a few more details first.",
+    "CV_NO_VACANCY_DATA": "This vacancy has no details to compare against yet",
+    "CV_FILL_IN_FIRST": "Fill in the CV first"
   }
 }

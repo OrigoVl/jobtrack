@@ -230,7 +230,7 @@ export function CvPreviewPanel({
             onClick={() => setFullscreen(false)}
             className="fixed inset-0 bg-ink/60 cursor-default"
           />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-full overflow-hidden flex flex-col">
+          <div className="relative bg-surface rounded-2xl shadow-xl w-full max-w-3xl max-h-full overflow-hidden flex flex-col">
             <div className="flex items-center justify-between px-4 py-2 border-b border-surface-2">
               <span className="text-sm font-semibold text-ink">{t("preview.modalTitle")}</span>
               <button

@@ -32,7 +32,7 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
   return (
     <details
       onToggle={(e) => e.currentTarget.open && load()}
-      className="rounded-2xl bg-white border border-grid shadow-card overflow-hidden"
+      className="rounded-2xl bg-surface border border-grid shadow-card overflow-hidden"
       open={defaultOpen}
     >
       <summary className="cursor-pointer px-4 py-3 flex items-center gap-2 select-none">

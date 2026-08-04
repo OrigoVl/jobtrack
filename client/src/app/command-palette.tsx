@@ -94,7 +94,7 @@ export function CommandPalette({
     >
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
-        className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-grid overflow-hidden"
+        className="w-full max-w-lg bg-surface rounded-2xl shadow-2xl border border-grid overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <input

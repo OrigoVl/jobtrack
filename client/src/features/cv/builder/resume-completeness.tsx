@@ -27,7 +27,7 @@ export function ResumeCompleteness({ doc }: { doc: CvDoc }) {
         ? { text: "text-alert", bar: "bg-alert" }
         : { text: "text-rose-600", bar: "bg-rose-500" };
   return (
-    <div className="rounded-xl border border-grid bg-white px-3.5 py-2.5 space-y-1.5">
+    <div className="rounded-xl border border-grid bg-surface px-3.5 py-2.5 space-y-1.5">
       <div className="flex items-center justify-between text-sm">
         <span className="font-semibold text-ink">{t("completeness.title")}</span>
         <span className={`font-bold ${tone.text}`}>{pct}%</span>

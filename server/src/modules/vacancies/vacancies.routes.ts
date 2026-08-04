@@ -3,7 +3,7 @@ import { getProfile, recordStatusChange } from "../../db/index.js";
 import { extractLevel } from "../../shared/tech-dict.js";
 import { extractSkills } from "../../shared/skill-extraction.js";
 import { demandMap } from "../../shared/demand.js";
-import { embeddingsAvailable, semanticSimilarity } from "../../llm/embeddings.js";
+import { embed, embeddingsAvailable, semanticSimilarity } from "../../llm/embeddings.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { HttpError, authed } from "../../core/http.js";
 import { contextLogger } from "../../core/logger.js";
@@ -17,9 +17,11 @@ import {
   type JsonVacancyItem,
 } from "../../shared/validation.js";
 import { fetchVacancyText, computeFit, quickAnalyze, tryAutoEnrichStack } from "./vacancy-analysis.service.js";
+import { vacancyEmbeddingText } from "./vacancy-text.js";
 import {
   listVacancies,
   getVacancy,
+  getVacancyEmbedding,
   findVacancyByUrl,
   findVacancyByCompanyPosition,
   createVacancy,
@@ -28,10 +30,30 @@ import {
   updateVacancy,
   updateVacancyFromJson,
   updateVacancyEnrichment,
+  updateVacancyEmbedding,
+  findSimilarVacancies,
   deleteVacancy,
   listVacanciesWithUrl,
 } from "./vacancies.repo.js";
 import type { UserId } from "../../db/user-id.js";
+
+// Fire-and-forget: recomputes and stores a vacancy's embedding from its own fields (see
+// vacancy-text.ts#vacancyEmbeddingText) after a create/update that touched embeddable content.
+// Deliberately NOT awaited by any caller — the request that triggers this responds immediately;
+// a slow or failed embeddings call must never add latency to saving a vacancy. `embed()` itself
+// already never throws (llm/embeddings.ts), so nothing here needs a try/catch of its own.
+function embedVacancyInBackground(
+  userId: UserId,
+  id: number,
+  v: { position: string; company: string; level: string; stack: string[]; notes: string },
+): void {
+  if (!embeddingsAvailable()) return;
+  const text = vacancyEmbeddingText(v);
+  if (!text) return;
+  void embed(userId, text, "vacancy-embedding").then((vector) => {
+    if (vector) void updateVacancyEmbedding(userId, id, vector);
+  });
+}
 
 const r = express.Router();
 
@@ -73,6 +95,7 @@ r.post(
       }
     }
     const row = await getVacancy(userId, id);
+    embedVacancyInBackground(userId, id, row!);
     res.status(201).json(row!);
   }),
 );
@@ -100,18 +123,35 @@ r.put(
     // Auto-enrichment: the URL just appeared/changed and this same request didn't manually
     // edit the stack — pull a fresh stack/level/fit from the link (best-effort, any public
     // https host).
+    let enriched = false;
     if (patch.url !== undefined && patch.url !== cur.url && patch.stack === undefined && m.url) {
       const enrichment = await tryAutoEnrichStack(userId, m.url);
       if (enrichment) {
         m.stack = enrichment.techs;
         if (patch.level === undefined) m.level = enrichment.level || m.level;
         if (patch.fit === undefined) m.fit = enrichment.fit;
+        enriched = true;
       }
     }
     await updateVacancy(userId, id, m);
     // Status history — we only log an actual change (not every PUT: most updates
     // edit other fields, e.g. notes or the next-step date, without changing the status).
     if (m.status !== cur.status) await recordStatusChange(userId, Number(id), m.status);
+    // Only recompute the embedding when a field it's actually built from changed (directly, or
+    // via auto-enrichment above) — most PUTs (dragging a Kanban card, setting a next-step date)
+    // touch status/applied/next/url only, and re-embedding identical text on every one of those
+    // would waste an API round-trip for no benefit (llm/embeddings.ts's cache would make it free
+    // the 2nd+ time, but still a network hop).
+    if (
+      enriched ||
+      patch.company !== undefined ||
+      patch.position !== undefined ||
+      patch.level !== undefined ||
+      patch.stack !== undefined ||
+      patch.notes !== undefined
+    ) {
+      embedVacancyInBackground(userId, Number(id), m);
+    }
     res.json((await getVacancy(userId, id))!);
   }),
 );
@@ -123,6 +163,22 @@ r.delete(
     // DELETE CASCADE (see db/schema/app.ts) — deleting the vacancy row removes its history too.
     const deleted = await deleteVacancy(userId, id);
     res.json({ ok: true, deleted });
+  }),
+);
+
+// Semantic "recommendations" — other vacancies whose embedding (see embedVacancyInBackground
+// above) is closest to this one's, by cosine similarity (vacancies.repo.ts#findSimilarVacancies,
+// pgvector). Returns an empty list rather than an error when embeddings are unavailable (offline,
+// no OpenAI key) or this vacancy hasn't been embedded yet — the same "degrade to empty, not an
+// error" convention as every other optional-AI feature in this app.
+r.get(
+  "/vacancies/:id/similar",
+  authed(async (userId, req, res) => {
+    const id = Number(req.params.id);
+    const embedding = await getVacancyEmbedding(userId, id);
+    if (embedding === undefined) throw new HttpError(404, "Vacancy not found");
+    const similar = embedding ? await findSimilarVacancies(userId, embedding, id) : [];
+    res.json({ similar });
   }),
 );
 

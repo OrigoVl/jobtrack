@@ -195,7 +195,7 @@ export function CvMatchPanel({
                 <button
                   key={k}
                   onClick={() => onAddKeyword(k)}
-                  className="rounded-full bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-0.5 text-xs font-medium hover:bg-rose-100 transition-colors"
+                  className="rounded-full bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-0.5 text-xs font-medium hover:bg-rose-100 transition-colors dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800 dark:hover:bg-rose-900"
                 >
                   + {k}
                 </button>

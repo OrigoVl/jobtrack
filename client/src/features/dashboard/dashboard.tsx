@@ -31,7 +31,7 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
     };
   }, []);
   return (
-    <Card className="!bg-gradient-to-br !from-signal/10 !to-white !border-signal/30">
+    <Card className="!bg-gradient-to-br !from-signal/10 !to-surface !border-signal/30">
       <div className="flex items-center gap-2 mb-2">
         <span className="font-semibold text-signal">{t("focusWeek.heading")}</span>
         {data && !data.offline && llm && <Chip tone="indigo">AI</Chip>}
