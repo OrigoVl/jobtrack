@@ -61,7 +61,7 @@ function PickerButton({
 }: {
   open: boolean;
   setOpen: (v: boolean) => void;
-  panelRef: RefObject<HTMLDivElement>;
+  panelRef: RefObject<HTMLDivElement | null>;
   coords: PopoverCoords;
   children: ReactNode;
 }) {

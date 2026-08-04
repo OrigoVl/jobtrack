@@ -44,11 +44,12 @@ test("creates, edits, and deletes a manual calendar event, persisting across rel
   await expect(page.getByText(editedTitle, { exact: true })).toBeVisible();
   await expect(page.getByText(title, { exact: true })).toHaveCount(0);
 
-  // Delete — the row's inline "Delete" action (no separate confirmation step, matching the
-  // rest of this app's list/table delete affordances, e.g. vacancies.tsx).
+  // Delete — the row's inline "Delete" action opens a shared confirm dialog (shared/confirm.tsx)
+  // before the mutation actually fires.
+  await page.getByRole("button", { name: `Delete ${editedTitle}` }).click();
   const [deleteRes] = await Promise.all([
     page.waitForResponse((r) => r.url().includes(`/api/calendar/events/${created.id}`) && r.request().method() === "DELETE"),
-    page.getByRole("button", { name: `Delete ${editedTitle}` }).click(),
+    page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click(),
   ]);
   expect(deleteRes.ok()).toBeTruthy();
   await expect(page.getByText(editedTitle, { exact: true })).toHaveCount(0);

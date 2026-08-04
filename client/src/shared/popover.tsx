@@ -15,7 +15,7 @@ export function PopoverPanel({
   children,
 }: {
   open: boolean;
-  panelRef: RefObject<HTMLDivElement>;
+  panelRef: RefObject<HTMLDivElement | null>;
   coords: PopoverCoords;
   onClose: () => void;
   className?: string;

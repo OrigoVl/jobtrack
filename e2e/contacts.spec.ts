@@ -41,10 +41,11 @@ test("creates, edits, and deletes a contact, persisting across reload", async ({
   await expect(page.getByText(editedName, { exact: true })).toBeVisible();
   await expect(page.getByText(name, { exact: true })).toHaveCount(0);
 
-  // Delete.
+  // Delete — opens a shared confirm dialog (shared/confirm.tsx) before the mutation fires.
+  await page.getByRole("button", { name: `Delete ${editedName}` }).click();
   const [deleteRes] = await Promise.all([
     page.waitForResponse((r) => r.url().includes(`/api/contacts/${created.id}`) && r.request().method() === "DELETE"),
-    page.getByRole("button", { name: `Delete ${editedName}` }).click(),
+    page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click(),
   ]);
   expect(deleteRes.ok()).toBeTruthy();
   await expect(page.getByText(editedName, { exact: true })).toHaveCount(0);

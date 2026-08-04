@@ -29,6 +29,7 @@ const TABLES = [
   "llm_cache",
   "llm_usage",
   "product_events",
+  "digest_preferences",
   "session",
   "account",
   "verification",

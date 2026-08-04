@@ -25,9 +25,11 @@ test("creates a job alert and can delete it, persisting across reload", async ({
   await page.reload();
   await expect(page.getByText(query, { exact: true })).toBeVisible();
 
+  // Opens a shared confirm dialog (shared/confirm.tsx) before the mutation fires.
+  await page.getByRole("button", { name: `Delete alert for ${query}` }).click();
   const [deleteRes] = await Promise.all([
     page.waitForResponse((r) => r.url().includes("/api/saved-searches/") && r.request().method() === "DELETE"),
-    page.getByRole("button", { name: `Delete alert for ${query}` }).click(),
+    page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click(),
   ]);
   expect(deleteRes.ok()).toBeTruthy();
   await expect(page.getByText(query, { exact: true })).toHaveCount(0);

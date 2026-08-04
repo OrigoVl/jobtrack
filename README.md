@@ -153,7 +153,7 @@ Dependabot (`.github/dependabot.yml`) proposes npm/Docker/Actions updates weekly
 
 ## Security
 
-- `helmet()` with a real Content-Security-Policy, a global rate limit on `/api` (600 requests/15 min per IP), a separate, stricter limit for AI endpoints (30/15 min — they cost real money in LLM usage).
+- `helmet()` with a real Content-Security-Policy, a global rate limit on `/api` (600 requests/15 min per IP), a separate, stricter limit for AI endpoints (30/15 min per **account** — falling back to IP only when unauthenticated — they cost real money in LLM usage, and per-IP alone would let one heavy account throttle everyone sharing its office/VPN address).
 - Timeouts on all LLM provider calls, SSRF protection for parsing job postings by URL (blocks localhost/private/link-local IPs, including cloud metadata addresses), file-type restrictions on uploads (`multer`).
 - `CORS_ORIGIN`/`TRUST_PROXY` are explicitly disabled by default, enabled only when actually needed.
 - The JS sandbox for drill practice (`study/runner.ts`) runs in an isolated Web Worker with a hard timeout — not on the main thread.
@@ -190,6 +190,10 @@ jobtrack/
 │           ├── study/       # SRS cards + drills (static + LLM-generated)
 │           ├── admin/       # users/activity, LLM cost, product analytics — behind requireAdmin()
 │           ├── account/     # self-service data export (better-auth's deleteUser handles deletion, no route of our own)
+│           ├── calendar/    # unified interview/deadline calendar (manual events + vacancy next-steps)
+│           ├── contacts/    # networking tracker (recruiter/interviewer contacts, linked to companies/vacancies)
+│           ├── cv-shares/   # public, no-session CV links (random slug)
+│           ├── saved-searches/  # job-alert digests for a saved query/region
 │           └── projects/, resources/, companies/, analytics/, writing/, mock/, health/
 └── client/                  # React + Vite + TS + Router + TanStack Query
     └── src/
@@ -207,6 +211,8 @@ jobtrack/
         └── features/                # one folder per screen domain (mirrors server/src/modules):
             ├── dashboard/, vacancies/, jobs/, analyzer/, companies/
             ├── cv/                  # CV view + CV Builder (cv.tsx, cv-builder/*)
+            ├── calendar/            # unified interview/deadline calendar
+            ├── contacts/            # networking tracker
             ├── knowledge/           # study plan (learn.tsx)
             ├── roadmap/, plan21/, projects/, resources/, mock/
             ├── study/               # SRS + drills (study.tsx) + JS sandbox (runner.ts)
@@ -219,7 +225,8 @@ Data and mutations flow through **TanStack Query** (`shared/queries/*`) — each
 
 ## What's next (ideas for future work)
 
-- A full interview calendar (currently just basic Web Notifications).
+See "Multi-user SaaS readiness" below for what's specifically missing to run this as a real
+multi-user product rather than a single-deployment personal tool.
 
 ### Multi-tenancy
 
@@ -228,3 +235,57 @@ The data layer runs on Postgres/Drizzle, every table/repository function is scop
 **Admin accounts.** There's no signup checkbox or env-var toggle for this — grant it directly, after the person has registered: `node server/scripts/make-admin.mjs <email>`. Deliberately not automatic (e.g. an `ADMIN_EMAIL` env var matched on login) — that would be a standing, always-on privilege-escalation path reachable from the normal login flow, instead of an explicit, out-of-band action. Once granted, the "Admin" nav item and `/admin` page (users/activity, LLM cost, product analytics, and a link to your external error tracker via the optional `LOGS_DASHBOARD_URL`) show up automatically — nothing else to configure.
 
 **Legacy personal data.** If you have real data in an old `server/jobtrack.db` (from before this migration), migrate it with `node server/scripts/migrate-sqlite-data.mjs --dry-run` (preview), then without the flag to actually write it into Postgres under the `bootstrap-user` id. Run it **before** starting the app against a fresh Postgres — otherwise the startup bootstrap step seeds sample data first and the migration script's own duplicate-guard refuses to run without `--force`. Once you've registered a real account, claim that data with `node server/scripts/claim-bootstrap-data.mjs <email>` — it reassigns everything from `bootstrap-user` onto your real account (replacing the fresh default profile registration seeded for you, since the bootstrap data is the real one).
+
+## Multi-user SaaS readiness
+
+This app is architecturally multi-tenant already (see "Multi-tenancy" above) — every table is
+scoped by `userId`, real auth backs every session, and the cross-tenant isolation test proves it
+end-to-end. What's below is what's *specifically* still missing to run this confidently as a
+product with strangers signing up, rather than a single-deployment personal tool. Already
+addressed as part of this pass:
+
+- **Admin can now suspend an abusive/runaway account.** `POST /admin/users/:userId/ban` and
+  `.../unban` (better-auth's admin plugin), with a "Ban"/"Unban" button next to the existing
+  `banned` badge on the admin Users tab — previously the badge existed but nothing could set it
+  from the UI.
+- **The AI rate limiter is now keyed per-account, not per-IP.** `aiLimiter`
+  (`server/src/core/rate-limit.ts`) resolves the caller's session and buckets by `userId`, falling
+  back to IP only for unauthenticated requests — previously every user behind the same office/VPN
+  IP shared one throttling bucket. The general `apiLimiter` deliberately stays IP-keyed (it's
+  mounted on every request; per-account keying there would cost a second session lookup on every
+  single API call for a limiter whose job is just a coarse anti-runaway-loop backstop).
+
+Still open, roughly in priority order for an actual multi-user launch:
+
+1. **No per-account LLM cost cap.** The admin panel shows aggregate/per-feature cost
+   (`llm-usage` tab) and the AI rate limiter now caps *request rate* per account, but nothing
+   caps *spend* per account — a user well within the rate limit could still run up real
+   OpenAI/Anthropic cost over time. Would need a running per-user cost total (the `llm_usage`
+   telemetry table already has the data) checked before each `chat()`/`chatJson()` call, with a
+   soft-block + admin-visible flag once a configurable threshold is hit.
+2. **Billing/subscriptions.** There is currently no plan/tier concept, no Stripe (or equivalent)
+   integration, and no way to gate a feature (e.g. AI calls, or a request-volume ceiling) behind a
+   paid tier. Needed before charging anyone.
+3. **In-memory rate-limit store across multiple instances** (already flagged in "Production
+   readiness" above) — set `REDIS_URL` before running more than one replica, or the effective
+   limit becomes N× the declared one.
+4. **Terms of Service / Privacy Policy / GDPR-style data handling.** Account data export and
+   self-service account deletion already exist (`account/` module, better-auth's `deleteUser`),
+   which covers the technical half of a GDPR-style deletion/portability request — but there's no
+   actual ToS/Privacy Policy page, no cookie/consent banner, and no documented data-retention
+   policy for a real signup flow to link to.
+5. **Abuse monitoring beyond a manual ban.** The admin panel is otherwise read-only analytics —
+   there's no automated flag for a suspicious pattern (e.g. one account spiking `llm_usage`, or
+   registering many accounts from one IP) short of an admin noticing it themselves in the Users
+   tab.
+6. **Email deliverability at scale.** `RESEND_API_KEY` (or the "log instead of send" offline
+   fallback) is fine for a single deployment's verification/reset emails; a real multi-user
+   signup flow eventually needs to think about sender reputation/bounce handling at volume, which
+   a single API key + default sending domain doesn't address on its own.
+7. **Onboarding for a stranger, not just a returning solo user.** The dashboard's onboarding
+   checklist (see the UI/UX findings this pass surfaced) is solid for "you, starting fresh" but
+   has never been evaluated against a cold-signup conversion funnel — worth a look once real
+   external users are the goal, not before.
+
+None of the above is urgent for the current single-deployment personal-tool use case this README
+otherwise documents — they're the concrete list for *if/when* that changes.

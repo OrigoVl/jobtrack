@@ -79,10 +79,15 @@ Don't declare a task finished on the basis of "it should work" — actually run 
   `mutation.isPending && mutation.variables === …` when one hook serves many list items.
 - **Auth**: better-auth (`server/src/auth/auth.ts`) — email+password (email verification
   required) + Google OAuth, admin plugin for the `role` field. `authed()`/`requireAdmin()` are
-  the ONLY place a session is read; `core/http.ts` imports `auth/auth.js` lazily (dynamic
-  `import()` inside the function, not a static top-level one) specifically so modules that only
-  need `HttpError`/`asyncHandler` — and their unit tests — don't transitively open a real
-  Postgres connection just by importing this file.
+  the only place a session is read for authorization purposes — no route/repository ever gets a
+  `userId` any other way. The one narrow, sanctioned exception is `core/rate-limit.ts`'s
+  `perAccountKey()`, which calls `core/http.ts`'s exported `getSessionUserIdForRateLimit()` (the
+  same underlying session lookup, not a reimplementation) so the AI rate limiter can bucket by
+  account instead of IP — it returns only an id, never the full session, and that id is used
+  purely as an opaque bucketing key, never passed into business logic. `core/http.ts` imports
+  `auth/auth.js` lazily (dynamic `import()` inside the function, not a static top-level one)
+  specifically so modules that only need `HttpError`/`asyncHandler` — and their unit tests —
+  don't transitively open a real Postgres connection just by importing this file.
 - **i18n (client)**: `react-i18next`, one namespace-per-feature JSON pair under
   `client/src/i18n/locales/{en,uk}/<namespace>.json`. A new namespace must be registered in BOTH
   `client/src/i18n/index.ts` (the `resources` object) and `client/src/i18n/i18next.d.ts` (the
