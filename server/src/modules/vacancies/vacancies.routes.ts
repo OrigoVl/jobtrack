@@ -394,6 +394,7 @@ r.post(
               fit: enrichment.fit,
             });
           }
+          await new Promise((resolve) => setTimeout(resolve, 400)); // polite pause
         }
       } catch (e) {
         errors.push({ index, message: e instanceof HttpError ? e.message : "Unknown error" });

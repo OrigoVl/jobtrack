@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diffNewJobs, isFirstRun } from "./saved-searches.scheduler.js";
+import { diffNewJobs, isFirstRun, rankJobsByFit } from "./saved-searches.scheduler.js";
 import type { RawJob } from "../jobs/job-search.service.js";
 
 function job(url: string, overrides: Partial<RawJob> = {}): RawJob {
@@ -50,5 +50,44 @@ describe("isFirstRun", () => {
 
   it("is false once a notification has gone out", () => {
     expect(isFirstRun({ lastSeenUrls: [], lastNotifiedAt: "2026-01-01T00:00:00.000Z" })).toBe(false);
+  });
+});
+
+describe("rankJobsByFit", () => {
+  const skills = ["React", "TypeScript"];
+
+  it("ranks a posting whose extracted tech matches the profile as a strong (high) fit", () => {
+    const ranked = rankJobsByFit([job("https://a.test/1", { position: "Senior React Developer" })], skills);
+    expect(ranked[0]!.fit).toBe("high");
+  });
+
+  it("ranks a posting whose extracted tech is NOT in the profile lower than a matching one", () => {
+    const ranked = rankJobsByFit(
+      [job("https://a.test/py", { position: "Python Backend Engineer" }), job("https://a.test/react", { position: "React Developer" })],
+      skills,
+    );
+    expect(ranked.map((j) => j.url)).toEqual(["https://a.test/react", "https://a.test/py"]);
+    expect(ranked[0]!.fit).toBe("high");
+  });
+
+  it("treats a posting with no extractable tech at all as low fit, not high", () => {
+    // computeFit([], []) alone would return "high" ("no known requirements — no basis to lower
+    // the score"), which is correct for an already-tracked vacancy but wrong for ranking a raw
+    // search result: a non-technical posting must not falsely outrank a real skill match.
+    const ranked = rankJobsByFit([job("https://a.test/pm", { position: "Product Manager", tags: [] })], skills);
+    expect(ranked[0]!.fit).toBe("low");
+  });
+
+  it("also matches tech mentioned only in the source's own tags, not just the position title", () => {
+    const ranked = rankJobsByFit([job("https://a.test/1", { position: "Engineer", tags: ["react", "typescript"] })], skills);
+    expect(ranked[0]!.fit).toBe("high");
+  });
+
+  it("keeps the original relative order among postings tied on fit (stable sort)", () => {
+    const ranked = rankJobsByFit(
+      [job("https://a.test/first", { position: "Product Manager" }), job("https://a.test/second", { position: "Sales Lead" })],
+      skills,
+    );
+    expect(ranked.map((j) => j.url)).toEqual(["https://a.test/first", "https://a.test/second"]);
   });
 });

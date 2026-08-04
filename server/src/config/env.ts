@@ -47,6 +47,12 @@ const RawEnvSchema = z
     // heuristic for simple tasks that shouldn't "hang" for long.
     LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
     LLM_TIMEOUT_MS_FAST: z.coerce.number().int().positive().default(15_000),
+    // Soft per-user daily spend cap in USD, estimated from llm_usage's costUsd (llm/pricing.ts) —
+    // 0 (default) disables it. aiLimiter (core/rate-limit.ts) already caps REQUEST rate, but a
+    // user could still stay within that rate while racking up real $ cost on repeated "smart"-tier
+    // calls; this bounds the $ instead of the request count. Deliberately a single global number,
+    // not per-feature/per-plan — this app has no billing tiers to key it off of.
+    LLM_DAILY_COST_CAP_USD: z.coerce.number().nonnegative().default(0),
     // Express "trust proxy" — should only be enabled if the app actually sits behind a
     // reverse proxy/LB (nginx, Cloudflare, etc.), otherwise req.ip and rate-limit would see
     // the proxy's IP instead of the client's. Disabled by default (the app listens directly).
@@ -182,6 +188,7 @@ export const env = {
     anthropicModelSmart: raw.ANTHROPIC_MODEL_SMART,
     timeoutMs: raw.LLM_TIMEOUT_MS,
     timeoutMsFast: raw.LLM_TIMEOUT_MS_FAST,
+    dailyCostCapUsd: raw.LLM_DAILY_COST_CAP_USD,
     // Deliberately tied to the SPECIFIC selected `provider`, not "is ANY key present" —
     // otherwise LLM_PROVIDER=openai (default) with only ANTHROPIC_API_KEY set in .env
     // (a common mistake: the user set a key but forgot to switch the provider) would make

@@ -1,7 +1,11 @@
 import AdmZip from "adm-zip";
 import type { CvDoc } from "./cv.schemas.js";
 
-function parseCsv(text: string): string[][] {
+// Exported (only) so linkedin-import.service.test.ts can exercise the quoting edge cases
+// directly (embedded commas/quotes/newlines inside a quoted field) without having to build a
+// whole in-memory ZIP archive for every case — parseLinkedInArchive() itself, the real public
+// entry point, still gets its own end-to-end test against a real archive.
+export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -60,6 +64,13 @@ function toBullets(description: string | undefined): string[] {
 
 export type ParsedLinkedInCv = Omit<CvDoc, "theme">;
 
+// A real LinkedIn export CSV (Profile/Positions/Skills/...) is a few KB to a few hundred KB at
+// most. 20MB is already generous headroom — its real job is capping a maliciously-crafted entry
+// with an extreme compression ratio (a few KB compressed inflating to gigabytes) before
+// `entry.getData()` actually decompresses it. `entry.header.size` is read from the zip's central
+// directory metadata, so this check costs nothing extra — it happens before any inflate work.
+const MAX_CSV_ENTRY_BYTES = 20 * 1024 * 1024;
+
 /**
  * Parse a LinkedIn "Get a copy of your data" ZIP archive into a structured CV document.
  */
@@ -68,7 +79,9 @@ export function parseLinkedInArchive(buffer: Buffer): ParsedLinkedInCv {
   const entries = zip.getEntries();
   const readCsv = (name: string): Record<string, string>[] => {
     const entry = entries.find((e) => e.entryName.split("/").pop()?.toLowerCase() === name.toLowerCase());
-    return entry ? csvToObjects(entry.getData().toString("utf8")) : [];
+    if (!entry) return [];
+    if (entry.header.size > MAX_CSV_ENTRY_BYTES) return [];
+    return csvToObjects(entry.getData().toString("utf8"));
   };
   const profile = readCsv("Profile.csv")[0] || {};
   const positions = readCsv("Positions.csv");

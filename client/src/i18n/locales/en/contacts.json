@@ -30,5 +30,13 @@
     "contactAdded": "Contact added",
     "saved": "Saved",
     "deleted": "Deleted"
+  },
+  "outreach": {
+    "draftIntro": "✉️ Draft intro",
+    "draftFollowup": "🔁 Draft follow-up",
+    "offlineNotice": "AI unavailable — templated message",
+    "messageLabel": "Message",
+    "copy": "Copy",
+    "copied": "✓ Copied"
   }
 }

@@ -1,8 +1,11 @@
 import express from "express";
 import { HttpError, authed } from "../../core/http.js";
+import { aiLimiter } from "../../core/rate-limit.js";
+import { getProfile } from "../../db/index.js";
 import { parseContactInput } from "../../shared/validation.js";
 import { getCompanyById } from "../companies/companies.repo.js";
 import { listContacts, getContact, createContact, updateContact, deleteContact } from "./contacts.repo.js";
+import { draftOutreachMessage, type OutreachKind } from "./contacts-outreach.service.js";
 import type { UserId } from "../../db/user-id.js";
 
 const r = express.Router();
@@ -59,6 +62,24 @@ r.delete(
     const id = Number(req.params.id);
     const deleted = await deleteContact(userId, id);
     res.json({ ok: true, deleted });
+  }),
+);
+
+// ---------- LLM: outreach/follow-up message draft ----------
+r.post(
+  "/contacts/:id/outreach",
+  aiLimiter,
+  authed(async (userId, req, res) => {
+    const id = Number(req.params.id);
+    const contact = await getContact(userId, id);
+    if (!contact) throw new HttpError(404, "Contact not found", null, "CONTACT_NOT_FOUND");
+    const kind: OutreachKind = req.body?.kind === "followup" ? "followup" : "intro";
+    const [profile, company] = await Promise.all([
+      getProfile(userId),
+      contact.companyId != null ? getCompanyById(userId, contact.companyId) : Promise.resolve(undefined),
+    ]);
+    const result = await draftOutreachMessage(userId, profile, contact, kind, { companyName: company?.name });
+    res.json(result);
   }),
 );
 

@@ -12,6 +12,7 @@ import { BOOTSTRAP_USER_ID, type UserId } from "../db/user-id.js";
 let testDb: Awaited<ReturnType<typeof createTestDb>>;
 let insertLlmUsage: typeof import("./telemetry.repo.js").insertLlmUsage;
 let insertProductEvent: typeof import("./telemetry.repo.js").insertProductEvent;
+let getUserCostUsdSince: typeof import("./telemetry.repo.js").getUserCostUsdSince;
 let llmUsage: typeof import("../db/schema/index.js").llmUsage;
 let productEvents: typeof import("../db/schema/index.js").productEvents;
 
@@ -22,6 +23,7 @@ beforeAll(async () => {
   const repo = await import("./telemetry.repo.js");
   insertLlmUsage = repo.insertLlmUsage;
   insertProductEvent = repo.insertProductEvent;
+  getUserCostUsdSince = repo.getUserCostUsdSince;
   const schema = await import("../db/schema/index.js");
   llmUsage = schema.llmUsage;
   productEvents = schema.productEvents;
@@ -85,6 +87,77 @@ describe("insertLlmUsage() (PGlite)", () => {
         outcome: "success",
       }),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("getUserCostUsdSince() (PGlite)", () => {
+  it("sums only this user's cost, scoped away from another user's usage", async () => {
+    // Distinct userIds from BOOTSTRAP_USER_ID (used by the insertLlmUsage() describe block
+    // above) — reusing it would make the sum here depend on test execution order within the
+    // file, since every test shares the same PGlite instance/table.
+    const userA = "user-cost-sum-a" as UserId;
+    const userB = "user-cost-sum-b" as UserId;
+    await insertTestUser(testDb, userA);
+    await insertTestUser(testDb, userB);
+    await insertLlmUsage({
+      userId: userA,
+      feature: "cv-review",
+      provider: "openai",
+      model: "gpt-4o-mini",
+      tier: "fast",
+      inputTokens: 1000,
+      outputTokens: 1000,
+      totalTokens: 2000,
+      cacheHit: false,
+      latencyMs: 100,
+      outcome: "success",
+    });
+    await insertLlmUsage({
+      userId: userB,
+      feature: "cv-review",
+      provider: "openai",
+      model: "gpt-4o-mini",
+      tier: "fast",
+      inputTokens: 1_000_000,
+      outputTokens: 1_000_000,
+      totalTokens: 2_000_000,
+      cacheHit: false,
+      latencyMs: 100,
+      outcome: "success",
+    });
+    // gpt-4o-mini: 0.15/1M in + 0.6/1M out -> 1000*0.15/1e6 + 1000*0.6/1e6 = 0.00075
+    const cost = await getUserCostUsdSince(userA, new Date(0));
+    expect(cost).toBeCloseTo(0.00075, 8);
+  });
+
+  it("excludes usage older than `since`", async () => {
+    const userId = "user-cutoff" as UserId;
+    await insertTestUser(testDb, userId);
+    await insertLlmUsage({
+      userId,
+      feature: "cv-review",
+      provider: "openai",
+      model: "gpt-4o-mini",
+      tier: "fast",
+      inputTokens: 1_000_000,
+      outputTokens: 0,
+      totalTokens: 1_000_000,
+      cacheHit: false,
+      latencyMs: 100,
+      outcome: "success",
+    });
+    await testDb
+      .update(llmUsage)
+      .set({ createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000) })
+      .where(eq(llmUsage.userId, userId));
+
+    const sinceYesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    expect(await getUserCostUsdSince(userId, sinceYesterday)).toBe(0);
+    expect(await getUserCostUsdSince(userId, new Date(0))).toBeCloseTo(0.15, 8);
+  });
+
+  it("returns 0 for a user with no recorded usage", async () => {
+    expect(await getUserCostUsdSince("user-with-no-usage" as UserId, new Date(0))).toBe(0);
   });
 });
 

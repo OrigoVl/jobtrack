@@ -7,6 +7,10 @@
 import { fetchRemotive, fetchArbeitnow, fetchDou, type RawJob } from "../jobs/job-search.service.js";
 import { sendEmail } from "../../shared/email.js";
 import { contextLogger } from "../../core/logger.js";
+import { getProfile } from "../../db/index.js";
+import { extractTechs } from "../../shared/tech-dict.js";
+import { computeFit } from "../vacancies/vacancy-text.js";
+import type { Fit } from "../../shared/validation.js";
 import { listAllSavedSearches, recordRunResult, type SavedSearchForRun } from "./saved-searches.repo.js";
 
 export const DEFAULT_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
@@ -54,15 +58,48 @@ const esc = (s: string) =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-function digestHtml(search: SavedSearchForRun, newJobs: RawJob[]): string {
+export interface RankedJob extends RawJob {
+  fit: Fit;
+}
+
+// Same offline heuristic vacancies.repo.ts's enrichment path uses (vacancy-text.ts#computeFit) —
+// no LLM call needed for a background job ranking a whole batch of postings, and this runs with
+// no request latency budget anyway. A raw job-search result has no separately-fetched posting
+// text (unlike an already-tracked vacancy), so techs are extracted from the position title + the
+// source's own tags (job.tags — populated by Remotive/Arbeitnow, always empty for DOU's scraped
+// HTML) instead.
+//
+// computeFit([], []) intentionally returns "high" ("no known requirements — no basis to lower the
+// score"), which is the right call for an ALREADY-TRACKED vacancy that just hasn't been analyzed
+// yet, but wrong here: a posting with literally nothing extractable (e.g. a non-technical DOU
+// listing) would incorrectly rank ahead of postings with real matched skills. Treated as "low"
+// instead so zero-signal postings sink to the bottom rather than falsely topping the list.
+export function rankJobsByFit(jobs: RawJob[], skills: string[]): RankedJob[] {
+  const skillSet = new Set(skills.map((s) => s.toLowerCase()));
+  const withFit = jobs.map((job) => {
+    const techs = extractTechs(`${job.position} ${job.tags.join(" ")}`).map((t) => t.name);
+    if (techs.length === 0) return { ...job, fit: "low" as Fit };
+    const match = techs.filter((t) => skillSet.has(t.toLowerCase()));
+    const gap = techs.filter((t) => !skillSet.has(t.toLowerCase()));
+    return { ...job, fit: computeFit(match, gap) };
+  });
+  const fitRank: Record<Fit, number> = { high: 0, med: 1, low: 2 };
+  return [...withFit].sort((a, b) => fitRank[a.fit] - fitRank[b.fit]); // stable — ties keep source order
+}
+
+function digestHtml(search: SavedSearchForRun, newJobs: RankedJob[]): string {
   const label = search.label || search.query;
   const items = newJobs
     .slice(0, 25)
-    .map((j) => `<li><a href="${esc(j.url)}">${esc(j.position)}</a> — ${esc(j.company)} (${esc(j.location)})</li>`)
+    .map(
+      (j) =>
+        `<li>${j.fit === "high" ? "🎯 " : ""}<a href="${esc(j.url)}">${esc(j.position)}</a> — ${esc(j.company)} (${esc(j.location)})</li>`,
+    )
     .join("");
   const more = newJobs.length > 25 ? `<p>...and ${newJobs.length - 25} more.</p>` : "";
   return (
-    `<p>${newJobs.length} new posting${newJobs.length === 1 ? "" : "s"} for your saved search "${esc(label)}":</p>` +
+    `<p>${newJobs.length} new posting${newJobs.length === 1 ? "" : "s"} for your saved search "${esc(label)}"` +
+    `${newJobs.some((j) => j.fit === "high") ? " (🎯 = strong match with your profile)" : ""}:</p>` +
     `<ul>${items}</ul>${more}`
   );
 }
@@ -73,10 +110,12 @@ async function processOneSavedSearch(search: SavedSearchForRun): Promise<void> {
   const firstRun = isFirstRun(search);
   const notify = !firstRun && newJobs.length > 0;
   if (notify) {
+    const profile = await getProfile(search.userId);
+    const ranked = rankJobsByFit(newJobs, profile.skills);
     await sendEmail({
       to: search.userEmail,
       subject: `${newJobs.length} new job${newJobs.length === 1 ? "" : "s"} for "${search.label || search.query}"`,
-      html: digestHtml(search, newJobs),
+      html: digestHtml(search, ranked),
     });
   }
   await recordRunResult(search.id, nextSeenUrls, notify);

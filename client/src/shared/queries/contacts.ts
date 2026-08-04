@@ -54,3 +54,14 @@ export function useDeleteContact() {
     onError,
   });
 }
+
+// Not cached via a query key — a one-shot "draft" action (like useLinkedInOptimize), the result
+// is held in the calling component's own state, not TanStack Query's cache. Doesn't mutate the
+// contact itself, so no invalidation of queryKeys.contacts on success.
+export function useContactOutreach() {
+  const onError = useMutationErrorToast();
+  return useMutation({
+    mutationFn: ({ id, kind }: { id: number; kind: "intro" | "followup" }) => api.contactOutreach(id, kind),
+    onError,
+  });
+}

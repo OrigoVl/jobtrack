@@ -49,7 +49,7 @@ export async function optimizeLinkedInProfile(userId: UserId, profile: Profile):
       `2. A LinkedIn "About" section (3-5 short paragraphs, first-person, focused on impact/skills/what you're looking for — no buzzword filler).\n` +
       `Format strictly: {"headline":"...","about":"..."}`,
     LinkedInOptimizeSchema,
-    { maxTokens: 700, temperature: 0.6, tier: "smart", feature: "linkedin-optimize" },
+    { maxTokens: 700, temperature: 0.6, cache: true, tier: "smart", feature: "linkedin-optimize" },
   );
   if (!out) return offlineLinkedInOptimize(profile);
   return { ...out, offline: false };

@@ -507,3 +507,8 @@ export interface LinkedInOptimizeResult {
   about: string;
   offline: boolean;
 }
+
+export interface OutreachResult {
+  message: string;
+  offline?: boolean;
+}

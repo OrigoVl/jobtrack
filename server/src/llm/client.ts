@@ -5,7 +5,7 @@ import type { UserId } from "../db/user-id.js";
 import { contextLogger } from "../core/logger.js";
 import { hashString } from "../shared/hash.js";
 import { env } from "../config/env.js";
-import { insertLlmUsage, type LlmUsageOutcome } from "../telemetry/telemetry.repo.js";
+import { insertLlmUsage, getUserCostUsdSince, type LlmUsageOutcome } from "../telemetry/telemetry.repo.js";
 import { getLocale } from "../core/request-context.js";
 import type { AppLocale } from "../shared/locale.js";
 
@@ -136,6 +136,34 @@ export async function chat(userId: UserId, system: string, user: string, options
         outcome: "cache_hit",
       });
       return hit.value;
+    }
+  }
+  // Gated on env.llm.dailyCostCapUsd > 0 (default 0/disabled) so this never adds a DB round trip
+  // for the common case — and only runs on a cache MISS, since a cache hit costs nothing and
+  // shouldn't be blocked by a cap meant to bound real provider spend.
+  if (env.llm.dailyCostCapUsd > 0) {
+    const startOfDayUtc = new Date();
+    startOfDayUtc.setUTCHours(0, 0, 0, 0);
+    const spentToday = await getUserCostUsdSince(userId, startOfDayUtc);
+    // null means the telemetry read itself failed — fail OPEN (allow the call) rather than take
+    // AI features down because of an unrelated DB hiccup; see getUserCostUsdSince's own comment.
+    if (spentToday !== null && spentToday >= env.llm.dailyCostCapUsd) {
+      contextLogger().warn(
+        { userId, feature, tier, spentToday, capUsd: env.llm.dailyCostCapUsd },
+        "User's daily LLM cost cap reached, falling back to offline for this call",
+      );
+      recordLlmUsage({
+        userId,
+        feature,
+        tier,
+        provider: null,
+        model: null,
+        usage: null,
+        cacheHit: false,
+        latencyMs: 0,
+        outcome: "budget_exceeded",
+      });
+      return null;
     }
   }
   const started = Date.now();

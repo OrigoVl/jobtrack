@@ -27,6 +27,7 @@ import type {
   LearnData,
   LinkedInOptimizeResult,
   MockEvaluation,
+  OutreachResult,
   Plan21Data,
   Profile,
   ProjectsData,
@@ -226,6 +227,8 @@ export const api = {
   updateContact: (id: number, patch: Partial<ContactInput>) =>
     req<Contact>(`/contacts/${id}`, { method: "PUT", body: JSON.stringify(patch) }),
   deleteContact: (id: number) => req<{ ok: boolean; deleted: number }>(`/contacts/${id}`, { method: "DELETE" }),
+  contactOutreach: (id: number, kind: "intro" | "followup") =>
+    req<OutreachResult>(`/contacts/${id}/outreach`, { method: "POST", body: JSON.stringify({ kind }) }),
 
   cvShare: () => req<CvShare | null>("/cv/share"),
   generateCvShare: () => req<CvShare>("/cv/share", { method: "POST" }),

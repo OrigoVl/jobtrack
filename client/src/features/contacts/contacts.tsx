@@ -1,8 +1,57 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAddContact, useCompanies, useContacts, useDeleteContact, useUpdateContact } from "../../shared/queries";
-import { Btn, Card, CardsSkeleton, EmptyState, PageHeader, Spinner } from "../../shared/ui";
-import type { Contact, ContactInput } from "../../shared/types";
+import { useAddContact, useCompanies, useContactOutreach, useContacts, useDeleteContact, useUpdateContact } from "../../shared/queries";
+import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Spinner } from "../../shared/ui";
+import type { Contact, ContactInput, OutreachResult } from "../../shared/types";
+
+/** Draft an AI outreach/follow-up message for a contact (POST /contacts/:id/outreach) and let the
+ * user copy it — mirrors LinkedInOptimizerCard's generate+copy shape, scoped to one contact card
+ * instead of a whole page. Each card gets its own mutation instance so drafting for one contact
+ * never shows a loading/result state on another. */
+function ContactOutreachPanel({ contact }: { contact: Contact }) {
+  const { t } = useTranslation(["contacts", "common"]);
+  const outreachMutation = useContactOutreach();
+  const [result, setResult] = useState<OutreachResult | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const draft = (kind: "intro" | "followup") => {
+    setResult(null);
+    outreachMutation.mutate({ id: contact.id, kind }, { onSuccess: setResult });
+  };
+  const isDrafting = (kind: "intro" | "followup") =>
+    outreachMutation.isPending && outreachMutation.variables?.id === contact.id && outreachMutation.variables?.kind === kind;
+  const copy = async () => {
+    if (!result) return;
+    await navigator.clipboard.writeText(result.message);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="mt-2 pt-2 border-t border-grid">
+      <div className="flex flex-wrap gap-1.5">
+        <Btn size="sm" variant="ghost" loading={isDrafting("intro")} onClick={() => draft("intro")}>
+          {t("outreach.draftIntro")}
+        </Btn>
+        <Btn size="sm" variant="ghost" loading={isDrafting("followup")} onClick={() => draft("followup")}>
+          {t("outreach.draftFollowup")}
+        </Btn>
+      </div>
+      {result && (
+        <div className="mt-2 space-y-1.5">
+          {result.offline && <Chip tone="amber">{t("outreach.offlineNotice")}</Chip>}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-ink-dim uppercase tracking-wide">{t("outreach.messageLabel")}</span>
+            <Btn size="sm" variant="ghost" onClick={copy}>
+              {copied ? t("outreach.copied") : t("outreach.copy")}
+            </Btn>
+          </div>
+          <div className="bg-surface-2 border border-grid rounded-lg p-2.5 text-xs text-ink whitespace-pre-wrap">{result.message}</div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const EMPTY_DRAFT: ContactInput = { name: "", role: "", companyId: null, email: "", linkedinUrl: "", notes: "", lastContactAt: "" };
 
@@ -220,6 +269,7 @@ export function Contacts() {
                   {c.lastContactAt && <span className="text-ink-dim">{t("lastContact", { date: c.lastContactAt })}</span>}
                 </div>
                 {c.notes && <p className="text-xs text-ink-dim mt-2 whitespace-pre-wrap">{c.notes}</p>}
+                <ContactOutreachPanel contact={c} />
               </Card>
             );
           })}

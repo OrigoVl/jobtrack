@@ -26,6 +26,7 @@ vi.mock("../db/llm-cache.js", () => ({
 vi.mock("../telemetry/telemetry.repo.js", () => ({
   insertLlmUsage: vi.fn(),
   insertProductEvent: vi.fn(),
+  getUserCostUsdSince: vi.fn(() => 0),
 }));
 
 describe("chat() / llmAvailable() offline fallback", () => {
@@ -351,6 +352,101 @@ describe("chat() outputLocale", () => {
     );
     const keys = vi.mocked(setLlmCache).mock.calls.map((call) => call[0]);
     expect(keys[0]).not.toBe(keys[1]);
+  });
+});
+
+// env.llm.dailyCostCapUsd (default 0/disabled): a soft per-user daily $ cap, checked only on a
+// cache miss (a cache hit is free and must never be blocked by it — see the "hit" test below).
+describe("chat() daily cost cap", () => {
+  beforeAll(async () => {
+    await import("dotenv/config");
+  });
+
+  beforeEach(() => {
+    vi.resetModules();
+    // Clears call history (NOT the factory-set default implementations above) on
+    // getUserCostUsdSince/insertLlmUsage/getLlmCache — each test below explicitly sets its own
+    // mockResolvedValue where it matters, this just keeps the toHaveBeenCalled() assertions
+    // clean of calls made by earlier tests in this describe block.
+    vi.clearAllMocks();
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", undefined);
+    vi.stubEnv("LLM_PROVIDER", "openai");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("calls the provider normally when the cap is disabled (default), regardless of spend", async () => {
+    const { getUserCostUsdSince } = await import("../telemetry/telemetry.repo.js");
+    vi.mocked(getUserCostUsdSince).mockResolvedValue(1000);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }),
+    } as Response);
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user");
+    expect(result).toBe("ok");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(getUserCostUsdSince).not.toHaveBeenCalled();
+  });
+
+  it("skips the provider call and returns null once today's spend reaches the cap", async () => {
+    vi.stubEnv("LLM_DAILY_COST_CAP_USD", "1");
+    const { getUserCostUsdSince, insertLlmUsage } = await import("../telemetry/telemetry.repo.js");
+    vi.mocked(getUserCostUsdSince).mockResolvedValue(1);
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user", { feature: "cv-review" });
+    expect(result).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(insertLlmUsage).toHaveBeenCalledWith(expect.objectContaining({ feature: "cv-review", outcome: "budget_exceeded" }));
+  });
+
+  it("still calls the provider when spend is below the cap", async () => {
+    vi.stubEnv("LLM_DAILY_COST_CAP_USD", "1");
+    const { getUserCostUsdSince } = await import("../telemetry/telemetry.repo.js");
+    vi.mocked(getUserCostUsdSince).mockResolvedValue(0.5);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }),
+    } as Response);
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user");
+    expect(result).toBe("ok");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails open (still calls the provider) when the telemetry read itself fails", async () => {
+    vi.stubEnv("LLM_DAILY_COST_CAP_USD", "1");
+    const { getUserCostUsdSince } = await import("../telemetry/telemetry.repo.js");
+    vi.mocked(getUserCostUsdSince).mockResolvedValue(null);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }),
+    } as Response);
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user");
+    expect(result).toBe("ok");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not block a cache hit even when today's spend has already reached the cap", async () => {
+    vi.stubEnv("LLM_DAILY_COST_CAP_USD", "1");
+    const { getLlmCache } = await import("../db/llm-cache.js");
+    vi.mocked(getLlmCache).mockResolvedValueOnce({ value: "cached answer" });
+    const { getUserCostUsdSince } = await import("../telemetry/telemetry.repo.js");
+    vi.mocked(getUserCostUsdSince).mockResolvedValue(1);
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user", { cache: true });
+    expect(result).toBe("cached answer");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(getUserCostUsdSince).not.toHaveBeenCalled();
   });
 });
 

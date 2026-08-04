@@ -9,13 +9,14 @@
 // connection (with its own migrate-on-boot side effect) to every test that imports THOSE
 // modules — including llm/client.test.ts, which deliberately mocks only db/llm-cache.js and
 // has nothing to do with telemetry persistence.
+import { and, eq, gte, sum } from "drizzle-orm";
 import { llmUsage, productEvents } from "../db/schema/index.js";
 import type { UserId } from "../db/user-id.js";
 import { contextLogger } from "../core/logger.js";
 import { getRequestId } from "../core/request-context.js";
 import { estimateCostUsd } from "../llm/pricing.js";
 
-export type LlmUsageOutcome = "success" | "error" | "cache_hit";
+export type LlmUsageOutcome = "success" | "error" | "cache_hit" | "budget_exceeded";
 
 export interface LlmUsageRecord {
   userId: UserId;
@@ -58,6 +59,26 @@ export async function insertLlmUsage(record: LlmUsageRecord): Promise<void> {
     });
   } catch (err) {
     contextLogger().error({ err, feature: record.feature }, "Failed to persist LLM usage telemetry");
+  }
+}
+
+/**
+ * Sum of estimated cost (llm/pricing.ts) for this user's LLM calls since `since` — backs
+ * llm/client.ts's optional per-user daily cost cap (env.llm.dailyCostCapUsd). Returns null (NOT
+ * 0) on a DB failure, same fail-open reasoning as insertLlmUsage's swallowed errors above — a
+ * telemetry read failure must never be the reason a user's AI features stop working.
+ */
+export async function getUserCostUsdSince(userId: UserId, since: Date): Promise<number | null> {
+  try {
+    const { default: db } = await import("../db/client.js");
+    const [row] = await db
+      .select({ cost: sum(llmUsage.costUsd) })
+      .from(llmUsage)
+      .where(and(eq(llmUsage.userId, userId), gte(llmUsage.createdAt, since)));
+    return Number(row?.cost ?? 0);
+  } catch (err) {
+    contextLogger().error({ err, userId }, "Failed to read user's LLM cost telemetry");
+    return null;
   }
 }
 
