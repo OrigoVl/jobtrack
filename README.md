@@ -14,13 +14,22 @@ A full-featured, lightweight full-stack app: **analyzes job postings and CVs, su
 - **🔍 Job analysis** — skills and level (LLM or offline dictionary), match/gaps against your profile, semantic CV↔job similarity (embeddings, with an OpenAI key).
 - **🎯 Skill radar** — "your skills vs. market demand" from the actual stack of jobs you've added (recency-weighted).
 - **📊 Analytics** — application funnel (current + "ever reached this stage"), stage-to-stage conversion, average time in status, technology demand.
-- **🧠 Study** — FSRS-based flashcards (like Anki) + drill mode (89 tasks: JS/TS/React/SQL/Node/NestJS/algorithms/system design), a JS sandbox, AI hints, card/task generation tailored to your role.
-- **🎤 Mock interviews** — a random set of questions and tasks with a timer and AI-scored answers.
-- **🗺️ Roadmap** + **📅 21-Day Intensive** — study trackers with persistent progress.
+- **🧠 Study** — FSRS-based flashcards (like Anki) + drill mode (89 tasks: JS/TS/React/SQL/Node/NestJS/algorithms/system design), a JS sandbox, AI hints, card/task generation tailored to your role, track-specific content (frontend/backend/QA/DevOps/security/sysadmin/product/design).
+- **🎨 Design trainer** — system-design exercises on an interactive node canvas, AI-graded, with a "defense" follow-up-question mode and reference solutions.
+- **🎤 Mock interviews** — a random set of questions and tasks with a timer, optional voice mode (speech-to-text answers, cloud or browser TTS for questions), and AI-scored answers.
+- **🗺️ Roadmap** — a roadmap.sh-style skill map built from your real tracked stack, with a self-rated skill radar chart.
+- **📅 21-Day Intensive** — a dynamic study plan closing the gap between your CV and the jobs you're tracking.
 - **🧩 Pet projects** — a ladder of 4 projects with Definition-of-Done checklists.
-- **📄 CV** — analysis against market demand, a Skills generator, cover letters (manual text / picked from the tracker / auto-fetched from a link), a CV Builder with a live preview and PDF export.
-- **🏢 Companies** — notes and a bank of "what they asked here" questions.
+- **📄 CV** — analysis against market demand, a Skills generator, cover letters (manual text / picked from the tracker / auto-fetched from a link), a CV Builder with a live preview, PDF export, and **multiple named CV profiles** (up to 5, tab strip) — each with its own layout/theme presets and its own public share link.
+- **🔗 Public CV link** — a shareable, no-login resume page per CV profile (enable/disable, regenerate the slug any time).
+- **🏢 Companies** — notes, a bank of "what they asked here" questions, and an AI-assisted org-chart diagram.
+- **🧑‍🤝‍🧑 Contacts** — a lightweight networking tracker (recruiters/interviewers), optionally linked to a company/vacancy, with AI-drafted outreach/follow-up messages.
+- **📅 Calendar** — a unified view of interviews/deadlines/reminders (manual entries + vacancy next-steps + SRS due-cards), with optional browser notifications.
+- **📬 Job alerts** — saved searches (query + region) re-run on a schedule, emailing you newly-appeared postings.
+- **📧 Weekly digest** — an opt-in email summary (stale applications, study streak, upcoming interviews).
+- **📲 Telegram notifications** — link your account to a Telegram bot as an alternative channel for the digest/job-alert notifications.
 - **🗂 Job Kanban** — drag-and-drop between statuses (keyboard-accessible too).
+- **💳 Billing** — optional Stripe subscriptions (free tier with an AI-call quota, paid tier with a fair-use cost ceiling) — inert until Stripe keys are configured.
 
 ## Quick start
 
@@ -168,6 +177,8 @@ The backend is structured **around domain modules** (feature-based, layered styl
 ```
 jobtrack/
 ├── Dockerfile, docker-compose.yml   # containerization (multi-stage)
+├── landing.html             # standalone marketing page (no build step, not part of the Vite app —
+│                             # meant to be hosted separately, e.g. as a static landing page)
 ├── server/                  # Node (ESM) + TypeScript + Express + Postgres/Drizzle
 │   └── src/
 │       ├── index.ts         # entrypoint: bootstraps the default user, then app.listen()
@@ -183,18 +194,24 @@ jobtrack/
 │       └── modules/         # one folder per API domain:
 │           ├── vacancies/   # job CRUD + job-text analysis
 │           ├── jobs/        # search across external aggregators (DOU/Remotive/Arbeitnow)
-│           ├── cv/          # profile, CV builder, review/match, LinkedIn import, upload
+│           ├── cv/          # profile, CV builder (multi-profile), review/match, LinkedIn import, upload
+│           ├── cv-shares/   # public, no-session CV links (random slug), one per CV profile
 │           ├── knowledge/   # static + LLM-personalized knowledge base
-│           ├── roadmap/     # roadmap.sh-style skill map built from real data
+│           ├── roadmap/     # roadmap.sh-style skill map built from real data + skill radar
 │           ├── plan21/      # dynamic 21-day intensive (gaps: job postings − CV)
-│           ├── study/       # SRS cards + drills (static + LLM-generated)
+│           ├── study/       # SRS cards + drills (static + LLM-generated, per-track content)
+│           ├── design/      # design-trainer exercises, AI grading, "defense" follow-ups
+│           ├── mock/        # mock interview questions/tasks, voice mode (speech-to-text/TTS)
 │           ├── admin/       # users/activity, LLM cost, product analytics — behind requireAdmin()
 │           ├── account/     # self-service data export (better-auth's deleteUser handles deletion, no route of our own)
+│           ├── billing/     # Stripe subscriptions, free/paid AI-quota entitlements
 │           ├── calendar/    # unified interview/deadline calendar (manual events + vacancy next-steps)
 │           ├── contacts/    # networking tracker (recruiter/interviewer contacts, linked to companies/vacancies)
-│           ├── cv-shares/   # public, no-session CV links (random slug)
 │           ├── saved-searches/  # job-alert digests for a saved query/region
-│           └── projects/, resources/, companies/, analytics/, writing/, mock/, health/
+│           ├── digest/      # weekly email digest scheduler
+│           ├── telegram/    # optional Telegram-bot linking, alternate notification channel
+│           ├── onboarding/  # first-run welcome/setup state
+│           └── projects/, resources/, companies/, analytics/, writing/, health/
 └── client/                  # React + Vite + TS + Router + TanStack Query
     └── src/
         ├── main.tsx, index.css      # entrypoint
@@ -210,14 +227,19 @@ jobtrack/
         │   └── ui.tsx               # UI kit (Btn, Card, Chip, PageHeader, Skeleton…)
         └── features/                # one folder per screen domain (mirrors server/src/modules):
             ├── dashboard/, vacancies/, jobs/, analyzer/, companies/
-            ├── cv/                  # CV view + CV Builder (cv.tsx, cv-builder/*)
-            ├── calendar/            # unified interview/deadline calendar
+            ├── cv/                  # CV view + CV Builder (cv.tsx, cv-builder/*, multi-profile tab strip)
+            ├── calendar/            # unified interview/deadline calendar + reminder notifications
             ├── contacts/            # networking tracker
             ├── knowledge/           # study plan (learn.tsx)
-            ├── roadmap/, plan21/, projects/, resources/, mock/
+            ├── roadmap/, plan21/, projects/, resources/
+            ├── design/              # design-trainer canvas, grading, defense mode, history
+            ├── mock/                # mock interviews incl. voice mode (speech.ts, voice-interview.tsx)
             ├── study/               # SRS + drills (study.tsx) + JS sandbox (runner.ts)
             ├── analytics/           # Skill radar + charts (charts.tsx, code-split)
             ├── admin/               # users/activity, LLM cost, product analytics — nav item + route gated on session.user.role
+            ├── billing/             # pricing/plan page (Stripe checkout)
+            ├── legal/               # Terms of Service / Privacy Policy pages
+            ├── welcome/             # first-run onboarding
             └── account/             # export my data + delete my account
 ```
 
@@ -235,6 +257,15 @@ The data layer runs on Postgres/Drizzle, every table/repository function is scop
 **Admin accounts.** There's no signup checkbox or env-var toggle for this — grant it directly, after the person has registered: `node server/scripts/make-admin.mjs <email>`. Deliberately not automatic (e.g. an `ADMIN_EMAIL` env var matched on login) — that would be a standing, always-on privilege-escalation path reachable from the normal login flow, instead of an explicit, out-of-band action. Once granted, the "Admin" nav item and `/admin` page (users/activity, LLM cost, product analytics, and a link to your external error tracker via the optional `LOGS_DASHBOARD_URL`) show up automatically — nothing else to configure.
 
 **Legacy personal data.** If you have real data in an old `server/jobtrack.db` (from before this migration), migrate it with `node server/scripts/migrate-sqlite-data.mjs --dry-run` (preview), then without the flag to actually write it into Postgres under the `bootstrap-user` id. Run it **before** starting the app against a fresh Postgres — otherwise the startup bootstrap step seeds sample data first and the migration script's own duplicate-guard refuses to run without `--force`. Once you've registered a real account, claim that data with `node server/scripts/claim-bootstrap-data.mjs <email>` — it reassigns everything from `bootstrap-user` onto your real account (replacing the fresh default profile registration seeded for you, since the bootstrap data is the real one).
+
+**CV Builder multi-profile backfill.** Accounts that saved a CV before the multiple-CV-profiles
+feature shipped have it seeded into their first profile automatically (a `cv_profiles` row is
+created lazily the first time `GET /cv/profiles` runs for that account) — no manual step needed
+for a normal deployment. `node server/scripts/migrate-cv-profiles.ts --dry-run` (then without the
+flag) exists only for the one-time bulk backfill at deploy time and to re-link any pre-existing
+public CV share row (from the old one-share-per-account era) to that new profile; see the script's
+own header comment for why this couldn't be folded into the `drizzle-kit`-generated schema
+migration itself.
 
 ## Multi-user SaaS readiness
 
@@ -263,42 +294,45 @@ Already addressed, continued:
   and soft-blocks (returns `null`, the caller degrades to its offline fallback exactly like a
   self-hoster with no key) once the cap is hit. Fails open if the telemetry read itself errors, so
   a DB hiccup never takes AI features down. Recorded as `llm_usage.outcome = "budget_exceeded"`.
-  What's still genuinely missing is the "admin-visible flag" half of this — `budget_exceeded` rows
-  aren't yet surfaced anywhere in the admin panel (tracked below).
 - **A Chrome extension exists** (`extension/` — "Zorya Job Clipper", MV3) that captures a job
   posting from any page (JSON-LD `JobPosting` parsing with a text-heuristic fallback) and saves it
   via the same session cookie the web app uses. It's dev-only as committed (`host_permissions`
   hardcoded to `localhost:3001`, no build step, not part of the pnpm workspace) — productionizing
   it (configurable API origin, form autofill) is tracked below.
+- **Billing/subscriptions.** Stripe integration (`modules/billing/`) — a free tier with a
+  per-calendar-month AI-call quota (`BILLING_FREE_AI_CALLS_PER_MONTH`) and a paid tier with a
+  fair-use monthly cost ceiling (`BILLING_PRO_MONTHLY_COST_CEILING_USD`), checkout + webhook
+  handling, and a pricing page (`features/billing/pricing.tsx`). Inert until
+  `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`STRIPE_PRICE_PRO_MONTHLY` are set
+  (`server/.env.example`) — every account is unlimited/free without them, same
+  "optional, degrades gracefully" convention as the LLM keys.
+- **Terms of Service / Privacy Policy.** Static pages (`features/legal/{terms,privacy}.tsx`),
+  linked from the auth/legal footer. Covers the *published-policy* half of GDPR-style compliance;
+  account data export and self-service deletion (`account/` module, better-auth's `deleteUser`)
+  already covered the technical portability/deletion half.
 
 Still open, roughly in priority order for an actual multi-user launch:
 
-1. **Billing/subscriptions.** There is currently no plan/tier concept, no Stripe (or equivalent)
-   integration, and no way to gate a feature (e.g. AI calls, or a request-volume ceiling) behind a
-   paid tier. Needed before charging anyone.
-2. **`budget_exceeded`/`quota_exceeded` visibility in the admin panel.** The data is recorded in
+1. **`budget_exceeded`/`quota_exceeded` visibility in the admin panel.** The data is recorded in
    `llm_usage.outcome`, but no admin query currently selects, filters, or groups by it — an
    account hitting its cap is invisible to an admin today.
-3. **In-memory rate-limit store across multiple instances** (already flagged in "Production
+2. **In-memory rate-limit store across multiple instances** (already flagged in "Production
    readiness" above) — set `REDIS_URL` before running more than one replica, or the effective
    limit becomes N× the declared one.
-4. **Terms of Service / Privacy Policy / GDPR-style data handling.** Account data export and
-   self-service account deletion already exist (`account/` module, better-auth's `deleteUser`),
-   which covers the technical half of a GDPR-style deletion/portability request — but there's no
-   actual ToS/Privacy Policy page, no cookie/consent banner, and no documented data-retention
-   policy for a real signup flow to link to.
-5. **Abuse monitoring beyond a manual ban.** The admin panel is otherwise read-only analytics —
+3. **No cookie/consent banner** and no documented data-retention policy beyond the ToS/Privacy
+   pages themselves — worth adding once cookies/analytics beyond the app's own session cookie are
+   in play.
+4. **Abuse monitoring beyond a manual ban.** The admin panel is otherwise read-only analytics —
    there's no automated flag for a suspicious pattern (e.g. one account spiking `llm_usage`, or
    registering many accounts from one IP) short of an admin noticing it themselves in the Users
    tab.
-6. **Email deliverability at scale.** `RESEND_API_KEY` (or the "log instead of send" offline
+5. **Email deliverability at scale.** `RESEND_API_KEY` (or the "log instead of send" offline
    fallback) is fine for a single deployment's verification/reset emails; a real multi-user
    signup flow eventually needs to think about sender reputation/bounce handling at volume, which
    a single API key + default sending domain doesn't address on its own.
-7. **Onboarding for a stranger, not just a returning solo user.** The dashboard's onboarding
-   checklist (see the UI/UX findings this pass surfaced) is solid for "you, starting fresh" but
-   has never been evaluated against a cold-signup conversion funnel — worth a look once real
-   external users are the goal, not before.
+6. **Onboarding for a stranger, not just a returning solo user.** There's now a first-run welcome
+   flow (`features/welcome/`), but it's never been evaluated against a cold-signup conversion
+   funnel — worth a look once real external users are the goal, not before.
 
 None of the above is urgent for the current single-deployment personal-tool use case this README
 otherwise documents — they're the concrete list for *if/when* that changes.
