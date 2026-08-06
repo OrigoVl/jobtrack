@@ -197,7 +197,12 @@ export function Chip({ tone = "slate", children }: { tone?: keyof typeof CHIP_TO
 }
 
 export function ProgressBar({ value, max, tone = "indigo" }: { value: number; max: number; tone?: "indigo" | "emerald" }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  // Clamped to 100 — every call site's `value` is conceptually "progress toward max" and can
+  // legitimately exceed it (e.g. the apply-streak card once you've out-applied your weekly goal).
+  // Un-clamped, `width` goes past 100% and only LOOKS right by accident, because every call site
+  // happens to wrap this in an `overflow-hidden` container — that's incidental containment, not a
+  // deliberate 100%-cap, and it silently breaks if that wrapper class ever changes.
+  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
   // Both tones render as the signal accent post-rebrand (see CHIP_TONE comment above) — the prop
   // is kept for call-site compatibility.
   void tone;

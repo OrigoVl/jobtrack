@@ -83,6 +83,8 @@
     "heading_other": "{{count}} day apply streak",
     "headingEmpty": "No apply streak yet",
     "weekly": "{{applied}} of {{goal}} applications this week",
+    "goalExceeded_one": "🎉 Goal exceeded by {{count}} application",
+    "goalExceeded_other": "🎉 Goal exceeded by {{count}} applications",
     "goalLabel": "Weekly goal",
     "goalOption_one": "{{count}} / week",
     "goalOption_other": "{{count}} / week"

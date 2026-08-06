@@ -85,7 +85,9 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
     </Card>
   );
 }
-const WEEKLY_GOAL_OPTIONS = [3, 5, 7, 10, 15];
+// Server (shared/validation.ts#parseWeeklyApplyGoalInput) accepts any integer 1-50 — this list is
+// just the UI's curated shortcut set, not the actual ceiling.
+const WEEKLY_GOAL_OPTIONS = [3, 5, 7, 10, 15, 20, 25, 30];
 
 /** A dedicated card rather than a sixth StatTile in the bento row below — that row's
  * grid-cols-4 is already a deliberate 1-hero + 4-tile layout, and this needs its own
@@ -106,6 +108,11 @@ function ApplyStreakCard() {
           </div>
           <div className="text-xs text-ink-dim mt-0.5">
             {t("applyStreak.weekly", { applied: data.appliedThisWeek, goal: data.weeklyGoal })}
+            {data.appliedThisWeek > data.weeklyGoal && (
+              <span className="text-good font-semibold ml-1.5">
+                {t("applyStreak.goalExceeded", { count: data.appliedThisWeek - data.weeklyGoal })}
+              </span>
+            )}
           </div>
         </div>
       </div>

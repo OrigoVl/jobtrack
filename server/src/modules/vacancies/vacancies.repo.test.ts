@@ -64,6 +64,21 @@ describe("vacancies.repo (PGlite)", () => {
     expect(await repo.getVacancy(USER_A, idA)).toBeDefined();
   });
 
+  // Regression test: a non-numeric `id` (e.g. "apply-goal" — what vacancies.routes.ts's generic
+  // PUT/DELETE "/vacancies/:id" received while it briefly shadowed the literal
+  // "/vacancies/apply-goal" route) used to reach the DB driver as `Number("apply-goal") === NaN`,
+  // which postgres.js can't bind as a query param — it throws a raw "Failed query: ... params:
+  // ...,NaN" error straight through to the client instead of a clean 404/no-op. Every id-taking
+  // function here must treat a non-numeric id the same safe way a real "no such vacancy" id would.
+  it("every id-taking function treats a non-numeric id as 'not found', never reaching the DB driver with NaN", async () => {
+    await expect(repo.getVacancy(USER_A, "apply-goal")).resolves.toBeUndefined();
+    await expect(repo.getVacancyEmbedding(USER_A, "apply-goal")).resolves.toBeUndefined();
+    await expect(repo.deleteVacancy(USER_A, "apply-goal")).resolves.toBe(0);
+    await expect(repo.updateVacancy(USER_A, "apply-goal", NEW_VACANCY)).resolves.toBeUndefined();
+    await expect(repo.updateVacancyEnrichment(USER_A, "apply-goal", { stack: [], level: "", fit: "" })).resolves.toBeUndefined();
+    await expect(repo.updateVacancyEmbedding(USER_A, "apply-goal", null)).resolves.toBeUndefined();
+  });
+
   it("deleting a vacancy cascades to its status history (ON DELETE CASCADE, no manual cleanup call)", async () => {
     const id = await repo.createVacancy(USER_A, NEW_VACANCY);
     await history.recordStatusChange(USER_A, id, "Want to apply");

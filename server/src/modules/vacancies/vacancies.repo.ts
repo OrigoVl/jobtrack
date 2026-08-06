@@ -34,11 +34,25 @@ export async function listVacancies(userId: UserId, page?: { limit: number; offs
   return page ? q.limit(page.limit).offset(page.offset) : q;
 }
 
+// Every route handler in this module accepts `id` as `number | string` (an Express route param is
+// always a string), then narrows with `Number(id)` right before the query — a non-numeric `id`
+// (e.g. a route-ordering bug matching a literal path segment like "apply-goal" as `:id`, see
+// vacancies.routes.ts's own comment on that exact incident) used to reach the DB driver as `NaN`,
+// which postgres.js can't bind as a query param and throws a raw, unreadable SQL error straight
+// through to the client. Centralizing the guard here means every one of the 6 call sites below
+// fails the same safe way (treat as "no such vacancy") instead of letting `NaN` reach the driver.
+function toVacancyId(id: number | string): number | null {
+  const n = Number(id);
+  return Number.isFinite(n) ? n : null;
+}
+
 export async function getVacancy(userId: UserId, id: number | string): Promise<VacancyRow | undefined> {
+  const numId = toVacancyId(id);
+  if (numId === null) return undefined;
   const [row] = await db
     .select(VACANCY_COLUMNS)
     .from(vacancies)
-    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, Number(id))));
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, numId)));
   return row;
 }
 
@@ -134,10 +148,12 @@ export interface VacancyUpdate {
 }
 
 export async function updateVacancy(userId: UserId, id: number | string, m: VacancyUpdate): Promise<void> {
+  const numId = toVacancyId(id);
+  if (numId === null) return;
   await db
     .update(vacancies)
     .set(m)
-    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, Number(id))));
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, numId)));
 }
 
 export async function updateVacancyFromJson(userId: UserId, id: number, item: JsonVacancyInsert): Promise<void> {
@@ -152,16 +168,20 @@ export async function updateVacancyEnrichment(
   id: number | string,
   e: { stack: string[]; level: string; fit: string },
 ): Promise<void> {
+  const numId = toVacancyId(id);
+  if (numId === null) return;
   await db
     .update(vacancies)
     .set(e)
-    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, Number(id))));
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, numId)));
 }
 
 export async function deleteVacancy(userId: UserId, id: number | string): Promise<number> {
+  const numId = toVacancyId(id);
+  if (numId === null) return 0;
   const deleted = await db
     .delete(vacancies)
-    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, Number(id))))
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, numId)))
     .returning({ id: vacancies.id });
   return deleted.length;
 }
@@ -178,10 +198,12 @@ export async function listVacanciesWithUrl(userId: UserId): Promise<VacancyRow[]
  * through VACANCY_COLUMNS, which excludes it). `undefined` — no such vacancy for this user;
  * `null` — the vacancy exists but has no embedding yet (offline, or not enough text). */
 export async function getVacancyEmbedding(userId: UserId, id: number | string): Promise<number[] | null | undefined> {
+  const numId = toVacancyId(id);
+  if (numId === null) return undefined;
   const [row] = await db
     .select({ embedding: vacancies.embedding })
     .from(vacancies)
-    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, Number(id))));
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, numId)));
   return row?.embedding;
 }
 
@@ -191,10 +213,12 @@ export async function getVacancyEmbedding(userId: UserId, id: number | string): 
  * embedding (e.g. the vacancy's text became empty) rather than leaving a now-inaccurate vector
  * around for findSimilarVacancies to keep matching against. */
 export async function updateVacancyEmbedding(userId: UserId, id: number | string, embedding: number[] | null): Promise<void> {
+  const numId = toVacancyId(id);
+  if (numId === null) return;
   await db
     .update(vacancies)
     .set({ embedding })
-    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, Number(id))));
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, numId)));
 }
 
 export interface SimilarVacancy extends VacancyRow {

@@ -140,6 +140,20 @@ r.post(
     });
   }),
 );
+// Registered BEFORE the generic "/vacancies/:id" PUT below — Express matches routes in
+// registration order, and ":id" happily matches the literal "apply-goal" segment too. With the
+// generic route registered first (as it briefly was), every PUT here was silently swallowed by
+// it instead: `id` became the string "apply-goal", Number("apply-goal") is NaN, and that NaN was
+// passed straight to the DB driver as a query param, surfacing as a raw, unreadable Postgres
+// error in the UI instead of ever reaching parseWeeklyApplyGoalInput below.
+r.put(
+  "/vacancies/apply-goal",
+  authed(async (userId, req, res) => {
+    const weekly = parseWeeklyApplyGoalInput(req.body);
+    await setWeeklyApplyGoal(userId, weekly);
+    res.json({ weeklyGoal: weekly });
+  }),
+);
 r.put(
   "/vacancies/:id",
   authed(async (userId, req, res) => {
@@ -491,15 +505,6 @@ r.get(
       getAppliedCountSince(userId, startOfWeekUtc(new Date())),
     ]);
     res.json({ streak, weeklyGoal, appliedThisWeek });
-  }),
-);
-
-r.put(
-  "/vacancies/apply-goal",
-  authed(async (userId, req, res) => {
-    const weekly = parseWeeklyApplyGoalInput(req.body);
-    await setWeeklyApplyGoal(userId, weekly);
-    res.json({ weeklyGoal: weekly });
   }),
 );
 
