@@ -35,5 +35,11 @@ setup("authenticate", async ({ page, baseURL }) => {
   await page.getByRole("button", { name: "Log in" }).click();
   await page.waitForURL("**/dashboard");
 
+  // A freshly-registered user has onboarding.welcomeSeen=false, so App.tsx's WelcomeRedirect
+  // bounces every route back to /welcome on a fresh page load — the brief /dashboard touch above
+  // is just a client-side race, not proof onboarding is done. Mark it done directly so every spec
+  // reusing this storageState lands on its target route instead of /welcome.
+  await page.request.post("/api/onboarding/welcome-seen", { headers: { origin: baseURL! } });
+
   await page.context().storageState({ path: AUTH_FILE });
 });

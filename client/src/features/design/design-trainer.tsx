@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Btn, Card, CardsSkeleton, PageHeader } from "../../shared/ui";
+import { CheckCircleIcon, TrashIcon } from "../../shared/icons";
 import { useDesignCurrent, useDesignHistory, useGenerateDesignTask, useGradeDesign, useHealth } from "../../shared/queries";
 import { useToast } from "../../shared/use-toast";
 import { computeDesignLevel } from "../../shared/design-level";
@@ -94,9 +95,11 @@ export function DesignTrainer({ embedded = false }: { embedded?: boolean } = {})
               <span className="text-xs text-ink-dim">{t("canvas.deleteHint")}</span>
               <div className="flex gap-2">
                 <Btn size="sm" variant="ghost" onClick={onClear}>
+                  <TrashIcon className="h-3.5 w-3.5" />
                   {t("canvas.clear")}
                 </Btn>
                 <Btn size="sm" onClick={onCheck} loading={gradeDesignMutation.isPending} disabled={diagram.nodes.length === 0}>
+                  <CheckCircleIcon className="h-3.5 w-3.5" />
                   {t("canvas.check")}
                 </Btn>
               </div>

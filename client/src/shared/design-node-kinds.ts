@@ -3,6 +3,19 @@
 // kind to its i18n key and a Chip tone so design-node.tsx/design-canvas.tsx's palette stay in
 // sync with a single source of truth.
 import i18n from "../i18n";
+import {
+  MonitorIcon,
+  SplitIcon,
+  ServerIcon,
+  DatabaseIcon,
+  ZapIcon,
+  QueueIcon,
+  GlobeIcon,
+  ArchiveIcon,
+  PlugIcon,
+  ShapesIcon,
+  type IconComponent,
+} from "./icons";
 import type { DesignNodeKind } from "./types";
 
 export const DESIGN_NODE_KINDS: DesignNodeKind[] = [
@@ -53,3 +66,35 @@ export const DESIGN_NODE_TONE: Record<DesignNodeKind, "slate" | "indigo" | "emer
   thirdParty: "rose",
   generic: "slate",
 };
+
+// One glyph per kind, so the palette/canvas nodes read at a glance instead of by label text alone
+// (an Excalidraw-style shape library). Picked by real-world association (cylinder=database,
+// bolt=cache, fan-out=load balancer), not decoration.
+export const DESIGN_NODE_ICON: Record<DesignNodeKind, IconComponent> = {
+  client: MonitorIcon,
+  loadBalancer: SplitIcon,
+  service: ServerIcon,
+  database: DatabaseIcon,
+  cache: ZapIcon,
+  queue: QueueIcon,
+  cdn: GlobeIcon,
+  storage: ArchiveIcon,
+  thirdParty: PlugIcon,
+  generic: ShapesIcon,
+};
+
+// Text-color half of ui.tsx's CHIP_TONE palette, for tinting a kind's icon the same hue as its
+// Chip badge — derived from DESIGN_NODE_TONE above so the tone stays the single source of truth
+// per kind (see that const's own comment) instead of a second parallel kind->color mapping.
+const TONE_TEXT_CLASS: Record<"slate" | "indigo" | "emerald" | "amber" | "good" | "rose", string> = {
+  slate: "text-ink-dim",
+  indigo: "text-signal",
+  emerald: "text-signal",
+  amber: "text-alert",
+  good: "text-good",
+  rose: "text-rose-600 dark:text-rose-300",
+};
+
+export function designNodeIconClass(kind: DesignNodeKind): string {
+  return TONE_TEXT_CLASS[DESIGN_NODE_TONE[kind]];
+}

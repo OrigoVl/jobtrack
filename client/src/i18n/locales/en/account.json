@@ -2,6 +2,16 @@
   "eyebrow": "Account",
   "title": "Account",
   "subtitle": "Export your data, or permanently delete your account.",
+  "groups": {
+    "preferences": "Preferences",
+    "notifications": "Notifications",
+    "plan": "Plan & referrals",
+    "data": "Your data"
+  },
+  "language": {
+    "heading": "Language",
+    "description": "Changes the app's language everywhere, including AI-generated advice."
+  },
   "theme": {
     "heading": "Theme",
     "description": "Switch between a light and dark look."

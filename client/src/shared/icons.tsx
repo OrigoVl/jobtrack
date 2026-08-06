@@ -409,3 +409,195 @@ export function ChevronsLeftIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+// --- Design-trainer canvas icons (design-canvas.tsx/design-node.tsx) — an Excalidraw-style
+// icon-first toolbar/shape-library, filled variants (cursor/lightning) matching FlameIcon's
+// convention above, everything else the file's shared outline style. ---
+
+/** Select tool — a filled pointer/cursor arrow, the odd one out among the draw tools since a
+ * thin outline reads poorly at this size (same reasoning as FlameIcon's filled treatment). */
+export function CursorIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" fill="currentColor" stroke="none" aria-hidden="true" {...props}>
+      <path d="M3 2.2 14.5 8.6 9.6 9.9 12 15 10 15.9 7.7 10.8 3.8 13.3Z" />
+    </svg>
+  );
+}
+
+/** Freehand draw tool — a pencil. */
+export function PencilIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <path d="M11.5 2.5 15.5 6.5 6 16H2v-4Z" />
+      <path d="M10 4 14 8" />
+    </svg>
+  );
+}
+
+/** Rectangle draw tool. */
+export function RectangleToolIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <rect x="2.5" y="4" width="13" height="10" rx="1.5" />
+    </svg>
+  );
+}
+
+/** Ellipse draw tool. */
+export function EllipseToolIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <ellipse cx="9" cy="9" rx="6.5" ry="5" />
+    </svg>
+  );
+}
+
+/** Arrow draw tool — a diagonal line with its arrowhead folded out of the same two strokes. */
+export function ArrowToolIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <path d="M3.5 14.5 14.5 3.5" />
+      <path d="M8 3.5h6.5V10" />
+    </svg>
+  );
+}
+
+/** Text annotation tool — a capital "A". */
+export function TypeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <path d="M9 2.5 4 15.5" />
+      <path d="M9 2.5 14 15.5" />
+      <path d="M6 11h6" />
+    </svg>
+  );
+}
+
+/** Destructive "clear canvas" action. */
+export function TrashIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <path d="M3.5 5h11" />
+      <path d="M7 5V3.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V5" />
+      <path d="M4.5 5 5.2 15a1 1 0 0 0 1 .9h5.6a1 1 0 0 0 1-.9L13.5 5" />
+      <path d="M7.5 8v5M10.5 8v5" />
+    </svg>
+  );
+}
+
+/** "Check my diagram" action — a checkmark in a ring. */
+export function CheckCircleIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <circle cx="9" cy="9" r="7" />
+      <path d="M5.75 9.25 7.75 11.25 12.25 6.75" />
+    </svg>
+  );
+}
+
+/** Design node kind — client — a browser/monitor window. */
+export function MonitorIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <rect x="1.5" y="2.5" width="15" height="10" rx="1.2" />
+      <path d="M6 15.5h6M9 12.5v3" />
+    </svg>
+  );
+}
+
+/** Design node kind — load balancer — one input fanning out to several outputs. */
+export function SplitIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <path d="M2.5 9h3" />
+      <path d="M5.5 9 12 4M5.5 9 12 9M5.5 9 12 14" />
+      <circle cx="13.5" cy="4" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="13.5" cy="9" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="13.5" cy="14" r="1.3" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** Design node kind — service/API — a "&lt;/&gt;" code glyph. */
+export function ServerIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <path d="M6.5 5 2.5 9l4 4" />
+      <path d="M11.5 5 15.5 9l-4 4" />
+    </svg>
+  );
+}
+
+/** Design node kind — database — the classic cylinder glyph. */
+export function DatabaseIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <ellipse cx="9" cy="4" rx="6.5" ry="2.2" />
+      <path d="M2.5 4v10c0 1.2 2.9 2.2 6.5 2.2s6.5-1 6.5-2.2V4" />
+      <path d="M2.5 9c0 1.2 2.9 2.2 6.5 2.2s6.5-1 6.5-2.2" />
+    </svg>
+  );
+}
+
+/** Design node kind — cache — a filled lightning bolt (fast/in-memory). */
+export function ZapIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" fill="currentColor" stroke="none" aria-hidden="true" {...props}>
+      <path d="M10 1.5 3.5 10.5h4L7 16.5l7.5-9.5h-4Z" />
+    </svg>
+  );
+}
+
+/** Design node kind — queue — staggered bars, items moving through a line. */
+export function QueueIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <rect x="2" y="3" width="10" height="3.2" rx="0.6" />
+      <rect x="4" y="7.4" width="10" height="3.2" rx="0.6" />
+      <rect x="6" y="11.8" width="10" height="3.2" rx="0.6" />
+    </svg>
+  );
+}
+
+/** Design node kind — CDN — a globe. */
+export function GlobeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <circle cx="9" cy="9" r="7" />
+      <path d="M2 9h14" />
+      <path d="M9 2c2.2 2 3.4 4.4 3.4 7s-1.2 5-3.4 7c-2.2-2-3.4-4.4-3.4-7s1.2-5 3.4-7Z" />
+    </svg>
+  );
+}
+
+/** Design node kind — storage — an archive box. */
+export function ArchiveIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <rect x="2" y="2.5" width="14" height="3.5" rx="1" />
+      <path d="M3 6v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6" />
+      <path d="M7 9.5h4" />
+    </svg>
+  );
+}
+
+/** Design node kind — third party — an external plug/connector. */
+export function PlugIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <path d="M6 2.5v4M12 2.5v4" />
+      <path d="M4.5 6.5h9v2.5a4.5 4.5 0 0 1-9 0Z" />
+      <path d="M9 13.5V16" />
+    </svg>
+  );
+}
+
+/** Design node kind — generic — an unlabeled shape pair, for whatever doesn't fit the others. */
+export function ShapesIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <rect x="2" y="8" width="7" height="7" rx="1" />
+      <circle cx="12.5" cy="6" r="4" />
+    </svg>
+  );
+}

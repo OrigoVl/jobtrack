@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { Btn, Card, Chip, PageHeader, ProgressBar } from "../../shared/ui";
@@ -17,6 +17,44 @@ import {
 } from "../../shared/queries";
 import { useToast } from "../../shared/use-toast";
 import { enableNotifications, disableNotifications, notificationsEnabled, notificationsSupported } from "../../shared/notifications";
+
+/** One labeled row inside a grouped settings `Card` — heading/description on the left, the
+ * interactive control on the right, wrapping to stack on narrow screens. `children` renders
+ * full-width below the row for content that doesn't fit the label/control shape (a referral
+ * link input, a quota bar). Rows in the same card are separated by `divide-y` on the parent. */
+function SettingRow({
+  heading,
+  description,
+  control,
+  children,
+}: {
+  heading: string;
+  description?: string;
+  control?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="py-3.5 first:pt-0 last:pb-0">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-ink">{heading}</div>
+          {description && <p className="text-xs text-ink-dim mt-0.5 max-w-md">{description}</p>}
+        </div>
+        {control && <div className="shrink-0">{control}</div>}
+      </div>
+      {children && <div className="mt-2.5">{children}</div>}
+    </div>
+  );
+}
+
+function GroupCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <Card>
+      <div className="text-sm font-semibold text-ink mb-1">{title}</div>
+      <div className="divide-y divide-grid">{children}</div>
+    </Card>
+  );
+}
 
 export function Account() {
   const { t } = useTranslation(["account", "billing", "common"]);
@@ -79,138 +117,141 @@ export function Account() {
     <div className="space-y-4">
       <PageHeader eyebrow={t("eyebrow")} title={t("title")} subtitle={t("subtitle")} />
 
-      <Card>
-        <div className="text-sm font-semibold text-ink">Language</div>
-        <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">Changes the app's language everywhere, including AI-generated advice.</p>
-        <LanguageSwitcher />
-      </Card>
+      <GroupCard title={t("groups.preferences")}>
+        <SettingRow heading={t("language.heading")} description={t("language.description")} control={<LanguageSwitcher />} />
+        <SettingRow heading={t("theme.heading")} description={t("theme.description")} control={<ThemeSwitcher />} />
+      </GroupCard>
 
-      <Card>
-        <div className="text-sm font-semibold text-ink">{t("theme.heading")}</div>
-        <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">{t("theme.description")}</p>
-        <ThemeSwitcher />
-      </Card>
-
-      <Card>
-        <div className="text-sm font-semibold text-ink">{t("notifications.heading")}</div>
-        <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">{t("notifications.description")}</p>
-        {!notificationsSupported() ? (
-          <p className="text-xs text-ink-dim">{t("notifications.unsupported")}</p>
-        ) : notifOn ? (
-          <Btn size="sm" variant="ghost" onClick={onDisableNotifications}>
-            {t("notifications.disableButton")}
-          </Btn>
-        ) : (
-          <Btn size="sm" onClick={onEnableNotifications}>
-            {t("notifications.enableButton")}
-          </Btn>
-        )}
-      </Card>
-
-      <Card>
-        <div className="text-sm font-semibold text-ink">{t("digest.heading")}</div>
-        <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">{t("digest.description")}</p>
-        <label className="flex items-center gap-2 text-sm text-ink cursor-pointer">
-          <input
-            type="checkbox"
-            checked={digestPrefs?.enabled ?? false}
-            onChange={(e) => setDigestEnabledMutation.mutate(e.target.checked)}
-            disabled={setDigestEnabledMutation.isPending}
-            className="accent-signal"
-          />
-          {t("digest.toggleLabel")}
-        </label>
-        <p className="text-xs text-ink-dim mt-2">
-          {digestPrefs?.lastSentAt
-            ? t("digest.lastSent", { date: new Date(digestPrefs.lastSentAt).toLocaleDateString() })
-            : t("digest.neverSent")}
-        </p>
-      </Card>
-
-      {telegramStatus && (
-        <Card>
-          <div className="text-sm font-semibold text-ink">{t("telegram.heading")}</div>
-          <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">{t("telegram.description")}</p>
-          {telegramStatus.linked ? (
-            <div className="flex items-center gap-2">
-              <Chip tone="emerald">{t("telegram.linkedBadge")}</Chip>
-              <Btn size="sm" variant="ghost" loading={unlinkTelegram.isPending} onClick={() => unlinkTelegram.mutate()}>
-                {t("telegram.unlinkButton")}
+      <GroupCard title={t("groups.notifications")}>
+        <SettingRow
+          heading={t("notifications.heading")}
+          description={t("notifications.description")}
+          control={
+            !notificationsSupported() ? (
+              <span className="text-xs text-ink-dim">{t("notifications.unsupported")}</span>
+            ) : notifOn ? (
+              <Btn size="sm" variant="ghost" onClick={onDisableNotifications}>
+                {t("notifications.disableButton")}
               </Btn>
-            </div>
-          ) : (
-            <Btn size="sm" loading={createTelegramLinkToken.isPending} onClick={onLinkTelegram}>
-              {t("telegram.linkButton")}
-            </Btn>
-          )}
-        </Card>
-      )}
+            ) : (
+              <Btn size="sm" onClick={onEnableNotifications}>
+                {t("notifications.enableButton")}
+              </Btn>
+            )
+          }
+        />
+        <SettingRow
+          heading={t("digest.heading")}
+          description={t("digest.description")}
+          control={
+            <label className="flex items-center gap-2 text-xs text-ink-dim cursor-pointer">
+              <input
+                type="checkbox"
+                checked={digestPrefs?.enabled ?? false}
+                onChange={(e) => setDigestEnabledMutation.mutate(e.target.checked)}
+                disabled={setDigestEnabledMutation.isPending}
+                className="accent-signal"
+              />
+              {t("digest.toggleLabel")}
+            </label>
+          }
+        >
+          <p className="text-xs text-ink-dim">
+            {digestPrefs?.lastSentAt
+              ? t("digest.lastSent", { date: new Date(digestPrefs.lastSentAt).toLocaleDateString() })
+              : t("digest.neverSent")}
+          </p>
+        </SettingRow>
+        {telegramStatus && (
+          <SettingRow
+            heading={t("telegram.heading")}
+            description={t("telegram.description")}
+            control={
+              telegramStatus.linked ? (
+                <div className="flex items-center gap-2">
+                  <Chip tone="emerald">{t("telegram.linkedBadge")}</Chip>
+                  <Btn size="sm" variant="ghost" loading={unlinkTelegram.isPending} onClick={() => unlinkTelegram.mutate()}>
+                    {t("telegram.unlinkButton")}
+                  </Btn>
+                </div>
+              ) : (
+                <Btn size="sm" loading={createTelegramLinkToken.isPending} onClick={onLinkTelegram}>
+                  {t("telegram.linkButton")}
+                </Btn>
+              )
+            }
+          />
+        )}
+      </GroupCard>
 
       {/* Only when STRIPE_* is configured server-side — a self-hosted/dev deployment has no
           plan concept at all, so this card doesn't render rather than showing a broken one. */}
       {billing?.billingEnabled && (
-        <Card>
-          <div className="flex items-center justify-between mb-1">
-            <div className="text-sm font-semibold text-ink">{t("billing:plan.heading")}</div>
-            <Chip tone={billing.plan === "free" ? "slate" : "emerald"}>
-              {billing.plan === "free" ? t("billing:plan.free") : t("billing:plan.pro")}
-            </Chip>
-          </div>
-          {billing.aiCallsPerMonth !== null ? (
-            <div className="mt-2 max-w-xs">
-              <div className="text-xs text-ink-dim mb-1">
-                {t("billing:plan.quotaUsed", { used: billing.aiCallsUsed, limit: billing.aiCallsPerMonth })}
-              </div>
-              <ProgressBar value={billing.aiCallsUsed} max={billing.aiCallsPerMonth} tone="indigo" />
+        <GroupCard title={t("groups.plan")}>
+          <SettingRow
+            heading={t("billing:plan.heading")}
+            control={
+              <Chip tone={billing.plan === "free" ? "slate" : "emerald"}>
+                {billing.plan === "free" ? t("billing:plan.free") : t("billing:plan.pro")}
+              </Chip>
+            }
+          >
+            <div className="space-y-2">
+              {billing.aiCallsPerMonth !== null ? (
+                <div className="max-w-xs">
+                  <div className="text-xs text-ink-dim mb-1">
+                    {t("billing:plan.quotaUsed", { used: billing.aiCallsUsed, limit: billing.aiCallsPerMonth })}
+                  </div>
+                  <ProgressBar value={billing.aiCallsUsed} max={billing.aiCallsPerMonth} tone="indigo" />
+                </div>
+              ) : (
+                <p className="text-xs text-ink-dim">{t("billing:plan.unlimitedAi")}</p>
+              )}
+              {billing.currentPeriodEnd && (
+                <p className="text-xs text-ink-dim">
+                  {billing.cancelAtPeriodEnd
+                    ? t("billing:plan.cancelsOn", { date: new Date(billing.currentPeriodEnd).toLocaleDateString() })
+                    : t("billing:plan.renewsOn", { date: new Date(billing.currentPeriodEnd).toLocaleDateString() })}
+                </p>
+              )}
+              {billing.plan === "free" ? (
+                <Btn size="sm" onClick={() => navigate("/pricing")}>
+                  {t("billing:upgradeButton")}
+                </Btn>
+              ) : (
+                <Btn size="sm" variant="ghost" loading={openPortal.isPending} onClick={() => openPortal.mutate()}>
+                  {t("billing:manageBillingButton")}
+                </Btn>
+              )}
             </div>
-          ) : (
-            <p className="text-xs text-ink-dim mt-1">{t("billing:plan.unlimitedAi")}</p>
-          )}
-          {billing.currentPeriodEnd && (
-            <p className="text-xs text-ink-dim mt-2">
-              {billing.cancelAtPeriodEnd
-                ? t("billing:plan.cancelsOn", { date: new Date(billing.currentPeriodEnd).toLocaleDateString() })
-                : t("billing:plan.renewsOn", { date: new Date(billing.currentPeriodEnd).toLocaleDateString() })}
-            </p>
-          )}
-          <div className="mt-3">
-            {billing.plan === "free" ? (
-              <Btn size="sm" onClick={() => navigate("/pricing")}>
-                {t("billing:upgradeButton")}
-              </Btn>
-            ) : (
-              <Btn size="sm" variant="ghost" loading={openPortal.isPending} onClick={() => openPortal.mutate()}>
-                {t("billing:manageBillingButton")}
-              </Btn>
-            )}
-          </div>
-        </Card>
-      )}
+          </SettingRow>
 
-      {/* Same gate as the plan card above — the referral bonus only ever raises the Free
-          plan's AI-call ceiling, which doesn't exist at all when billing is unconfigured. */}
-      {referral && billing?.billingEnabled && (
-        <Card>
-          <div className="text-sm font-semibold text-ink">{t("referrals.heading")}</div>
-          <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">{t("referrals.description")}</p>
-          <div className="flex items-center gap-2 flex-wrap mb-3">
-            <input
-              readOnly
-              value={`${window.location.origin}/register?ref=${referral.code}`}
-              aria-label={t("referrals.linkAria")}
-              className="flex-1 min-w-[220px] bg-surface-2 border border-grid rounded-lg px-2 py-1 text-xs font-mono text-ink"
-              onFocus={(e) => e.currentTarget.select()}
-            />
-            <Btn size="sm" variant="ghost" onClick={onCopyReferralLink}>
-              {referralCopied ? t("referrals.copied") : t("referrals.copy")}
-            </Btn>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap text-xs text-ink-dim">
-            <Chip tone={referral.qualified > 0 ? "emerald" : "slate"}>{t("referrals.qualifiedCount", { count: referral.qualified })}</Chip>
-            {referral.pending > 0 && <span>{t("referrals.pendingCount", { count: referral.pending })}</span>}
-            {referral.bonusCallsPerMonth > 0 && <span>{t("referrals.bonusEarned", { count: referral.bonusCallsPerMonth })}</span>}
-          </div>
-        </Card>
+          {/* Same gate as the plan row above — the referral bonus only ever raises the Free
+              plan's AI-call ceiling, which doesn't exist at all when billing is unconfigured. */}
+          {referral && (
+            <SettingRow heading={t("referrals.heading")} description={t("referrals.description")}>
+              <div className="flex items-center gap-2 flex-wrap mb-2">
+                <input
+                  readOnly
+                  value={`${window.location.origin}/register?ref=${referral.code}`}
+                  aria-label={t("referrals.linkAria")}
+                  className="flex-1 min-w-[220px] bg-surface-2 border border-grid rounded-lg px-2 py-1 text-xs font-mono text-ink"
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <Btn size="sm" variant="ghost" onClick={onCopyReferralLink}>
+                  {referralCopied ? t("referrals.copied") : t("referrals.copy")}
+                </Btn>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap text-xs text-ink-dim">
+                <Chip tone={referral.qualified > 0 ? "emerald" : "slate"}>
+                  {t("referrals.qualifiedCount", { count: referral.qualified })}
+                </Chip>
+                {referral.pending > 0 && <span>{t("referrals.pendingCount", { count: referral.pending })}</span>}
+                {referral.bonusCallsPerMonth > 0 && <span>{t("referrals.bonusEarned", { count: referral.bonusCallsPerMonth })}</span>}
+              </div>
+            </SettingRow>
+          )}
+        </GroupCard>
       )}
 
       <Card>

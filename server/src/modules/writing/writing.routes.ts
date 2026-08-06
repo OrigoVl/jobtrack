@@ -14,15 +14,25 @@ r.post(
   authed(async (userId, req, res) => {
     const { vacancyText, company } = req.body || {};
     const profile = await getProfile(userId);
-    if (!llmAvailable()) {
-      return res.json({
-        text: `Hello!\n\nI was interested in your vacancy${company ? " at " + company : ""}. I have 7 years of Full-Stack experience (Vue, Node.js, NestJS) and hands-on practice with AI integration. I'd be glad to discuss in more detail how I can help.\n\nBest regards, Michael`,
-        offline: true,
-      });
-    }
     const vt = String(vacancyText || "");
     const techs = extractTechs(vt).map((t) => t.name);
     const matched = techs.filter((t) => profile.skills.includes(t));
+    if (!llmAvailable()) {
+      // Deterministic, built from the caller's own profile — no LLM required. Mirrors
+      // cv-analysis.service.ts's offline advice fallback: same "role + matched skills" shape,
+      // just phrased as a short cover letter instead of a bullet summary.
+      const role = profile.domain || "the role";
+      const highlights = (matched.length ? matched : profile.skills).slice(0, 5);
+      const background = highlights.length
+        ? `I have hands-on experience with ${highlights.join(", ")}${profile.domain ? ` as a ${profile.domain} professional` : ""}.`
+        : profile.domain
+          ? `I bring a background in ${profile.domain}.`
+          : `I'd welcome the opportunity to bring my background to this role.`;
+      return res.json({
+        text: `Hello!\n\nI'm interested in your ${role} vacancy${company ? ` at ${company}` : ""}. ${background} I'd be glad to discuss in more detail how I can help.\n\nBest regards`,
+        offline: true,
+      });
+    }
     // No outputLocale — a cover letter should follow the VACANCY's language, not the UI's (a
     // Ukrainian-UI user applying to a US company shouldn't get a Ukrainian letter). Hardcoded to
     // English for now rather than detecting the vacancy's language — a real enhancement, but a

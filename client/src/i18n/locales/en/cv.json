@@ -200,6 +200,8 @@
     "addBullet": "+ Add bullet",
     "removeBulletAria": "Remove this bullet",
     "improveBulletTitle": "Improve this bullet",
+    "undo": "Undo",
+    "undoTitle": "Revert to the text before the AI rewrite",
     "moveBulletUp": "Move bullet up",
     "moveBulletDown": "Move bullet down",
     "bulletPlaceholder": "Describe a specific result…"
@@ -355,7 +357,8 @@
       "savedCount_one": "{{count}} saved",
       "savedCount_other": "{{count}} saved",
       "namePlaceholder": "e.g. My blue compact",
-      "hint": "A preset remembers the template, color, font, scale, photo style, and section order."
+      "hint": "A preset remembers the template, color, font, scale, photo style, and section order.",
+      "deleteConfirmTitle": "Delete preset \"{{name}}\"?"
     }
   },
   "photoCropper": {

@@ -27,6 +27,14 @@ interface ExperienceCardProps {
   /** Improves a single bullet (`busyKey` for this one is `` `bi${i}-${bulletIndex}` ``, distinct
    * from `onImproveBullets`' whole-entry `` `b${i}` `` so the two loading states never collide). */
   onImproveBullet: (i: number, bulletIndex: number) => void;
+  /** One-step undo for the two AI-rewrite actions above — `canUndoBullets`/`canUndoBullet` gate a
+   * small "Undo" button that's only shown while the bullet(s) still match the just-applied AI
+   * rewrite (it disappears the moment the user edits/reorders/removes one, no separate wiring
+   * needed — see cv-builder.tsx's own comment on canUndoBullet(s)). */
+  canUndoBullets: (i: number) => boolean;
+  canUndoBullet: (i: number, bulletIndex: number) => boolean;
+  onUndoBullets: (i: number) => void;
+  onUndoBullet: (i: number, bulletIndex: number) => void;
   /** Externally requested entry to expand — e.g. clicking an entry in the live preview. */
   focusIndex?: number | null;
 }
@@ -42,6 +50,10 @@ export function ExperienceCard({
   busyKey,
   onImproveBullets,
   onImproveBullet,
+  canUndoBullets,
+  canUndoBullet,
+  onUndoBullets,
+  onUndoBullet,
   focusIndex,
 }: ExperienceCardProps) {
   const { t } = useTranslation(["cv", "common"]);
@@ -159,15 +171,22 @@ export function ExperienceCard({
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-ink-dim">{t("experienceCard.achievements")}</span>
-                    <Btn
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => onImproveBullets(i)}
-                      loading={busyKey === `b${i}`}
-                      disabled={!llm || e.bullets.filter(Boolean).length === 0}
-                    >
-                      {t("experienceCard.resultFocus")}
-                    </Btn>
+                    <div className="flex items-center gap-1">
+                      {canUndoBullets(i) && (
+                        <Btn size="sm" variant="subtle" onClick={() => onUndoBullets(i)} title={t("experienceCard.undoTitle")}>
+                          {t("experienceCard.undo")}
+                        </Btn>
+                      )}
+                      <Btn
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onImproveBullets(i)}
+                        loading={busyKey === `b${i}`}
+                        disabled={!llm || e.bullets.filter(Boolean).length === 0}
+                      >
+                        {t("experienceCard.resultFocus")}
+                      </Btn>
+                    </div>
                   </div>
                   {/* One row per bullet (not a single \n-joined textarea) — each has its own
                       reorder/AI-improve/delete, and an accidental blank line can no longer create
@@ -203,6 +222,17 @@ export function ExperienceCard({
                         rows={1}
                         className="flex-1 min-w-0 bg-surface-2 border border-grid rounded-lg p-1.5 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-signal/50"
                       />
+                      {canUndoBullet(i, bi) && (
+                        <Btn
+                          size="sm"
+                          variant="subtle"
+                          onClick={() => onUndoBullet(i, bi)}
+                          title={t("experienceCard.undoTitle")}
+                          aria-label={t("experienceCard.undoTitle")}
+                        >
+                          {t("experienceCard.undo")}
+                        </Btn>
+                      )}
                       <Btn
                         size="sm"
                         variant="ghost"

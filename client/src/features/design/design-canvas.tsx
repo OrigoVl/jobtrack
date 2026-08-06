@@ -18,7 +18,17 @@ import "@xyflow/react/dist/style.css";
 import { useTranslation } from "react-i18next";
 import { Segmented } from "../../shared/ui";
 import { useTheme } from "../../shared/theme";
-import { DESIGN_NODE_KINDS, designNodeKindLabel } from "../../shared/design-node-kinds";
+import {
+  ArrowToolIcon,
+  CursorIcon,
+  EllipseToolIcon,
+  LayersIcon,
+  PencilIcon,
+  RectangleToolIcon,
+  TypeIcon,
+  type IconComponent,
+} from "../../shared/icons";
+import { DESIGN_NODE_ICON, DESIGN_NODE_KINDS, designNodeIconClass, designNodeKindLabel } from "../../shared/design-node-kinds";
 import { DESIGN_PATTERNS, instantiatePattern, type DesignPattern, type DesignPatternNode } from "../../shared/design-patterns";
 import {
   ANNOTATION_COLORS,
@@ -76,6 +86,14 @@ const TOOL_KEY: Record<
   text: "canvas.tools.text",
 };
 const TOOL_ORDER: DesignDrawTool[] = ["select", "freehand", "rectangle", "ellipse", "arrow", "text"];
+const TOOL_ICON: Record<DesignDrawTool, IconComponent> = {
+  select: CursorIcon,
+  freehand: PencilIcon,
+  rectangle: RectangleToolIcon,
+  ellipse: EllipseToolIcon,
+  arrow: ArrowToolIcon,
+  text: TypeIcon,
+};
 
 function toFlowNodes(diagram: DesignDiagram): Node<DesignNodeData>[] {
   return diagram.nodes.map((n) => ({ id: n.id, type: "designNode", position: { x: n.x, y: n.y }, data: { kind: n.kind, label: n.label } }));
@@ -94,6 +112,7 @@ function fromFlow(nodes: Node<DesignNodeData>[], edges: Edge[], annotations: Des
 }
 
 function PaletteItem({ kind }: { kind: DesignNodeKind }) {
+  const Icon = DESIGN_NODE_ICON[kind];
   return (
     <div
       draggable
@@ -101,9 +120,10 @@ function PaletteItem({ kind }: { kind: DesignNodeKind }) {
         e.dataTransfer.setData("application/x-design-node-kind", kind);
         e.dataTransfer.effectAllowed = "move";
       }}
-      className="cursor-grab active:cursor-grabbing select-none text-sm font-medium text-ink bg-surface-2 border border-grid rounded-lg px-3 py-1.5 hover:border-signal/40"
+      className="cursor-grab active:cursor-grabbing select-none flex items-center gap-2 text-sm font-medium text-ink bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 transition hover:border-signal/40 hover:-translate-y-px"
     >
-      {designNodeKindLabel(kind)}
+      <Icon className={`h-4 w-4 shrink-0 ${designNodeIconClass(kind)}`} />
+      <span className="truncate">{designNodeKindLabel(kind)}</span>
     </div>
   );
 }
@@ -117,9 +137,10 @@ function PatternPaletteItem({ pattern }: { pattern: DesignPattern }) {
         e.dataTransfer.setData("application/x-design-pattern-id", pattern.id);
         e.dataTransfer.effectAllowed = "move";
       }}
-      className="cursor-grab active:cursor-grabbing select-none text-xs font-medium text-ink-dim bg-surface-2 border border-dashed border-grid rounded-lg px-3 py-1.5 hover:border-signal/40 hover:text-ink"
+      className="cursor-grab active:cursor-grabbing select-none flex items-center gap-2 text-xs font-medium text-ink-dim bg-surface-2 border border-dashed border-grid rounded-lg px-2.5 py-1.5 transition hover:border-signal/40 hover:text-ink hover:-translate-y-px"
     >
-      {t(PATTERN_NAME_KEY[pattern.id])}
+      <LayersIcon className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate">{t(PATTERN_NAME_KEY[pattern.id])}</span>
     </div>
   );
 }
@@ -522,26 +543,6 @@ function DesignCanvasInner({
 
   return (
     <div className={`flex flex-col gap-2 ${heightClass}`}>
-      {!readOnly && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <Segmented value={tool} onChange={setTool} options={TOOL_ORDER.map((tl) => ({ value: tl, label: t(TOOL_KEY[tl]) }))} />
-          {tool !== "select" && (
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-ink-dim">{t("canvas.colorLabel")}</span>
-              {ANNOTATION_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  aria-label={c}
-                  onClick={() => setColor(c)}
-                  className={`h-5 w-5 rounded-full border-2 ${color === c ? "border-ink" : "border-transparent"}`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
       <div className="flex gap-3 flex-1 min-h-0">
         {!readOnly && (
           <div className="w-40 shrink-0 space-y-2 overflow-y-auto">
@@ -581,6 +582,46 @@ function DesignCanvasInner({
           >
             <Background gap={16} />
             <Controls showInteractive={false} />
+            {/* Floating pill toolbar over the canvas (Excalidraw's own layout), instead of a
+                full-width row above the sidebar — keeps the tool switcher next to the surface it
+                acts on. */}
+            {!readOnly && (
+              <Panel position="top-center" className="!m-2">
+                <div className="flex items-center gap-3 flex-wrap bg-surface/95 backdrop-blur border border-grid rounded-xl shadow-md px-2.5 py-2">
+                  <Segmented
+                    value={tool}
+                    onChange={setTool}
+                    options={TOOL_ORDER.map((tl) => {
+                      const Icon = TOOL_ICON[tl];
+                      return {
+                        value: tl,
+                        label: (
+                          <span className="flex items-center gap-1.5">
+                            <Icon className="h-3.5 w-3.5" />
+                            {t(TOOL_KEY[tl])}
+                          </span>
+                        ),
+                      };
+                    })}
+                  />
+                  {tool !== "select" && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-ink-dim">{t("canvas.colorLabel")}</span>
+                      {ANNOTATION_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          aria-label={c}
+                          onClick={() => setColor(c)}
+                          className={`h-5 w-5 rounded-full border-2 ${color === c ? "border-ink" : "border-transparent"}`}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Panel>
+            )}
             {!readOnly && (
               <AnnotationLayer
                 tool={tool}

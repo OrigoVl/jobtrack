@@ -64,6 +64,7 @@ const Resources = lazy(() => import("../features/resources/resources").then((m) 
 const Projects = lazy(() => import("../features/projects/projects").then((m) => ({ default: m.Projects })));
 const Plan21 = lazy(() => import("../features/plan21/plan21").then((m) => ({ default: m.Plan21 })));
 const Roadmap = lazy(() => import("../features/roadmap/roadmap").then((m) => ({ default: m.Roadmap })));
+const GrowthHub = lazy(() => import("../features/growth/growth-hub").then((m) => ({ default: m.GrowthHub })));
 const Analytics = lazy(() => import("../features/analytics/charts").then((m) => ({ default: m.Analytics })));
 const Admin = lazy(() => import("../features/admin/admin").then((m) => ({ default: m.Admin })));
 const Account = lazy(() => import("../features/account/account").then((m) => ({ default: m.Account })));
@@ -88,7 +89,7 @@ const Terms = lazy(() => import("../features/legal/terms").then((m) => ({ defaul
 type NavItem = { path: string; icon: IconComponent; label: string };
 type NavLabelKey = `items.${keyof (typeof import("../i18n/locales/en/nav.json"))["items"]}`;
 type NavSectionKey = `sections.${keyof (typeof import("../i18n/locales/en/nav.json"))["sections"]}`;
-type NavItemDef = { path: string; icon: IconComponent; labelKey: NavLabelKey };
+type NavItemDef = { path: string; icon: IconComponent; labelKey: NavLabelKey; sidebarHidden?: boolean };
 const NAV_DEF: { sectionKey: NavSectionKey; items: NavItemDef[] }[] = [
   {
     sectionKey: "sections.jobSearch",
@@ -109,10 +110,18 @@ const NAV_DEF: { sectionKey: NavSectionKey; items: NavItemDef[] }[] = [
       // Roadmap includes the former "Skill Radar" page as a tab, and Practice includes the
       // former "Mock Interview" page as a mode — related screens grouped instead of scattered
       // across the sidebar (old /radar and /mock links still work, see the redirects below).
+      // These four are independent pages (market-wide skill map, a day plan, deep-dive material,
+      // flashcards/drills), not a sequence — each gets its own flat, equally-weighted sidebar row
+      // so its own item lights up via NavLink's normal exact-path match when you're on it (no
+      // grouping/nesting: that read as a confusing sub-menu in practice). /growth is a separate
+      // overview page linking to all four with a live progress readout from each (growth-hub.tsx)
+      // — `sidebarHidden` keeps it out of this list (redundant with the four rows right above it)
+      // while it stays reachable via ⌘K.
       { path: "/roadmap", icon: MapIcon, labelKey: "items.roadmap" },
       { path: "/plan21", icon: ListChecksIcon, labelKey: "items.intensivePlan" },
       { path: "/learn", icon: BookOpenIcon, labelKey: "items.learningPlan" },
       { path: "/study", icon: CardsStackIcon, labelKey: "items.practice" },
+      { path: "/growth", icon: MapIcon, labelKey: "items.growthHub", sidebarHidden: true },
       { path: "/projects", icon: LayersIcon, labelKey: "items.petProjects" },
       { path: "/resources", icon: LibraryIcon, labelKey: "items.resources" },
     ],
@@ -144,7 +153,7 @@ function ToastHost() {
     // must never end up dimmed under another overlay's backdrop just because the two happened to
     // be triggered by the same action (e.g. adding a vacancy now both toasts AND opens its detail
     // modal at once — before this fix the modal's backdrop visibly washed the toast out).
-    <div className="fixed bottom-4 right-4 z-[80] flex flex-col gap-2 max-w-sm">
+    <div role="status" aria-live="polite" className="fixed bottom-4 right-4 z-[80] flex flex-col gap-2 max-w-sm">
       {toasts.map((t) => (
         <button
           key={t.id}
@@ -324,12 +333,16 @@ function Shell() {
   const go = (path: string) => navigate(`/${path}`);
   // Resolved from NAV_DEF/ADMIN_ITEM_DEF's translation keys here (not at module load) — see
   // those constants' own comment for why.
-  const nav = NAV_DEF.map((group) => ({
+  const navAll = NAV_DEF.map((group) => ({
     section: t(group.sectionKey),
     items: group.items.map((it) => ({ ...it, label: t(it.labelKey) })),
   }));
+  // The desktop sidebar list only shows non-hidden items (see NAV_DEF's growth section comment);
+  // the command palette and mobile nav below use `allItems`/`navAll` unfiltered so a hidden page
+  // (e.g. /growth) is still one ⌘K search away.
+  const nav = navAll.map((group) => ({ ...group, items: group.items.filter((it) => !it.sidebarHidden) }));
   const adminItem: NavItem = { ...ADMIN_ITEM_DEF, label: t(ADMIN_ITEM_DEF.labelKey) };
-  const allItems = isAdmin ? [...nav.flatMap((g) => g.items), adminItem] : nav.flatMap((g) => g.items);
+  const allItems = isAdmin ? [...navAll.flatMap((g) => g.items), adminItem] : navAll.flatMap((g) => g.items);
 
   async function logOut() {
     await signOut();
@@ -457,6 +470,7 @@ function Shell() {
                 <Route path="/contacts" element={<Contacts />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/calendar" element={<Calendar />} />
+                <Route path="/growth" element={<GrowthHub />} />
                 <Route path="/roadmap" element={<Roadmap />} />
                 <Route path="/plan21" element={<Plan21 />} />
                 <Route path="/learn" element={<LearnPlanWrapper />} />

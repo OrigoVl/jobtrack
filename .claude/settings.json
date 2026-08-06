@@ -1,4 +1,30 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm exec vitest run *)",
+      "Bash(pnpm lint *)",
+      "mcp__claude-in-chrome__navigate",
+      "Bash(pnpm --filter jobtrack-client typecheck *)",
+      "Bash(pnpm build *)",
+      "Bash(pnpm --filter jobtrack-client lint *)",
+      "Bash(pnpm test *)",
+      "Bash(pnpm exec tsc *)",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__claude-in-chrome__find",
+      "Bash(pnpm --filter jobtrack-server typecheck *)",
+      "Bash(pnpm --filter jobtrack-client test *)",
+      "Bash(pnpm --filter jobtrack-client build *)",
+      "mcp__atlassian__jira_get_issue",
+      "Bash(pnpm format:check *)",
+      "Bash(pnpm --filter jobtrack-server lint *)",
+      "Bash(pnpm --filter jobtrack-server exec vitest run *)",
+      "mcp__claude-in-chrome__read_console_messages",
+      "Bash(pnpm --filter jobtrack-server exec tsc *)",
+      "mcp__claude-in-chrome__read_network_requests",
+      "Bash(pnpm --filter jobtrack-client exec vitest run *)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {

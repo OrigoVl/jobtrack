@@ -4,6 +4,7 @@ import { Trans, useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useToast } from "../../shared/use-toast";
+import { useConfirm } from "../../shared/use-confirm";
 import {
   useApplyCvUpload,
   useCreateCvProfile,
@@ -77,10 +78,15 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   const { data: vacancies = [] } = useVacancies();
   const applyCvUpload = useApplyCvUpload();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [doc, setDoc] = useState<CvDoc | null>(null);
   const [busy, setBusy] = useState("");
   const [presets, setPresets] = useState<CvPreset[]>([]);
   const [presetName, setPresetName] = useState("");
+  // One-step undo stash for the AI "improve bullet(s)" actions — see improveBullet(s)/undoBullet(s)
+  // below. Keyed by experience index (whole-entry rewrite) / `${i}-${bulletIndex}` (single bullet).
+  const [bulletUndo, setBulletUndo] = useState<Record<string, { before: string; after: string }>>({});
+  const [bulletsUndo, setBulletsUndo] = useState<Record<number, { before: string[]; after: string[] }>>({});
   // The CV Builder's tab strip — which of the account's (up to MAX_CV_PROFILES) named CV versions
   // is currently open. Persisted only for the SPA session (useUi, see shared/ui-state.ts), same as
   // activeSection below — a fresh page load always falls back to the first tab via the effect a
@@ -153,6 +159,8 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     // the `if (!doc ...)` skeleton guard below covers this the same way it covers first load.
     setDoc(null);
     lastSavedRef.current = "";
+    setBulletUndo({});
+    setBulletsUndo({});
     api
       .cvDoc(activeProfileId)
       .then((d) => {
@@ -336,6 +344,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     startReviewJob.mutate(text);
   };
   const deletePreset = async (name: string) => {
+    if (!(await confirm({ title: t("layoutPresets.presets.deleteConfirmTitle", { name }), tone: "danger" }))) return;
     const next = presets.filter((p) => p.name !== name);
     const r = await api.saveCvPresets(activeProfileId, next);
     setPresets(r.presets);
@@ -408,9 +417,11 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   const improveBullets = async (i: number) => {
     setBusy(`b${i}`);
     try {
-      const improved = await Promise.all(
-        doc.experience[i].bullets.filter(Boolean).map(async (b) => (await api.improveCv(b, "bullet")).text),
-      );
+      const before = doc.experience[i].bullets;
+      const improved = await Promise.all(before.filter(Boolean).map(async (b) => (await api.improveCv(b, "bullet")).text));
+      // Stashed for a one-step undo below — cleared automatically once `canUndoBullets` no longer
+      // sees the entry's bullets matching `after` (i.e. the user edited/moved/deleted one).
+      setBulletsUndo((prev) => ({ ...prev, [i]: { before, after: improved } }));
       setExp(i, { bullets: improved });
     } finally {
       setBusy("");
@@ -422,11 +433,48 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   const improveBullet = async (i: number, bulletIndex: number) => {
     setBusy(`bi${i}-${bulletIndex}`);
     try {
-      const improved = (await api.improveCv(doc.experience[i].bullets[bulletIndex] ?? "", "bullet")).text;
+      const before = doc.experience[i].bullets[bulletIndex] ?? "";
+      const improved = (await api.improveCv(before, "bullet")).text;
+      setBulletUndo((prev) => ({ ...prev, [`${i}-${bulletIndex}`]: { before, after: improved } }));
       setExp(i, { bullets: doc.experience[i].bullets.map((b, idx) => (idx === bulletIndex ? improved : b)) });
     } finally {
       setBusy("");
     }
+  };
+  // One-step undo for the two AI-rewrite actions above — this is the user's resume text, and
+  // unlike cv-review's suggestion list (applied only on explicit "Add"/"Apply"), improveBullet(s)
+  // overwrite in place with no preview, so a quick revert-to-previous matters here specifically.
+  // `canUndoBullet(s)` doubles as the "still showing" gate: once the live bullet(s) no longer
+  // match the stashed `after` value (the user edited it, or reordered/removed bullets), the undo
+  // affordance disappears on its own — no separate "clear on edit" wiring needed.
+  const undoBullet = (i: number, bulletIndex: number) => {
+    const key = `${i}-${bulletIndex}`;
+    const entry = bulletUndo[key];
+    if (!entry) return;
+    setExp(i, { bullets: doc.experience[i].bullets.map((b, idx) => (idx === bulletIndex ? entry.before : b)) });
+    setBulletUndo((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+  const undoBullets = (i: number) => {
+    const entry = bulletsUndo[i];
+    if (!entry) return;
+    setExp(i, { bullets: entry.before });
+    setBulletsUndo((prev) => {
+      const next = { ...prev };
+      delete next[i];
+      return next;
+    });
+  };
+  const canUndoBullet = (i: number, bulletIndex: number) => {
+    const entry = bulletUndo[`${i}-${bulletIndex}`];
+    return !!entry && doc.experience[i]?.bullets[bulletIndex] === entry.after;
+  };
+  const canUndoBullets = (i: number) => {
+    const entry = bulletsUndo[i];
+    return !!entry && JSON.stringify(doc.experience[i]?.bullets) === JSON.stringify(entry.after);
   };
   const langs = doc.languages ?? [];
   const certifications = doc.certifications ?? [];
@@ -726,6 +774,10 @@ export function CvBuilder({ llm }: { llm: boolean }) {
               busyKey={busy}
               onImproveBullets={improveBullets}
               onImproveBullet={improveBullet}
+              canUndoBullets={canUndoBullets}
+              canUndoBullet={canUndoBullet}
+              onUndoBullets={undoBullets}
+              onUndoBullet={undoBullet}
               focusIndex={expFocusIndex}
             />,
           )}
