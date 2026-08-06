@@ -290,6 +290,63 @@ export const TECHS: Record<string, TechDef> = {
   CyberChef: { cat: "Tools", re: /\bcyberchef\b/i },
   Shodan: { cat: "Tools", re: /\bshodan\b/i },
   Splunk: { cat: "Tools", re: /\bsplunk\b/i },
+
+  // ---------- PM (classic project management) track additions ----------
+  // Bare "PMP", "WBS", "EVM", "RAID", "RACI", "PMO", "CAPM" deliberately NOT added as standalone
+  // entries — all are short, collision-prone acronyms (e.g. bare "EVM" collides with "Ethereum
+  // Virtual Machine" in web3 job text; bare "WBS"/"PMO" are too ambiguous per CLAUDE.md guidance)
+  // — reachable only via the full-phrase entries below (e.g. "RAID Log", "RACI Matrix") or
+  // KB-only where even a full phrase risks collision. "Portfolio Management" deliberately NOT
+  // added — collides with the extremely common finance/investment sense of the term ("portfolio
+  // manager" job ads). "PMO", "Agile vs Waterfall", "Quality Management", "Milestone Tracking",
+  // "Cost Estimating Techniques", and "Risk Response Strategies" are section-title-style KB
+  // entries, not concrete named terms likely to appear verbatim in vacancy/CV text, and "Asana"
+  // collides with the yoga posture term — all stay KB-only (see knowledge-base.ts), same
+  // treatment as the Product track's RICE/MoSCoW/MVP/OKR(s).
+  PMBOK: { cat: "Core", re: /\bpmbok\b/i },
+  "Project Charter": { cat: "Core", re: /\bproject charter\b/i },
+  "PMP Certification": { cat: "Core", re: /\bpmp certif(?:ication|ied)\b/i },
+  "Program Management": { cat: "Core", re: /\bprogram management\b/i },
+  "Stakeholder Management": { cat: "Core", re: /\bstakeholder management\b/i },
+  "Work Breakdown Structure (WBS)": { cat: "Planning", re: /\bwork breakdown structure\b/i },
+  "Critical Path Method": { cat: "Planning", re: /\bcritical path(?: method)?\b/i },
+  "Critical Chain Method": { cat: "Planning", re: /\bcritical chain(?: method)?\b/i },
+  "Gantt Chart": { cat: "Planning", re: /\bgantt(?: chart)?\b/i },
+  "Resource Leveling": { cat: "Planning", re: /\bresource level(?:ing|ling)\b/i },
+  "RACI Matrix": { cat: "Execution", re: /\braci matrix\b/i },
+  "Change Control": { cat: "Execution", re: /\bchange control\b/i },
+  "Earned Value Management": { cat: "Execution", re: /\bearned value management\b/i },
+  "Procurement Management": { cat: "Execution", re: /\bprocurement management\b/i },
+  // "raid log" requires the trailing word "log" specifically so it never collides with the
+  // sysadmin track's digit-anchored "RAID" entry above (RAID 0/1/5/6/10 storage) or the bare
+  // English word "raid".
+  "RAID Log": { cat: "Risk", re: /\braid log\b/i },
+  "Risk Register": { cat: "Risk", re: /\brisk register\b/i },
+  "Contingency Reserve": { cat: "Risk", re: /\bcontingency reserve\b/i },
+  "MS Project": { cat: "Tools", re: /\bms project\b|\bmicrosoft project\b/i },
+  Smartsheet: { cat: "Tools", re: /\bsmartsheet\b/i },
+  // Requires the ".com" suffix so bare "Monday" (the day of the week) in ordinary job-ad prose
+  // never matches.
+  "Monday.com": { cat: "Tools", re: /\bmonday\.com\b/i },
+  // Requires "P6" specifically — bare "Primavera" collides with the Italian word for "spring"
+  // (used as a brand/festival name, e.g. "Primavera Sound") outside the PM tooling context.
+  "Primavera P6": { cat: "Tools", re: /\bprimavera\s?p6\b/i },
+
+  // ---------- BA (business analysis) track additions ----------
+  // Bare "BRD", "FRD", "BABOK", "CBAP", "SWOT" deliberately NOT added — all are short,
+  // collision-prone acronyms/initialisms (CLAUDE.md guidance on short bare acronyms), reachable
+  // only via the full-phrase KB-only entries in knowledge-base.ts (e.g. "Business Requirements
+  // Document (BRD)"). "Root Cause Analysis", "Gap Analysis", and "Use Case Diagrams" also stay
+  // KB-only — all three are widely used across QA/DevOps/SRE/general-engineering vacancies too
+  // (root-causing an incident, use cases in any software spec), so tagging them as a BA-specific
+  // signal here would misattribute vacancies from other tracks. "JIRA"/"Confluence"/"SQL"/"Excel"
+  // are already covered by the QA/Product/core-dict entries above — not duplicated here.
+  // "Enterprise Architect" deliberately NOT added — it's a common IT job title in its own right
+  // (not just the Sparx EA tool), so it would mistag any vacancy with that title.
+  Visio: { cat: "Tools", re: /\bvisio\b/i },
+  Lucidchart: { cat: "Tools", re: /\blucidchart\b/i },
+  Balsamiq: { cat: "Tools", re: /\bbalsamiq\b/i },
+  BPMN: { cat: "Analysis", re: /\bbpmn\b/i },
 };
 
 export interface TechMatch {
@@ -438,6 +495,27 @@ const FUZZY_EXCLUDE = new Set([
   "Vulnerability Scanning",
   "Kali Linux",
   "Password Cracking",
+  // PM track additions — same reasoning: merging these into one alphanumeric token for
+  // Levenshtein comparison would produce useless typo matches for a multi-word/punctuated name.
+  "Project Charter",
+  "PMP Certification",
+  "Program Management",
+  "Stakeholder Management",
+  "Work Breakdown Structure (WBS)",
+  "Critical Path Method",
+  "Critical Chain Method",
+  "Gantt Chart",
+  "Resource Leveling",
+  "RACI Matrix",
+  "Change Control",
+  "Earned Value Management",
+  "Procurement Management",
+  "RAID Log",
+  "Risk Register",
+  "Contingency Reserve",
+  "MS Project",
+  "Monday.com",
+  "Primavera P6",
 ]);
 const FUZZY_KEYS: { name: string; key: string }[] = Object.keys(TECHS)
   .filter((name) => !FUZZY_EXCLUDE.has(name))

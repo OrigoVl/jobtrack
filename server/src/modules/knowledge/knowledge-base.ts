@@ -2490,6 +2490,599 @@ export const KB: Record<string, KbEntry> = {
       R("Splunk — What is SIEM?", "https://www.splunk.com/en_us/blog/learn/siem-security-information-event-management.html"),
     ],
   },
+
+  // ---------- PM (classic project management) track additions ----------
+  // Bare acronyms like "PMP", "WBS", "EVM", "RAID", "RACI" are deliberately NOT added to
+  // tech-dict.ts (see the comment there) — collision-prone as short tokens — so they stay
+  // reachable only through these full-phrase KB keys, same treatment as the Product track's
+  // RICE/MoSCoW/MVP/OKR(s) and the SysAdmin track's AD/SAN/MFA/EDR/DFS.
+  PMBOK: {
+    cat: "Core",
+    learn: [
+      "Five process groups: Initiating, Planning, Executing, Monitoring & Controlling, Closing",
+      "Ten knowledge areas (Integration, Scope, Schedule, Cost, Quality, Resource, Communications, Risk, Procurement, Stakeholder)",
+      "Predictive vs adaptive vs hybrid life cycles; how the current exam outline blends classic and agile content",
+    ],
+    resources: [
+      R("PMI — PMBOK Guide & Standards", "https://www.pmi.org/pmbok-guide-standards"),
+      R(
+        "Wikipedia — A Guide to the Project Management Body of Knowledge",
+        "https://en.wikipedia.org/wiki/A_Guide_to_the_Project_Management_Body_of_Knowledge",
+      ),
+    ],
+  },
+  "Project Charter": {
+    cat: "Core",
+    learn: [
+      "Purpose, measurable objectives, high-level requirements, assumptions/constraints, sponsor sign-off",
+      "Why it's what formally authorizes the PM to apply organizational resources to the project",
+    ],
+    resources: [
+      R("Atlassian — What is a project charter?", "https://www.atlassian.com/agile/project-management/project-charter"),
+      R("Wikipedia — Project charter", "https://en.wikipedia.org/wiki/Project_charter"),
+    ],
+  },
+  "PMP Certification": {
+    cat: "Core",
+    learn: [
+      "PMP vs CAPM: experience requirements, exam scope, who each credential suits",
+      "Exam content outline: people, process, and business environment domains",
+    ],
+    resources: [
+      R("PMI — Project Management Professional (PMP)", "https://www.pmi.org/certifications/project-management-pmp"),
+      R("PMI — Certified Associate in Project Management (CAPM)", "https://www.pmi.org/certifications/certified-associate-capm"),
+    ],
+  },
+  "Agile vs Waterfall": {
+    cat: "Core",
+    learn: [
+      "Predictive (waterfall) vs adaptive (agile) vs hybrid life cycles, and when classic PM favors each",
+      "Fixed upfront scope/schedule/cost vs iterative, feedback-driven delivery",
+    ],
+    resources: [
+      R("Wikipedia — Waterfall model", "https://en.wikipedia.org/wiki/Waterfall_model"),
+      R("Wikipedia — Agile software development", "https://en.wikipedia.org/wiki/Agile_software_development"),
+    ],
+  },
+  "Program Management": {
+    cat: "Core",
+    learn: [
+      "Coordinating related projects for benefits not available from managing them individually",
+      "Managing shared dependencies/resources and conflicts between projects under one program",
+    ],
+    resources: [
+      R("Wikipedia — Program management", "https://en.wikipedia.org/wiki/Program_management"),
+      R("PMI — What is Program Management", "https://www.pmi.org/about/learn-about-pmi/what-is-program-management"),
+    ],
+  },
+  "Portfolio Management": {
+    cat: "Core",
+    learn: [
+      "Selecting and prioritizing the right projects/programs given limited capacity and budget",
+      "Project-selection methods: NPV, IRR, payback period, benefit-cost ratio",
+    ],
+    resources: [
+      R("Wikipedia — Project portfolio management", "https://en.wikipedia.org/wiki/Project_portfolio_management"),
+      R("PMI — What is Portfolio Management", "https://www.pmi.org/about/learn-about-pmi/what-is-portfolio-management"),
+    ],
+  },
+  PMO: {
+    cat: "Core",
+    learn: [
+      "Supportive vs controlling vs directive PMOs, and how much control/standardization each imposes",
+      "Standardized templates, governance artifacts, and portfolio-wide status roll-up",
+    ],
+    resources: [
+      R("Wikipedia — Project management office", "https://en.wikipedia.org/wiki/Project_management_office"),
+      R("PMI — What is a PMO", "https://www.pmi.org/about/learn-about-pmi/what-is-a-pmo"),
+    ],
+  },
+  "Stakeholder Management": {
+    cat: "Core",
+    learn: [
+      "Identifying stakeholders, their interest/influence, and tailoring engagement (inform/consult/approve)",
+      "Communications matrix: what each stakeholder needs, how often, and through which channel",
+    ],
+    resources: [
+      R("Wikipedia — Project stakeholder", "https://en.wikipedia.org/wiki/Project_stakeholder"),
+      R("Atlassian — Stakeholder management", "https://www.atlassian.com/work-management/project-management/stakeholder-management"),
+    ],
+  },
+  "Work Breakdown Structure (WBS)": {
+    cat: "Planning",
+    learn: [
+      "Hierarchical decomposition of total scope into work packages; the 100% rule",
+      "WBS dictionary: acceptance criteria, resources, and cost estimates per work package",
+    ],
+    resources: [
+      R("Wikipedia — Work breakdown structure", "https://en.wikipedia.org/wiki/Work_breakdown_structure"),
+      R("Atlassian — What is a WBS?", "https://www.atlassian.com/agile/project-management/work-breakdown-structure"),
+    ],
+  },
+  "Critical Path Method": {
+    cat: "Planning",
+    learn: [
+      "Forward/backward pass to compute ES/EF/LS/LF, and total float per activity",
+      "Fast tracking vs crashing to compress a schedule, and why both only help ON the critical path",
+    ],
+    resources: [
+      R("Wikipedia — Critical path method", "https://en.wikipedia.org/wiki/Critical_path_method"),
+      R("Atlassian — Critical path method", "https://www.atlassian.com/agile/project-management/critical-path"),
+    ],
+  },
+  "Critical Chain Method": {
+    cat: "Planning",
+    learn: [
+      "Resource-constrained scheduling on top of logical dependencies, unlike plain CPM",
+      "Project/feeding buffers pooling contingency instead of padding every task estimate",
+    ],
+    resources: [R("Wikipedia — Critical chain project management", "https://en.wikipedia.org/wiki/Critical_chain_project_management")],
+  },
+  "Gantt Chart": {
+    cat: "Planning",
+    learn: [
+      "Bars on a timeline showing start/end/duration/overlap; dependency lines between tasks",
+      "When a milestone chart or network diagram communicates better than a full Gantt",
+    ],
+    resources: [
+      R("Wikipedia — Gantt chart", "https://en.wikipedia.org/wiki/Gantt_chart"),
+      R("Atlassian — What is a Gantt chart?", "https://www.atlassian.com/agile/project-management/gantt-chart"),
+    ],
+  },
+  "Resource Leveling": {
+    cat: "Planning",
+    learn: [
+      "Resolving resource over-allocation, potentially delaying the project end date",
+      "Resource smoothing as the 'free' first attempt — only within existing float",
+    ],
+    resources: [R("Wikipedia — Resource leveling", "https://en.wikipedia.org/wiki/Resource_leveling")],
+  },
+  "Cost Estimating Techniques": {
+    cat: "Planning",
+    learn: [
+      "Analogous, parametric, bottom-up, and three-point (PERT) estimating, and when each fits",
+      "PERT formula (O + 4M + P) / 6 and the standard deviation it implies",
+    ],
+    resources: [
+      R("Wikipedia — Cost estimate", "https://en.wikipedia.org/wiki/Cost_estimate"),
+      R("Wikipedia — Three-point estimation", "https://en.wikipedia.org/wiki/Three-point_estimation"),
+    ],
+  },
+  "RACI Matrix": {
+    cat: "Execution",
+    learn: [
+      "Responsible/Accountable/Consulted/Informed — exactly one Accountable owner per task",
+      "Using it for genuinely ambiguous cross-functional work, not every trivial task",
+    ],
+    resources: [
+      R("Wikipedia — Responsibility assignment matrix", "https://en.wikipedia.org/wiki/Responsibility_assignment_matrix"),
+      R("Atlassian — RACI chart", "https://www.atlassian.com/work-management/project-management/raci-chart"),
+    ],
+  },
+  "Change Control": {
+    cat: "Execution",
+    learn: [
+      "Formal process to identify, assess, and approve/reject changes to the baselined plan",
+      "Why even a 'small' change should still go through it, and how a CCB decides",
+    ],
+    resources: [
+      R("Wikipedia — Change control", "https://en.wikipedia.org/wiki/Change_control"),
+      R("Atlassian — Change management", "https://www.atlassian.com/itsm/change-management"),
+    ],
+  },
+  "Earned Value Management": {
+    cat: "Execution",
+    learn: [
+      "PV/EV/AC, and deriving CPI/SPI, CV/SV, EAC/ETC/VAC, and TCPI from them",
+      "Why CPI is considered a strong predictor of final cost performance even mid-project",
+    ],
+    resources: [R("Wikipedia — Earned value management", "https://en.wikipedia.org/wiki/Earned_value_management")],
+  },
+  "Procurement Management": {
+    cat: "Execution",
+    learn: [
+      "Contract types — fixed-price, cost-reimbursable, time & materials — and how risk allocation differs",
+      "Statement of Work (SOW) detail needed for comparable vendor bids and clear acceptance",
+    ],
+    resources: [
+      R("Wikipedia — Procurement", "https://en.wikipedia.org/wiki/Procurement"),
+      R("Wikipedia — Statement of work", "https://en.wikipedia.org/wiki/Statement_of_work"),
+    ],
+  },
+  "Quality Management": {
+    cat: "Execution",
+    learn: [
+      "Quality Assurance (process-focused) vs Quality Control (product-focused)",
+      "Cost of quality: prevention/appraisal spend vs internal/external failure cost",
+    ],
+    resources: [
+      R("Wikipedia — Quality management", "https://en.wikipedia.org/wiki/Quality_management"),
+      R("Wikipedia — Cost of quality", "https://en.wikipedia.org/wiki/Cost_of_quality"),
+    ],
+  },
+  "Milestone Tracking": {
+    cat: "Execution",
+    learn: [
+      "Zero-duration events on the schedule marking significant progress points",
+      "Milestone-weighted vs percent-complete vs fixed-formula (50/50) progress tracking",
+    ],
+    resources: [R("Wikipedia — Milestone (project management)", "https://en.wikipedia.org/wiki/Milestone_(project_management)")],
+  },
+  "RAID Log": {
+    cat: "Risk",
+    learn: [
+      "Risks, Assumptions, Issues, Dependencies tracked together in one consolidated log",
+      "Why the four categories interact (an unvalidated assumption becoming an issue, etc.)",
+    ],
+    resources: [
+      R("Atlassian — RAID log template", "https://www.atlassian.com/work-management/project-management/raid-log"),
+      R("PMI — What is Risk Management", "https://www.pmi.org/about/learn-about-pmi/what-is-risk-management"),
+    ],
+  },
+  "Risk Register": {
+    cat: "Risk",
+    learn: [
+      "Fields every entry needs: description, probability/impact, owner, response, trigger, status",
+      "Probability-impact matrix for qualitative analysis vs EMV/Monte Carlo for quantitative",
+    ],
+    resources: [
+      R("Wikipedia — Risk register", "https://en.wikipedia.org/wiki/Risk_register"),
+      R("PMI — What is Risk Management", "https://www.pmi.org/about/learn-about-pmi/what-is-risk-management"),
+    ],
+  },
+  "Risk Response Strategies": {
+    cat: "Risk",
+    learn: [
+      "Threats: avoid, mitigate, transfer, accept. Opportunities: exploit, enhance, share, accept",
+      "Secondary risk (created by a response) vs residual risk (what remains after it)",
+    ],
+    resources: [R("Wikipedia — Risk management", "https://en.wikipedia.org/wiki/Risk_management")],
+  },
+  "Contingency Reserve": {
+    cat: "Risk",
+    learn: [
+      "Contingency reserve (known risks, PM-controlled) vs management reserve (unknown-unknowns, sponsor-approved)",
+      "Deriving a defensible reserve figure from the sum of individual risk EMVs",
+    ],
+    resources: [R("Wikipedia — Cost contingency", "https://en.wikipedia.org/wiki/Cost_contingency")],
+  },
+  "MS Project": {
+    cat: "Tools",
+    learn: [
+      "Detailed Gantt charts, network diagrams, resource leveling, and CPM/EVM-grade baseline tracking",
+      "Best suited to larger projects with genuinely complex, interdependent schedules",
+    ],
+    resources: [
+      R("Microsoft — Project home", "https://www.microsoft.com/en-us/microsoft-365/project/project-management-software"),
+      R("Microsoft Learn — Project documentation", "https://learn.microsoft.com/en-us/project/"),
+    ],
+  },
+  Smartsheet: {
+    cat: "Tools",
+    learn: [
+      "Spreadsheet-like collaborative work management with Gantt views, automation, and dashboards",
+      "Broader cross-functional usability, at the cost of less deep schedule-network rigor than MS Project",
+    ],
+    resources: [R("Smartsheet", "https://www.smartsheet.com/"), R("Wikipedia — Smartsheet", "https://en.wikipedia.org/wiki/Smartsheet")],
+  },
+  "Monday.com": {
+    cat: "Tools",
+    learn: [
+      "Configurable boards (Kanban/Gantt/calendar) favored for ease of adoption and flexibility",
+      "Lighter than MS Project/Primavera for deep critical-path/resource-leveling analysis",
+    ],
+    resources: [R("monday.com", "https://monday.com/"), R("Wikipedia — monday.com", "https://en.wikipedia.org/wiki/Monday.com")],
+  },
+  "Primavera P6": {
+    cat: "Tools",
+    learn: [
+      "Enterprise-grade scheduling for very large activity counts and multi-project/portfolio resourcing",
+      "The standard in construction/engineering/government infrastructure programs with strict contractual schedule rigor",
+    ],
+    resources: [
+      R("Oracle — Primavera P6 EPPM", "https://www.oracle.com/construction-engineering/primavera-p6/"),
+      R("Wikipedia — Primavera (software)", "https://en.wikipedia.org/wiki/Primavera_(software)"),
+    ],
+  },
+  Asana: {
+    cat: "Tools",
+    learn: [
+      "Task/workflow management emphasizing team collaboration and lightweight timelines",
+      "A fit for execution-tracking or smaller projects, not deep CPM/EVM-grade rigor",
+    ],
+    resources: [R("Asana", "https://asana.com/"), R("Wikipedia — Asana, Inc.", "https://en.wikipedia.org/wiki/Asana,_Inc.")],
+  },
+
+  // ---------- BA track additions ----------
+  BABOK: {
+    cat: "Core",
+    learn: [
+      "Six knowledge areas: Planning & Monitoring, Elicitation & Collaboration, Requirements Life Cycle Management, Strategy Analysis, Requirements Analysis & Design Definition, Solution Evaluation",
+      "Maintained by IIBA — the standard reference body of knowledge for the BA profession",
+      "Underpins the ECBA/CCBA/CBAP certification exams",
+    ],
+    resources: [
+      R("IIBA — BABOK Guide", "https://www.iiba.org/babok-guide/"),
+      R("Wikipedia — Business Analysis Body of Knowledge", "https://en.wikipedia.org/wiki/Business_Analysis_Body_of_Knowledge"),
+    ],
+  },
+  "CBAP Certification": {
+    cat: "Core",
+    learn: [
+      "ECBA (entry) → CCBA (3,750+ hrs) → CBAP (7,500+ hrs across 4+ BABOK knowledge areas)",
+      "All three administered by IIBA and based directly on the BABOK Guide",
+    ],
+    resources: [
+      R("IIBA — Certifications overview", "https://www.iiba.org/business-analysis-certifications/"),
+      R("IIBA — CBAP", "https://www.iiba.org/business-analysis-certifications/cbap/"),
+    ],
+  },
+  "Business Requirements Document (BRD)": {
+    cat: "Documentation",
+    learn: [
+      "Business-level WHY/WHAT: objectives, high-level needs, solution-agnostic",
+      "Primary audience is business sponsors/stakeholders who sign off before solution design",
+      "Sits above the FRD in the typical requirements hierarchy",
+    ],
+    resources: [
+      R("Wikipedia — Business requirements", "https://en.wikipedia.org/wiki/Business_requirements"),
+      R("IIBA — Business Analysis Planning and Monitoring", "https://www.iiba.org/babok-guide/"),
+    ],
+  },
+  "Functional Requirements Document (FRD)": {
+    cat: "Documentation",
+    learn: [
+      "Detailed, testable description of what the system must do (screen-by-screen behavior, business rules, data validation)",
+      "Solution-specific, unlike the business-level BRD it's derived from",
+      "Detailed enough for a dev/QA team to build and test against directly",
+    ],
+    resources: [
+      R("Wikipedia — Functional requirement", "https://en.wikipedia.org/wiki/Functional_requirement"),
+      R("Wikipedia — Software requirements specification", "https://en.wikipedia.org/wiki/Software_requirements_specification"),
+    ],
+  },
+  "Requirements Traceability Matrix": {
+    cat: "Documentation",
+    learn: [
+      "Links each requirement to its source, its design/build component, and the test case(s) verifying it",
+      "Answers: does every requirement have a source, is it built, is it tested",
+      "Built manually (spreadsheet) or via linked JIRA epics/stories for smaller efforts",
+    ],
+    resources: [
+      R("Wikipedia — Requirements traceability", "https://en.wikipedia.org/wiki/Requirements_traceability"),
+      R("PMI — Requirements Traceability Matrix", "https://www.pmi.org/learning/library/requirement-traceability-matrix-necessity-7789"),
+    ],
+  },
+  BPMN: {
+    cat: "Analysis",
+    learn: [
+      "Standardized notation: events (circles), tasks (rounded rectangles), gateways (diamonds), sequence flows (arrows)",
+      "Exclusive/parallel/inclusive gateways model decision logic consistently across tools/teams",
+      "Used for as-is/to-be process modeling and swimlane (cross-functional) diagrams",
+    ],
+    resources: [
+      R("OMG — About the BPMN Specification", "https://www.omg.org/spec/BPMN/2.0/About-BPMN/"),
+      R("Wikipedia — Business Process Model and Notation", "https://en.wikipedia.org/wiki/Business_Process_Model_and_Notation"),
+    ],
+  },
+  "Use Case Diagrams": {
+    cat: "Analysis",
+    learn: [
+      "Actors (roles/external systems), use cases (goals), and include/extend relationships",
+      "Scope-level overview only — detailed flows live in the accompanying use case specification",
+      "Distinct from a user story: formal, self-contained, includes alternate/exception flows",
+    ],
+    resources: [
+      R("Wikipedia — Use case diagram", "https://en.wikipedia.org/wiki/Use_case_diagram"),
+      R("Wikipedia — Use case", "https://en.wikipedia.org/wiki/Use_case"),
+    ],
+  },
+  "Data Flow Diagrams (DFD)": {
+    cat: "Analysis",
+    learn: [
+      "Four elements: external entities, processes, data stores, data flows",
+      "Silent on sequencing/timing — answers 'where does data come from/go to', not 'in what order'",
+      "The context diagram is the highest-level DFD, usually the first diagram drawn for a new initiative",
+    ],
+    resources: [R("Wikipedia — Data-flow diagram", "https://en.wikipedia.org/wiki/Data-flow_diagram")],
+  },
+  "SWOT Analysis": {
+    cat: "Analysis",
+    learn: [
+      "Strengths/Weaknesses (internal) vs Opportunities/Threats (external)",
+      "Used early in strategy analysis to frame a proposed change",
+    ],
+    resources: [R("Wikipedia — SWOT analysis", "https://en.wikipedia.org/wiki/SWOT_analysis")],
+  },
+  "Gap Analysis": {
+    cat: "Analysis",
+    learn: [
+      "Compares as-is (current state) against to-be (desired future state) to identify missing capabilities",
+      "Each identified gap typically becomes or informs a requirement",
+    ],
+    resources: [R("Wikipedia — Gap analysis", "https://en.wikipedia.org/wiki/Gap_analysis")],
+  },
+  "Root Cause Analysis": {
+    cat: "Analysis",
+    learn: [
+      "5 Whys: repeatedly ask why until reaching an actual root cause, not a symptom",
+      "Fishbone (Ishikawa) diagram: organizes candidate causes into categories (People/Process/Technology/Environment) when multiple contributing causes are plausible",
+      "Root cause vs contributing factor vs symptom — the test: would fixing only this stop the problem recurring?",
+    ],
+    resources: [
+      R("Wikipedia — Root cause analysis", "https://en.wikipedia.org/wiki/Root_cause_analysis"),
+      R("Wikipedia — Ishikawa diagram", "https://en.wikipedia.org/wiki/Ishikawa_diagram"),
+      R("Wikipedia — Five whys", "https://en.wikipedia.org/wiki/Five_whys"),
+    ],
+  },
+  "Feasibility Analysis": {
+    cat: "Analysis",
+    learn: [
+      "Five dimensions: technical, economic, operational, legal/regulatory, schedule",
+      "A solution can pass most dimensions and still be blocked by one (e.g. operational readiness)",
+    ],
+    resources: [R("Wikipedia — Feasibility study", "https://en.wikipedia.org/wiki/Feasibility_study")],
+  },
+  "Cost-Benefit Analysis": {
+    cat: "Analysis",
+    learn: [
+      "Compares total expected costs against total expected benefits over a defined horizon",
+      "Common pitfall: counting only easily-quantified hard costs/savings while ignoring real but harder-to-quantify benefits",
+    ],
+    resources: [R("Wikipedia — Cost–benefit analysis", "https://en.wikipedia.org/wiki/Cost%E2%80%93benefit_analysis")],
+  },
+  "Stakeholder Analysis": {
+    cat: "Analysis",
+    learn: [
+      "Identify everyone affected by/affecting the initiative; map interest, influence, and likely stance",
+      "Power/interest grid: manage closely (high power+interest), keep satisfied, keep informed, monitor",
+      "Feeds elicitation planning and communication strategy",
+    ],
+    resources: [R("Wikipedia — Stakeholder analysis", "https://en.wikipedia.org/wiki/Stakeholder_analysis")],
+  },
+  "JAD Sessions": {
+    cat: "Elicitation",
+    learn: [
+      "Joint Application Development — a structured, facilitated workshop eliciting/validating requirements with multiple stakeholders in real time",
+      "Differs from an ordinary meeting via a dedicated facilitator, a defined agenda, and a goal of reaching decisions in the room",
+    ],
+    resources: [R("Wikipedia — Joint application design", "https://en.wikipedia.org/wiki/Joint_application_design")],
+  },
+  "Business Rules": {
+    cat: "Documentation",
+    learn: [
+      "A solution-independent statement that governs/constrains business behavior (e.g. 'a discount over 20% requires manager approval')",
+      "Documented if/then, atomic, and independent of any UI — often in a business rules catalog separate from the requirements doc",
+      "A single rule can drive multiple functional requirements and changes on its own (regulatory) cadence",
+    ],
+    resources: [R("Wikipedia — Business rule", "https://en.wikipedia.org/wiki/Business_rule")],
+  },
+  "Non-Functional Requirements (NFRs)": {
+    cat: "Documentation",
+    learn: [
+      "Performance, security, usability/accessibility, reliability/availability, scalability, maintainability, compliance",
+      "Easy to omit because stakeholders rarely volunteer them unprompted — must be actively elicited",
+    ],
+    resources: [R("Wikipedia — Non-functional requirement", "https://en.wikipedia.org/wiki/Non-functional_requirement")],
+  },
+  "Acceptance Criteria": {
+    cat: "Documentation",
+    learn: [
+      "Specific, testable, unambiguous conditions a story/requirement must satisfy",
+      "Given/When/Then (Gherkin-style) structures precondition, action, and expected outcome",
+      "Distinct from Definition of Done, which applies uniformly to every story regardless of content",
+    ],
+    resources: [
+      R("Cucumber — Gherkin Reference", "https://cucumber.io/docs/gherkin/reference/"),
+      R("Wikipedia — Acceptance testing", "https://en.wikipedia.org/wiki/Acceptance_testing"),
+    ],
+  },
+  "INVEST Criteria": {
+    cat: "Documentation",
+    learn: [
+      "Independent, Negotiable, Valuable, Estimable, Small, Testable — a quality bar for a well-formed user story",
+      "A story failing several checks usually needs splitting or clarifying before a sprint",
+    ],
+    resources: [R("Agile Alliance — INVEST", "https://www.agilealliance.org/glossary/invest/")],
+  },
+  "Vision and Scope Document": {
+    cat: "Documentation",
+    learn: [
+      "Early-stage charter: business objectives, high-level in/out-of-scope, key stakeholders, success criteria",
+      "Shorter and less detailed than a BRD — establishes the shared frame before detailed elicitation",
+    ],
+    resources: [R("Wikipedia — Vision statement", "https://en.wikipedia.org/wiki/Vision_statement")],
+  },
+  "Functional Decomposition": {
+    cat: "Analysis",
+    learn: [
+      "Breaks a large, vague business function into progressively smaller sub-functions until each is concrete",
+      "Solves the problem of a stakeholder describing something too broad to elicit detailed requirements against directly",
+    ],
+    resources: [R("Wikipedia — Functional decomposition", "https://en.wikipedia.org/wiki/Functional_decomposition")],
+  },
+  "Swimlane Diagram": {
+    cat: "Analysis",
+    learn: [
+      "Cross-functional process diagram organized into lanes, one per role/department/system",
+      "Makes handoffs between roles/departments explicit — exactly where processes tend to break down",
+    ],
+    resources: [R("Wikipedia — Swim lane", "https://en.wikipedia.org/wiki/Swim_lane")],
+  },
+  "Data Dictionary / Glossary": {
+    cat: "Documentation",
+    learn: [
+      "Shared, agreed definition of every key term/data element/acronym used across requirements docs",
+      "Prevents requirements being individually clear yet conflicting because two docs mean different things by the same word",
+    ],
+    resources: [R("Wikipedia — Data dictionary", "https://en.wikipedia.org/wiki/Data_dictionary")],
+  },
+  SIPOC: {
+    cat: "Analysis",
+    learn: [
+      "Suppliers, Inputs, Process (5-7 high-level steps), Outputs, Customers",
+      "Used very early, often before a detailed process map, to establish scope/boundaries quickly",
+    ],
+    resources: [R("ASQ — What is SIPOC?", "https://asq.org/quality-resources/sipoc")],
+  },
+  "Value Stream Mapping": {
+    cat: "Analysis",
+    learn: [
+      "Identifies value-adding steps vs waste (waiting, rework, unnecessary handoffs) across an end-to-end flow",
+      "Explicitly evaluative — every step judged against whether a customer would pay for it",
+    ],
+    resources: [R("Wikipedia — Value-stream mapping", "https://en.wikipedia.org/wiki/Value-stream_mapping")],
+  },
+  "Impact Analysis": {
+    cat: "Analysis",
+    learn: [
+      "Assesses downstream consequences of a proposed requirement change before approving it",
+      "A required input to change control — approving a change without it means approving an unknown",
+    ],
+    resources: [R("Wikipedia — Change impact analysis", "https://en.wikipedia.org/wiki/Change_impact_analysis")],
+  },
+  "Context Diagram": {
+    cat: "Analysis",
+    learn: [
+      "The highest-level DFD: one process bubble for the whole system, surrounded by every external entity it exchanges data with",
+      "Usually the very first diagram produced — agreeing the system boundary before any detailed analysis",
+    ],
+    resources: [R("Wikipedia — System context diagram", "https://en.wikipedia.org/wiki/System_context_diagram")],
+  },
+  Lucidchart: {
+    cat: "Tools",
+    learn: [
+      "Browser-based, real-time collaborative diagramming (flowcharts, BPMN, wireframes, org charts)",
+      "Native integrations with Confluence, JIRA, and Google Workspace",
+      "Main advantage over Visio: simultaneous multi-user editing without desktop install",
+    ],
+    resources: [
+      R("Lucidchart — What is Lucidchart?", "https://www.lucidchart.com/pages/what-is-lucidchart"),
+      R("Lucidchart — BPMN diagrams", "https://www.lucidchart.com/pages/bpmn"),
+    ],
+  },
+  Visio: {
+    cat: "Tools",
+    learn: [
+      "Structured business process diagrams (flowcharts, BPMN, swimlanes, org charts) with standardized shape stencils",
+      "Strong Microsoft/Office ecosystem integration; common in enterprises with existing licensing/templates",
+    ],
+    resources: [
+      R("Microsoft — Visio overview", "https://www.microsoft.com/en-us/microsoft-365/visio/flowchart-software"),
+      R("Microsoft Support — Visio help & learning", "https://support.microsoft.com/en-us/visio"),
+    ],
+  },
+  Balsamiq: {
+    cat: "Tools",
+    learn: [
+      "Deliberately low-fidelity, hand-drawn-style wireframes/mockups",
+      "The sketchy style signals 'rough concept, not final design' — keeps early conversations on structure/content",
+    ],
+    resources: [
+      R("Balsamiq — Wireframes", "https://balsamiq.com/wireframes/"),
+      R("Balsamiq — What is wireframing?", "https://balsamiq.com/learn/articles/what-is-wireframing/"),
+    ],
+  },
 };
 
 // Fallback for any tech OUTSIDE the ~35 curated entries above — vacancies name a much longer
