@@ -20,6 +20,10 @@ export async function emptyCvDoc(userId: UserId): Promise<CvDoc> {
     projects: [],
     certifications: [],
     languages: [],
+    awards: [],
+    publications: [],
+    volunteer: [],
+    references: [],
     theme: CvThemeSchema.parse(undefined),
   };
 }

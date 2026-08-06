@@ -5,7 +5,19 @@ import { z } from "zod";
 
 export const CV_TEMPLATES = ["classic", "compact", "academic", "twocol", "minimal", "sidebar", "timeline"] as const;
 export const CV_FONTS = ["sans", "serif"] as const;
-export const CV_SECTIONS = ["summary", "skills", "experience", "projects", "education", "certifications", "languages"] as const;
+export const CV_SECTIONS = [
+  "summary",
+  "skills",
+  "experience",
+  "projects",
+  "education",
+  "certifications",
+  "languages",
+  "awards",
+  "publications",
+  "volunteer",
+  "references",
+] as const;
 export type CvSection = (typeof CV_SECTIONS)[number];
 
 // Zod v4: `.any()`/`.unknown()`, when it's a REQUIRED field in `z.object({...})`, no longer
@@ -210,6 +222,112 @@ export const CvCertificationsSchema = z
       : [],
   );
 
+export interface CvAwardEntry {
+  title: string;
+  issuer: string;
+  date: string;
+}
+
+// Same shape/conventions as CvCertificationEntrySchema — a distinct section from certifications
+// (an award/honor isn't a credential), but the entry itself needs nothing extra.
+const CvAwardEntrySchema = z.any().transform((e): CvAwardEntry => ({
+  title: typeof e?.title === "string" ? e.title.slice(0, 200) : "",
+  issuer: typeof e?.issuer === "string" ? e.issuer.slice(0, 160) : "",
+  date: typeof e?.date === "string" ? e.date.slice(0, 60) : "",
+}));
+
+export const CvAwardsSchema = z
+  .any()
+  .optional()
+  .transform((v): CvAwardEntry[] =>
+    Array.isArray(v)
+      ? v
+          .slice(0, 20)
+          .map((e) => CvAwardEntrySchema.parse(e))
+          .filter((e) => e.title || e.issuer || e.date)
+      : [],
+  );
+
+export interface CvPublicationEntry {
+  title: string;
+  publisher: string;
+  date: string;
+  url: string;
+}
+
+const CvPublicationEntrySchema = z.any().transform((e): CvPublicationEntry => ({
+  title: typeof e?.title === "string" ? e.title.slice(0, 200) : "",
+  publisher: typeof e?.publisher === "string" ? e.publisher.slice(0, 160) : "",
+  date: typeof e?.date === "string" ? e.date.slice(0, 60) : "",
+  url: typeof e?.url === "string" ? e.url.slice(0, 300) : "",
+}));
+
+export const CvPublicationsSchema = z
+  .any()
+  .optional()
+  .transform((v): CvPublicationEntry[] =>
+    Array.isArray(v)
+      ? v
+          .slice(0, 20)
+          .map((e) => CvPublicationEntrySchema.parse(e))
+          .filter((e) => e.title || e.publisher || e.date || e.url)
+      : [],
+  );
+
+export interface CvVolunteerEntry {
+  role: string;
+  organization: string;
+  period: string;
+  description: string;
+}
+
+// Lighter than CvExperienceItem (no `bullets` array) — volunteer entries are usually a single
+// role/org/period plus one short blurb, not a multi-bullet job history.
+const CvVolunteerEntrySchema = z.any().transform((e): CvVolunteerEntry => ({
+  role: typeof e?.role === "string" ? e.role.slice(0, 160) : "",
+  organization: typeof e?.organization === "string" ? e.organization.slice(0, 160) : "",
+  period: typeof e?.period === "string" ? e.period.slice(0, 60) : "",
+  description: typeof e?.description === "string" ? e.description.slice(0, 500) : "",
+}));
+
+export const CvVolunteerSchema = z
+  .any()
+  .optional()
+  .transform((v): CvVolunteerEntry[] =>
+    Array.isArray(v)
+      ? v
+          .slice(0, 20)
+          .map((e) => CvVolunteerEntrySchema.parse(e))
+          .filter((e) => e.role || e.organization || e.period || e.description)
+      : [],
+  );
+
+export interface CvReferenceEntry {
+  name: string;
+  relation: string;
+  contact: string;
+}
+
+const CvReferenceEntrySchema = z.any().transform((e): CvReferenceEntry => ({
+  name: typeof e?.name === "string" ? e.name.slice(0, 160) : "",
+  relation: typeof e?.relation === "string" ? e.relation.slice(0, 160) : "",
+  contact: typeof e?.contact === "string" ? e.contact.slice(0, 200) : "",
+}));
+
+// Capped at 10 (not 20 like the other list sections) — references are conventionally a short
+// list (2-4 names), not something anyone accumulates dozens of.
+export const CvReferencesSchema = z
+  .any()
+  .optional()
+  .transform((v): CvReferenceEntry[] =>
+    Array.isArray(v)
+      ? v
+          .slice(0, 10)
+          .map((e) => CvReferenceEntrySchema.parse(e))
+          .filter((e) => e.name || e.relation || e.contact)
+      : [],
+  );
+
 export interface CvContactLink {
   label: string;
   url: string;
@@ -249,6 +367,10 @@ export const CvDocSchema = z.preprocess(
     projects: CvProjectsSchema,
     certifications: CvCertificationsSchema,
     languages: CvLanguagesSchema,
+    awards: CvAwardsSchema,
+    publications: CvPublicationsSchema,
+    volunteer: CvVolunteerSchema,
+    references: CvReferencesSchema,
     theme: CvThemeSchema,
   }),
 );

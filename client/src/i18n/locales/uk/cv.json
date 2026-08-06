@@ -129,7 +129,11 @@
       "projects": { "title": "Проєкти" },
       "education": { "title": "Освіта" },
       "certifications": { "title": "Сертифікати" },
+      "awards": { "title": "Нагороди" },
+      "publications": { "title": "Публікації" },
+      "volunteer": { "title": "Волонтерство" },
       "languages": { "title": "Мови" },
+      "references": { "title": "Рекомендації" },
       "design": { "title": "Дизайн" }
     },
     "toasts": {
@@ -237,7 +241,7 @@
     },
     "certifications": {
       "noneYet": "Поки що немає",
-      "hint": "Додай сертифікат чи нагороду — вона з'явиться в окремому розділі резюме.",
+      "hint": "Додай сертифікат — він з'явиться в окремому розділі резюме.",
       "addEntry": "+ Додати запис",
       "name": "Назва",
       "namePlaceholder": "AWS Certified Developer",
@@ -245,6 +249,43 @@
       "issuerPlaceholder": "Amazon Web Services",
       "date": "Дата",
       "datePlaceholder": "2023"
+    },
+    "awards": {
+      "noneYet": "Поки що немає",
+      "hint": "Додай нагороду чи відзнаку — вона з'явиться в окремому розділі резюме.",
+      "addEntry": "+ Додати запис",
+      "title": "Нагорода",
+      "titlePlaceholder": "Кращий співробітник року",
+      "issuer": "Ким присуджено",
+      "issuerPlaceholder": "Acme Corp",
+      "date": "Дата",
+      "datePlaceholder": "2023"
+    },
+    "publications": {
+      "noneYet": "Поки що немає",
+      "hint": "Додай публікацію — вона з'явиться в окремому розділі резюме.",
+      "addEntry": "+ Додати публікацію",
+      "title": "Назва",
+      "titlePlaceholder": "Масштабування Postgres до мільярда рядків",
+      "publisher": "Видавець",
+      "publisherPlaceholder": "Acme Engineering Blog",
+      "date": "Дата",
+      "datePlaceholder": "2024",
+      "url": "Посилання",
+      "urlPlaceholder": "acme.com/blog/scaling-postgres"
+    },
+    "volunteer": {
+      "noneYet": "Поки що немає",
+      "hint": "Додай волонтерську роль — вона з'явиться в окремому розділі резюме.",
+      "addEntry": "+ Додати запис",
+      "role": "Роль",
+      "rolePlaceholder": "Ментор",
+      "organization": "Організація",
+      "organizationPlaceholder": "Code Club",
+      "period": "Період",
+      "periodPlaceholder": "2021 — 2022",
+      "description": "Опис",
+      "descriptionPlaceholder": "Що робив(-ла), який результат…"
     },
     "languages": {
       "native": "Рідна",
@@ -255,10 +296,24 @@
       "languageN": "Мова {{n}}",
       "namePlaceholder": "Англійська",
       "level": "Рівень"
+    },
+    "references": {
+      "noneYet": "Поки що немає",
+      "hint": "Додай рекомендацію — вона з'явиться в окремому розділі резюме.",
+      "addEntry": "+ Додати рекомендацію",
+      "name": "Ім'я",
+      "namePlaceholder": "Іван Петренко",
+      "relation": "Стосунок",
+      "relationPlaceholder": "Керівник в Acme Corp",
+      "contact": "Контакт",
+      "contactPlaceholder": "ivan@acme.com"
     }
   },
   "appearance": {
-    "template": { "title": "Шаблон" },
+    "template": {
+      "title": "Шаблон",
+      "atsRiskHint": "Двоколонкові шаблони можуть читатись у неправильному порядку деякими ATS/AI-парсерами резюме — для відгуків на вакансії через сайти краще обирати однокол. шаблон."
+    },
     "style": {
       "title": "Стиль",
       "serif": "Із засічками",
@@ -290,7 +345,7 @@
   "layoutPresets": {
     "order": {
       "title": "Порядок розділів",
-      "twoColHint": "У шаблоні «Дві колонки» Навички/Мови/Освіта/Сертифікати йдуть у бічній колонці, решта — в основній."
+      "twoColHint": "У шаблоні «Дві колонки» Навички/Мови/Освіта/Сертифікати/Рекомендації йдуть у бічній колонці, решта — в основній."
     },
     "sections": {
       "summary": "Профіль",
@@ -299,7 +354,11 @@
       "projects": "Проєкти",
       "education": "Освіта",
       "certifications": "Сертифікати",
-      "languages": "Мови"
+      "awards": "Нагороди",
+      "publications": "Публікації",
+      "volunteer": "Волонтерство",
+      "languages": "Мови",
+      "references": "Рекомендації"
     },
     "presets": {
       "title": "Пресети",
@@ -353,6 +412,7 @@
       "experience": "Досвід",
       "projects": "Проєкти",
       "education": "Освіта",
+      "certifications": "Сертифікати",
       "languages": "Мови"
     }
   },

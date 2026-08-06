@@ -27,6 +27,18 @@ const TEMPLATE_KEYS: [
   ["timeline", "templates.timeline"],
 ];
 
+// Curated, resume-appropriate accent swatches — a quicker path to a good-looking result than
+// hunting through the raw <input type="color"> wheel; the picker itself stays for anyone who
+// wants an exact brand color. Not persisted/validated separately — clicking one is just shorthand
+// for onSetTheme({ accent: hex }), same as picking any other color.
+const ACCENT_PRESETS = ["#4f46e5", "#1e3a8a", "#0f766e", "#15803d", "#9f1239", "#334155", "#c2410c", "#7e22ce"];
+
+// Multi-column templates split content into independent DOM regions (aside/main) that print to a
+// visually two-column PDF — many ATS/PDF text-extraction tools linearize by X/Y page position
+// rather than DOM order, so a two-column PDF can come out with lines from both columns
+// interleaved. Single-column templates don't have this failure mode at all.
+const ATS_RISK_TEMPLATES = new Set<CvTheme["template"]>(["twocol", "sidebar"]);
+
 interface AppearancePanelProps {
   doc: CvDoc;
   theme: CvTheme;
@@ -74,6 +86,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             </button>
           ))}
         </div>
+        {ATS_RISK_TEMPLATES.has(theme.template) && <div className="text-[11px] text-ink-dim">{t("appearance.template.atsRiskHint")}</div>}
       </Section>
       <Section title={t("appearance.style.title")} hint={`${fontLabel(theme.font)} · ${Math.round(theme.scale * 100)}%`}>
         <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -97,6 +110,19 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
               ]}
             />
           </div>
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {ACCENT_PRESETS.map((hex) => (
+            <button
+              key={hex}
+              type="button"
+              onClick={() => onSetTheme({ accent: hex })}
+              title={hex}
+              aria-label={hex}
+              style={{ background: hex }}
+              className={`w-5 h-5 rounded-full border-2 transition-transform ${theme.accent.toLowerCase() === hex ? "border-ink scale-110" : "border-transparent hover:scale-110"}`}
+            />
+          ))}
         </div>
         <label className="block text-sm text-ink-dim">
           <div className="flex justify-between">

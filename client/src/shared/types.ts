@@ -391,7 +391,18 @@ export interface CvExperience {
   bullets: string[];
 }
 
-export type CvSection = "summary" | "skills" | "experience" | "projects" | "education" | "certifications" | "languages";
+export type CvSection =
+  | "summary"
+  | "skills"
+  | "experience"
+  | "projects"
+  | "education"
+  | "certifications"
+  | "languages"
+  | "awards"
+  | "publications"
+  | "volunteer"
+  | "references";
 
 export interface CvTheme {
   template: "classic" | "compact" | "academic" | "twocol" | "minimal" | "sidebar" | "timeline";
@@ -433,6 +444,33 @@ export interface CvCertificationEntry {
   date: string;
 }
 
+export interface CvAwardEntry {
+  title: string;
+  issuer: string;
+  date: string;
+}
+
+export interface CvPublicationEntry {
+  title: string;
+  publisher: string;
+  date: string;
+  url: string;
+}
+
+/** Lighter than CvExperience (no `bullets` array) — a single role/org/period plus one blurb. */
+export interface CvVolunteerEntry {
+  role: string;
+  organization: string;
+  period: string;
+  description: string;
+}
+
+export interface CvReferenceEntry {
+  name: string;
+  relation: string;
+  contact: string;
+}
+
 export interface CvContactLink {
   label: string;
   url: string;
@@ -455,6 +493,10 @@ export interface CvDoc {
   projects: CvProjectEntry[];
   certifications?: CvCertificationEntry[];
   languages?: CvLanguage[];
+  awards?: CvAwardEntry[];
+  publications?: CvPublicationEntry[];
+  volunteer?: CvVolunteerEntry[];
+  references?: CvReferenceEntry[];
   theme?: CvTheme;
 }
 

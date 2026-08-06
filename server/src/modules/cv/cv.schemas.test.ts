@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  CvAwardsSchema,
   CvCertificationsSchema,
   CvContactLinksSchema,
   CvDocSchema,
   CvEducationSchema,
   CvProjectsSchema,
+  CvPublicationsSchema,
+  CvReferencesSchema,
   CvThemeSchema,
   CvPresetsSchema,
+  CvVolunteerSchema,
   CV_SECTIONS,
 } from "./cv.schemas.js";
 
@@ -65,7 +69,19 @@ describe("CvThemeSchema", () => {
 
   it("dedupes order and appends missing sections in default order", () => {
     const out = CvThemeSchema.parse({ order: ["skills", "skills", "bogus", "summary"] });
-    expect(out.order).toEqual(["skills", "summary", "experience", "projects", "education", "certifications", "languages"]);
+    expect(out.order).toEqual([
+      "skills",
+      "summary",
+      "experience",
+      "projects",
+      "education",
+      "certifications",
+      "languages",
+      "awards",
+      "publications",
+      "volunteer",
+      "references",
+    ]);
   });
 });
 
@@ -83,6 +99,10 @@ describe("CvDocSchema", () => {
       education: [],
       projects: [],
       languages: [],
+      awards: [],
+      publications: [],
+      volunteer: [],
+      references: [],
     });
   });
 
@@ -189,6 +209,58 @@ describe("CvCertificationsSchema", () => {
     expect(() => CvCertificationsSchema.parse(null)).not.toThrow();
     expect(CvCertificationsSchema.parse(null)).toEqual([]);
     expect(CvCertificationsSchema.parse(Array.from({ length: 25 }, (_, i) => ({ name: `Cert ${i}` })))).toHaveLength(20);
+  });
+});
+
+describe("CvAwardsSchema", () => {
+  it("sanitizes fields, caps at 20, drops all-blank entries, and never throws on garbage", () => {
+    const out = CvAwardsSchema.parse([
+      { title: "Employee of the Year", issuer: "Acme Corp", date: "2023" },
+      { title: "", issuer: "", date: "" },
+    ]);
+    expect(out).toEqual([{ title: "Employee of the Year", issuer: "Acme Corp", date: "2023" }]);
+    expect(() => CvAwardsSchema.parse(null)).not.toThrow();
+    expect(CvAwardsSchema.parse(null)).toEqual([]);
+    expect(CvAwardsSchema.parse(Array.from({ length: 25 }, (_, i) => ({ title: `Award ${i}` })))).toHaveLength(20);
+  });
+});
+
+describe("CvPublicationsSchema", () => {
+  it("sanitizes fields, caps at 20, drops all-blank entries, and never throws on garbage", () => {
+    const out = CvPublicationsSchema.parse([
+      { title: "Scaling Postgres", publisher: "Acme Blog", date: "2024", url: "acme.com/blog/scaling" },
+      { title: "", publisher: "", date: "", url: "" },
+    ]);
+    expect(out).toEqual([{ title: "Scaling Postgres", publisher: "Acme Blog", date: "2024", url: "acme.com/blog/scaling" }]);
+    expect(() => CvPublicationsSchema.parse(null)).not.toThrow();
+    expect(CvPublicationsSchema.parse(null)).toEqual([]);
+    expect(CvPublicationsSchema.parse(Array.from({ length: 25 }, (_, i) => ({ title: `Paper ${i}` })))).toHaveLength(20);
+  });
+});
+
+describe("CvVolunteerSchema", () => {
+  it("sanitizes fields, caps at 20, drops all-blank entries, and never throws on garbage", () => {
+    const out = CvVolunteerSchema.parse([
+      { role: "Mentor", organization: "Code Club", period: "2021 – 2022", description: "Taught JS basics." },
+      { role: "", organization: "", period: "", description: "" },
+    ]);
+    expect(out).toEqual([{ role: "Mentor", organization: "Code Club", period: "2021 – 2022", description: "Taught JS basics." }]);
+    expect(() => CvVolunteerSchema.parse(null)).not.toThrow();
+    expect(CvVolunteerSchema.parse(null)).toEqual([]);
+    expect(CvVolunteerSchema.parse(Array.from({ length: 25 }, (_, i) => ({ role: `Role ${i}` })))).toHaveLength(20);
+  });
+});
+
+describe("CvReferencesSchema", () => {
+  it("sanitizes fields, caps at 10 (not 20 — references are a short list), drops all-blank entries, and never throws on garbage", () => {
+    const out = CvReferencesSchema.parse([
+      { name: "Jane Smith", relation: "Manager at Acme", contact: "jane@acme.com" },
+      { name: "", relation: "", contact: "" },
+    ]);
+    expect(out).toEqual([{ name: "Jane Smith", relation: "Manager at Acme", contact: "jane@acme.com" }]);
+    expect(() => CvReferencesSchema.parse(null)).not.toThrow();
+    expect(CvReferencesSchema.parse(null)).toEqual([]);
+    expect(CvReferencesSchema.parse(Array.from({ length: 15 }, (_, i) => ({ name: `Person ${i}` })))).toHaveLength(10);
   });
 });
 

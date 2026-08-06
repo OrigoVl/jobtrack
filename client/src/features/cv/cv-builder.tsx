@@ -23,7 +23,16 @@ import { DEFAULT_ORDER, cvDocToText, exportCvDoc, themeOf } from "./builder/cv-d
 import { GeneralSection } from "./builder/basic-info-card";
 import type { SummaryStyle } from "./builder/basic-info-card";
 import { ExperienceCard } from "./builder/experience-card";
-import { CertificationsSection, EducationSection, LanguagesSection, ProjectsSection } from "./builder/extra-sections-cards";
+import {
+  AwardsSection,
+  CertificationsSection,
+  EducationSection,
+  LanguagesSection,
+  ProjectsSection,
+  PublicationsSection,
+  ReferencesSection,
+  VolunteerSection,
+} from "./builder/extra-sections-cards";
 import { AppearancePanel } from "./builder/appearance-panel";
 import { LayoutPresetsPanel } from "./builder/layout-presets-panel";
 import { CvPreviewPanel } from "./builder/cv-preview-panel";
@@ -33,7 +42,19 @@ import { ReportsPanel } from "./builder/reports-panel";
 import { CvReviewProgress } from "./builder/cv-review-progress";
 import { ProfileTabs } from "./builder/profile-tabs";
 
-type SectionKey = "general" | "experience" | "skills" | "projects" | "education" | "certifications" | "languages" | "design";
+type SectionKey =
+  | "general"
+  | "experience"
+  | "skills"
+  | "projects"
+  | "education"
+  | "certifications"
+  | "awards"
+  | "publications"
+  | "volunteer"
+  | "languages"
+  | "references"
+  | "design";
 
 // Mirrors the server's cv-profiles.service.ts#MAX_CV_PROFILES — this constant is UI-only (disables
 // the "+" tab button and shows a tooltip); the server remains the actual source of truth and
@@ -409,6 +430,10 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   };
   const langs = doc.languages ?? [];
   const certifications = doc.certifications ?? [];
+  const awards = doc.awards ?? [];
+  const publications = doc.publications ?? [];
+  const volunteer = doc.volunteer ?? [];
+  const references = doc.references ?? [];
   const tailorVac = tailored && vacancies.find((v) => v.id === matchVacId);
   // Clicking a section/entry in the live preview jumps straight to it in the editor — the
   // preview tags each block with data-section (see cv-doc-utils.ts); "summary"/"general" both
@@ -424,7 +449,17 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       setActiveSection("general");
       return;
     }
-    if (section === "skills" || section === "projects" || section === "education" || section === "languages") {
+    if (
+      section === "skills" ||
+      section === "projects" ||
+      section === "education" ||
+      section === "languages" ||
+      section === "certifications" ||
+      section === "awards" ||
+      section === "publications" ||
+      section === "volunteer" ||
+      section === "references"
+    ) {
       setActiveSection(section);
     }
   };
@@ -729,11 +764,39 @@ export function CvBuilder({ llm }: { llm: boolean }) {
             <CertificationsSection certifications={certifications} onChange={(certifications) => set({ certifications })} />,
           )}
           {accordion(
+            "awards",
+            "",
+            t("builder.sections.awards.title"),
+            awards.length ? t("builder.sections.itemsCount", { count: awards.length }) : t("builder.sections.emptyHint"),
+            <AwardsSection awards={awards} onChange={(awards) => set({ awards })} />,
+          )}
+          {accordion(
+            "publications",
+            "",
+            t("builder.sections.publications.title"),
+            publications.length ? t("builder.sections.itemsCount", { count: publications.length }) : t("builder.sections.emptyHint"),
+            <PublicationsSection publications={publications} onChange={(publications) => set({ publications })} />,
+          )}
+          {accordion(
+            "volunteer",
+            "",
+            t("builder.sections.volunteer.title"),
+            volunteer.length ? t("builder.sections.itemsCount", { count: volunteer.length }) : t("builder.sections.emptyHint"),
+            <VolunteerSection volunteer={volunteer} onChange={(volunteer) => set({ volunteer })} />,
+          )}
+          {accordion(
             "languages",
             "",
             t("builder.sections.languages.title"),
             langs.length ? t("builder.sections.addedCount", { count: langs.length }) : t("builder.sections.emptyHint"),
             <LanguagesSection languages={langs} onChange={(languages) => set({ languages })} />,
+          )}
+          {accordion(
+            "references",
+            "",
+            t("builder.sections.references.title"),
+            references.length ? t("builder.sections.itemsCount", { count: references.length }) : t("builder.sections.emptyHint"),
+            <ReferencesSection references={references} onChange={(references) => set({ references })} />,
           )}
           {accordion(
             "design",

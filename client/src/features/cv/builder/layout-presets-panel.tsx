@@ -17,6 +17,10 @@ const SECTION_LABEL_KEY: Record<
   | "layoutPresets.sections.education"
   | "layoutPresets.sections.certifications"
   | "layoutPresets.sections.languages"
+  | "layoutPresets.sections.awards"
+  | "layoutPresets.sections.publications"
+  | "layoutPresets.sections.volunteer"
+  | "layoutPresets.sections.references"
 > = {
   summary: "layoutPresets.sections.summary",
   skills: "layoutPresets.sections.skills",
@@ -25,6 +29,10 @@ const SECTION_LABEL_KEY: Record<
   education: "layoutPresets.sections.education",
   certifications: "layoutPresets.sections.certifications",
   languages: "layoutPresets.sections.languages",
+  awards: "layoutPresets.sections.awards",
+  publications: "layoutPresets.sections.publications",
+  volunteer: "layoutPresets.sections.volunteer",
+  references: "layoutPresets.sections.references",
 };
 
 interface LayoutPresetsPanelProps {

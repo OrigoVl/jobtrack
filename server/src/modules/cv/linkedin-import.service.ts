@@ -128,5 +128,10 @@ export function parseLinkedInArchive(buffer: Buffer): ParsedLinkedInCv {
       .map((c) => ({ name: c.Name || "", issuer: c.Authority || "", date: (c["Started On"] || "").trim() }))
       .filter((c) => c.name || c.issuer),
     languages: languageRows.map((l) => ({ name: (l.Name || "").trim(), level: (l.Proficiency || "").trim() })).filter((l) => l.name),
+    // LinkedIn's data export has no equivalent CSV for these — nothing to map in from the archive.
+    awards: [],
+    publications: [],
+    volunteer: [],
+    references: [],
   };
 }

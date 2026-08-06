@@ -42,7 +42,7 @@ function ContactLinksEditor({ links, onChange }: ContactLinksEditorProps) {
         </Btn>
       </div>
       {links.map((l, i) => (
-        <div key={i} className="flex items-end gap-2">
+        <div key={i} className="flex items-start gap-2">
           <div className="w-32">
             <Field
               label={t("generalSection.links.label")}
@@ -61,7 +61,18 @@ function ContactLinksEditor({ links, onChange }: ContactLinksEditorProps) {
               maxLength={300}
             />
           </div>
-          <Btn size="sm" variant="danger" onClick={() => onChange(links.filter((_, idx) => idx !== i))}>
+          <Btn
+            size="sm"
+            variant="danger"
+            // Explicit top offset + a fixed square box (not just `mt-5`) so the button's box is
+            // pixel-identical to the Field input's own box (26px = the label row + gap above the
+            // input; 38px = the input's own rendered height) — matching only the top offset left
+            // the button centered against the label+input pair instead of the input itself
+            // ("too high"), and height alone (no matching width) stretched the round button into
+            // an oval, since Btn's own horizontal padding no longer matched the taller box.
+            className="mt-[26px] w-[38px] h-[38px] shrink-0"
+            onClick={() => onChange(links.filter((_, idx) => idx !== i))}
+          >
             ✕
           </Btn>
         </div>

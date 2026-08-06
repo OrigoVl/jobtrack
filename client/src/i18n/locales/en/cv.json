@@ -119,7 +119,11 @@
       "projects": { "title": "Projects" },
       "education": { "title": "Education" },
       "certifications": { "title": "Certifications" },
+      "awards": { "title": "Awards" },
+      "publications": { "title": "Publications" },
+      "volunteer": { "title": "Volunteer Experience" },
       "languages": { "title": "Languages" },
+      "references": { "title": "References" },
       "design": { "title": "Design" }
     },
     "toasts": {
@@ -227,7 +231,7 @@
     },
     "certifications": {
       "noneYet": "None yet",
-      "hint": "Add a certification or award — it'll show up as a separate section in the CV.",
+      "hint": "Add a certification — it'll show up as a separate section in the CV.",
       "addEntry": "+ Add entry",
       "name": "Name",
       "namePlaceholder": "AWS Certified Developer",
@@ -235,6 +239,43 @@
       "issuerPlaceholder": "Amazon Web Services",
       "date": "Date",
       "datePlaceholder": "2023"
+    },
+    "awards": {
+      "noneYet": "None yet",
+      "hint": "Add an award or honor — it'll show up as a separate section in the CV.",
+      "addEntry": "+ Add entry",
+      "title": "Award",
+      "titlePlaceholder": "Employee of the Year",
+      "issuer": "Issuer",
+      "issuerPlaceholder": "Acme Corp",
+      "date": "Date",
+      "datePlaceholder": "2023"
+    },
+    "publications": {
+      "noneYet": "None yet",
+      "hint": "Add a publication — it'll show up as a separate section in the CV.",
+      "addEntry": "+ Add publication",
+      "title": "Title",
+      "titlePlaceholder": "Scaling Postgres to a Billion Rows",
+      "publisher": "Publisher",
+      "publisherPlaceholder": "Acme Engineering Blog",
+      "date": "Date",
+      "datePlaceholder": "2024",
+      "url": "Link",
+      "urlPlaceholder": "acme.com/blog/scaling-postgres"
+    },
+    "volunteer": {
+      "noneYet": "None yet",
+      "hint": "Add a volunteer role — it'll show up as a separate section in the CV.",
+      "addEntry": "+ Add entry",
+      "role": "Role",
+      "rolePlaceholder": "Mentor",
+      "organization": "Organization",
+      "organizationPlaceholder": "Code Club",
+      "period": "Period",
+      "periodPlaceholder": "2021 — 2022",
+      "description": "Description",
+      "descriptionPlaceholder": "What you did, the impact…"
     },
     "languages": {
       "native": "Native",
@@ -245,10 +286,24 @@
       "languageN": "Language {{n}}",
       "namePlaceholder": "English",
       "level": "Level"
+    },
+    "references": {
+      "noneYet": "None yet",
+      "hint": "Add a reference — it'll show up as a separate section in the CV.",
+      "addEntry": "+ Add reference",
+      "name": "Name",
+      "namePlaceholder": "Jane Smith",
+      "relation": "Relation",
+      "relationPlaceholder": "Manager at Acme Corp",
+      "contact": "Contact",
+      "contactPlaceholder": "jane@acme.com"
     }
   },
   "appearance": {
-    "template": { "title": "Template" },
+    "template": {
+      "title": "Template",
+      "atsRiskHint": "Two-column layouts can read out of order in some ATS/AI resume parsers — prefer a single-column template when applying through a job site."
+    },
     "style": {
       "title": "Style",
       "serif": "Serif",
@@ -280,7 +335,7 @@
   "layoutPresets": {
     "order": {
       "title": "Section order",
-      "twoColHint": "In \"Two columns\", Skills/Languages/Education/Certifications go in the side column, the rest in the main one."
+      "twoColHint": "In \"Two columns\", Skills/Languages/Education/Certifications/References go in the side column, the rest in the main one."
     },
     "sections": {
       "summary": "Profile",
@@ -289,7 +344,11 @@
       "projects": "Projects",
       "education": "Education",
       "certifications": "Certifications",
-      "languages": "Languages"
+      "awards": "Awards",
+      "publications": "Publications",
+      "volunteer": "Volunteer Experience",
+      "languages": "Languages",
+      "references": "References"
     },
     "presets": {
       "title": "Presets",
@@ -341,6 +400,7 @@
       "experience": "Experience",
       "projects": "Projects",
       "education": "Education",
+      "certifications": "Certifications",
       "languages": "Languages"
     }
   },

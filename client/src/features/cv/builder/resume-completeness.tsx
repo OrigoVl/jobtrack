@@ -1,18 +1,24 @@
 import { useTranslation } from "react-i18next";
 import type { CvDoc } from "../../../shared/types";
 
-/** Small "how complete is this resume" widget — 7 binary checks (general info, summary, skills,
- * experience, projects, education, languages), shown as a % + progress bar + missing list.
- * Sits above the accordion nav so it's the first thing you see, not buried at the bottom. */
+/** Small "how complete is this resume" widget — 8 binary checks (general info, summary, skills,
+ * experience, projects, education, certifications, languages), shown as a % + progress bar +
+ * missing list. Sits above the accordion nav so it's the first thing you see, not buried at the
+ * bottom. Deliberately does NOT track the newer optional sections (awards/publications/volunteer/
+ * references) — most CVs legitimately have none of those, and counting them here would dilute the
+ * score with noise instead of nudging toward what actually matters for most applications. */
 export function ResumeCompleteness({ doc, bare = false }: { doc: CvDoc; bare?: boolean }) {
   const { t } = useTranslation(["cv", "common"]);
   const checks: [boolean, string][] = [
     [!!(doc.name.trim() && doc.title.trim() && doc.contact.trim()), t("completeness.checks.generalInfo")],
     [doc.summary.trim().length > 0, t("completeness.checks.summary")],
     [doc.skills.length > 0, t("completeness.checks.skills")],
-    [doc.experience.length > 0, t("completeness.checks.experience")],
+    // Requires an actual bullet, not just a bare role/company row — an empty entry doesn't help
+    // an ATS/AI parse pull out anything to match against a job posting.
+    [doc.experience.some((e) => e.bullets.some((b) => b.trim())), t("completeness.checks.experience")],
     [doc.projects.some((p) => p.title.trim() || p.description.trim()), t("completeness.checks.projects")],
     [doc.education.some((e) => e.school.trim() || e.degree.trim()), t("completeness.checks.education")],
+    [(doc.certifications ?? []).some((c) => c.name.trim()), t("completeness.checks.certifications")],
     [(doc.languages ?? []).filter((l) => l.name.trim()).length > 0, t("completeness.checks.languages")],
   ];
   const done = checks.filter(([ok]) => ok).length;
