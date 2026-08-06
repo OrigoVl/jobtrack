@@ -64,7 +64,9 @@
       "arrow": "Стрілка",
       "text": "Текст"
     },
-    "colorLabel": "Колір"
+    "colorLabel": "Колір",
+    "fullscreenEnter": "На весь екран",
+    "fullscreenExit": "Вийти з повноекранного режиму"
   },
   "grade": {
     "unavailable": "AI недоступний для перевірки.",

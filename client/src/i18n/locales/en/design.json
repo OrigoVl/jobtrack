@@ -64,7 +64,9 @@
       "arrow": "Arrow",
       "text": "Text"
     },
-    "colorLabel": "Color"
+    "colorLabel": "Color",
+    "fullscreenEnter": "Fullscreen",
+    "fullscreenExit": "Exit fullscreen"
   },
   "grade": {
     "unavailable": "AI is unavailable for grading.",

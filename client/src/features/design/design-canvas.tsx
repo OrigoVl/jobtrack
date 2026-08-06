@@ -22,6 +22,7 @@ import {
   ArrowToolIcon,
   CursorIcon,
   EllipseToolIcon,
+  ExpandIcon,
   LayersIcon,
   PencilIcon,
   RectangleToolIcon,
@@ -480,11 +481,15 @@ function DesignCanvasInner({
   onChange,
   heightClass,
   readOnly,
+  fullscreen,
+  onToggleFullscreen,
 }: {
   initialDiagram: DesignDiagram;
   onChange: (d: DesignDiagram) => void;
   heightClass: string;
   readOnly: boolean;
+  fullscreen: boolean;
+  onToggleFullscreen: () => void;
 }) {
   const { t } = useTranslation("design");
   const [theme] = useTheme();
@@ -509,6 +514,20 @@ function DesignCanvasInner({
     // each render, which would otherwise refire this effect every render with no actual diagram change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges, annotations]);
+
+  // Escape backs out of fullscreen — the same expectation as any other full-viewport overlay in
+  // the app (e.g. cv-preview-panel.tsx's own modal), skipped while the text-annotation textarea
+  // has focus so its own Escape-to-blur (AnnotationLayer's onKeyDown) isn't shadowed.
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (document.activeElement?.tagName === "TEXTAREA") return;
+      onToggleFullscreen();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [fullscreen, onToggleFullscreen]);
 
   const onConnect = useCallback((connection: Connection) => setEdges((eds) => addEdge(connection, eds)), [setEdges]);
 
@@ -582,11 +601,27 @@ function DesignCanvasInner({
           >
             <Background gap={16} />
             <Controls showInteractive={false} />
+            {/* Always available (readOnly reference views benefit from more room just as much as
+                the editable trainer canvas) — needs the same z-index bump as the toolbar below so
+                the AnnotationLayer's full-size draw overlay can't cover it either. */}
+            <Panel position="top-right" className="!m-2" style={{ zIndex: 10 }}>
+              <button
+                type="button"
+                onClick={onToggleFullscreen}
+                title={t(fullscreen ? "canvas.fullscreenExit" : "canvas.fullscreenEnter")}
+                aria-label={t(fullscreen ? "canvas.fullscreenExit" : "canvas.fullscreenEnter")}
+                className="flex items-center justify-center h-8 w-8 rounded-lg bg-surface/95 backdrop-blur border border-grid shadow-md text-ink-dim hover:text-ink transition-colors"
+              >
+                {/* No dedicated "collapse" icon in the shared set — a literal ✕ for exiting
+                    fullscreen matches cv-preview-panel.tsx's own modal-close convention. */}
+                {fullscreen ? <span className="text-base leading-none">✕</span> : <ExpandIcon className="h-4 w-4" />}
+              </button>
+            </Panel>
             {/* Floating pill toolbar over the canvas (Excalidraw's own layout), instead of a
                 full-width row above the sidebar — keeps the tool switcher next to the surface it
                 acts on. */}
             {!readOnly && (
-              <Panel position="top-center" className="!m-2">
+              <Panel position="top-center" className="!m-2" style={{ zIndex: 10 }}>
                 <div className="flex items-center gap-3 flex-wrap bg-surface/95 backdrop-blur border border-grid rounded-xl shadow-md px-2.5 py-2">
                   <Segmented
                     value={tool}
@@ -660,9 +695,24 @@ export function DesignCanvas({
    * (design-reference-panel.tsx), which is a view, not an edit surface. */
   readOnly?: boolean;
 }) {
+  // Toggling this only swaps the wrapping div's own classes (fixed+inset vs. the normal inline
+  // heightClass) — it deliberately does NOT remount ReactFlowProvider/DesignCanvasInner, so the
+  // in-progress diagram, viewport pan/zoom, and active tool all survive entering/leaving
+  // fullscreen instead of resetting.
+  const [fullscreen, setFullscreen] = useState(false);
   return (
-    <ReactFlowProvider>
-      <DesignCanvasInner initialDiagram={initialDiagram} onChange={onChange} heightClass={heightClass} readOnly={readOnly} />
-    </ReactFlowProvider>
+    <>
+      {fullscreen && <div className="fixed inset-0 z-40 bg-ink/60 cursor-default" onClick={() => setFullscreen(false)} aria-hidden />}
+      <ReactFlowProvider>
+        <DesignCanvasInner
+          initialDiagram={initialDiagram}
+          onChange={onChange}
+          heightClass={fullscreen ? "fixed inset-3 md:inset-6 z-50 bg-surface rounded-2xl shadow-xl border border-grid p-3" : heightClass}
+          readOnly={readOnly}
+          fullscreen={fullscreen}
+          onToggleFullscreen={() => setFullscreen((f) => !f)}
+        />
+      </ReactFlowProvider>
+    </>
   );
 }
