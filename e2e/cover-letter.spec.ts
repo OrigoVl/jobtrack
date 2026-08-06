@@ -15,5 +15,8 @@ test("generates an offline cover letter on the CV page", async ({ page }) => {
   await page.getByRole("button", { name: "Generate letter" }).click();
 
   await expect(page.getByText(/Hello!/)).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("button", { name: "⬇️ PDF" })).toBeVisible();
+  // exact: true — the page also has a "CV to PDF" button elsewhere, which now that emoji no
+  // longer separate their accessible names, a substring match would also resolve to (strict-mode
+  // violation, two elements for one locator).
+  await expect(page.getByRole("button", { name: "PDF", exact: true })).toBeVisible();
 });

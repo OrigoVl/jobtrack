@@ -2,89 +2,251 @@
 @tailwind components;
 @tailwind utilities;
 
-/* DevRadar type system — IBM Plex Mono (headings/data/nav, "instrument panel" feel) + IBM Plex
-   Sans (body/UI text), shared with the approved marketing landing page. Local static woff2 files
-   (client/public/fonts/, latin subset) — NOT base64-embedded (fine for a one-off marketing
-   artifact, wrong for a real app bundle) and NOT the variable-font file Google serves to a modern
-   UA by default (drizzle-kit-style pinned per-weight static files instead, for predictable
-   `font-weight` matching across browsers). */
+/* Zorya type system, matching the marketing landing page: Unbounded (display — headings/
+   wordmark, chunky/rounded weight 700-900), Manrope (body/UI text). Local static woff2 files
+   (client/public/fonts/) — NOT base64-embedded (fine for a one-off marketing artifact, wrong for
+   a real app bundle) and NOT the variable-font file Google serves to a modern UA by default
+   (pinned per-weight static files instead, for predictable `font-weight` matching across
+   browsers). Both families ship real Cyrillic subsets (verified against Google Fonts' metadata),
+   so unlike the previous iteration of this palette, no IBM-Plex-style fallback layer is needed —
+   the `uk` locale renders in the same designed typefaces as `en`.
+
+   No self-hosted mono face this time: the landing page itself has no mono role at all (no
+   eyebrow/data label uses one), so `.font-mono`/`fontFamily.mono` (tailwind.config.js) is just a
+   system stack (ui-monospace etc.) — it's only reached for a handful of genuinely-technical
+   spots (the ⌘K palette hint, tabular timers) where matching the OS's own monospace is enough
+   and doesn't need brand-matching. */
 @font-face {
-  font-family: "IBM Plex Sans";
+  font-family: "Unbounded";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/unbounded-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Unbounded";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/fonts/unbounded-800.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Unbounded";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("/fonts/unbounded-900.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Unbounded";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/unbounded-cyrillic-700.woff2") format("woff2");
+  unicode-range: U+0400-045F, U+0490-0491, U+2116;
+}
+@font-face {
+  font-family: "Unbounded";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/fonts/unbounded-cyrillic-800.woff2") format("woff2");
+  unicode-range: U+0400-045F, U+0490-0491, U+2116;
+}
+@font-face {
+  font-family: "Unbounded";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("/fonts/unbounded-cyrillic-900.woff2") format("woff2");
+  unicode-range: U+0400-045F, U+0490-0491, U+2116;
+}
+@font-face {
+  font-family: "Manrope";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/ibm-plex-sans-400.woff2") format("woff2");
+  src: url("/fonts/manrope-400.woff2") format("woff2");
 }
 @font-face {
-  font-family: "IBM Plex Sans";
+  font-family: "Manrope";
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("/fonts/ibm-plex-sans-500.woff2") format("woff2");
+  src: url("/fonts/manrope-500.woff2") format("woff2");
 }
 @font-face {
-  font-family: "IBM Plex Sans";
+  font-family: "Manrope";
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("/fonts/ibm-plex-sans-600.woff2") format("woff2");
+  src: url("/fonts/manrope-600.woff2") format("woff2");
 }
 @font-face {
-  font-family: "IBM Plex Sans";
+  font-family: "Manrope";
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url("/fonts/ibm-plex-sans-700.woff2") format("woff2");
+  src: url("/fonts/manrope-700.woff2") format("woff2");
 }
 @font-face {
-  font-family: "IBM Plex Mono";
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/fonts/manrope-800.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/manrope-cyrillic-400.woff2") format("woff2");
+  unicode-range: U+0400-045F, U+0490-0491, U+2116;
+}
+@font-face {
+  font-family: "Manrope";
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("/fonts/ibm-plex-mono-500.woff2") format("woff2");
+  src: url("/fonts/manrope-cyrillic-500.woff2") format("woff2");
+  unicode-range: U+0400-045F, U+0490-0491, U+2116;
 }
 @font-face {
-  font-family: "IBM Plex Mono";
+  font-family: "Manrope";
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("/fonts/ibm-plex-mono-600.woff2") format("woff2");
+  src: url("/fonts/manrope-cyrillic-600.woff2") format("woff2");
+  unicode-range: U+0400-045F, U+0490-0491, U+2116;
 }
 @font-face {
-  font-family: "IBM Plex Mono";
+  font-family: "Manrope";
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url("/fonts/ibm-plex-mono-700.woff2") format("woff2");
+  src: url("/fonts/manrope-cyrillic-700.woff2") format("woff2");
+  unicode-range: U+0400-045F, U+0490-0491, U+2116;
+}
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/fonts/manrope-cyrillic-800.woff2") format("woff2");
+  unicode-range: U+0400-045F, U+0490-0491, U+2116;
 }
 
-/* DevRadar design tokens (see tailwind.config.js — every color utility below resolves through
+/* Zorya design tokens (see tailwind.config.js — every color utility below resolves through
    one of these). RGB triplets (not hex) so Tailwind's opacity modifiers work (bg-signal/10, etc).
-   The real, day-to-day app defaults to the LIGHT set — dense tables/forms are easier on the eyes
-   in light mode than the dramatic dark marketing-page look, even though both share the same
-   token system. `:root[data-theme="dark"]` is wired up for a future in-app dark-mode toggle. */
+   `:root[data-theme="dark"]` is wired up for the in-app dark-mode toggle — the landing page itself
+   has no dark mode at all (it's a single-scroll marketing page), so the dark values below are this
+   app's own derived extension of its palette, not lifted from the landing.
+
+   Glossary vs. the landing page's own token names:
+     app --signal/--alert ≡ landing --accent-ink   (deep indigo — TEXT/thin-border role)
+     app --star/--horizon ≡ landing --accent        (vivid indigo — solid-FILL role)
+     app --grid           ≡ landing --line
+   `alert`/`horizon` are kept as their own token NAMES (not deleted) purely so the ~40 existing
+   `bg-alert`/`text-alert`/`bg-horizon` call sites across the app don't all need touching — but
+   they resolve to the exact same value as `signal`/`star`. The landing has exactly one accent
+   color ("One card. One accent. Reused everywhere on purpose" — its own comment), not two, so
+   this app now follows that rather than inventing a second brand hue. Contexts that genuinely
+   need a THIRD, visually distinct tier (a 0-100 score, a stoplight) use the new --good (below)
+   for the "high" end instead of a fake second accent — see charts.tsx/admin.tsx/cv.tsx etc.
+
+   Re-synced from the landing's PREVIOUS coral (#ff5470/#c22a49) to its CURRENT indigo accent
+   (#4338ca/#312a96, landing.html's own :root) — the landing moved on to a new palette, this file
+   had not been touched since the coral pass. All contrast ratios below are freshly recomputed for
+   the new hue (WCAG 2.1 relative-luminance formula), not carried over from the coral-era comments. */
 :root {
   color-scheme: light;
-  --bg: 243 247 244; /* #f3f7f4 */
+  --bg: 250 249 246; /* #faf9f6 */
   --surface: 255 255 255; /* #ffffff */
-  --surface-2: 231 239 234; /* #e7efea */
-  --grid: 212 224 216; /* #d4e0d8 */
-  --ink: 14 22 19; /* #0e1613 */
-  --ink-dim: 76 95 86; /* #4c5f56 */
-  --signal: 14 143 92; /* #0e8f5c — deepened for AA contrast on white */
-  --alert: 180 83 9; /* #b45309 — deep amber/rust */
+  --surface-2: 243 239 231; /* #f3efe7 — recessed/inset tone (inputs, ghost buttons, Skeleton,
+                                Segmented track); the landing has no equivalent (no form controls),
+                                so this is interpolated between --bg and --grid. */
+  --grid: 236 231 224; /* #ece7e0 — the landing's --line, verbatim */
+  --ink: 23 20 22; /* #171416 — the landing's --ink, verbatim */
+  --ink-dim: 107 101 96; /* #6b6560 — the landing's --ink-dim, verbatim; 5.46:1 on --bg */
+  --signal: 49 42 150; /* #312a96 — the landing's own --accent-ink, verbatim (it already deepens
+                           its vivid --accent for exactly this text-safe role — no re-deepening
+                           needed this time). 11.04:1 on --surface, 10.49:1 on --bg — AAA even for
+                           normal text, well past the coral-era value's 5.6:1. */
+  --alert: 49 42 150; /* = --signal (see the glossary note above: one accent, not two) */
+  --star: 67 56 202; /* #4338ca — the landing's --accent, verbatim. Solid-fill role only (Btn
+                         primary, active nav, badges) — matches the landing's own
+                         `.btn-primary { background: var(--accent); color: #fff }` exactly.
+                         White text on this fill: 7.9:1 — AAA even for normal text (the coral
+                         accent only cleared AA-large, ~3.1:1; indigo is comfortably darker at the
+                         same saturation, so this is a genuine accessibility improvement, not just
+                         a hue swap). */
+  --horizon: 67 56 202; /* = --star */
+  --on-signal: 255 255 255; /* white — matches the landing's button text exactly */
+  --good: 26 115 80; /* #1a7350 — unchanged: independent of the accent hue (see the landing's own
+                         --good: #1f8a5f, still defined but unused there), deepened the same way
+                         --signal deepens --accent, same 4.5 AA text-threshold reasoning as before.
+                         Used for the "high/positive/done" end of a 0-100 score or stoplight
+                         (roadmap done, high CV-match, high conversion) — the single accent can't
+                         do double duty as both "the brand" and "this number is good". 5.82:1 on
+                         --surface. */
+  --progress: 180 83 9; /* #b45309 — Tailwind amber-700. A third stoplight hue, same reasoning as
+                            --good: the roadmap's "in progress" state used to reuse the single
+                            brand accent (--star/--signal), which is indigo post-rebrand — fine as
+                            "the brand", but reads as generic/informational rather than "midway",
+                            and was visually indistinguishable from any other accent-colored UI on
+                            the page. Amber is the conventional third stoplight color (todo/
+                            in-progress/done ≈ gray/amber/green) and sits far from both indigo and
+                            green on the hue wheel. 5.02:1 on --surface (white text/label). */
+  --chart-1: 67 56 202; /* #4338ca = --star. A 2-series chart (radar: "you" vs "market demand")
+                            needs two genuinely distinguishable identities, not one hue at two
+                            opacities — with --alert==--signal (this file's own glossary note),
+                            both series used to render as the literal same color otherwise.
+                            Not reusing --good here: it's the "positive/high score" semantic
+                            (Offer, high CV-match) — market demand isn't a value judgment. */
+  --chart-2: 217 119 6; /* #d97706 — Tailwind amber-600, chosen for hue distance from the new
+                            indigo --chart-1 (the previous --chart-2, violet #8b5cf6, sat right next
+                            to indigo on the wheel once --chart-1 became indigo too — no longer a
+                            genuinely distinguishable second identity). Blue-vs-amber is also on the
+                            axis largely preserved by the two most common CVD types (protan/deutan,
+                            which confuse red/green, not blue/yellow) — a safer pairing than two
+                            adjacent blue-violets. 3.19:1 on --surface (passes the 3:1 non-text/
+                            graphical-object threshold; this is a chart mark, not body text). */
 }
 
-:root[data-theme="dark"] {
+/* Deliberately `[data-theme="dark"]`, NOT `:root[data-theme="dark"]` — the app-wide toggle
+   (shared/theme.ts) sets this attribute on <html> (:root itself), so nothing changes for it, but
+   a plain attribute selector also matches a nested element carrying the same attribute (kept this
+   way on the off chance a future screen wants a locally-forced theme, same trick the auth pages
+   used with the previous palette). */
+[data-theme="dark"] {
   color-scheme: dark;
-  --bg: 11 18 16; /* #0b1210 */
-  --surface: 18 27 23; /* #121b17 */
-  --surface-2: 26 38 32; /* #1a2620 */
-  --grid: 36 56 48; /* #243830 */
-  --ink: 234 243 238; /* #eaf3ee */
-  --ink-dim: 143 167 154; /* #8fa79a */
-  --signal: 95 227 138; /* #5fe38a — phosphor green */
-  --alert: 255 180 84; /* #ffb454 */
+  --bg: 20 16 18; /* #141012 */
+  --surface: 32 26 29; /* #201a1d */
+  --surface-2: 42 35 39; /* #2a2327 */
+  --grid: 58 50 54; /* #3a3236 */
+  --ink: 244 239 233; /* #f4efe9 */
+  --ink-dim: 168 158 151; /* #a89e97 — 5.1:1 on --surface */
+  --signal: 165 180 252; /* #a5b4fc — Tailwind indigo-300, lightened for text-on-dark contrast
+                             (8.59:1 on --surface); the deepened light-mode --signal (#312a96)
+                             would be unreadable here. A clean named Tailwind shade rather than a
+                             custom tint, same approach --chart-2 below already uses. */
+  --alert: 165 180 252; /* = --signal */
+  --star: 67 56 202; /* same vivid indigo as light mode — a solid fill doesn't need to change
+                         between themes, only text/thin-border colors do */
+  --horizon: 67 56 202; /* = --star */
+  --on-signal: 255 255 255;
+  --good: 79 216 160; /* #4fd8a0 — lightened green for dark-bg text contrast (9.5:1 on --surface) */
+  --progress: 251 191 36; /* #fbbf24 — Tailwind amber-400, lightened the same way --good is for
+                              dark-bg text contrast (10.25:1 on --surface); see the light-mode
+                              --progress comment above for why this needs its own hue at all. */
+  --chart-1: 129 140 248; /* #818cf8 — Tailwind indigo-400, NOT the same value as light mode's
+                              --star. The light-mode #4338ca is only 2.17:1 against the dark
+                              --surface — under the 3:1 non-text/graphical-object threshold for a
+                              chart mark — so this is a lighter indigo tuned for dark-surface
+                              visibility (5.74:1), same reason --signal gets its own
+                              darker-surface-tuned value above, just recalibrated for a chart
+                              mark's contrast floor, not text contrast. */
 }
 
 html,
@@ -95,20 +257,84 @@ body,
 
 body {
   @apply text-ink antialiased font-sans;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   background-color: rgb(var(--bg));
-  background-image:
-    radial-gradient(1100px 520px at 100% -10%, rgb(var(--signal) / 0.08), transparent 55%),
-    radial-gradient(900px 520px at -10% 5%, rgb(var(--alert) / 0.06), transparent 50%);
-  background-attachment: fixed;
+  /* A faint dot-grid, ported from the landing page's own body background (its "data points"
+     motif — this app computes real numbers from real postings, the same story the landing
+     sells). Deliberately NOT the landing's starfield sparkles too: those are a one-time-view
+     marketing flourish, and scattered star shapes behind a dense working screen (tables, the
+     Kanban board, forms) would read as noise, not texture, while someone's trying to scan real
+     data. Grid dots at a low 6% (vs. the landing's 10%) for the same reason — busier screens
+     need a quieter background than a single hero ever does. Uses `--ink` directly rather than a
+     hardcoded neutral so it flips automatically with `data-theme` (near-black dots on the light
+     `--bg`, near-white on the dark one) with no separate dark-mode override needed. */
+  background-image: radial-gradient(rgb(var(--ink) / 0.06) 1px, transparent 1px);
+  background-size: 26px 26px;
 }
 
-/* Headings, nav/brand and data labels use the mono "instrument panel" face with tight tracking —
-   applied via a utility class (see shared/ui.tsx PageHeader, App.tsx Brand/nav) rather than
-   globally on <h1>-<h6> so it only lands where the reskin brief actually calls for it. */
+/* Card elevation, ported from the landing page's own `.card` rule — a permanent soft resting
+   shadow, not just an on-hover one (see landing.html's own comment history: it started
+   hover-only, then the "background feels empty" pass made it permanent everywhere). A hand-
+   written class rather than a Tailwind `boxShadow` theme value because it needs a different
+   opacity per `data-theme` (see below), which a single static token can't express.
+   The light-mode rgba figure (23, 20, 22) is this app's own `--ink` RGB triplet, verbatim from
+   the landing's `.card` rule — not a coincidence, the shadow tints toward the same neutral as
+   the rest of the palette instead of a generic black. */
+.card-shadow {
+  box-shadow:
+    0 1px 2px rgba(23, 20, 22, 0.04),
+    0 12px 32px -24px rgba(23, 20, 22, 0.16);
+}
+/* The landing has no dark mode to crib a dark shadow value from, so this is this app's own: a
+   black shadow needs noticeably higher opacity to read at all against an already-dark surface,
+   but kept just as tight/short-throw so it doesn't fight the surface/bg contrast that's already
+   doing most of the "this is a raised card" work once `--surface` sits visibly lighter than
+   `--bg` in dark mode. */
+[data-theme="dark"] .card-shadow {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 12px 32px -24px rgba(0, 0, 0, 0.6);
+}
+
+/* Opt-in hover deepening for cards that want to feel a little "alive" under the pointer even
+   though they're not a button/link (the Dashboard's bento stat tiles) — a small lift + a
+   noticeably longer shadow throw than the resting `.card-shadow`, same neutral tint. Pair with
+   `.card-shadow` on the same element (this only defines the `:hover` delta); own transition so
+   callers don't need to remember `transition-[transform,box-shadow]` themselves. */
+.card-shadow-hover {
+  transition:
+    transform 0.2s ease-out,
+    box-shadow 0.2s ease-out;
+}
+.card-shadow-hover:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 2px 4px rgba(23, 20, 22, 0.06),
+    0 24px 48px -20px rgba(23, 20, 22, 0.22);
+}
+[data-theme="dark"] .card-shadow-hover:hover {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.4),
+    0 24px 48px -20px rgba(0, 0, 0, 0.7);
+}
+
+/* Headings and the wordmark use the display face — applied via a utility class (see
+   shared/ui.tsx PageHeader/Wordmark) rather than globally on <h1>-<h6> so it only lands where the
+   reskin brief actually calls for it. Unbounded is chunky/geometric at heavy weights; -0.01em
+   tracking matches the landing's own h1/h2/h3 rule exactly (tighter tracking reads badly at these
+   particular weights, unlike the previous, lighter display face). */
 .font-display {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  letter-spacing: -0.02em;
+  font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Small bold accent-colored label — the landing's own `.eyebrow` verbatim: `font-size: 0.8rem;
+   font-weight: 700; color: var(--accent-ink)`. Deliberately NOT uppercase/letter-spaced/mono this
+   time (the previous palette's instrument-panel eyebrow doesn't belong to this warmer, plainer
+   type system) — just small bold body-font text in the accent color. */
+.eyebrow {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: rgb(var(--signal));
 }
 
 /* тонші, сучасні скролбари */

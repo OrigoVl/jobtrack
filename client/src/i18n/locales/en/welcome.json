@@ -1,0 +1,16 @@
+{
+  "stepIndicator": "Step {{step}} of {{total}}",
+  "skip": "Skip setup",
+  "continue": "Continue",
+  "step1": {
+    "title": "Welcome to Zorya",
+    "subtitle": "What role are you targeting? This sharpens your skill radar and job search from the start.",
+    "placeholder": "e.g. Backend Developer, Product Designer"
+  },
+  "step2": {
+    "title": "You're set up",
+    "subtitle": "Track your first vacancy now, or explore the dashboard — you can always do this later.",
+    "addVacancy": "Add my first vacancy",
+    "goToDashboard": "Go to dashboard"
+  }
+}

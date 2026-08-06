@@ -1,4 +1,5 @@
 {
+  "eyebrow": "Practice",
   "title": "Mock interview",
   "subtitle": "An interview simulation: a random selection of questions and problems with a timer. Say your answer out loud, then check yourself.",
   "start": {
@@ -13,7 +14,7 @@
     "title": "Interview finished!",
     "hint_one": "You went through {{count}} question. The best way to reinforce this is to review the weak topics in \"Practice\".",
     "hint_other": "You went through {{count}} questions. The best way to reinforce this is to review the weak topics in \"Practice\".",
-    "newSession": "🔄 New session"
+    "newSession": "New session"
   },
   "progress": "Question {{current}} / {{total}}",
   "finish": "Finish",
@@ -24,16 +25,54 @@
   "answer": {
     "ariaLabel": "Your answer to the question",
     "placeholder": "Write your answer — AI will evaluate it and give feedback…",
-    "evaluate": "✨ Evaluate answer (AI)",
+    "evaluate": "Evaluate answer (AI)",
     "aiOffline": "AI offline — set a key in server/.env",
     "evaluateFailed": "Couldn't evaluate — try again."
   },
-  "showAnswer": "👁 Show answer",
+  "showAnswer": "Show answer",
   "next": "Next →",
-  "finishSession": "Finish 🏁",
+  "finishSession": "Finish",
   "eval": {
     "unavailable": "AI is unavailable for evaluation.",
-    "strengths": "✓ Strengths",
+    "strengths": "Strengths",
     "missed": "△ What was missed"
+  },
+  "subMode": {
+    "pool": "Practice pool",
+    "live": "Live interview"
+  },
+  "voice": {
+    "startTitle": "Ready for a live interview?",
+    "startHint": "The AI asks real questions out loud, tailored to a vacancy you pick (or a general interview) — answer by speaking or typing, and it reacts and continues the conversation.",
+    "vacancyLabel": "Interview for",
+    "generalOption": "General interview",
+    "questionsLabel": "Number of questions",
+    "questionsOption_one": "{{count}} question",
+    "questionsOption_other": "{{count}} questions",
+    "autoSpeak": "Read questions aloud automatically",
+    "voiceLabel": "Voice",
+    "voiceHint": "Fallback voice — only used if AI narration is unavailable",
+    "voiceAuto": "Auto (best available)",
+    "testVoice": "▶ Test voice",
+    "testPhrase": "Hi, thanks for coming in today. Let's get started.",
+    "start": "▶ Start interview",
+    "offlineHint": "AI offline — set a key in server/.env to run a live interview.",
+    "micUnsupported": "Voice input isn't supported in this browser — try Chrome or Edge. You can still type your answer.",
+    "offline": "AI offline — couldn't continue the interview.",
+    "retry": "Try again",
+    "progress": "Question {{current}} of ~{{total}}",
+    "finish": "Finish",
+    "replay": "Replay question",
+    "record": "Record answer",
+    "stopRecording": "⏹ Stop",
+    "listening": "Listening…",
+    "answerAriaLabel": "Your spoken or typed answer",
+    "answerPlaceholder": "Speak or type your answer…",
+    "send": "Send answer",
+    "finished": {
+      "title": "Interview finished!",
+      "newInterview": "New interview",
+      "endedEarly": "The interview ended before a final assessment could be generated."
+    }
   }
 }

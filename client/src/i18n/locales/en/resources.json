@@ -1,11 +1,12 @@
 {
+  "eyebrow": "Resources",
   "title": "Resources & references",
   "subtitle": "The best guides, practice platforms, cheat sheets, and a prep checklist — all in one place.",
   "tabs": {
-    "bestPractices": "⭐ Best practices",
-    "platforms": "💻 Platforms",
-    "cheatSheet": "🗒 Cheat sheet",
-    "checklist": "✅ Checklist ({{done}}/{{total}})"
+    "bestPractices": "Best practices",
+    "platforms": "Platforms",
+    "cheatSheet": "Cheat sheet",
+    "checklist": "Checklist ({{done}}/{{total}})"
   },
   "focus": {
     "heading": "Your focus:"

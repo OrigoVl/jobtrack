@@ -3,8 +3,8 @@
 import i18n from "../i18n";
 import type { Fit } from "./types";
 
-export const fitTone: Record<Fit, "emerald" | "amber" | "rose"> = { high: "emerald", med: "amber", low: "rose" };
-export const fitText: Record<Fit, string> = { high: "text-signal", med: "text-alert", low: "text-rose-600" };
+export const fitTone: Record<Fit, "good" | "indigo" | "rose"> = { high: "good", med: "indigo", low: "rose" };
+export const fitText: Record<Fit, string> = { high: "text-good", med: "text-signal", low: "text-rose-600" };
 
 // A Record (not a template literal) so each value stays a literal key i18next's typed t() can
 // actually verify against common.json — a `${fit}` interpolation would collapse to a plain

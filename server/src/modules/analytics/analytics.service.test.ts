@@ -44,7 +44,7 @@ describe("buildAnalyticsSummary()", () => {
     ];
     // one vacancy reached "Tech interview" at some point in its history before being rejected
     const reached = { "Tech interview": 1, Applied: 2, Rejected: 1 };
-    const { funnel, funnelReached } = buildAnalyticsSummary(rows, reached, {}, []);
+    const { funnel, funnelReached } = buildAnalyticsSummary(rows, reached);
     expect(funnel["Tech interview"]).toBe(0); // current snapshot: nothing is AT that stage now
     expect(funnelReached["Tech interview"]).toBe(1); // but one vacancy passed through it
     expect(funnel["Rejected"]).toBe(1);
@@ -56,22 +56,12 @@ describe("buildAnalyticsSummary()", () => {
       { status: "Applied", created: "2026-01-01", applied: "" },
       { status: "Applied", created: "2026-01-02", applied: "" },
     ];
-    const { byDate } = buildAnalyticsSummary(rows, {}, {}, []);
+    const { byDate } = buildAnalyticsSummary(rows, {});
     expect(byDate).toEqual({ "2026-01-01": 2, "2026-01-02": 1 });
   });
 
-  it("builds the radar as the top-8 demanded skills, marking 'you' only for known skills", () => {
-    const demand = { React: 10, Vue: 5, Go: 8 };
-    const { radar } = buildAnalyticsSummary([], {}, demand, ["React"]);
-    expect(radar).toEqual([
-      { tech: "React", demand: 10, you: 10 },
-      { tech: "Go", demand: 8, you: 0 },
-      { tech: "Vue", demand: 5, you: 0 },
-    ]);
-  });
-
   it("initializes every FUNNEL_ORDER stage to 0 even with no rows", () => {
-    const { funnel, funnelReached } = buildAnalyticsSummary([], {}, {}, []);
+    const { funnel, funnelReached } = buildAnalyticsSummary([], {});
     FUNNEL_ORDER.forEach((stage) => {
       expect(funnel[stage]).toBe(0);
       expect(funnelReached[stage]).toBe(0);
@@ -93,15 +83,28 @@ describe("buildFocusSummary()", () => {
       { status: "Applied", next: "2026-08-01", applied: "2026-07-20" },
       { status: "Applied", next: "2026-08-10", applied: "2026-07-20" },
     ];
-    const summary = buildFocusSummary({ rows, demand: {}, knownSkills: [], dueCards: 0, today, nowMs });
+    const summary = buildFocusSummary({ rows, demand: {}, gapPriority: {}, knownSkills: [], dueCards: 0, today, nowMs });
     expect(summary.overdue).toBe(1);
     expect(summary.upcoming).toBe(1);
   });
 
-  it("gaps are the top-5 demanded skills not already known, most-demanded first", () => {
+  it("gaps are the top-5 by gapPriority not already known, highest priority first, with demand's own count displayed", () => {
     const demand = { React: 10, Vue: 5, Go: 8, Rust: 1 };
-    const summary = buildFocusSummary({ rows: [], demand, knownSkills: ["React"], dueCards: 0, today, nowMs });
+    const summary = buildFocusSummary({ rows: [], demand, gapPriority: demand, knownSkills: ["React"], dueCards: 0, today, nowMs });
     expect(summary.gaps).toEqual(["Go (8)", "Vue (5)", "Rust (1)"]);
+  });
+
+  it("ranks gaps by gapPriority, NOT by raw demand — the two can disagree", () => {
+    const summary = buildFocusSummary({
+      rows: [],
+      demand: { Docker: 10, AWS: 4 },
+      gapPriority: { Docker: 1, AWS: 9 },
+      knownSkills: [],
+      dueCards: 0,
+      today,
+      nowMs,
+    });
+    expect(summary.gaps).toEqual(["AWS (4)", "Docker (10)"]);
   });
 
   it("counts interviews as vacancies in Tech interview/Take-home task/Final", () => {
@@ -110,7 +113,7 @@ describe("buildFocusSummary()", () => {
       { status: "Final", next: "", applied: "2026-07-01" },
       { status: "Applied", next: "", applied: "2026-07-01" },
     ];
-    const summary = buildFocusSummary({ rows, demand: {}, knownSkills: [], dueCards: 0, today, nowMs });
+    const summary = buildFocusSummary({ rows, demand: {}, gapPriority: {}, knownSkills: [], dueCards: 0, today, nowMs });
     expect(summary.interviews).toBe(2);
   });
 });

@@ -1,8 +1,9 @@
 {
+  "eyebrow": "Сигнал сьогодні",
   "title": "Дашборд",
   "subtitle": "Штаб-квартира твого пошуку роботи: прогрес по вакансіях, найближчі кроки та швидкий доступ до всього.",
   "onboarding": {
-    "heading": "👋 Початок роботи",
+    "heading": "Початок роботи",
     "progress": "{{done}}/{{total}} кроків виконано",
     "steps": {
       "vacancy": "Додай свою першу вакансію",
@@ -23,38 +24,68 @@
     "active": "Активні",
     "inInterviews": "На співбесідах",
     "cardsLearned": "Вивчено карток",
-    "streak": "Днів поспіль"
+    "streak": "Днів поспіль",
+    "dueToday_one": "{{count}} на сьогодні",
+    "dueToday_few": "{{count}} на сьогодні",
+    "dueToday_many": "{{count}} на сьогодні",
+    "dueToday_other": "{{count}} на сьогодні",
+    "streakRecord_one": "рекорд: {{count}} день",
+    "streakRecord_few": "рекорд: {{count}} дні",
+    "streakRecord_many": "рекорд: {{count}} днів",
+    "streakRecord_other": "рекорд: {{count}} дня"
+  },
+  "designReminder": {
+    "heading": "Скоро співбесіда з system design",
+    "message_one": "Через {{count}} день — варто потренуватись у Тренері архітектури.",
+    "message_few": "Через {{count}} дні — варто потренуватись у Тренері архітектури.",
+    "message_many": "Через {{count}} днів — варто потренуватись у Тренері архітектури.",
+    "message_other": "Через {{count}} дня — варто потренуватись у Тренері архітектури.",
+    "cta": "Практикуватись"
+  },
+  "bottleneck": {
+    "text": "Найдовше застряг на етапі «{{status}}» — у середньому {{days}} дн."
   },
   "focusWeek": {
-    "heading": "🎯 Фокус тижня",
-    "analyzing": "✨ Аналізуємо стан твого пошуку…",
+    "heading": "Фокус тижня",
+    "analyzing": "Аналізуємо стан твого пошуку…",
     "empty": "Додай кілька вакансій — і тут з'являться персональні пріоритети на тиждень.",
     "offline": "Базові поради (ШІ офлайн). Додай ключ у server/.env для персонального аналізу."
   },
   "roadmapProgress": {
-    "heading": "🗺️ Прогрес дорожньої карти",
+    "heading": "Прогрес дорожньої карти",
     "open": "Відкрити →",
     "skillsKnown": "{{done}} з {{total}} навичок позначено як відомі",
-    "topGap": "пріоритетна прогалина: {{tech}}"
+    "learning_one": "{{count}} у процесі",
+    "learning_few": "{{count}} у процесі",
+    "learning_many": "{{count}} у процесі",
+    "learning_other": "{{count}} у процесі",
+    "topGap": "пріоритетна прогалина: {{tech}}",
+    "strengths": "Сильні сторони: {{techs}}"
   },
   "upcomingSteps": {
-    "heading": "📅 Найближчі кроки",
-    "disableReminders": "Вимкнути нагадування",
-    "remindersEnabled": "🔔 Нагадування увімкнено (вимкнути)",
-    "enableReminders": "🔔 Увімкнути нагадування",
-    "empty": "Нічого не заплановано — додай дату «наступного кроку» до своїх вакансій."
+    "heading": "Найближчі кроки",
+    "empty": "Нічого не заплановано — додай дату «наступного кроку» до своїх вакансій.",
+    "emptyCta": "Додати дату до вакансії →",
+    "eventsHeading": "Найближчі події"
   },
-  "quickActions": {
-    "heading": "⚡ Швидкі дії",
-    "vacancyAnalysis": "🔍 Аналіз вакансії",
-    "roadmap": "🗺️ Дорожня карта",
-    "review": "🧠 Повторення",
-    "cvAnalysis": "📄 Аналіз резюме",
-    "cardsDueToday": "Карток на повторення сьогодні:"
+  "skillRadar": {
+    "heading": "Радар навичок",
+    "open": "Відкрити →",
+    "caption": "Попит проти твого рівня (0–100)"
   },
-  "notifications": {
-    "enabledToast": "Нагадування увімкнено — перевіримо прострочені кроки, коли ти наступного разу відкриєш застосунок",
-    "deniedToast": "Дозвіл на сповіщення не надано",
-    "disabledToast": "Нагадування вимкнено"
+  "progressNext": {
+    "heading": "Прогрес і наступні кроки"
+  },
+  "cvCompleteness": {
+    "heading": "Заповненість резюме",
+    "open": "Відкрити →"
+  },
+  "staleContacts": {
+    "heading": "Варто нагадати про себе",
+    "open": "Відкрити →",
+    "daysSince_one": "{{count}} день тому",
+    "daysSince_few": "{{count}} дні тому",
+    "daysSince_many": "{{count}} днів тому",
+    "daysSince_other": "{{count}} дня тому"
   }
 }

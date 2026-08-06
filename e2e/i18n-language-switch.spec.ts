@@ -11,8 +11,6 @@ import { test, expect } from "@playwright/test";
 test("switches the UI language, updates <html lang>, and persists the choice across a reload", async ({ page }) => {
   await page.goto("/dashboard");
 
-  // The nav link's accessible name includes its emoji icon ("🏠 Dashboard") — matched by
-  // substring, not `exact`, so the icon doesn't have to be repeated in this test.
   const dashboardNavLink = page.getByRole("link", { name: "Dashboard" });
   const dashboardNavLinkUk = page.getByRole("link", { name: "Дашборд" });
   await expect(dashboardNavLink).toBeVisible();

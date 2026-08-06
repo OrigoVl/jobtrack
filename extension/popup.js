@@ -1,4 +1,4 @@
-// DevRadar Job Clipper — popup script.
+// Zorya Job Clipper — popup script.
 //
 // CONFIGURE THIS for your deployment. Local dev against `pnpm --filter jobtrack-server start`
 // (or `docker compose up`) serves the API at :3001 directly — that's the real origin to fetch,
@@ -116,7 +116,7 @@ async function init() {
     statusEl.textContent = "";
     try {
       // credentials: "include" — this is the whole trick: the browser attaches the user's
-      // EXISTING DevRadar session cookie automatically (cookies belong to the site's origin,
+      // EXISTING Zorya session cookie automatically (cookies belong to the site's origin,
       // not to this extension), so there's no need to read/copy cookies via the `cookies` API.
       const res = await fetch(`${API_ORIGIN}/api/vacancies`, {
         method: "POST",
@@ -130,18 +130,18 @@ async function init() {
         }),
       });
       if (res.status === 401) {
-        statusEl.textContent = "Not logged in to DevRadar — open the app and log in first, then try again.";
+        statusEl.textContent = "Not logged in to Zorya — open the app and log in first, then try again.";
         saveBtn.disabled = false;
-        saveBtn.textContent = "Save to DevRadar";
+        saveBtn.textContent = "Save to Zorya";
         return;
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       statusEl.textContent = "✓ Saved to your tracker.";
       saveBtn.textContent = "✓ Saved";
     } catch {
-      statusEl.textContent = `Couldn't reach DevRadar at ${API_ORIGIN} — is the server running?`;
+      statusEl.textContent = `Couldn't reach Zorya at ${API_ORIGIN} — is the server running?`;
       saveBtn.disabled = false;
-      saveBtn.textContent = "Save to DevRadar";
+      saveBtn.textContent = "Save to Zorya";
     }
   });
 }

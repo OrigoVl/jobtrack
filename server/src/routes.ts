@@ -22,6 +22,13 @@ import contacts from "./modules/contacts/contacts.routes.js";
 import cvShares from "./modules/cv-shares/cv-shares.routes.js";
 import savedSearches from "./modules/saved-searches/saved-searches.routes.js";
 import digest from "./modules/digest/digest.routes.js";
+import design from "./modules/design/design.routes.js";
+// billing's webhook route is deliberately NOT part of this router — it needs the raw request
+// body and is mounted directly in app.ts, before express.json(). Only /billing/me, /checkout,
+// /portal (normal JSON routes) go through the barrel here.
+import billing from "./modules/billing/billing.routes.js";
+import onboarding from "./modules/onboarding/onboarding.routes.js";
+import telegram from "./modules/telegram/telegram.routes.js";
 
 const r = express.Router();
 
@@ -46,5 +53,9 @@ r.use(contacts);
 r.use(cvShares);
 r.use(savedSearches);
 r.use(digest);
+r.use(design);
+r.use(billing);
+r.use(onboarding);
+r.use(telegram);
 
 export default r;

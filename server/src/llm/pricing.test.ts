@@ -11,6 +11,20 @@ describe("estimateCostUsd()", () => {
     expect(estimateCostUsd("gpt-4o-mini", 0, 0)).toBe(0);
   });
 
+  it("computes input+output cost for claude-sonnet-5 (current default ANTHROPIC_MODEL_SMART)", () => {
+    // claude-sonnet-5: $3/1M input, $15/1M output.
+    expect(estimateCostUsd("claude-sonnet-5", 1_000_000, 1_000_000)).toBeCloseTo(18, 8);
+  });
+
+  it("computes input+output cost for gpt-5 (current default OPENAI_MODEL_SMART)", () => {
+    // gpt-5: $1.25/1M input, $10/1M output.
+    expect(estimateCostUsd("gpt-5", 1_000_000, 1_000_000)).toBeCloseTo(11.25, 8);
+  });
+
+  it("keeps pricing the retired claude-sonnet-4-5-20250929 model — historical llmUsage rows may still reference it", () => {
+    expect(estimateCostUsd("claude-sonnet-4-5-20250929", 1_000_000, 1_000_000)).toBeCloseTo(18, 8);
+  });
+
   it("returns null (not 0) for an unrecognized model — an unknown cost must not look free", () => {
     expect(estimateCostUsd("some-future-model-2027", 1000, 1000)).toBeNull();
   });

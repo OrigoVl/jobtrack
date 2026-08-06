@@ -13,6 +13,7 @@ export function Projects() {
   return (
     <div className="space-y-4">
       <PageHeader
+        eyebrow={t("eyebrow")}
         title={t("title")}
         subtitle={t("subtitle")}
         actions={<Chip tone="emerald">{t("doneCount", { done: doneItems, total: totalItems })}</Chip>}
@@ -25,6 +26,7 @@ export function Projects() {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-bold text-ink text-lg">{p.name}</span>
                 <Chip tone="indigo">{p.phase}</Chip>
+                {p.personalized && <Chip tone="emerald">{t("aiIdea")}</Chip>}
               </div>
               <div className="text-xs text-ink-dim">{p.subtitle}</div>
               <div className="flex flex-wrap gap-1.5 mt-2">

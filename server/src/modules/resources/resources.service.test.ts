@@ -11,14 +11,14 @@ vi.mock("../../db/index.js", () => ({
   getKvJson: vi.fn(async () => null),
   setKvJson: vi.fn(),
 }));
-vi.mock("../../shared/demand.js", () => ({ demandMap: vi.fn() }));
+vi.mock("../../shared/demand.js", () => ({ demandMap: vi.fn(), gapPriorityMap: vi.fn() }));
 vi.mock("../../llm/index.js", () => ({
   llmAvailable: vi.fn(() => false),
   chatJson: vi.fn(),
 }));
 
 import { getProfile, getKvJson, setKvJson } from "../../db/index.js";
-import { demandMap } from "../../shared/demand.js";
+import { demandMap, gapPriorityMap } from "../../shared/demand.js";
 import { llmAvailable, chatJson } from "../../llm/index.js";
 import { getDynamicResources } from "./resources.service.js";
 
@@ -26,6 +26,7 @@ const getProfileMock = vi.mocked(getProfile);
 const getKvJsonMock = vi.mocked(getKvJson);
 const setKvJsonMock = vi.mocked(setKvJson);
 const demandMapMock = vi.mocked(demandMap);
+const gapPriorityMapMock = vi.mocked(gapPriorityMap);
 const llmAvailableMock = vi.mocked(llmAvailable);
 const chatJsonMock = vi.mocked(chatJson);
 
@@ -38,6 +39,9 @@ describe("getDynamicResources()", () => {
   it("prepends a synthesized 'for you' group and ranks React to the top of the static guide when React is a gap", async () => {
     getProfileMock.mockResolvedValue({ skills: ["Vue", "Node.js"], cvText: "", domain: "Frontend" });
     demandMapMock.mockResolvedValue({ React: 8, Vue: 2 });
+    // gapPriority never includes a known skill's own key (unlike raw demand, which counts every
+    // mention regardless) — Vue is known, so only React shows up here, same as real semantics.
+    gapPriorityMapMock.mockResolvedValue({ React: 8 });
 
     const result = await getDynamicResources(BOOTSTRAP_USER_ID, false);
 
@@ -59,6 +63,7 @@ describe("getDynamicResources()", () => {
   it("keeps the guide's original order when there is no vacancy data yet", async () => {
     getProfileMock.mockResolvedValue({ skills: [], cvText: "", domain: "" });
     demandMapMock.mockResolvedValue({});
+    gapPriorityMapMock.mockResolvedValue({});
 
     const result = await getDynamicResources(BOOTSTRAP_USER_ID, false);
 
@@ -77,6 +82,7 @@ describe("getDynamicResources()", () => {
   it("reorders the static checklist by relevance and prepends a synthesized gap action", async () => {
     getProfileMock.mockResolvedValue({ skills: [], cvText: "", domain: "" });
     demandMapMock.mockResolvedValue({ Docker: 5 });
+    gapPriorityMapMock.mockResolvedValue({ Docker: 5 });
 
     const result = await getDynamicResources(BOOTSTRAP_USER_ID, false);
 
@@ -95,6 +101,7 @@ describe("getDynamicResources()", () => {
   it("says there are no major gaps when demand is fully covered by profile skills", async () => {
     getProfileMock.mockResolvedValue({ skills: ["React", "Vue", "Docker"], cvText: "", domain: "" });
     demandMapMock.mockResolvedValue({ React: 3 });
+    gapPriorityMapMock.mockResolvedValue({});
 
     const result = await getDynamicResources(BOOTSTRAP_USER_ID, false);
 
@@ -105,6 +112,7 @@ describe("getDynamicResources()", () => {
   it("uses the LLM-personalized focus and checklist action, caching both, when available", async () => {
     getProfileMock.mockResolvedValue({ skills: ["Vue"], cvText: "", domain: "Frontend" });
     demandMapMock.mockResolvedValue({ React: 9 });
+    gapPriorityMapMock.mockResolvedValue({ React: 9 });
     llmAvailableMock.mockReturnValue(true);
     // Called in order: getFocusNote() first, then getPersonalizedActions().
     chatJsonMock

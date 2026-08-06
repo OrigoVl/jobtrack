@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CalendarPanel } from "./calendar-panel";
 import { usePopover, type PopoverCoords } from "./use-popover";
 import { PopoverPanel } from "./popover";
+import { CalendarIcon } from "./icons";
 
 // Matches CalendarPanel's own `w-64` / rough rendered height — used only to keep the popover
 // inside the viewport (see useCalendarPopover below), not for layout.
@@ -50,7 +51,7 @@ function useCalendarPopover() {
   });
 }
 
-/** The small 📅 toggle button glued to the right edge of the input, plus the popover panel (see
+/** The small calendar-icon toggle button glued to the right edge of the input, plus the popover panel (see
  * shared/popover.tsx) around `children` (the CalendarPanel) once open. */
 function PickerButton({
   open,
@@ -75,7 +76,7 @@ function PickerButton({
         onClick={() => setOpen(!open)}
         className="absolute right-1.5 top-1/2 -translate-y-1/2 text-ink-dim hover:text-ink leading-none"
       >
-        📅
+        <CalendarIcon className="h-4 w-4" />
       </button>
       <PopoverPanel open={open} panelRef={panelRef} coords={coords} onClose={() => setOpen(false)}>
         {children}

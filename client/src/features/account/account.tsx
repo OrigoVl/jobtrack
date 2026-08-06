@@ -1,18 +1,57 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Btn, Card, PageHeader } from "../../shared/ui";
+import { useNavigate } from "react-router";
+import { Btn, Card, Chip, PageHeader, ProgressBar } from "../../shared/ui";
 import { deleteUser } from "../../shared/auth-client";
 import { LanguageSwitcher } from "../../shared/language-switcher";
 import { ThemeSwitcher } from "../../shared/theme-switcher";
-import { useDigestPreferences, useSetDigestEnabled } from "../../shared/queries";
+import {
+  useBilling,
+  useCreateTelegramLinkToken,
+  useDigestPreferences,
+  useOpenBillingPortal,
+  useSetDigestEnabled,
+  useTelegramStatus,
+  useUnlinkTelegram,
+} from "../../shared/queries";
+import { useToast } from "../../shared/use-toast";
+import { enableNotifications, disableNotifications, notificationsEnabled, notificationsSupported } from "../../shared/notifications";
 
 export function Account() {
-  const { t } = useTranslation(["account", "common"]);
+  const { t } = useTranslation(["account", "billing", "common"]);
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const { data: digestPrefs } = useDigestPreferences();
   const setDigestEnabledMutation = useSetDigestEnabled();
+  const { data: billing } = useBilling();
+  const openPortal = useOpenBillingPortal();
+  const { data: telegramStatus } = useTelegramStatus();
+  const createTelegramLinkToken = useCreateTelegramLinkToken();
+  const unlinkTelegram = useUnlinkTelegram();
+  const [notifOn, setNotifOn] = useState(() => notificationsEnabled());
   const [deleteRequested, setDeleteRequested] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const onEnableNotifications = async () => {
+    const ok = await enableNotifications();
+    setNotifOn(ok);
+    toast(ok ? t("notifications.enabledToast") : t("notifications.deniedToast"), ok ? "success" : "error");
+  };
+  const onDisableNotifications = () => {
+    disableNotifications();
+    setNotifOn(false);
+    toast(t("notifications.disabledToast"), "success");
+  };
+
+  async function onLinkTelegram() {
+    const { deepLink } = await createTelegramLinkToken.mutateAsync();
+    // A real page navigation (not window.open) — same convention as the billing checkout/portal
+    // redirects, and avoids popup-blocker interference since this runs after an awaited mutation,
+    // not perfectly synchronously with the click. t.me deep links hand off to the Telegram app
+    // (mobile) or web client, then the user comes back here manually once linked.
+    window.location.href = deepLink;
+  }
 
   async function onRequestDelete() {
     setDeleting(true);
@@ -28,7 +67,7 @@ export function Account() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title={t("title")} subtitle={t("subtitle")} />
+      <PageHeader eyebrow={t("eyebrow")} title={t("title")} subtitle={t("subtitle")} />
 
       <Card>
         <div className="text-sm font-semibold text-ink">Language</div>
@@ -40,6 +79,22 @@ export function Account() {
         <div className="text-sm font-semibold text-ink">{t("theme.heading")}</div>
         <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">{t("theme.description")}</p>
         <ThemeSwitcher />
+      </Card>
+
+      <Card>
+        <div className="text-sm font-semibold text-ink">{t("notifications.heading")}</div>
+        <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">{t("notifications.description")}</p>
+        {!notificationsSupported() ? (
+          <p className="text-xs text-ink-dim">{t("notifications.unsupported")}</p>
+        ) : notifOn ? (
+          <Btn size="sm" variant="ghost" onClick={onDisableNotifications}>
+            {t("notifications.disableButton")}
+          </Btn>
+        ) : (
+          <Btn size="sm" onClick={onEnableNotifications}>
+            {t("notifications.enableButton")}
+          </Btn>
+        )}
       </Card>
 
       <Card>
@@ -61,6 +116,66 @@ export function Account() {
             : t("digest.neverSent")}
         </p>
       </Card>
+
+      {telegramStatus && (
+        <Card>
+          <div className="text-sm font-semibold text-ink">{t("telegram.heading")}</div>
+          <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">{t("telegram.description")}</p>
+          {telegramStatus.linked ? (
+            <div className="flex items-center gap-2">
+              <Chip tone="emerald">{t("telegram.linkedBadge")}</Chip>
+              <Btn size="sm" variant="ghost" loading={unlinkTelegram.isPending} onClick={() => unlinkTelegram.mutate()}>
+                {t("telegram.unlinkButton")}
+              </Btn>
+            </div>
+          ) : (
+            <Btn size="sm" loading={createTelegramLinkToken.isPending} onClick={onLinkTelegram}>
+              {t("telegram.linkButton")}
+            </Btn>
+          )}
+        </Card>
+      )}
+
+      {/* Only when STRIPE_* is configured server-side — a self-hosted/dev deployment has no
+          plan concept at all, so this card doesn't render rather than showing a broken one. */}
+      {billing?.billingEnabled && (
+        <Card>
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-sm font-semibold text-ink">{t("billing:plan.heading")}</div>
+            <Chip tone={billing.plan === "free" ? "slate" : "emerald"}>
+              {billing.plan === "free" ? t("billing:plan.free") : t("billing:plan.pro")}
+            </Chip>
+          </div>
+          {billing.aiCallsPerMonth !== null ? (
+            <div className="mt-2 max-w-xs">
+              <div className="text-xs text-ink-dim mb-1">
+                {t("billing:plan.quotaUsed", { used: billing.aiCallsUsed, limit: billing.aiCallsPerMonth })}
+              </div>
+              <ProgressBar value={billing.aiCallsUsed} max={billing.aiCallsPerMonth} tone="indigo" />
+            </div>
+          ) : (
+            <p className="text-xs text-ink-dim mt-1">{t("billing:plan.unlimitedAi")}</p>
+          )}
+          {billing.currentPeriodEnd && (
+            <p className="text-xs text-ink-dim mt-2">
+              {billing.cancelAtPeriodEnd
+                ? t("billing:plan.cancelsOn", { date: new Date(billing.currentPeriodEnd).toLocaleDateString() })
+                : t("billing:plan.renewsOn", { date: new Date(billing.currentPeriodEnd).toLocaleDateString() })}
+            </p>
+          )}
+          <div className="mt-3">
+            {billing.plan === "free" ? (
+              <Btn size="sm" onClick={() => navigate("/pricing")}>
+                {t("billing:upgradeButton")}
+              </Btn>
+            ) : (
+              <Btn size="sm" variant="ghost" loading={openPortal.isPending} onClick={() => openPortal.mutate()}>
+                {t("billing:manageBillingButton")}
+              </Btn>
+            )}
+          </div>
+        </Card>
+      )}
 
       <Card>
         <div className="text-sm font-semibold text-ink">{t("export.heading")}</div>

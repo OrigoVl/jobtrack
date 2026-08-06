@@ -17,13 +17,27 @@ export const queryKeys = {
   projects: ["projects"] as const,
   plan21: ["plan21"] as const,
   companies: ["companies"] as const,
+  // Parameterized: spread with the company id, e.g. [...queryKeys.companyDiagram, id].
+  companyDiagram: ["companyDiagram"] as const,
   adminOverview: ["adminOverview"] as const,
   adminUsers: ["adminUsers"] as const,
   adminLlmUsage: ["adminLlmUsage"] as const,
   adminProductEvents: ["adminProductEvents"] as const,
+  adminBilling: ["adminBilling"] as const,
   calendarCombined: ["calendarCombined"] as const,
   savedSearches: ["savedSearches"] as const,
   contacts: ["contacts"] as const,
+  cvProfiles: ["cvProfiles"] as const,
+  // Parameterized: spread with the profile id, e.g. [...queryKeys.cvDoc, profileId] (same
+  // convention as similarVacancies/companyDiagram above) — a CV Builder tab's own doc/share.
   cvShare: ["cvShare"] as const,
   digestPreferences: ["digestPreferences"] as const,
+  fetchAllStatus: ["fetchAllStatus"] as const,
+  cvDoc: ["cvDoc"] as const,
+  cvReviewJob: ["cvReviewJob"] as const,
+  designCurrent: ["designCurrent"] as const,
+  designHistory: ["designHistory"] as const,
+  billing: ["billing"] as const,
+  onboardingState: ["onboardingState"] as const,
+  telegramStatus: ["telegramStatus"] as const,
 };

@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * "🧪 JS sandbox" (features/study/runner.ts) runs arbitrary code in a Web Worker (not on the
+ * "JS Sandbox" (features/study/runner.ts) runs arbitrary code in a Web Worker (not on the
  * main thread, as it used to) — we check the real browser execution path here. The
  * timeout/kill of an infinite loop (the most important part of the contract) is checked
  * SEPARATELY by a unit test with fake timers and a mock Worker (src/features/study/runner.test.ts)
@@ -12,7 +12,7 @@ import { test, expect } from "@playwright/test";
  */
 test.beforeEach(async ({ page }) => {
   await page.goto("/study");
-  await page.getByRole("button", { name: "⌨️ Drill" }).click();
+  await page.getByRole("button", { name: "Drill" }).click();
   // Static drill problems in the "JavaScript" category have a runnable sandbox block (RUNNABLE_CATS).
   await page.locator("select").first().selectOption("JavaScript");
   await page.getByRole("button", { name: /Open sandbox/ }).click();

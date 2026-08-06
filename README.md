@@ -1,4 +1,4 @@
-# DevRadar — a dynamic job-search tracker (React + Node + Postgres + AI)
+# Zorya — a dynamic job-search tracker (React + Node + Postgres + AI)
 
 A full-featured, lightweight full-stack app: **analyzes job postings and CVs, surfaces skill gaps and market demand, drills you for interviews, and helps with your resume/cover letters.** Stack: **React + TypeScript + Node.js + Postgres/Drizzle (+ optional LLM)**.
 
@@ -255,17 +255,30 @@ addressed as part of this pass:
   mounted on every request; per-account keying there would cost a second session lookup on every
   single API call for a limiter whose job is just a coarse anti-runaway-loop backstop).
 
+Already addressed, continued:
+
+- **Per-account LLM daily spend cap.** `LLM_DAILY_COST_CAP_USD` (`server/.env.example`, default
+  `0`/disabled) — `llm/client.ts` checks the caller's spend for the current UTC day
+  (`telemetry/telemetry.repo.ts#getUserCostUsdSince`) before every provider call on a cache miss,
+  and soft-blocks (returns `null`, the caller degrades to its offline fallback exactly like a
+  self-hoster with no key) once the cap is hit. Fails open if the telemetry read itself errors, so
+  a DB hiccup never takes AI features down. Recorded as `llm_usage.outcome = "budget_exceeded"`.
+  What's still genuinely missing is the "admin-visible flag" half of this — `budget_exceeded` rows
+  aren't yet surfaced anywhere in the admin panel (tracked below).
+- **A Chrome extension exists** (`extension/` — "Zorya Job Clipper", MV3) that captures a job
+  posting from any page (JSON-LD `JobPosting` parsing with a text-heuristic fallback) and saves it
+  via the same session cookie the web app uses. It's dev-only as committed (`host_permissions`
+  hardcoded to `localhost:3001`, no build step, not part of the pnpm workspace) — productionizing
+  it (configurable API origin, form autofill) is tracked below.
+
 Still open, roughly in priority order for an actual multi-user launch:
 
-1. **No per-account LLM cost cap.** The admin panel shows aggregate/per-feature cost
-   (`llm-usage` tab) and the AI rate limiter now caps *request rate* per account, but nothing
-   caps *spend* per account — a user well within the rate limit could still run up real
-   OpenAI/Anthropic cost over time. Would need a running per-user cost total (the `llm_usage`
-   telemetry table already has the data) checked before each `chat()`/`chatJson()` call, with a
-   soft-block + admin-visible flag once a configurable threshold is hit.
-2. **Billing/subscriptions.** There is currently no plan/tier concept, no Stripe (or equivalent)
+1. **Billing/subscriptions.** There is currently no plan/tier concept, no Stripe (or equivalent)
    integration, and no way to gate a feature (e.g. AI calls, or a request-volume ceiling) behind a
    paid tier. Needed before charging anyone.
+2. **`budget_exceeded`/`quota_exceeded` visibility in the admin panel.** The data is recorded in
+   `llm_usage.outcome`, but no admin query currently selects, filters, or groups by it — an
+   account hitting its cap is invisible to an admin today.
 3. **In-memory rate-limit store across multiple instances** (already flagged in "Production
    readiness" above) — set `REDIS_URL` before running more than one replica, or the effective
    limit becomes N× the declared one.

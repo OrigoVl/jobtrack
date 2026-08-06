@@ -5,6 +5,7 @@ import {
   buildUpcomingItems,
   hasDigestContent,
   digestHtml,
+  digestText,
   type VacancyDigestRow,
   type DigestContent,
 } from "./digest.service.js";
@@ -125,5 +126,34 @@ describe("digestHtml", () => {
     const withoutStreak = digestHtml({ staleApplications: [], streak: { current: 0, longest: 0, lastActiveDate: "" }, upcoming: [] });
     expect(withStreak).toContain("3-day study streak");
     expect(withoutStreak).toBe("");
+  });
+});
+
+describe("digestText", () => {
+  it("never contains HTML markup — plain text only, for Telegram's limited parse_mode", () => {
+    const text = digestText({
+      staleApplications: [{ id: 1, company: "Acme", position: "Engineer", daysWaiting: 20 }],
+      streak: { current: 0, longest: 0, lastActiveDate: "" },
+      upcoming: [{ label: "Acme — Engineer", date: "2026-08-10" }],
+    });
+    expect(text).not.toMatch(/<[a-z]/i);
+    expect(text).toContain("Acme — Engineer");
+  });
+
+  it("includes a streak line only when the streak is active, matching digestHtml", () => {
+    const withStreak = digestText({
+      staleApplications: [],
+      streak: { current: 3, longest: 3, lastActiveDate: "2026-08-03" },
+      upcoming: [],
+    });
+    const withoutStreak = digestText({ staleApplications: [], streak: { current: 0, longest: 0, lastActiveDate: "" }, upcoming: [] });
+    expect(withStreak).toContain("3-day study streak");
+    expect(withoutStreak).toBe("");
+  });
+
+  it("caps the listed items at MAX_ITEMS and notes how many more there are", () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({ id: i, company: `C${i}`, position: "Engineer", daysWaiting: 20 }));
+    const text = digestText({ staleApplications: many, streak: { current: 0, longest: 0, lastActiveDate: "" }, upcoming: [] });
+    expect(text).toContain("...and 5 more.");
   });
 });

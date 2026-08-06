@@ -1,5 +1,6 @@
 {
   "page": {
+    "eyebrow": "Адмін",
     "title": "Адмін",
     "subtitle": "Користувачі й активність, вартість використання ШІ та аналітика продукту — лише агреговані дані, без тексту резюме чи історії пошуку окремих користувачів."
   },
@@ -8,6 +9,7 @@
     "users": "Користувачі",
     "llm": "Вартість ШІ",
     "product": "Продукт",
+    "billing": "Оплата",
     "logs": "Логи й помилки"
   },
   "dayRange": {
@@ -31,6 +33,9 @@
       "joined": "Дата реєстрації",
       "vacancies": "Вакансії",
       "llmCallsRecent": "Викликів ШІ (нещодавно)",
+      "plan": "Тариф",
+      "costRecent": "Вартість (нещодавно)",
+      "blockedRecent": "Блоковано (нещодавно)",
       "bannedBadge": "заблоковано",
       "actions": "Дії"
     },
@@ -51,7 +56,18 @@
     "totalCostHint": "орієнтовно — див. llm/pricing.ts",
     "totalCallsLabel": "Усього викликів ({{days}} дн)",
     "costByFeature": "Вартість за функцією",
-    "costByDay": "Вартість за днями"
+    "costByDay": "Вартість за днями",
+    "costByModel": "Вартість за моделлю",
+    "costByTier": "Вартість за рівнем",
+    "costByOutcome": "Виклики за результатом",
+    "cachedLabel": "з кешу",
+    "outcomeLabels": {
+      "success": "Успішно",
+      "error": "Помилка",
+      "cache_hit": "З кешу",
+      "budget_exceeded": "Досягнуто денний ліміт витрат",
+      "quota_exceeded": "Досягнуто квоту Free-тарифу"
+    }
   },
   "product": {
     "empty": {
@@ -61,6 +77,14 @@
     "eventsByType": "Події за типом",
     "searchesByDay": "Пошуки роботи за днями",
     "topSearchQueries": "Топ пошукових запитів"
+  },
+  "billing": {
+    "notConfigured": "Оплата не налаштована на цьому розгортанні.",
+    "planMix": "Розподіл за тарифами",
+    "estimatedMrr": "Орієнтовний MRR ({{days}} дн)",
+    "estimatedMrrHint": "кількість активних платних підписок × поточна ціна Pro — орієнтовна оцінка, не звірена зі Stripe",
+    "quotaExceeded": "Досягнуто Free-квоту ({{days}} дн)",
+    "budgetExceeded": "Досягнуто денний ліміт витрат ({{days}} дн)"
   },
   "logs": {
     "empty": {

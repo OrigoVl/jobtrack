@@ -3,13 +3,14 @@
 // their profile (a "gap") — are ranked to the top and flagged, so the same static content reads
 // differently for a Vue dev with a React gap than for a backend engineer missing AWS.
 import { getProfile, getKvJson, setKvJson } from "../../db/index.js";
-import { demandMap } from "../../shared/demand.js";
+import { demandMap, gapPriorityMap } from "../../shared/demand.js";
 import { TECHS } from "../../shared/tech-dict.js";
 import { kbFor } from "../knowledge/knowledge-base.js";
 import { chatJson, llmAvailable } from "../../llm/index.js";
 import { hashString } from "../../shared/hash.js";
 import { z } from "zod";
 import type { UserId } from "../../db/user-id.js";
+import { effectiveTrack, type Track } from "../../shared/tracks.js";
 import { BEST_PRACTICES, PLATFORMS, CHEAT, CHECKLIST, type BestPracticeGroup, type Platform, type CheatSection } from "./resources.data.js";
 import { BEST_PRACTICES_UK, PLATFORMS_UK, CHEAT_UK, CHECKLIST_UK } from "./resources.data.uk.js";
 
@@ -104,9 +105,9 @@ function rankChecklist(items: string[], demand: Record<string, number>, skillSet
 // roadmap's own curated knowledge base (knowledge-base.ts), so a "React" gap surfaces the exact
 // same vetted links/learn bullets the Roadmap page would show for React, no LLM required (safe,
 // always available offline) and no risk of a hallucinated URL.
-function personalizedBestPracticeGroup(gaps: string[], isUk: boolean): RankedBestPracticeGroup | null {
+function personalizedBestPracticeGroup(gaps: string[], isUk: boolean, track: Track): RankedBestPracticeGroup | null {
   const links = gaps.flatMap((tech) =>
-    kbFor(tech)
+    kbFor(tech, track)
       .resources.slice(0, 2)
       .map((r) => ({ t: `${tech}: ${r.t}`, u: r.u })),
   );
@@ -123,9 +124,9 @@ function personalizedBestPracticeGroup(gaps: string[], isUk: boolean): RankedBes
   };
 }
 
-function personalizedCheatSection(gaps: string[], isUk: boolean): RankedCheatSection | null {
+function personalizedCheatSection(gaps: string[], isUk: boolean, track: Track): RankedCheatSection | null {
   const items = gaps.flatMap((tech) =>
-    kbFor(tech)
+    kbFor(tech, track)
       .learn.slice(0, 2)
       .map((l) => `${tech}: ${l}`),
   );
@@ -142,9 +143,11 @@ function personalizedCheatSection(gaps: string[], isUk: boolean): RankedCheatSec
   };
 }
 
-function topGaps(demand: Record<string, number>, skillSet: Set<string>, limit = 3): string[] {
-  return Object.entries(demand)
-    .filter(([tech, count]) => count > 0 && !skillSet.has(tech.toLowerCase()))
+/** Ranked by gapPriority (which gap unlocks the most vacancies), not raw demand (which merely
+ * mentions it most) — see shared/demand.ts's computeGapPriority for why the two can disagree. */
+function topGaps(gapPriority: Record<string, number>, skillSet: Set<string>, limit = 3): string[] {
+  return Object.entries(gapPriority)
+    .filter(([tech, priority]) => priority > 0 && !skillSet.has(tech.toLowerCase()))
     .sort((a, b) => b[1] - a[1])
     .slice(0, limit)
     .map(([tech]) => tech);
@@ -180,7 +183,7 @@ async function getFocusNote(userId: UserId, skills: string[], domain: string | u
   if (cached) return cached;
   const out = await chatJson(
     userId,
-    `You are a concise career mentor for the role "${domain || "professional"}". Respond with ONLY valid JSON.`,
+    `You are a concise career mentor for the role "${domain || "professional"}".`,
     `The candidate already knows: ${skills.join(", ") || "—"}.\n` +
       `Their own vacancies most often require, but they don't have yet: ${gaps.join(", ")}.\n` +
       `Write ONE short, encouraging, concrete sentence (max 30 words) on what to prioritize studying this week and why.\n` +
@@ -206,15 +209,16 @@ async function getPersonalizedActions(
   domain: string | undefined,
   gaps: string[],
   isUk: boolean,
+  track: Track,
 ): Promise<string[]> {
-  const fallback = gaps.map((tech) => `${tech}: ${kbFor(tech).learn[0] ?? (isUk ? "повтори основи" : "review the fundamentals")}`);
+  const fallback = gaps.map((tech) => `${tech}: ${kbFor(tech, track).learn[0] ?? (isUk ? "повтори основи" : "review the fundamentals")}`);
   if (!llmAvailable() || gaps.length === 0) return fallback;
   const cacheKey = `resources-actions:${hashString(`${[...skills].sort().join(",")}|${gaps.join(",")}`)}`;
   const cached = await getKvJson<string[]>(userId, cacheKey);
   if (cached && cached.length === gaps.length) return cached;
   const out = await chatJson(
     userId,
-    `You are a concise career mentor for the role "${domain || "professional"}". Respond with ONLY valid JSON.`,
+    `You are a concise career mentor for the role "${domain || "professional"}".`,
     `The candidate needs to close these skill gaps, in this priority order: ${gaps.join(", ")}.\n` +
       `For EACH gap, in the SAME order, write ONE short, concrete, checklist-style action (max 18 words) — ` +
       `something specific to build or practice this week, not generic advice.\n` +
@@ -228,20 +232,22 @@ async function getPersonalizedActions(
 }
 
 export async function getDynamicResources(userId: UserId, isUk: boolean): Promise<DynamicResourcesData> {
-  const [profile, demand] = await Promise.all([getProfile(userId), demandMap(userId)]);
+  const profile = await getProfile(userId);
+  const track = effectiveTrack(profile);
   const skills = profile.skills || [];
+  const [demand, gapPriority] = await Promise.all([demandMap(userId), gapPriorityMap(userId, skills)]);
   const skillSet = new Set(skills.map((s) => s.toLowerCase()));
-  const gaps = topGaps(demand, skillSet);
+  const gaps = topGaps(gapPriority, skillSet);
 
   const bestPractices = rankBestPractices(isUk ? BEST_PRACTICES_UK : BEST_PRACTICES, demand, skillSet);
   const platforms = rankPlatforms(isUk ? PLATFORMS_UK : PLATFORMS, demand, skillSet);
   const cheat = rankCheat(isUk ? CHEAT_UK : CHEAT, demand, skillSet);
   const checklist = rankChecklist(isUk ? CHECKLIST_UK : CHECKLIST, demand, skillSet);
   const focus = await getFocusNote(userId, skills, profile.domain, gaps, isUk);
-  const actions = await getPersonalizedActions(userId, skills, profile.domain, gaps, isUk);
+  const actions = await getPersonalizedActions(userId, skills, profile.domain, gaps, isUk, track);
 
-  const personalizedGroup = personalizedBestPracticeGroup(gaps, isUk);
-  const personalizedCheat = personalizedCheatSection(gaps, isUk);
+  const personalizedGroup = personalizedBestPracticeGroup(gaps, isUk, track);
+  const personalizedCheat = personalizedCheatSection(gaps, isUk, track);
   const personalizedChecklist: ChecklistItem[] = actions.map((text) => ({ text, relevant: true }));
 
   return {

@@ -9,3 +9,15 @@ export const DEFAULT_LOCALE: AppLocale = "en";
 export function isAppLocale(value: string): value is AppLocale {
   return (SUPPORTED_LOCALES as readonly string[]).includes(value);
 }
+
+/** Slavic 1/2-4/5+ plural rule (11-14 are always the "many" form even though they end in a digit
+ * that would otherwise read as "few") — same algorithm i18next applies to uk_one/_few/_many
+ * client-side, hand-rolled here for server-generated template text (not an i18next key). Used by
+ * any server template that counts something in Ukrainian (the 21-day plan, pet projects). */
+export function ukPluralForm(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}

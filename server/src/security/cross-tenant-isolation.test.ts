@@ -218,10 +218,18 @@ describe("cross-tenant isolation (PGlite, real HTTP)", () => {
     const gina = await registerAndSignIn("gina@example.test");
     const heidi = await registerAndSignIn("heidi@example.test");
 
-    await api(gina, "/cv/doc", { method: "PUT", body: JSON.stringify({ name: "Gina Public", title: "Engineer" }) });
-    await api(heidi, "/cv/doc", { method: "PUT", body: JSON.stringify({ name: "Heidi Public", title: "Designer" }) });
+    const [ginaProfile] = (await (await api(gina, "/cv/profiles")).json()) as { id: number }[];
+    const [heidiProfile] = (await (await api(heidi, "/cv/profiles")).json()) as { id: number }[];
+    await api(gina, `/cv/profiles/${ginaProfile!.id}/doc`, {
+      method: "PUT",
+      body: JSON.stringify({ name: "Gina Public", title: "Engineer" }),
+    });
+    await api(heidi, `/cv/profiles/${heidiProfile!.id}/doc`, {
+      method: "PUT",
+      body: JSON.stringify({ name: "Heidi Public", title: "Designer" }),
+    });
 
-    const shareRes = await api(gina, "/cv/share", { method: "POST" });
+    const shareRes = await api(gina, `/cv/profiles/${ginaProfile!.id}/share`, { method: "POST" });
     const share = (await shareRes.json()) as { slug: string; enabled: boolean };
 
     // No cookie at all — this is the whole point of a PUBLIC share link.
@@ -237,7 +245,7 @@ describe("cross-tenant isolation (PGlite, real HTTP)", () => {
     expect(wrongSlugRes.status).toBe(404);
 
     // Disabling it takes effect immediately, even though the slug itself didn't change.
-    await api(gina, "/cv/share", { method: "PUT", body: JSON.stringify({ enabled: false }) });
+    await api(gina, `/cv/profiles/${ginaProfile!.id}/share`, { method: "PUT", body: JSON.stringify({ enabled: false }) });
     const disabledRes = await fetch(`${BASE_URL}/api/cv/public/${share.slug}`);
     expect(disabledRes.status).toBe(404);
   });

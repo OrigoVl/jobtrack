@@ -12,9 +12,11 @@ interface ModelPrice {
 const PRICES: Record<string, ModelPrice> = {
   "gpt-4o-mini": { inputPer1M: 0.15, outputPer1M: 0.6 },
   "gpt-4o": { inputPer1M: 2.5, outputPer1M: 10 },
+  "gpt-5": { inputPer1M: 1.25, outputPer1M: 10 },
   "text-embedding-3-small": { inputPer1M: 0.02, outputPer1M: 0 },
   "claude-haiku-4-5-20251001": { inputPer1M: 1, outputPer1M: 5 },
   "claude-sonnet-4-5-20250929": { inputPer1M: 3, outputPer1M: 15 },
+  "claude-sonnet-5": { inputPer1M: 3, outputPer1M: 15 },
 };
 
 /** Estimated USD cost of a call, or null if `model` isn't in the price table above. */

@@ -3,18 +3,34 @@ import { useTranslation } from "react-i18next";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Segmented } from "../../shared/ui";
 import { useUi } from "../../shared/ui-state";
 import { money } from "../../shared/format";
-import { useAdminLlmUsage, useAdminOverview, useAdminProductEvents, useAdminUsers, useBanUser, useUnbanUser } from "../../shared/queries";
+import {
+  useAdminBilling,
+  useAdminLlmUsage,
+  useAdminOverview,
+  useAdminProductEvents,
+  useAdminUsers,
+  useBanUser,
+  useUnbanUser,
+} from "../../shared/queries";
 import { useConfirm } from "../../shared/use-confirm";
 import { useSession } from "../../shared/auth-client";
 
-const AXIS = "#4c5f56"; // --ink-dim
+// CSS custom properties (not hardcoded hex) so these Recharts props — which take inline styles/SVG
+// props, not Tailwind classes — stay correct across the light/dark toggle and the token repaint.
+const AXIS = "rgb(var(--ink-dim))";
 const TOOLTIP = {
-  background: "#ffffff", // --surface
-  border: "1px solid #d4e0d8", // --grid
+  background: "rgb(var(--surface))",
+  border: "1px solid rgb(var(--grid))",
   borderRadius: 12,
-  boxShadow: "0 8px 24px -12px rgba(14,22,19,0.25)",
-  color: "#0e1613", // --ink
+  boxShadow: "0 8px 24px -12px rgb(var(--ink) / 0.25)",
+  color: "rgb(var(--ink))",
 } as const;
+// `contentStyle.color` only styles the tooltip's wrapper <div> — Recharts renders the label and
+// each value line as separate elements with their OWN default color (the value line defaults to
+// the hovered series' own fill, e.g. `--star`), ignoring `contentStyle.color` entirely — see
+// analytics/charts.tsx's identical constants for the full explanation of this Recharts quirk.
+const TOOLTIP_LABEL = { color: "rgb(var(--ink))", fontWeight: 600 } as const;
+const TOOLTIP_ITEM = { color: "rgb(var(--ink))" } as const;
 
 const DAY_RANGE_VALUES = [7, 30, 90];
 
@@ -51,7 +67,7 @@ function UsersTab() {
   const banMutation = useBanUser();
   const unbanMutation = useUnbanUser();
   if (isLoading) return <CardsSkeleton count={1} />;
-  if (!data || data.users.length === 0) return <EmptyState icon="👥" title={t("users.empty.title")} />;
+  if (!data || data.users.length === 0) return <EmptyState title={t("users.empty.title")} />;
   return (
     <Card className="overflow-x-auto">
       <table className="w-full text-sm" role="table">
@@ -62,7 +78,10 @@ function UsersTab() {
             <th className="py-2 pr-3">{t("users.table.role")}</th>
             <th className="py-2 pr-3">{t("users.table.joined")}</th>
             <th className="py-2 pr-3 text-right">{t("users.table.vacancies")}</th>
+            <th className="py-2 pr-3">{t("users.table.plan")}</th>
             <th className="py-2 pr-3 text-right">{t("users.table.llmCallsRecent")}</th>
+            <th className="py-2 pr-3 text-right">{t("users.table.costRecent")}</th>
+            <th className="py-2 pr-3 text-right">{t("users.table.blockedRecent")}</th>
             <th className="py-2 text-right">{t("users.table.actions")}</th>
           </tr>
         </thead>
@@ -85,7 +104,14 @@ function UsersTab() {
                 </td>
                 <td className="py-2 pr-3 text-ink-dim">{new Date(u.createdAt).toLocaleDateString(i18n.language)}</td>
                 <td className="py-2 pr-3 text-right">{u.vacancyCount}</td>
+                <td className="py-2 pr-3">
+                  <Chip tone={u.plan === "free" ? "slate" : "emerald"}>{u.plan}</Chip>
+                </td>
                 <td className="py-2 pr-3 text-right">{u.llmCallsRecent}</td>
+                <td className="py-2 pr-3 text-right">{money(u.llmCostRecentUsd)}</td>
+                <td className="py-2 pr-3 text-right">
+                  {u.blockedCallsRecent > 0 ? <Chip tone="amber">{u.blockedCallsRecent}</Chip> : "—"}
+                </td>
                 <td className="py-2 text-right">
                   {isSelf ? (
                     <span className="text-xs text-ink-dim">—</span>
@@ -130,7 +156,7 @@ function LlmCostTab({ days }: { days: number }) {
   if (data.totalCalls === 0) {
     return (
       <Card>
-        <EmptyState icon="🤖" title={t("llm.empty.title")} hint={t("llm.empty.hint")} />
+        <EmptyState title={t("llm.empty.title")} hint={t("llm.empty.hint")} />
       </Card>
     );
   }
@@ -147,10 +173,16 @@ function LlmCostTab({ days }: { days: number }) {
             <BarChart data={data.byFeature} layout="vertical">
               <XAxis type="number" tick={{ fill: AXIS }} tickFormatter={(v: number) => money(v)} />
               <YAxis type="category" dataKey="feature" width={140} tick={{ fill: AXIS, fontSize: 11 }} />
-              <Tooltip cursor={{ fill: "rgba(14,143,92,0.08)" }} contentStyle={TOOLTIP} formatter={(v: unknown) => money(Number(v))} />
+              <Tooltip
+                cursor={{ fill: "rgb(var(--star) / 0.12)" }}
+                contentStyle={TOOLTIP}
+                labelStyle={TOOLTIP_LABEL}
+                itemStyle={TOOLTIP_ITEM}
+                formatter={(v: unknown) => money(Number(v))}
+              />
               <Bar dataKey="costUsd" radius={[0, 6, 6, 0]}>
                 {data.byFeature.map((_, i) => (
-                  <Cell key={i} fill="#0e8f5c" />
+                  <Cell key={i} fill="rgb(var(--star))" />
                 ))}
               </Bar>
             </BarChart>
@@ -164,8 +196,91 @@ function LlmCostTab({ days }: { days: number }) {
             <BarChart data={data.byDay}>
               <XAxis dataKey="day" tick={{ fill: AXIS, fontSize: 10 }} interval="preserveStartEnd" />
               <YAxis tick={{ fill: AXIS }} tickFormatter={(v: number) => money(v)} />
-              <Tooltip contentStyle={TOOLTIP} formatter={(v: unknown) => money(Number(v))} />
-              <Bar dataKey="costUsd" radius={[4, 4, 0, 0]} fill="#0e8f5c" />
+              <Tooltip
+                contentStyle={TOOLTIP}
+                labelStyle={TOOLTIP_LABEL}
+                itemStyle={TOOLTIP_ITEM}
+                formatter={(v: unknown) => money(Number(v))}
+              />
+              <Bar dataKey="costUsd" radius={[4, 4, 0, 0]} fill="rgb(var(--star))" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+      <Card>
+        <div className="text-sm font-semibold mb-3 text-ink">{t("llm.costByModel")}</div>
+        <div style={{ height: Math.max(160, data.byModel.length * 40) }}>
+          <ResponsiveContainer>
+            <BarChart data={data.byModel.map((m) => ({ ...m, modelLabel: m.model ?? t("llm.cachedLabel") }))} layout="vertical">
+              <XAxis type="number" tick={{ fill: AXIS }} tickFormatter={(v: number) => money(v)} />
+              <YAxis type="category" dataKey="modelLabel" width={140} tick={{ fill: AXIS, fontSize: 11 }} />
+              <Tooltip
+                cursor={{ fill: "rgb(var(--star) / 0.12)" }}
+                contentStyle={TOOLTIP}
+                labelStyle={TOOLTIP_LABEL}
+                itemStyle={TOOLTIP_ITEM}
+                formatter={(v: unknown) => money(Number(v))}
+              />
+              <Bar dataKey="costUsd" radius={[0, 6, 6, 0]}>
+                {data.byModel.map((_, i) => (
+                  <Cell key={i} fill="rgb(var(--star))" />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+      <Card>
+        <div className="text-sm font-semibold mb-3 text-ink">{t("llm.costByTier")}</div>
+        <div style={{ height: Math.max(160, data.byTier.length * 40) }}>
+          <ResponsiveContainer>
+            <BarChart data={data.byTier.map((m) => ({ ...m, tierLabel: m.tier ?? t("llm.cachedLabel") }))} layout="vertical">
+              <XAxis type="number" tick={{ fill: AXIS }} tickFormatter={(v: number) => money(v)} />
+              <YAxis type="category" dataKey="tierLabel" width={140} tick={{ fill: AXIS, fontSize: 11 }} />
+              <Tooltip
+                cursor={{ fill: "rgb(var(--star) / 0.12)" }}
+                contentStyle={TOOLTIP}
+                labelStyle={TOOLTIP_LABEL}
+                itemStyle={TOOLTIP_ITEM}
+                formatter={(v: unknown) => money(Number(v))}
+              />
+              <Bar dataKey="costUsd" radius={[0, 6, 6, 0]}>
+                {data.byTier.map((_, i) => (
+                  <Cell key={i} fill="rgb(var(--star))" />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+      <Card>
+        <div className="text-sm font-semibold mb-3 text-ink">{t("llm.costByOutcome")}</div>
+        {/* Calls, not cost: budget_exceeded/quota_exceeded rows carry no real spend (the whole
+            point is that the call never reached a provider) — a cost-based chart would show them
+            as invisible zero-height bars. This is the first admin view where those two outcomes
+            (previously recorded but never surfaced anywhere) become visible at all. */}
+        <div style={{ height: Math.max(160, data.byOutcome.length * 40) }}>
+          <ResponsiveContainer>
+            <BarChart
+              data={data.byOutcome.map((o) => ({
+                ...o,
+                outcomeLabel: t(`llm.outcomeLabels.${o.outcome}` as never, { defaultValue: o.outcome }),
+              }))}
+              layout="vertical"
+            >
+              <XAxis type="number" tick={{ fill: AXIS }} allowDecimals={false} />
+              <YAxis type="category" dataKey="outcomeLabel" width={160} tick={{ fill: AXIS, fontSize: 11 }} />
+              <Tooltip
+                cursor={{ fill: "rgb(var(--star) / 0.12)" }}
+                contentStyle={TOOLTIP}
+                labelStyle={TOOLTIP_LABEL}
+                itemStyle={TOOLTIP_ITEM}
+              />
+              <Bar dataKey="calls" radius={[0, 6, 6, 0]}>
+                {data.byOutcome.map((o, i) => (
+                  <Cell key={i} fill={o.outcome === "success" || o.outcome === "cache_hit" ? "rgb(var(--star))" : "rgb(var(--alert))"} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -182,7 +297,7 @@ function ProductAnalyticsTab({ days }: { days: number }) {
   if (data.byName.length === 0) {
     return (
       <Card>
-        <EmptyState icon="📈" title={t("product.empty.title")} hint={t("product.empty.hint")} />
+        <EmptyState title={t("product.empty.title")} hint={t("product.empty.hint")} />
       </Card>
     );
   }
@@ -206,8 +321,8 @@ function ProductAnalyticsTab({ days }: { days: number }) {
               <BarChart data={data.searchesByDay}>
                 <XAxis dataKey="day" tick={{ fill: AXIS, fontSize: 10 }} interval="preserveStartEnd" />
                 <YAxis tick={{ fill: AXIS }} allowDecimals={false} />
-                <Tooltip contentStyle={TOOLTIP} />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="#b45309" />
+                <Tooltip contentStyle={TOOLTIP} labelStyle={TOOLTIP_LABEL} itemStyle={TOOLTIP_ITEM} />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="rgb(var(--horizon))" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -230,12 +345,43 @@ function ProductAnalyticsTab({ days }: { days: number }) {
   );
 }
 
+function BillingTab({ days }: { days: number }) {
+  const { t } = useTranslation(["admin", "common"]);
+  const { data, isLoading } = useAdminBilling(days);
+  if (isLoading) return <CardsSkeleton count={2} />;
+  if (!data) return null;
+  if (!data.planCounts.length) {
+    return (
+      <Card>
+        <EmptyState title={t("billing.notConfigured")} />
+      </Card>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      <div className="grid sm:grid-cols-2 gap-3">
+        <StatCard label={t("billing.estimatedMrr", { days })} value={money(data.estimatedMrrUsd)} hint={t("billing.estimatedMrrHint")} />
+        <StatCard label={t("billing.quotaExceeded", { days })} value={String(data.quotaExceededCount)} />
+      </div>
+      <Card>
+        <div className="text-sm font-semibold mb-3 text-ink">{t("billing.planMix")}</div>
+        <div className="flex flex-wrap gap-2">
+          {data.planCounts.map((p) => (
+            <Chip key={`${p.plan}-${p.status}`} tone={p.plan === "free" ? "slate" : "emerald"}>
+              {p.plan} / {p.status}: {p.count}
+            </Chip>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function LogsTab({ logsDashboardUrl }: { logsDashboardUrl: string | null | undefined }) {
   const { t } = useTranslation(["admin", "common"]);
   return (
     <Card>
       <EmptyState
-        icon="🪵"
         title={t("logs.empty.title")}
         hint={t("logs.empty.hint")}
         action={
@@ -244,7 +390,7 @@ function LogsTab({ logsDashboardUrl }: { logsDashboardUrl: string | null | undef
               href={logsDashboardUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-signal hover:text-signal"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-dim hover:text-signal"
             >
               {t("logs.openDashboard")}
             </a>
@@ -255,13 +401,14 @@ function LogsTab({ logsDashboardUrl }: { logsDashboardUrl: string | null | undef
   );
 }
 
-type Tab = "overview" | "users" | "llm" | "product" | "logs";
+type Tab = "overview" | "users" | "llm" | "product" | "billing" | "logs";
 type TabLabelKey = `tabs.${keyof (typeof import("../../i18n/locales/en/admin.json"))["tabs"]}`;
 const TAB_DEF: { value: Tab; labelKey: TabLabelKey }[] = [
   { value: "overview", labelKey: "tabs.overview" },
   { value: "users", labelKey: "tabs.users" },
   { value: "llm", labelKey: "tabs.llm" },
   { value: "product", labelKey: "tabs.product" },
+  { value: "billing", labelKey: "tabs.billing" },
   { value: "logs", labelKey: "tabs.logs" },
 ];
 
@@ -275,6 +422,7 @@ export function Admin() {
   return (
     <div className="space-y-4">
       <PageHeader
+        eyebrow={t("page.eyebrow")}
         title={t("page.title")}
         subtitle={t("page.subtitle")}
         actions={tab !== "users" && tab !== "logs" ? <Segmented value={days} onChange={setDays} options={dayRanges} /> : undefined}
@@ -284,6 +432,7 @@ export function Admin() {
       {tab === "users" && <UsersTab />}
       {tab === "llm" && <LlmCostTab days={days} />}
       {tab === "product" && <ProductAnalyticsTab days={days} />}
+      {tab === "billing" && <BillingTab days={days} />}
       {tab === "logs" && <LogsTab logsDashboardUrl={overview?.logsDashboardUrl} />}
     </div>
   );

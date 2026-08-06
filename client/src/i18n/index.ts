@@ -22,6 +22,10 @@ import enRoadmap from "./locales/en/roadmap.json";
 import ukRoadmap from "./locales/uk/roadmap.json";
 import enAccount from "./locales/en/account.json";
 import ukAccount from "./locales/uk/account.json";
+import enBilling from "./locales/en/billing.json";
+import ukBilling from "./locales/uk/billing.json";
+import enWelcome from "./locales/en/welcome.json";
+import ukWelcome from "./locales/uk/welcome.json";
 import enAdmin from "./locales/en/admin.json";
 import ukAdmin from "./locales/uk/admin.json";
 import enAnalytics from "./locales/en/analytics.json";
@@ -38,6 +42,8 @@ import enContacts from "./locales/en/contacts.json";
 import ukContacts from "./locales/uk/contacts.json";
 import enCv from "./locales/en/cv.json";
 import ukCv from "./locales/uk/cv.json";
+import enDesign from "./locales/en/design.json";
+import ukDesign from "./locales/uk/design.json";
 import enJobs from "./locales/en/jobs.json";
 import ukJobs from "./locales/uk/jobs.json";
 import enLearn from "./locales/en/learn.json";
@@ -86,6 +92,8 @@ export const i18nReady = i18n.use(initReactI18next).init({
       calendar: enCalendar,
       roadmap: enRoadmap,
       account: enAccount,
+      billing: enBilling,
+      welcome: enWelcome,
       admin: enAdmin,
       analytics: enAnalytics,
       analyzer: enAnalyzer,
@@ -94,6 +102,7 @@ export const i18nReady = i18n.use(initReactI18next).init({
       companies: enCompanies,
       contacts: enContacts,
       cv: enCv,
+      design: enDesign,
       jobs: enJobs,
       learn: enLearn,
       mock: enMock,
@@ -110,6 +119,8 @@ export const i18nReady = i18n.use(initReactI18next).init({
       calendar: ukCalendar,
       roadmap: ukRoadmap,
       account: ukAccount,
+      billing: ukBilling,
+      welcome: ukWelcome,
       admin: ukAdmin,
       analytics: ukAnalytics,
       analyzer: ukAnalyzer,
@@ -118,6 +129,7 @@ export const i18nReady = i18n.use(initReactI18next).init({
       companies: ukCompanies,
       contacts: ukContacts,
       cv: ukCv,
+      design: ukDesign,
       jobs: ukJobs,
       learn: ukLearn,
       mock: ukMock,

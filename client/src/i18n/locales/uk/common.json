@@ -35,6 +35,29 @@
     "med": "Середній",
     "low": "Низький"
   },
+  "tracks": {
+    "auto": "Визначити автоматично з CV",
+    "software": "Розробка ПЗ",
+    "qa": "QA",
+    "devops": "DevOps",
+    "data": "Дані",
+    "design": "Дизайн",
+    "product": "Продукт",
+    "security": "Безпека",
+    "sysadmin": "Системне адміністрування"
+  },
+  "roadmapGroups": {
+    "core": "Основи",
+    "frontend": "Фронтенд",
+    "backend": "Бекенд",
+    "database": "Бази даних",
+    "devops": "DevOps",
+    "testing": "Тестування",
+    "ai": "AI",
+    "tools": "Інструменти",
+    "other": "Інше",
+    "skillsInDemand": "Навички в попиті"
+  },
   "errors": {
     "generic": "Сталася помилка",
     "UNSUPPORTED_FILE_TYPE": "Непідтримуваний тип файлу. Дозволено: PDF, DOCX, DOC, TXT, ZIP.",
@@ -54,6 +77,9 @@
     "CV_SHARE_NOT_GENERATED": "Посилання ще не створено — спершу згенеруйте його",
     "CV_TEXT_TOO_SHORT": "Замало вмісту в резюме — додайте ще трохи деталей.",
     "CV_NO_VACANCY_DATA": "У цієї вакансії ще немає деталей для порівняння",
-    "CV_FILL_IN_FIRST": "Спочатку заповніть резюме"
+    "CV_FILL_IN_FIRST": "Спочатку заповніть резюме",
+    "ALREADY_SUBSCRIBED": "У вас уже активна платна підписка",
+    "NO_STRIPE_CUSTOMER": "Спершу оформіть підписку — керування оплатою ще не доступне",
+    "UNKNOWN_PLAN": "Невідомий тариф"
   }
 }

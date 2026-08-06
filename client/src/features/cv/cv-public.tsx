@@ -23,7 +23,6 @@ export function CvPublic() {
         {isLoading && <div className="text-center text-ink-dim text-sm py-20">{t("common:state.loading")}</div>}
         {isError && (
           <div className="max-w-md mx-auto text-center py-20 px-4">
-            <div className="text-4xl mb-3">🔗</div>
             <div className="font-display font-semibold text-ink">{t("publicShare.notFoundTitle")}</div>
             <p className="text-sm text-ink-dim mt-2">{t("publicShare.notFoundHint")}</p>
           </div>

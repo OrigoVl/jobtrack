@@ -1,4 +1,5 @@
 {
+  "eyebrow": "Network",
   "title": "Contacts",
   "subtitle": "A lightweight networking tracker — recruiters, referrals, people you've met — separate from your Companies notes.",
   "addContact": "+ Add contact",
@@ -36,11 +37,11 @@
     "deleted": "Deleted"
   },
   "outreach": {
-    "draftIntro": "✉️ Draft intro",
-    "draftFollowup": "🔁 Draft follow-up",
+    "draftIntro": "Draft intro",
+    "draftFollowup": "Draft follow-up",
     "offlineNotice": "AI unavailable — templated message",
     "messageLabel": "Message",
     "copy": "Copy",
-    "copied": "✓ Copied"
+    "copied": "Copied"
   }
 }

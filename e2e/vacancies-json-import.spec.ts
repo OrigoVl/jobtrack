@@ -15,6 +15,11 @@ import { test, expect } from "@playwright/test";
 test("imports vacancies from a job-tracker.json-shaped file", async ({ page }) => {
   await page.goto("/vacancies");
 
+  // The import forms are collapsed into an "Import ▾" menu (shared/ui.tsx's Dropdown) — the file
+  // input only exists in the DOM once the panel is open (see shared/popover.tsx's `if (!open)
+  // return null`).
+  await page.getByRole("button", { name: "Import" }).click();
+
   const payload = JSON.stringify([
     {
       company: "E2E Test Company",

@@ -5,32 +5,36 @@ import { useToast } from "../use-toast";
 import { useMutationErrorToast } from "../use-error-toast";
 import { queryKeys } from "./keys";
 
-export function useCvShare() {
-  return useQuery({ queryKey: queryKeys.cvShare, queryFn: api.cvShare });
+export function useCvShare(profileId: number | undefined) {
+  return useQuery({
+    queryKey: [...queryKeys.cvShare, profileId],
+    queryFn: () => api.cvShare(profileId!),
+    enabled: profileId !== undefined,
+  });
 }
 
-export function useGenerateCvShare() {
+export function useGenerateCvShare(profileId: number) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const onError = useMutationErrorToast();
   return useMutation({
-    mutationFn: () => api.generateCvShare(),
+    mutationFn: () => api.generateCvShare(profileId),
     onSuccess: async (share) => {
-      qc.setQueryData(queryKeys.cvShare, share);
+      qc.setQueryData([...queryKeys.cvShare, profileId], share);
       toast(i18n.t("cv:shareLink.toasts.created"), "success");
     },
     onError,
   });
 }
 
-export function useSetCvShareEnabled() {
+export function useSetCvShareEnabled(profileId: number) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const onError = useMutationErrorToast();
   return useMutation({
-    mutationFn: (enabled: boolean) => api.setCvShareEnabled(enabled),
+    mutationFn: (enabled: boolean) => api.setCvShareEnabled(profileId, enabled),
     onSuccess: async (share) => {
-      qc.setQueryData(queryKeys.cvShare, share);
+      qc.setQueryData([...queryKeys.cvShare, profileId], share);
       toast(share.enabled ? i18n.t("cv:shareLink.toasts.enabled") : i18n.t("cv:shareLink.toasts.disabled"), "success");
     },
     onError,

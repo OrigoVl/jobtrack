@@ -34,6 +34,14 @@ beforeAll(async () => {
     { userId: USER_A, cardId: "card-1", reps: 2 },
     { userId: USER_B, cardId: "card-1", reps: 5 },
   ]);
+  await testDb.insert(schema.contacts).values([
+    { userId: USER_A, name: "Alice Recruiter" },
+    { userId: USER_B, name: "Bob Recruiter" },
+  ]);
+  await testDb.insert(schema.cvProfiles).values([
+    { userId: USER_A, name: "CV 1", doc: { name: "Alice" }, position: 0 },
+    { userId: USER_B, name: "CV 1", doc: { name: "Bob" }, position: 0 },
+  ]);
 });
 
 describe("exportAccountData() (PGlite)", () => {
@@ -45,6 +53,8 @@ describe("exportAccountData() (PGlite)", () => {
     expect(data.companies).toEqual([expect.objectContaining({ name: "Acme" })]);
     expect(data.vacancyStatusHistory).toHaveLength(1);
     expect(data.srs).toEqual([expect.objectContaining({ cardId: "card-1", reps: 2 })]);
+    expect(data.contacts).toEqual([expect.objectContaining({ name: "Alice Recruiter" })]);
+    expect(data.cvProfiles).toEqual([expect.objectContaining({ name: "CV 1", doc: { name: "Alice" } })]);
     expect(data.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
@@ -54,5 +64,7 @@ describe("exportAccountData() (PGlite)", () => {
     expect(data.vacancies).toEqual([expect.objectContaining({ company: "Globex" })]);
     expect(data.vacancyStatusHistory).toEqual([]);
     expect(data.srs).toEqual([expect.objectContaining({ cardId: "card-1", reps: 5 })]);
+    expect(data.contacts).toEqual([expect.objectContaining({ name: "Bob Recruiter" })]);
+    expect(data.cvProfiles).toEqual([expect.objectContaining({ name: "CV 1", doc: { name: "Bob" } })]);
   });
 });

@@ -5,7 +5,7 @@ import { test, expect } from "@playwright/test";
  * - a SimHash near-duplicate warning toast when a newly-added vacancy reads as the same posting
  *   as one already tracked (server/src/modules/jobs/job-dedupe.ts#findSimhashDuplicate, wired
  *   into POST /vacancies).
- * - the "🔗 similar vacancies" popover (GET /vacancies/:id/similar, pgvector cosine similarity).
+ * - the "Similar vacancies" popover (GET /vacancies/:id/similar, pgvector cosine similarity).
  *   E2E always runs with the LLM/embeddings offline (playwright.config.ts strips both API keys),
  *   so this can only exercise the "nothing found yet" empty state here — the actual similarity
  *   ranking math is covered by vacancies.repo.test.ts's integration tests against real vectors.
@@ -27,6 +27,16 @@ test("flags a likely duplicate (without blocking the add) when a near-identical 
   expect(firstAddRes.ok()).toBeTruthy();
   const firstAddBody = (await firstAddRes.json()) as { id: number };
   expect(firstAddBody.id).toEqual(expect.any(Number));
+
+  // "+ Add vacancy" now opens the detail modal for filling it in right away (see
+  // vacancy-detail-modal.tsx) — close it, or the second "+ Add vacancy" click below (now covered
+  // by the modal's backdrop) wouldn't actually reach the button. Waiting for it to actually be
+  // visible first matters: it opens from the add-mutation's success callback, a render cycle
+  // after the awaited network response above, so it isn't necessarily on-screen yet.
+  const firstAddDialog = page.getByRole("dialog");
+  await expect(firstAddDialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(firstAddDialog).not.toBeVisible();
 
   // Same default "New company" / "Position" text as the first — a trivial near-duplicate.
   const [secondAddRes] = await Promise.all([
@@ -54,6 +64,15 @@ test("the similar-vacancies popover opens, fetches lazily, and reports nothing f
     page.waitForResponse((r) => r.url().includes("/api/vacancies") && r.request().method() === "POST"),
     page.getByRole("button", { name: "+ Add vacancy" }).click(),
   ]);
+  // "+ Add vacancy" now opens the detail modal (vacancy-detail-modal.tsx), which has its own
+  // "Similar vacancies" button too — close it so the table's own button (what this test actually
+  // exercises) isn't obscured by the modal's backdrop. Waiting for it to actually be visible
+  // first matters: it opens from the add-mutation's success callback, a render cycle after the
+  // awaited network response above, so it isn't necessarily on-screen yet.
+  const addDialog = page.getByRole("dialog");
+  await expect(addDialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(addDialog).not.toBeVisible();
 
   // .first() — this spec file's other test may have already added rows to the same shared e2e
   // DB (no per-test reset, only once per suite run, see playwright.config.ts), so more than one
@@ -66,6 +85,6 @@ test("the similar-vacancies popover opens, fetches lazily, and reports nothing f
   ]);
   expect(similarRes.ok()).toBeTruthy();
 
-  await expect(page.getByText("🔗 Similar vacancies")).toBeVisible();
+  await expect(page.getByText("Similar vacancies")).toBeVisible();
   await expect(page.getByText("Nothing similar found yet")).toBeVisible();
 });

@@ -12,10 +12,11 @@ import { env } from "./config/env.js";
 import logger from "./core/logger.js";
 import { errorHandler } from "./core/error-handler.js";
 import { apiLimiter } from "./core/rate-limit.js";
-import { runWithRequestContext } from "./core/request-context.js";
+import { runWithRequestContext, wasAiQuotaExceeded } from "./core/request-context.js";
 import { DEFAULT_LOCALE, isAppLocale } from "./shared/locale.js";
 import { auth } from "./auth/auth.js";
 import routes from "./routes.js";
+import { stripeWebhookHandler } from "./modules/billing/billing.routes.js";
 
 export const app = express();
 
@@ -92,13 +93,25 @@ app.use(
 // below AND to llm/client.ts deep in the stack, from one middleware. An unrecognized/missing
 // header value falls back to the default rather than rejecting the request — this header is
 // metadata about presentation, never something a request should 400 over.
-app.use((req, _res, next) => {
+app.use((req, res, next) => {
   // Node normalizes a repeated header into an array — a client only ever sends one, but treat
   // that case as "no locale" rather than throwing.
   const rawLocale = req.headers["x-locale"];
   const headerValue = typeof rawLocale === "string" ? rawLocale : undefined;
   const locale = headerValue && isAppLocale(headerValue) ? headerValue : DEFAULT_LOCALE;
-  runWithRequestContext(req.id != null ? String(req.id) : randomUUID(), locale, next);
+  runWithRequestContext(req.id != null ? String(req.id) : randomUUID(), locale, () => {
+    // Advisory header for a Free-plan user who just hit their monthly AI quota (see
+    // llm/client.ts's plan-quota check, which sets this via core/request-context.ts's
+    // markAiQuotaExceeded()) — one seam here instead of a response-shape change on every one of
+    // the ~26 AI routes. Patched once per request rather than per-route; a no-op (the flag stays
+    // false) for every non-AI response and for every deployment with billing unconfigured.
+    const originalJson = res.json.bind(res);
+    res.json = (body: unknown) => {
+      if (wasAiQuotaExceeded() && !res.headersSent) res.setHeader("X-AI-Quota-Exceeded", "1");
+      return originalJson(body);
+    };
+    next();
+  });
 });
 
 // better-auth's handler reads the raw request body itself — it MUST be mounted before
@@ -106,6 +119,16 @@ app.use((req, _res, next) => {
 // leave nothing for it to read). Not behind apiLimiter: better-auth has its own built-in,
 // IP-keyed rate limiter for these specific endpoints (auto-enabled in production).
 app.all("/api/auth/*splat", toNodeHandler(auth));
+
+// Same reasoning as the better-auth mount above: Stripe signs the EXACT bytes of the request
+// body (modules/billing/stripe-signature.ts), and express.json() below would consume that stream
+// and hand the webhook handler a re-serialized JS object instead — re-serializing it never
+// reproduces the original bytes (whitespace/unicode-escaping differ), so every signature
+// verification would fail. Mounted directly here (not through routes.ts's barrel, which sits
+// AFTER express.json()) for the same reason. Deliberately outside apiLimiter too: Stripe retries
+// a non-2xx on its own schedule, and a 429 here would read to Stripe as a failing endpoint — this
+// route's only gate is stripe-signature.ts's HMAC check, not a rate limit.
+app.post("/api/billing/webhook", express.raw({ type: "application/json", limit: "1mb" }), stripeWebhookHandler);
 
 app.use(express.json({ limit: "4mb" }));
 app.use("/api", apiLimiter, routes);

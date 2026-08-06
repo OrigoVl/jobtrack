@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Btn, Card, Segmented } from "../../../shared/ui";
 import { useUi } from "../../../shared/ui-state";
+import { ExpandIcon } from "../../../shared/icons";
 import type { CvDoc } from "../../../shared/types";
 import { buildCvHtml } from "./cv-doc-utils";
 
@@ -29,8 +30,9 @@ function emptySectionLabels(doc: CvDoc, t: TFunction<["cv", "common"]>): string[
     [!doc.summary.trim(), t("preview.emptyLabels.summary")],
     [doc.skills.length === 0, t("preview.emptyLabels.skills")],
     [doc.experience.length === 0, t("preview.emptyLabels.experience")],
-    [doc.projects.filter(Boolean).length === 0, t("preview.emptyLabels.projects")],
-    [doc.education.filter(Boolean).length === 0, t("preview.emptyLabels.education")],
+    [doc.projects.filter((p) => p.title.trim() || p.description.trim()).length === 0, t("preview.emptyLabels.projects")],
+    [doc.education.filter((e) => e.school.trim() || e.degree.trim()).length === 0, t("preview.emptyLabels.education")],
+    [(doc.certifications ?? []).filter((c) => c.name.trim()).length === 0, t("preview.emptyLabels.certifications")],
     [(doc.languages ?? []).filter((l) => l.name.trim()).length === 0, t("preview.emptyLabels.languages")],
   ];
   return checks.filter(([empty]) => empty).map(([, label]) => label);
@@ -139,7 +141,7 @@ function PreviewToolbar({
         <span
           title={t("preview.pagesHintTitle")}
           className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full border whitespace-nowrap ${
-            pages > 1 ? "bg-alert/10 text-alert border-alert/30" : "bg-signal/10 text-signal border-signal/30"
+            pages > 1 ? "bg-signal/10 text-signal border-signal/30" : "bg-good/10 text-good border-good/30"
           }`}
         >
           {pages > 1 ? t("preview.pageBadgeMulti", { pages }) : t("preview.pageBadgeSingle")}
@@ -149,7 +151,7 @@ function PreviewToolbar({
         <Segmented value={zoom} onChange={onZoomChange} options={ZOOM_OPTIONS} size="sm" />
         {onToggleFullscreen && (
           <Btn size="sm" variant="ghost" onClick={onToggleFullscreen} title={fullscreenLabel}>
-            ⛶
+            <ExpandIcon className="h-4 w-4" />
           </Btn>
         )}
         <Btn size="sm" variant="ghost" onClick={onExport} title={t("preview.exportTitle")}>
@@ -208,12 +210,13 @@ export function CvPreviewPanel({
         )}
       </Card>
       {/* On <lg screens the preview column isn't sticky (the grid becomes single-column) and
-          comes after all the editing cards — without this button you'd have to scroll through
-          the whole builder to see the result. */}
+          comes after all the editing cards — without one of these two, you'd have to scroll
+          through the whole builder to see the result.
+          True mobile (<sm): a compact round FAB — the most space a tiny screen can spare. */}
       <button
         type="button"
         onClick={() => setFullscreen(true)}
-        className="lg:hidden fixed bottom-5 right-5 z-30 rounded-full bg-signal text-white shadow-lg px-4 py-3 text-sm font-semibold flex items-center gap-1.5 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 focus-visible:ring-offset-2"
+        className="sm:hidden fixed bottom-5 right-5 z-30 rounded-full bg-star text-on-signal shadow-lg px-4 py-3 text-sm font-semibold flex items-center gap-1.5 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 focus-visible:ring-offset-2"
       >
         {t("preview.previewFab")}
         {pages > 1 && (
@@ -221,6 +224,27 @@ export function CvPreviewPanel({
             ⚠
           </span>
         )}
+      </button>
+      {/* sm–lg ("laptop, not maximized" — 640-1024px): enough width for a persistent strip
+          instead of a small icon-only FAB, so the preview stays one glance + one tap away rather
+          than needing to be rediscovered every time. A full status bar (page count included), not
+          just a circle, since there's room for it here but not on a phone. */}
+      <button
+        type="button"
+        onClick={() => setFullscreen(true)}
+        className="hidden sm:flex lg:hidden fixed bottom-0 inset-x-0 z-30 items-center gap-3 bg-surface/90 backdrop-blur-md border-t border-grid px-4 py-2.5 hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
+      >
+        <span className="text-sm font-semibold text-ink">{t("preview.previewFab")}</span>
+        <span
+          className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full border whitespace-nowrap ${
+            pages > 1 ? "bg-signal/10 text-signal border-signal/30" : "bg-good/10 text-good border-good/30"
+          }`}
+        >
+          {pages > 1 ? t("preview.pageBadgeMulti", { pages }) : t("preview.pageBadgeSingle")}
+        </span>
+        <span className="ml-auto text-ink-dim" aria-hidden>
+          <ExpandIcon className="h-4 w-4" />
+        </span>
       </button>
       {fullscreen && (
         <div className="fixed inset-0 z-50 grid place-items-center p-3 md:p-6">

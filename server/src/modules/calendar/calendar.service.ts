@@ -6,7 +6,7 @@
 // modules/plan21/plan-builder.service.ts), so inventing a date for them would be fabricating
 // data this feature doesn't actually have.
 import { listVacancies } from "../vacancies/vacancies.repo.js";
-import { allCards } from "../study/content-store.js";
+import { allCards, trackFor } from "../study/content-store.js";
 import { getSrsStateByCard } from "../../db/index.js";
 import type { UserId } from "../../db/user-id.js";
 import type { VacancyRow, SrsRow } from "../../db/types.js";
@@ -81,10 +81,11 @@ function toDayRange(range: DateRange): DayRange {
  * read-only derived sources above, all scoped to the same optional date range. */
 export async function getCombinedCalendar(userId: UserId, range: DateRange = {}): Promise<CombinedCalendar> {
   const dayRange = toDayRange(range);
+  const track = await trackFor(userId);
   const [events, vacancies, cards, srsState] = await Promise.all([
     listCalendarEvents(userId, range),
     listVacancies(userId),
-    allCards(userId),
+    allCards(userId, track),
     getSrsStateByCard(userId),
   ]);
   return {

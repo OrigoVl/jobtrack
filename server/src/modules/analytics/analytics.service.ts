@@ -1,6 +1,7 @@
 // Pure, DB-free analytics/focus computation — split out of analytics.routes.ts so the funnel
 // math and the heuristic "focus of the week" fallback are unit-testable without an Express
 // request/response and a live DB (same reasoning as shared/demand.ts's computeDemand()).
+import { topGapTechs } from "../../shared/demand.js";
 
 // How many days of silence after applying counts as a "gone quiet" vacancy worth nudging the recruiter about.
 export const STALE_APPLICATION_DAYS = 14;
@@ -39,15 +40,14 @@ export interface AnalyticsSummary {
   funnel: Record<string, number>;
   funnelReached: Record<string, number>;
   byDate: Record<string, number>;
-  radar: { tech: string; demand: number; you: number }[];
 }
 
-export function buildAnalyticsSummary(
-  rows: VacancyStatusRow[],
-  reached: Record<string, number>,
-  demand: Record<string, number>,
-  knownSkills: string[],
-): AnalyticsSummary {
+// Note: the "skill radar" used to be built here (top-8 demand vs. a binary "known" flag). It now
+// lives entirely on the roadmap side (server/src/modules/roadmap/skill-level.ts +
+// roadmap.service.ts's per-node `level`), which already has richer per-tech signals (roadmap
+// status, drills, SRS recall) than this route ever loaded — see client's
+// features/roadmap/radar-data.ts for how the client builds the chart from GET /roadmap.
+export function buildAnalyticsSummary(rows: VacancyStatusRow[], reached: Record<string, number>): AnalyticsSummary {
   const funnel: Record<string, number> = {};
   FUNNEL_ORDER.forEach((s) => (funnel[s] = 0));
   const byDate: Record<string, number> = {};
@@ -63,12 +63,7 @@ export function buildAnalyticsSummary(
   // stage progression regardless of the final outcome.
   const funnelReached: Record<string, number> = {};
   FUNNEL_ORDER.forEach((s) => (funnelReached[s] = reached[s] || 0));
-  const known = new Set(knownSkills);
-  const radar = Object.entries(demand)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([tech, cnt]) => ({ tech, demand: cnt, you: known.has(tech) ? cnt : 0 }));
-  return { funnel, funnelReached, byDate, radar };
+  return { funnel, funnelReached, byDate };
 }
 
 export interface FocusSummary {
@@ -91,6 +86,9 @@ export interface FocusAction {
 export interface BuildFocusSummaryInput {
   rows: VacancyStatusNextRow[];
   demand: Record<string, number>;
+  /** gapPriorityMap()'s output — decides WHICH gaps make the list and in what order; `demand`
+   * above is still used for each gap's displayed count. */
+  gapPriority: Record<string, number>;
   knownSkills: string[];
   dueCards: number;
   today: string;
@@ -99,11 +97,9 @@ export interface BuildFocusSummaryInput {
 
 export function buildFocusSummary(input: BuildFocusSummaryInput): FocusSummary {
   const known = new Set(input.knownSkills);
-  const gaps = Object.entries(input.demand)
-    .filter(([t]) => !known.has(t))
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([t, c]) => `${t} (${c})`);
+  // Ranked by gapPriority (which gap unlocks the most vacancies), not raw demand (which merely
+  // mentions it most) — see shared/demand.ts's computeGapPriority for why the two can disagree.
+  const gaps = topGapTechs(input.knownSkills, input.gapPriority, 5).map((t) => `${t} (${input.demand[t] || 0})`);
   const funnel: Record<string, number> = {};
   input.rows.forEach((v) => (funnel[v.status] = (funnel[v.status] || 0) + 1));
   return {
@@ -135,7 +131,7 @@ export function heuristicFocus(s: FocusSummary): FocusAction[] {
   if (s.gaps.length > 0)
     actions.push({
       title: `Close the "${s.gaps[0]}" gap`,
-      why: "The most in-demand technology on the list that's missing from your profile.",
+      why: "Missing from your profile, and the single skill that would newly qualify you for the most tracked vacancies.",
     });
   if (s.totalVac < 3)
     actions.push({ title: "Add more vacancies", why: "A small sample — import vacancies so the analytics and roadmap are more accurate." });

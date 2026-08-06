@@ -8,11 +8,14 @@ import { queryKeys } from "./keys";
 
 // `range` is part of the query key (like admin's `days`, see queries/admin.ts) — switching
 // months in the calendar fetches (and caches) a distinct result per month instead of silently
-// reusing a previous month's data.
-export function useCombinedCalendar(range: { from?: string; to?: string }) {
+// reusing a previous month's data. `refetchInterval` is opt-in (undefined by default, i.e. no
+// polling) — only calendar-reminder-notifier.tsx's "watch for events starting soon" use passes
+// one; the Calendar page's own month-view fetch doesn't need to poll in the background.
+export function useCombinedCalendar(range: { from?: string; to?: string }, options: { refetchInterval?: number } = {}) {
   return useQuery({
     queryKey: [...queryKeys.calendarCombined, range.from, range.to],
     queryFn: () => api.calendarCombined(range),
+    refetchInterval: options.refetchInterval,
   });
 }
 

@@ -3,7 +3,7 @@ import { diffNewJobs, isFirstRun, rankJobsByFit } from "./saved-searches.schedul
 import type { RawJob } from "../jobs/job-search.service.js";
 
 function job(url: string, overrides: Partial<RawJob> = {}): RawJob {
-  return { company: "Acme", position: "Engineer", url, location: "Remote", tags: [], source: "Remotive", ...overrides };
+  return { company: "Acme", position: "Engineer", url, location: "Remote", tags: [], source: "Remotive", postedAt: null, ...overrides };
 }
 
 describe("diffNewJobs", () => {

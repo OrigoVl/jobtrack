@@ -1,0 +1,106 @@
+{
+  "eyebrow": "Practice",
+  "title": "Architecture trainer",
+  "subtitle": "AI gives you a system-design task, you build the diagram, AI grades it against a checklist.",
+  "nodeKinds": {
+    "client": "Client",
+    "loadBalancer": "Load balancer",
+    "service": "Service / API",
+    "database": "Database",
+    "cache": "Cache",
+    "queue": "Queue",
+    "cdn": "CDN",
+    "storage": "Storage",
+    "thirdParty": "Third-party API",
+    "generic": "Box"
+  },
+  "palette": {
+    "heading": "Drag onto the canvas",
+    "hint": "Drag a shape onto the canvas, then drag from one shape's edge to another to connect them."
+  },
+  "patterns": {
+    "heading": "Or drag a whole pattern",
+    "loadBalancedWebTier": "Load-balanced web tier",
+    "pubSubPipeline": "Pub/sub pipeline",
+    "cachedApi": "Cached API",
+    "labels": {
+      "api1": "API 1",
+      "api2": "API 2",
+      "producer": "Producer",
+      "consumer": "Consumer"
+    }
+  },
+  "task": {
+    "empty": {
+      "title": "No task yet",
+      "hint": "Ask the AI for a system-design task to start practicing."
+    },
+    "newTask": "New task",
+    "vacancyLabel": "Tailor to vacancy",
+    "generalOption": "General task",
+    "difficulty": {
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard"
+    },
+    "requirements": "Requirements",
+    "constraints": "Constraints",
+    "confirmNew": {
+      "title": "Start a new task?",
+      "message": "Your current diagram and grade will be replaced.",
+      "confirmLabel": "Start new task"
+    },
+    "offline": "AI offline — set a key in server/.env to generate a task."
+  },
+  "canvas": {
+    "clear": "Clear canvas",
+    "check": "Check my design",
+    "deleteHint": "Select a shape or connection and press Delete/Backspace to remove it.",
+    "tools": {
+      "select": "Select",
+      "freehand": "Pen",
+      "rectangle": "Rectangle",
+      "ellipse": "Ellipse",
+      "arrow": "Arrow",
+      "text": "Text"
+    },
+    "colorLabel": "Color"
+  },
+  "grade": {
+    "unavailable": "AI is unavailable for grading.",
+    "criteria": "Checklist",
+    "strengths": "Strengths",
+    "missed": "What was missed",
+    "offlineHeuristic": "AI offline — this is a basic structural check, not a full AI review."
+  },
+  "history": {
+    "heading": "Past attempts"
+  },
+  "level": {
+    "heading": "Your System Design level: {{level}}/100",
+    "sample_one": "based on {{count}} graded exercise",
+    "sample_other": "based on {{count}} graded exercises"
+  },
+  "reference": {
+    "reveal": "Show reference solution",
+    "heading": "Reference solution",
+    "hide": "Hide"
+  },
+  "help": {
+    "heading": "Ask AI for help",
+    "placeholder": "e.g. \"What should I use for caching here?\"",
+    "ask": "Ask",
+    "offline": "AI offline — set a key in server/.env to ask for help.",
+    "failed": "Couldn't get an answer — try again."
+  },
+  "defense": {
+    "trigger": "Defend your design",
+    "startTitle": "Defend your design",
+    "startHint": "A staff engineer will ask a few follow-up questions about the tradeoffs in your diagram.",
+    "turnsLabel": "Number of questions",
+    "start": "Start",
+    "close": "Close",
+    "finishedTitle": "Defense finished",
+    "answerPlaceholder": "Type or record your answer…"
+  }
+}

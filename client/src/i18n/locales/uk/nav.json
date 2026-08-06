@@ -35,5 +35,9 @@
   "logOut": "Вийти",
   "roadmapProgress": "Дорожня карта: {{done}}/{{total}}",
   "connectionError": "Не вдалося підключитися до сервера",
-  "openCommandPalette": "Відкрити командну панель"
+  "openCommandPalette": "Відкрити командну панель",
+  "footer": {
+    "privacy": "Конфіденційність",
+    "terms": "Умови"
+  }
 }

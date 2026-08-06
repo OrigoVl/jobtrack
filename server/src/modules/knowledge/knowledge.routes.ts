@@ -5,8 +5,9 @@ import { kbFor } from "./knowledge-base.js";
 import { chat, llmAvailable } from "../../llm/index.js";
 import { authed } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
-import { demandMap } from "../../shared/demand.js";
+import { demandMap, gapPriorityMap, topGapTechs } from "../../shared/demand.js";
 import { countVacancies } from "../vacancies/vacancies.repo.js";
+import { effectiveTrack } from "../../shared/tracks.js";
 
 const r = express.Router();
 
@@ -28,12 +29,12 @@ r.get(
   "/learn",
   authed(async (userId, _req, res) => {
     const profile = await getProfile(userId);
-    const demand = await demandMap(userId);
     const skills = new Set(profile.skills);
-    const gapsSorted = Object.entries(demand)
-      .filter(([t]) => !skills.has(t))
-      .sort((a, b) => b[1] - a[1]);
-    const gaps = gapsSorted.map(([tech, count]) => ({ tech, count, ...kbFor(tech) }));
+    const [demand, gapPriority] = await Promise.all([demandMap(userId), gapPriorityMap(userId, profile.skills)]);
+    // Ranked by gapPriority (which gap unlocks the most vacancies), not raw demand (which merely
+    // mentions it most) — see shared/demand.ts's computeGapPriority for why the two can disagree.
+    const track = effectiveTrack(profile);
+    const gaps = topGapTechs(profile.skills, gapPriority).map((tech) => ({ tech, count: demand[tech] || 0, ...kbFor(tech, track) }));
     const strengths = Object.entries(demand)
       .filter(([t]) => skills.has(t))
       .sort((a, b) => b[1] - a[1])
@@ -48,17 +49,20 @@ r.post(
   authed(async (userId, _req, res) => {
     if (!llmAvailable()) return res.json({ plan: null, offline: true });
     const profile = await getProfile(userId);
-    const demand = await demandMap(userId);
-    const skills = new Set(profile.skills);
-    const gaps = Object.entries(demand)
-      .filter(([t]) => !skills.has(t))
-      .sort((a, b) => b[1] - a[1])
-      .map(([t, c]) => `${t} (${c} jobs)`);
+    const [demand, gapPriority] = await Promise.all([demandMap(userId), gapPriorityMap(userId, profile.skills)]);
+    const gaps = topGapTechs(profile.skills, gapPriority).map((tech) => `${tech} (${demand[tech] || 0} jobs)`);
     const plan = await chat(
       userId,
       `You are a mentor for the role "${profile.domain || "professional"}". Be concrete and concise.`,
       `Candidate's skills: ${profile.skills.join(", ")}.\nGaps by market demand priority: ${gaps.join(", ") || "none"}.\nBuild a personal learning plan by phases/days: what to learn first, which topics, how to practice, and in what order to close the gaps.`,
-      { maxTokens: 900, cache: true, tier: "smart", feature: "learn-plan" },
+      // outputLocale: "app" — this is feedback/advice shown in the user's own UI (same reasoning
+      // as reviewCv/matchCv/getDynamicKnowledge/resources' focus+actions), not resume/document
+      // text that must follow the CV's own language.
+      // maxTokens 3000 (not 900) — a multi-phase, multi-week markdown curriculum (see
+      // learn.tsx's rendered output) runs far longer than 900 tokens; chat() (unlike chatJson)
+      // has no truncation detection/repair-retry, so a too-low limit doesn't error, it just
+      // silently hands back a plan cut off mid-sentence — exactly the reported symptom.
+      { maxTokens: 3000, cache: true, tier: "smart", feature: "learn-plan", outputLocale: "app" },
     );
     res.json({ plan });
   }),

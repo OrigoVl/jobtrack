@@ -68,7 +68,7 @@ describe("x-locale header", () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue({ ok: true, status: 200, json: async () => ({ text: "", skills: [], detected: [] }) } as Response);
-    await api.uploadCV(new File(["cv text"], "cv.txt", { type: "text/plain" }));
+    await api.uploadCV(1, new File(["cv text"], "cv.txt", { type: "text/plain" }));
     const [, opts] = fetchSpy.mock.calls[0]!;
     expect((opts?.headers as Record<string, string>)["x-locale"]).toBe("en");
   });

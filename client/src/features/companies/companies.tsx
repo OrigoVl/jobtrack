@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useUi } from "../../shared/ui-state";
 import { useCompanies, useSaveCompany } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, EmptyState, PageHeader, Spinner } from "../../shared/ui";
+import { CompanyDiagramSection } from "./company-diagram-section";
 
 /* ---------- Companies ---------- */
 export function Companies() {
@@ -22,6 +23,7 @@ export function Companies() {
   return (
     <div className="space-y-4">
       <PageHeader
+        eyebrow={t("eyebrow")}
         title={t("title")}
         subtitle={t("subtitle")}
         actions={
@@ -41,7 +43,7 @@ export function Companies() {
       />
       {companies.length === 0 ? (
         <Card>
-          <EmptyState icon="🏢" title={t("empty.title")} hint={t("empty.hint")} />
+          <EmptyState title={t("empty.title")} hint={t("empty.hint")} />
         </Card>
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
@@ -71,6 +73,7 @@ export function Companies() {
                   placeholder={t("questionsPlaceholder")}
                   className="w-full h-20 mt-2 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
                 />
+                <CompanyDiagramSection companyId={c.id} companyName={c.name} />
               </Card>
             );
           })}

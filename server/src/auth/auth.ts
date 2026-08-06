@@ -11,6 +11,7 @@ import * as schema from "../db/schema/index.js";
 import { env } from "../config/env.js";
 import { sendEmail } from "../shared/email.js";
 import { seedProfileIfEmpty } from "../db/bootstrap.js";
+import { cancelSubscriptionForAccountDeletion } from "../modules/billing/billing.service.js";
 import type { UserId } from "../db/user-id.js";
 import { getLocale } from "../core/request-context.js";
 import type { AppLocale } from "../shared/locale.js";
@@ -27,13 +28,13 @@ interface EmailTemplate {
 
 const RESET_PASSWORD_EMAIL: Record<AppLocale, EmailTemplate> = {
   en: {
-    subject: "Reset your DevRadar password",
+    subject: "Reset your Zorya password",
     html: (url) =>
       `<p>Click the link below to reset your password:</p><p><a href="${url}">${url}</a></p>` +
       `<p>If you didn't request this, you can ignore this email.</p>`,
   },
   uk: {
-    subject: "Скиньте пароль DevRadar",
+    subject: "Скиньте пароль Zorya",
     html: (url) =>
       `<p>Перейдіть за посиланням нижче, щоб скинути пароль:</p><p><a href="${url}">${url}</a></p>` +
       `<p>Якщо ви не робили цей запит, просто проігноруйте цей лист.</p>`,
@@ -42,11 +43,11 @@ const RESET_PASSWORD_EMAIL: Record<AppLocale, EmailTemplate> = {
 
 const VERIFY_EMAIL: Record<AppLocale, EmailTemplate> = {
   en: {
-    subject: "Verify your DevRadar email",
+    subject: "Verify your Zorya email",
     html: (url) => `<p>Click the link below to verify your email and finish creating your account:</p><p><a href="${url}">${url}</a></p>`,
   },
   uk: {
-    subject: "Підтвердьте свою пошту в DevRadar",
+    subject: "Підтвердьте свою пошту в Zorya",
     html: (url) =>
       `<p>Перейдіть за посиланням нижче, щоб підтвердити пошту і завершити створення акаунта:</p><p><a href="${url}">${url}</a></p>`,
   },
@@ -54,14 +55,14 @@ const VERIFY_EMAIL: Record<AppLocale, EmailTemplate> = {
 
 const DELETE_ACCOUNT_EMAIL: Record<AppLocale, EmailTemplate> = {
   en: {
-    subject: "Confirm deleting your DevRadar account",
+    subject: "Confirm deleting your Zorya account",
     html: (url) =>
       `<p>Click the link below to permanently delete your account and all of its data (vacancies, CV, progress). This cannot be undone.</p>` +
       `<p><a href="${url}">${url}</a></p>` +
       `<p>If you didn't request this, ignore this email — your account is safe.</p>`,
   },
   uk: {
-    subject: "Підтвердьте видалення акаунта DevRadar",
+    subject: "Підтвердьте видалення акаунта Zorya",
     html: (url) =>
       `<p>Перейдіть за посиланням нижче, щоб остаточно видалити свій акаунт і всі його дані (вакансії, CV, прогрес). Це неможливо скасувати.</p>` +
       `<p><a href="${url}">${url}</a></p>` +
@@ -117,6 +118,13 @@ export const auth = betterAuth({
     // an action with no undo.
     deleteUser: {
       enabled: true,
+      // Runs BEFORE the user row (and its cascaded subscriptions row) is deleted — the last
+      // moment a Stripe subscription can still be resolved and canceled. See
+      // billing.service.ts#cancelSubscriptionForAccountDeletion for why this never blocks
+      // deletion on a Stripe-side failure.
+      beforeDelete: async (user) => {
+        await cancelSubscriptionForAccountDeletion(user.id as UserId);
+      },
       sendDeleteAccountVerification: async ({ user, url }) => {
         const { subject, html } = DELETE_ACCOUNT_EMAIL[getLocale()];
         await sendEmail({ to: user.email, subject, html: html(url) });

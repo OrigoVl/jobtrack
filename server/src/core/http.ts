@@ -44,6 +44,14 @@ async function getSession(req: Request) {
   return auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
 }
 
+// Memoizes the resolved id ON THE REQUEST OBJECT (a Symbol-keyed property, not a WeakMap — a
+// single Express Request is never reused across requests, so there's no cross-request leak to
+// worry about). aiLimiter now calls this twice per request — once as `keyGenerator`, once inside
+// `limit` (core/rate-limit.ts's aiRateLimitForRequest, to resolve the caller's plan) — and this
+// keeps that at one actual session lookup instead of two, on top of authed()'s own.
+const cachedUserIdKey = Symbol("rateLimitUserId");
+type RequestWithCachedUserId = Request & { [cachedUserIdKey]?: Promise<UserId | null> };
+
 /** The one narrow, sanctioned exception to "authed()/requireAdmin() are the only place a
  * session is read": core/rate-limit.ts calls this to key the AI/API limiters per-account instead
  * of per-IP (important once more than one user shares an office/VPN IP — a multi-user prerequisite).
@@ -51,8 +59,11 @@ async function getSession(req: Request) {
  * all it's for — every actual authorization decision still goes exclusively through
  * authed()/requireAdmin() below, and no repository or route ever receives a `userId` this way. */
 export async function getSessionUserIdForRateLimit(req: Request): Promise<UserId | null> {
-  const session = await getSession(req);
-  return session ? (session.user.id as UserId) : null;
+  const cached = (req as RequestWithCachedUserId)[cachedUserIdKey];
+  if (cached) return cached;
+  const promise = getSession(req).then((session) => (session ? (session.user.id as UserId) : null));
+  (req as RequestWithCachedUserId)[cachedUserIdKey] = promise;
+  return promise;
 }
 
 // The single seam between "who is making this request" and every route/repository — the ONLY

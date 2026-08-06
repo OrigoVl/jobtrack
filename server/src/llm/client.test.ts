@@ -28,6 +28,12 @@ vi.mock("../telemetry/telemetry.repo.js", () => ({
   insertProductEvent: vi.fn(),
   getUserCostUsdSince: vi.fn(() => 0),
 }));
+// modules/billing/entitlements.js's getSubscription() (via billing.repo.ts) opens a real
+// Postgres connection, same reasoning as the telemetry mock above — this keeps EVERY test in
+// this file from touching a database regardless of whether env.billing.isAvailable is true.
+vi.mock("../modules/billing/entitlements.js", () => ({
+  getAiQuotaState: vi.fn(() => ({ allowed: true, used: 0, limit: null, resetsAt: null })),
+}));
 
 describe("chat() / llmAvailable() offline fallback", () => {
   beforeAll(async () => {
@@ -255,6 +261,111 @@ describe("callProvider() falls back to the secondary provider", () => {
   });
 });
 
+// Anthropic prompt caching (https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching):
+// the system prompt is sent as a content-block array with cache_control so repeated calls sharing
+// the same system prompt (CV-review rubric, mock-interview grading rubric, ...) are served from
+// Anthropic's cache instead of reprocessed at full cost every time. OpenAI has no equivalent
+// mechanism here, so its request body must stay untouched (plain string `content`).
+describe("callProviderOnce() Anthropic system-prompt caching", () => {
+  beforeAll(async () => {
+    await import("dotenv/config");
+  });
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv("OPENAI_API_KEY", undefined);
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test-key");
+    vi.stubEnv("LLM_PROVIDER", "anthropic");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("sends the Anthropic system prompt as an ephemeral-cached content block, not a plain string", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ content: [{ text: "ok" }], stop_reason: "end_turn" }),
+    } as Response);
+    const { chat } = await import("./client.js");
+    await chat(BOOTSTRAP_USER_ID, "you are a helpful rubric-grading assistant", "user");
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body));
+    expect(body.system).toEqual([
+      { type: "text", text: "you are a helpful rubric-grading assistant", cache_control: { type: "ephemeral" } },
+    ]);
+  });
+});
+
+// Claude Sonnet 5's `output_config.effort` (Anthropic Messages API): only ever meaningful for the
+// "smart" tier — Haiku 4.5 ("fast" tier) doesn't support the parameter at all and 400s if it's
+// sent. Mirrors the "callProviderOnce() Anthropic system-prompt caching" setup above (anthropic
+// provider configured) since `effort` is only ever forwarded on that branch.
+describe("chat() Sonnet 5 effort (output_config)", () => {
+  beforeAll(async () => {
+    await import("dotenv/config");
+  });
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    vi.stubEnv("OPENAI_API_KEY", undefined);
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test-key");
+    vi.stubEnv("LLM_PROVIDER", "anthropic");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  function mockOkAnthropicFetch() {
+    return vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ content: [{ text: "ok" }], stop_reason: "end_turn" }),
+    } as Response);
+  }
+
+  it("defaults a smart-tier call to output_config: {effort: 'medium'} when no explicit effort is passed", async () => {
+    const fetchSpy = mockOkAnthropicFetch();
+    const { chat } = await import("./client.js");
+    await chat(BOOTSTRAP_USER_ID, "system", "user", { tier: "smart" });
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body));
+    expect(body.output_config).toEqual({ effort: "medium" });
+  });
+
+  it("respects an explicit effort override on a smart-tier call instead of the 'medium' default", async () => {
+    const fetchSpy = mockOkAnthropicFetch();
+    const { chat } = await import("./client.js");
+    await chat(BOOTSTRAP_USER_ID, "system", "user", { tier: "smart", effort: "high" });
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body));
+    expect(body.output_config).toEqual({ effort: "high" });
+  });
+
+  it("never sends output_config at all for a fast-tier call (Haiku doesn't support effort)", async () => {
+    const fetchSpy = mockOkAnthropicFetch();
+    const { chat } = await import("./client.js");
+    await chat(BOOTSTRAP_USER_ID, "system", "user");
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body));
+    expect(body.output_config).toBeUndefined();
+  });
+
+  it("drops effort when a smart-tier call is downgraded to fast by the daily cost cap", async () => {
+    vi.stubEnv("LLM_DAILY_COST_CAP_USD", "1");
+    const { getUserCostUsdSince, insertLlmUsage } = await import("../telemetry/telemetry.repo.js");
+    vi.mocked(getUserCostUsdSince).mockResolvedValue(1);
+    const fetchSpy = mockOkAnthropicFetch();
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user", { tier: "smart", feature: "cv-review" });
+    expect(result).toBe("ok");
+    // Confirms this really is the downgraded (fast) request, not the original smart-tier one,
+    // before asserting effort is gone.
+    expect(insertLlmUsage).toHaveBeenCalledWith(expect.objectContaining({ feature: "cv-review", tier: "fast", outcome: "success" }));
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body));
+    expect(body.output_config).toBeUndefined();
+  });
+});
+
 // Cost visibility: normalizes the provider's usage fields (prompt_tokens/completion_tokens
 // for OpenAI, input_tokens/output_tokens for Anthropic) into ONE shape for logs/aggregation.
 describe("normalizeUsage()", () => {
@@ -447,6 +558,176 @@ describe("chat() daily cost cap", () => {
     expect(result).toBe("cached answer");
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(getUserCostUsdSince).not.toHaveBeenCalled();
+  });
+
+  // Degrade, don't cut off: a "smart"-tier request that hits the cap should still go out, just on
+  // the cheaper "fast" model — only a request that was ALREADY "fast" (nothing cheaper left) is
+  // still a hard cutoff (covered by "skips the provider call..." above).
+  it("downgrades a smart-tier request to the fast model instead of blocking it, once the cap is reached", async () => {
+    vi.stubEnv("LLM_DAILY_COST_CAP_USD", "1");
+    const { getUserCostUsdSince, insertLlmUsage } = await import("../telemetry/telemetry.repo.js");
+    vi.mocked(getUserCostUsdSince).mockResolvedValue(1);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }),
+    } as Response);
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user", { tier: "smart", feature: "cv-review" });
+    expect(result).toBe("ok");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    // OPENAI_MODEL (fast) is gpt-4o-mini, OPENAI_MODEL_SMART (smart) is gpt-5 (config/env.ts
+    // defaults) — the actual request body must carry the downgraded (fast) model, not the smart one.
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body));
+    expect(body.model).toBe("gpt-4o-mini");
+    // The final telemetry row reflects the tier the call actually ran at (fast), and a normal
+    // "success" outcome — this isn't the "budget_exceeded" cutoff outcome, since the call went through.
+    expect(insertLlmUsage).toHaveBeenCalledWith(
+      expect.objectContaining({ feature: "cv-review", tier: "fast", model: "gpt-4o-mini", outcome: "success" }),
+    );
+  });
+
+  it("caches the downgraded call's result under the fast-tier cache key, not the originally-requested smart-tier key", async () => {
+    vi.stubEnv("LLM_DAILY_COST_CAP_USD", "1");
+    const { getUserCostUsdSince } = await import("../telemetry/telemetry.repo.js");
+    vi.mocked(getUserCostUsdSince).mockResolvedValue(1);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }),
+    } as Response);
+    const { setLlmCache } = await import("../db/llm-cache.js");
+    const { hashString } = await import("../shared/hash.js");
+    const { chat } = await import("./client.js");
+    await chat(BOOTSTRAP_USER_ID, "system", "user", { tier: "smart", cache: true });
+    const expectedFastKey = "llm:" + hashString(["fast", "text", "system", "user"].join("|"));
+    const expectedSmartKey = "llm:" + hashString(["smart", "text", "system", "user"].join("|"));
+    expect(setLlmCache).toHaveBeenCalledWith(expectedFastKey, { value: "ok" });
+    expect(setLlmCache).not.toHaveBeenCalledWith(expectedSmartKey, expect.anything());
+  });
+});
+
+// The Free-plan monthly AI-call quota (modules/billing/entitlements.ts#getAiQuotaState),
+// mirroring the "chat() daily cost cap" describe block above: same setup, same fail-open
+// contract, but gated on env.billing.isAvailable (all three STRIPE_* vars) rather than
+// env.llm.dailyCostCapUsd, and layered BEFORE it — see llm/client.ts's comment at the call site.
+describe("chat() plan quota", () => {
+  beforeAll(async () => {
+    await import("dotenv/config");
+  });
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", undefined);
+    vi.stubEnv("LLM_PROVIDER", "openai");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  function mockOkFetch() {
+    return vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }),
+    } as Response);
+  }
+
+  it("calls the provider normally, with no entitlement read at all, when billing is unconfigured (default)", async () => {
+    const { getAiQuotaState } = await import("../modules/billing/entitlements.js");
+    const fetchSpy = mockOkFetch();
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user");
+    expect(result).toBe("ok");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(getAiQuotaState).not.toHaveBeenCalled();
+  });
+
+  it("skips the provider call and returns null once the Free-plan monthly quota is reached", async () => {
+    vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_x");
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_x");
+    vi.stubEnv("STRIPE_PRICE_PRO_MONTHLY", "price_x");
+    const { getAiQuotaState } = await import("../modules/billing/entitlements.js");
+    vi.mocked(getAiQuotaState).mockResolvedValue({ allowed: false, used: 20, limit: 20, resetsAt: "2026-07-01T00:00:00.000Z" });
+    const { insertLlmUsage } = await import("../telemetry/telemetry.repo.js");
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user", { feature: "cv-review" });
+    expect(result).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(insertLlmUsage).toHaveBeenCalledWith(expect.objectContaining({ feature: "cv-review", outcome: "quota_exceeded" }));
+  });
+
+  it("sets the request-context aiQuotaExceeded flag so app.ts can attach the advisory header", async () => {
+    vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_x");
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_x");
+    vi.stubEnv("STRIPE_PRICE_PRO_MONTHLY", "price_x");
+    const { getAiQuotaState } = await import("../modules/billing/entitlements.js");
+    vi.mocked(getAiQuotaState).mockResolvedValue({ allowed: false, used: 20, limit: 20, resetsAt: null });
+    const { chat } = await import("./client.js");
+    const { runWithRequestContext, wasAiQuotaExceeded } = await import("../core/request-context.js");
+    const exceeded = await runWithRequestContext("req-1", "en", async () => {
+      await chat(BOOTSTRAP_USER_ID, "system", "user");
+      return wasAiQuotaExceeded();
+    });
+    expect(exceeded).toBe(true);
+  });
+
+  it("still calls the provider when under the quota", async () => {
+    vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_x");
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_x");
+    vi.stubEnv("STRIPE_PRICE_PRO_MONTHLY", "price_x");
+    const { getAiQuotaState } = await import("../modules/billing/entitlements.js");
+    vi.mocked(getAiQuotaState).mockResolvedValue({ allowed: true, used: 19, limit: 20, resetsAt: "2026-07-01T00:00:00.000Z" });
+    const fetchSpy = mockOkFetch();
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user");
+    expect(result).toBe("ok");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls the provider unconditionally for a Pro/Team plan (unlimited, limit: null)", async () => {
+    vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_x");
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_x");
+    vi.stubEnv("STRIPE_PRICE_PRO_MONTHLY", "price_x");
+    const { getAiQuotaState } = await import("../modules/billing/entitlements.js");
+    vi.mocked(getAiQuotaState).mockResolvedValue({ allowed: true, used: 0, limit: null, resetsAt: null });
+    const fetchSpy = mockOkFetch();
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user");
+    expect(result).toBe("ok");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails open (still calls the provider) when the entitlement/quota read itself throws", async () => {
+    vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_x");
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_x");
+    vi.stubEnv("STRIPE_PRICE_PRO_MONTHLY", "price_x");
+    const { getAiQuotaState } = await import("../modules/billing/entitlements.js");
+    vi.mocked(getAiQuotaState).mockRejectedValue(new Error("db unreachable"));
+    const fetchSpy = mockOkFetch();
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user");
+    expect(result).toBe("ok");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not consult the quota at all for a cache hit", async () => {
+    vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_x");
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_x");
+    vi.stubEnv("STRIPE_PRICE_PRO_MONTHLY", "price_x");
+    const { getLlmCache } = await import("../db/llm-cache.js");
+    vi.mocked(getLlmCache).mockResolvedValueOnce({ value: "cached answer" });
+    const { getAiQuotaState } = await import("../modules/billing/entitlements.js");
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user", { cache: true });
+    expect(result).toBe("cached answer");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(getAiQuotaState).not.toHaveBeenCalled();
   });
 });
 

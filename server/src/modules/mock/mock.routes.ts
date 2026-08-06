@@ -2,8 +2,14 @@ import express from "express";
 import { z } from "zod";
 import { getProfile } from "../../db/index.js";
 import { chatJson, llmAvailable } from "../../llm/index.js";
+import { synthesizeSpeech } from "../../llm/tts.js";
 import { HttpError, authed } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
+import { getVacancy } from "../vacancies/vacancies.repo.js";
+import { parseInterviewTurnInput } from "../../shared/validation.js";
+import { runInterviewTurn } from "./mock-interview.service.js";
+
+const SpeakInput = z.object({ text: z.string().min(1) });
 
 const r = express.Router();
 
@@ -50,6 +56,40 @@ r.post(
       missed: out.missed,
       tip: out.tip,
     });
+  }),
+);
+
+// ---------- Live voice mock interview: stateless turn endpoint (see mock-interview.service.ts) ----------
+r.post(
+  "/mock/interview",
+  aiLimiter,
+  authed(async (userId, req, res) => {
+    const input = parseInterviewTurnInput(req.body);
+    const vacancy = input.vacancyId != null ? await getVacancy(userId, input.vacancyId) : undefined;
+    // A vacancy id that doesn't resolve is a real error on the FIRST turn (the id came from the
+    // user's own freshly-fetched list) but must not kill a session already in progress if the
+    // vacancy gets deleted mid-sitting — degrade to a general interview instead of 400ing.
+    if (input.vacancyId != null && !vacancy && input.transcript.length === 0) {
+      throw new HttpError(400, `Unknown vacancy: ${input.vacancyId}`);
+    }
+    const profile = await getProfile(userId);
+    res.json(await runInterviewTurn(userId, vacancy ?? null, profile, input));
+  }),
+);
+
+// ---------- Live voice mock interview: cloud text-to-speech for the interviewer's lines ----------
+// Falls back to the client's browser Web Speech API whenever this responds 204 (TTS unavailable/
+// over the daily cost cap/API failure) — see synthesizeSpeech's own doc comment for why it
+// returns null instead of throwing in every one of those cases.
+r.post(
+  "/mock/speak",
+  aiLimiter,
+  authed(async (userId, req, res) => {
+    const input = SpeakInput.parse(req.body);
+    const audio = await synthesizeSpeech(userId, input.text);
+    if (!audio) return res.status(204).end();
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.status(200).send(audio);
   }),
 );
 

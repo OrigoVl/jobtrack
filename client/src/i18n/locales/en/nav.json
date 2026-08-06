@@ -35,5 +35,9 @@
   "logOut": "Log out",
   "roadmapProgress": "Roadmap: {{done}}/{{total}}",
   "connectionError": "Could not connect to the server",
-  "openCommandPalette": "Open command palette"
+  "openCommandPalette": "Open command palette",
+  "footer": {
+    "privacy": "Privacy",
+    "terms": "Terms"
+  }
 }

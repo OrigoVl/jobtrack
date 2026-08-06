@@ -8,7 +8,7 @@ vi.mock("../db/client.js", () => ({
   default: { select: () => ({ from: () => ({ where: () => Promise.resolve([]) }) }) },
 }));
 
-import { computeDemand, recencyWeight } from "./demand.js";
+import { computeDemand, computeGapPriority, recencyWeight, topGapTechs } from "./demand.js";
 
 describe("recencyWeight()", () => {
   const now = new Date("2026-01-01T00:00:00Z");
@@ -72,5 +72,84 @@ describe("computeDemand()", () => {
 
   it("returns an empty object when there are no vacancies", () => {
     expect(computeDemand([], now)).toEqual({});
+  });
+});
+
+describe("computeGapPriority()", () => {
+  const now = new Date("2026-01-01T00:00:00Z");
+
+  it("gives a gap tech full credit from a vacancy where it's the ONLY thing missing", () => {
+    const rows = [{ stack: ["React", "TypeScript"], created: "2026-01-01" }];
+    const priority = computeGapPriority(rows, ["React"], now);
+    expect(priority.TypeScript).toBeCloseTo(1, 5);
+  });
+
+  it("splits credit evenly across every still-missing tech in the same vacancy", () => {
+    const rows = [{ stack: ["React", "AWS", "Docker", "GraphQL"], created: "2026-01-01" }];
+    const priority = computeGapPriority(rows, [], now);
+    // 4 techs, none known — each gets 1/4 of this one vacancy's unit of credit.
+    expect(priority.React).toBeCloseTo(0.25, 5);
+    expect(priority.AWS).toBeCloseTo(0.25, 5);
+    expect(priority.Docker).toBeCloseTo(0.25, 5);
+    expect(priority.GraphQL).toBeCloseTo(0.25, 5);
+  });
+
+  it("gives no credit at all for a vacancy the candidate is already fully qualified for", () => {
+    const rows = [{ stack: ["React", "TypeScript"], created: "2026-01-01" }];
+    const priority = computeGapPriority(rows, ["React", "TypeScript"], now);
+    expect(priority).toEqual({});
+  });
+
+  it(
+    "ranks the tech that's the SOLE missing piece for many vacancies above one that's merely " +
+      "mentioned often but always alongside several other gaps too",
+    () => {
+      // Docker: raw mentions (5) beat AWS (4) — but every Docker vacancy also needs 3 other
+      // unknown techs (so Docker only ever gets a 1/4 share), while AWS is the single missing
+      // piece in all 4 of its own vacancies (a full share each time). A "most mentioned" ranking
+      // would put Docker first; a "closes the most doors" ranking should put AWS first instead.
+      const rows = [
+        ...Array.from({ length: 5 }, () => ({ stack: ["Docker", "Kubernetes", "Terraform", "Helm"], created: "2026-01-01" })),
+        ...Array.from({ length: 4 }, () => ({ stack: ["AWS"], created: "2026-01-01" })),
+      ];
+      const priority = computeGapPriority(rows, [], now);
+      expect(priority.AWS ?? 0).toBeGreaterThan(priority.Docker ?? 0);
+    },
+  );
+
+  it("still applies recency decay, same as computeDemand()", () => {
+    const rows = [
+      { stack: ["React"], created: "2026-01-01" }, // today, weight ~1
+      { stack: ["Vue"], created: "2024-01-01" }, // ~2 years ago, weight ~0
+    ];
+    const priority = computeGapPriority(rows, [], now);
+    expect(priority.React).toBeGreaterThan(priority.Vue ?? 0);
+  });
+
+  it("returns an empty object when there are no vacancies or every vacancy is fully covered", () => {
+    expect(computeGapPriority([], [], now)).toEqual({});
+    expect(computeGapPriority([{ stack: ["React"], created: "2026-01-01" }], ["React"], now)).toEqual({});
+  });
+});
+
+describe("topGapTechs()", () => {
+  it("ranks unknown technologies by the given priority map, descending", () => {
+    expect(topGapTechs([], { Docker: 3, React: 10, AWS: 5 })).toEqual(["React", "AWS", "Docker"]);
+  });
+
+  it("excludes technologies already present in skills, even if they're still in the priority map", () => {
+    expect(topGapTechs(["React"], { Docker: 3, React: 10, AWS: 5 })).toEqual(["AWS", "Docker"]);
+  });
+
+  it("caps the result at the given limit", () => {
+    expect(topGapTechs([], { A: 6, B: 5, C: 4, D: 3 }, 2)).toEqual(["A", "B"]);
+  });
+
+  it("defaults to no cap at all when limit is omitted", () => {
+    expect(topGapTechs([], { A: 6, B: 5, C: 4, D: 3 })).toEqual(["A", "B", "C", "D"]);
+  });
+
+  it("returns an empty list when everything is already known", () => {
+    expect(topGapTechs(["React"], { React: 4 })).toEqual([]);
   });
 });

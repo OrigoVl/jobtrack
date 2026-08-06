@@ -1,12 +1,16 @@
 {
+  "eyebrow": "Decode",
   "title": "Vacancy analysis",
   "subtitle": "Paste a vacancy's text — I'll detect the stack, level, and gaps against your profile. Added/parsed skills immediately flow into the radar, roadmap, and analytics.",
   "autoParse": {
-    "heading": "🔗 Auto-parse by links",
+    "heading": "Auto-parse by links",
     "description": "Goes through every added vacancy, fetches the text from its link, and updates the stack/level/fit. Data shows up immediately in Skill radar, Analytics, and Roadmap.",
     "analyzing": "Analyzing all vacancies…",
-    "button": "🔗 Analyze all vacancies",
-    "processed": "Processed:"
+    "button": "Analyze all vacancies",
+    "processed": "Processed:",
+    "progress": "Processed {{processed}} of {{total}}",
+    "errorGeneric": "Something went wrong during analysis — try again.",
+    "viewDetails": "View details"
   },
   "textarea": {
     "ariaLabel": "Vacancy text to analyze",
@@ -16,11 +20,11 @@
   },
   "result": {
     "fit": "Fit:",
-    "semanticFit": "🧠 Semantic similarity to CV: {{percent}}%",
-    "match": "✅ Match with your stack",
-    "gaps": "⚠️ Gaps (what to pick up)",
+    "semanticFit": "Semantic similarity to CV: {{percent}}%",
+    "match": "Match with your stack",
+    "gaps": "Gaps (what to pick up)",
     "noGaps": "None — you cover the stack!",
-    "aiSummary": "🤖 AI summary",
+    "aiSummary": "AI summary",
     "addToTracker": "+ Add this vacancy to the tracker"
   }
 }

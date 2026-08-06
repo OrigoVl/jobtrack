@@ -1,9 +1,10 @@
 {
+  "eyebrow": "Decode",
   "title": "Skill roadmap",
   "subtitle": "A personal roadmap built from the real skills in your vacancies and CV. Click the circle to mark progress — it's all saved.",
   "view": {
-    "list": "🗺️ Roadmap",
-    "radar": "🎯 Radar"
+    "list": "Roadmap",
+    "radar": "Radar"
   },
   "progress": {
     "prefix": "Progress:",
@@ -26,11 +27,42 @@
   "demandChip_one": "{{count}} vac.",
   "demandChip_other": "{{count}} vac.",
   "inProfile": "in profile",
-  "personalizing": "✨ Personalizing to your stack…",
-  "personalFocus": "✨ Personal focus:",
+  "personalizing": "Personalizing to your stack…",
+  "personalFocus": "Personal focus:",
   "whatToLearn": "What to learn",
   "aiForYou": "AI for you",
   "practiceProblems": "Practice problems: {{solved}}/{{total}} solved",
   "practiceHint": "Practice in the \"Practice\" tab → filter by topic.",
-  "resourcesHeading": "Resources"
+  "resourcesHeading": "Resources",
+  "radar": {
+    "title": "Skill radar",
+    "subtitle": "Your level against real market demand (from the stack of your added vacancies). Where your level falls short of market demand — that's a gap.",
+    "empty": {
+      "title": "No data yet",
+      "hint": "Add vacancies or analyze their stack — and the radar will show up automatically."
+    },
+    "tooFew": "A radar needs at least 3 in-demand skills to be readable — add a few more vacancies with a stack.",
+    "marketDemand": "Market demand (relative)",
+    "you": "Your level (0–100)",
+    "scaleNote": "Both series use a 0–100 scale: your level is absolute, market demand is relative to the most-demanded skill on the chart.",
+    "tooltip": {
+      "demand_one": "{{count}} vacancy · {{pct}}% of top demand",
+      "demand_other": "{{count}} vacancies · {{pct}}% of top demand",
+      "level": "{{level}}/100",
+      "parts": "Status {{status}} · Drills {{drills}} · Recall {{recall}}",
+      "cards": "Cards started {{graded}}/{{total}}",
+      "manual": "Set by you",
+      "sharedTrack": "Practice measured on the shared \"{{cat}}\" track"
+    }
+  },
+  "level": {
+    "heading": "Your level",
+    "auto": "Computed",
+    "manual": "Set by you",
+    "hint": "Computed from your status, solved drills, and flashcard recall. Set it yourself if you know better.",
+    "reset": "Use computed value",
+    "sliderLabel": "{{tech}} level, 0 to 100",
+    "none": "—",
+    "sharedTrack": "Practice for \"{{cat}}\" is shared with several skills here — override the level if it doesn't fit {{tech}}."
+  }
 }

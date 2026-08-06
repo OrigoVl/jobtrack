@@ -1,7 +1,7 @@
 import express from "express";
 import { requireAdmin, HttpError } from "../../core/http.js";
 import { parsePagination } from "../../shared/validation.js";
-import { getOverview, listUsersWithActivity, getLlmUsageSummary, getProductEventsSummary } from "./admin.service.js";
+import { getOverview, listUsersWithActivity, getLlmUsageSummary, getProductEventsSummary, getBillingSummary } from "./admin.service.js";
 
 const r = express.Router();
 
@@ -37,6 +37,12 @@ r.get(
   "/admin/product-events",
   requireAdmin(async (_userId, req, res) => {
     res.json(await getProductEventsSummary(parseDays(req.query)));
+  }),
+);
+r.get(
+  "/admin/billing",
+  requireAdmin(async (_userId, req, res) => {
+    res.json(await getBillingSummary(parseDays(req.query)));
   }),
 );
 

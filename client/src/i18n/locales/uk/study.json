@@ -1,10 +1,12 @@
 {
+  "eyebrow": "Практика",
   "title": "Практика",
   "subtitle": "Розумні картки на повторення з інтервальним повторенням (як в Anki) + режим дрилів із практичними завданнями.",
   "tabs": {
-    "flashcards": "🃏 Картки",
-    "drill": "⌨️ Дрил",
-    "mock": "🎤 Мок-інтерв'ю"
+    "flashcards": "Картки",
+    "drill": "Дрил",
+    "mock": "Мок-інтерв'ю",
+    "design": "Архітектура"
   },
   "stats": {
     "dueToday": "На повторення сьогодні: {{count}}",
@@ -17,15 +19,15 @@
     "streak_many": "{{count}} днів поспіль",
     "streak_other": "{{count}} дня поспіль"
   },
-  "moreCards": "✨ Більше карток на тему «{{topic}}»",
+  "moreCards": "Більше карток на тему «{{topic}}»",
   "llmKeyRequired": "Потрібен ключ LLM",
   "srs": {
-    "showAnswer": "👁 Показати відповідь",
+    "showAnswer": "Показати відповідь",
     "grade": {
-      "again": "🔁 Знову",
-      "hard": "😓 Важко",
-      "good": "✅ Добре",
-      "easy": "🚀 Легко"
+      "again": "Знову",
+      "hard": "Важко",
+      "good": "Добре",
+      "easy": "Легко"
     },
     "empty": {
       "title": "Всі картки на сьогодні опрацьовано!",
@@ -41,23 +43,23 @@
       "hard": "складний"
     },
     "unsolvedOnly": "лише нерозв'язані",
-    "moreProblems": "✨ Більше завдань на тему «{{tech}}»",
+    "moreProblems": "Більше завдань на тему «{{tech}}»",
     "problemsCount_one": "{{count}} завдання",
     "problemsCount_few": "{{count}} завдання",
     "problemsCount_many": "{{count}} завдань",
     "problemsCount_other": "{{count}} завдання",
-    "aiTailored": "✨ Підібрано ШІ для тебе",
-    "solvedBadge": "✓ розв'язано",
+    "aiTailored": "Підібрано ШІ для тебе",
+    "solvedBadge": "розв'язано",
     "hintLabel": "Підказка {{num}}:",
     "hintsAiOffline": "ШІ офлайн — увімкни ключ у server/.env для підказок.",
-    "showSolution": "👁 Показати розв'язок",
+    "showSolution": "Показати розв'язок",
     "hintButton": {
-      "first": "💡 Підказка",
-      "another": "💡 Ще підказка",
-      "none": "💡 Підказок більше немає"
+      "first": "Підказка",
+      "another": "Ще підказка",
+      "none": "Підказок більше немає"
     },
     "reset": "↩︎ Скинути",
-    "done": "✅ Готово",
+    "done": "Готово",
     "previous": "← Назад",
     "next": "Далі →",
     "empty": {
@@ -66,12 +68,12 @@
     }
   },
   "sandbox": {
-    "open": "🧪 Відкрити пісочницю (запустити код)",
-    "title": "🧪 Пісочниця JS",
+    "open": "Відкрити пісочницю (запустити код)",
+    "title": "Пісочниця JS",
     "run": "▶ Запустити",
     "reset": "Скинути",
     "done": "Готово (немає console.log). Час: {{ms}} мс",
-    "time": "⏱ {{ms}} мс"
+    "time": "{{ms}} мс"
   },
   "toasts": {
     "aiOffline": "ШІ офлайн — увімкни ключ у server/.env",

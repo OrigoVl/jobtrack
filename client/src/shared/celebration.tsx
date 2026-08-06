@@ -38,7 +38,6 @@ export function CelebrationOverlay() {
         );
       })}
       <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-surface border border-grid rounded-xl shadow-lg px-5 py-3 flex items-center gap-2 animate-[jt-fade-in_0.3s_ease-out]">
-        <span className="text-2xl">{active.emoji}</span>
         <span className="font-display font-semibold text-ink">{active.message}</span>
       </div>
     </div>

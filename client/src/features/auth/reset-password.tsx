@@ -18,7 +18,7 @@ export function ResetPassword() {
   if (!token) {
     return (
       <AuthLayout title={t("resetPassword.invalidLink.title")} subtitle={t("resetPassword.invalidLink.subtitle")}>
-        <Link to="/forgot-password" className="text-signal hover:underline text-sm">
+        <Link to="/forgot-password" className="text-ink-dim hover:text-signal hover:underline text-sm">
           {t("resetPassword.invalidLink.requestNew")}
         </Link>
       </AuthLayout>

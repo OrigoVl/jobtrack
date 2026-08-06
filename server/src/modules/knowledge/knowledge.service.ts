@@ -4,6 +4,7 @@ import { chatJson, llmAvailable } from "../../llm/index.js";
 import { getKvJson, setKvJson, type Profile } from "../../db/index.js";
 import type { UserId } from "../../db/user-id.js";
 import { hashString } from "../../shared/hash.js";
+import { effectiveTrack } from "../../shared/tracks.js";
 
 // focus.nullable().catch(null) (not .catch("")) — DynamicKnowledge.focus is typed as
 // `string | null` below: null means "the model gave nothing personal", as opposed to an
@@ -43,7 +44,7 @@ async function isReachableUrl(rawUrl: string): Promise<boolean> {
     const res = await fetch(url.toString(), {
       method: "GET",
       redirect: "follow",
-      headers: { "user-agent": "Mozilla/5.0 (DevRadar)" },
+      headers: { "user-agent": "Mozilla/5.0 (Zorya)" },
       signal: ac.signal,
     });
     return res.status < 400;
@@ -75,7 +76,7 @@ export interface DynamicKnowledge {
 }
 
 interface DynamicKnowledgeContext {
-  profile: Pick<Profile, "skills" | "domain">;
+  profile: Pick<Profile, "skills" | "domain" | "track">;
   demand: Record<string, number>;
 }
 
@@ -91,7 +92,7 @@ export async function getDynamicKnowledge(
   tech: string,
   { profile, demand }: DynamicKnowledgeContext,
 ): Promise<DynamicKnowledge> {
-  const base = kbFor(tech);
+  const base = kbFor(tech, effectiveTrack(profile));
   const shared = { tech, drills: base.drills, cards: base.cards };
   if (!llmAvailable()) {
     return { ...shared, focus: null, learn: base.learn, resources: base.resources, source: "static" };
@@ -119,7 +120,7 @@ export async function getDynamicKnowledge(
   const role = profile.domain || "professional";
   const out = await chatJson(
     userId,
-    `You are a mentor for the role "${role}". Respond with ONLY valid JSON.`,
+    `You are a mentor for the role "${role}".`,
     `The candidate already knows: ${skills.join(", ") || "—"}.\n` +
       `They need to pick up "${tech}"${count ? ` (required in ${count} vacancies from the list)` : ""}.\n` +
       `Build bridges from their familiar stack to the new one; don't duplicate what they already know.\n` +

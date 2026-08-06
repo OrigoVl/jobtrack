@@ -8,9 +8,10 @@ import {
   useDeleteCalendarEvent,
   useVacancies,
 } from "../../shared/queries";
-import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Spinner } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Select, Spinner } from "../../shared/ui";
 import { useConfirm } from "../../shared/use-confirm";
 import { DateTimeInput } from "../../shared/date-input";
+import { CardsStackIcon } from "../../shared/icons";
 import {
   CALENDAR_EVENT_TYPES,
   type CalendarEvent,
@@ -21,18 +22,24 @@ import {
 import { fromLocalInput, toLocalInput } from "./calendar-date-utils";
 import { buildMonthCells, ymd } from "../../shared/calendar-grid";
 
+// "reminder" uses a non-brand amber (not --alert, which is now equal to --signal — see index.css's
+// glossary, one accent not two) so it stays visually distinct from "interview"'s indigo in this
+// same legend row. "deadline" used to be rose-500, which was nearly the same hue/value as the
+// app's old coral --star/--signal — indistinguishable from "interview" at legend-dot size — so
+// it's teal here instead; still a comfortable hue gap against the other four now that
+// "interview" is indigo rather than coral (indigo/sky/teal/amber/gray).
 const TYPE_DOT: Record<CalendarEventType, string> = {
-  interview: "bg-signal",
+  interview: "bg-star",
   call: "bg-sky-500",
-  deadline: "bg-rose-500",
-  reminder: "bg-alert",
+  deadline: "bg-teal-500",
+  reminder: "bg-amber-500",
   other: "bg-ink-dim",
 };
 const TYPE_CHIP: Record<CalendarEventType, string> = {
   interview: "bg-signal/10 text-signal border-signal/30",
   call: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800",
-  deadline: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800",
-  reminder: "bg-alert/10 text-alert border-alert/30",
+  deadline: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950 dark:text-teal-300 dark:border-teal-800",
+  reminder: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800",
   other: "bg-surface-2 text-ink-dim border-grid",
 };
 // A Record (not a template literal) so each value stays a literal key i18next's typed t() can
@@ -110,24 +117,24 @@ function EventModal({
         </div>
         <label className="block">
           <span className="text-xs font-semibold text-ink-dim">{t("modal.type")}</span>
-          <select
+          <Select
             value={form.type}
             onChange={(e) => set("type", e.target.value as CalendarEventType)}
-            className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+            className="w-full mt-0.5 bg-surface-2 focus:outline-none focus:ring-2 focus:ring-signal/50"
           >
             {CALENDAR_EVENT_TYPES.map((ty) => (
               <option key={ty} value={ty}>
                 {t(TYPE_KEY[ty])}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="block">
           <span className="text-xs font-semibold text-ink-dim">{t("modal.linkedVacancy")}</span>
-          <select
+          <Select
             value={form.vacancyId ?? ""}
             onChange={(e) => set("vacancyId", e.target.value ? Number(e.target.value) : null)}
-            className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+            className="w-full mt-0.5 bg-surface-2 focus:outline-none focus:ring-2 focus:ring-signal/50"
           >
             <option value="">{t("modal.none")}</option>
             {vacancies.map((v) => (
@@ -135,7 +142,7 @@ function EventModal({
                 {v.company} — {v.position || t("modal.position")}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="block">
           <span className="text-xs font-semibold text-ink-dim">{t("modal.notes")}</span>
@@ -264,6 +271,7 @@ export function CalendarPage() {
   return (
     <div className="space-y-4">
       <PageHeader
+        eyebrow={t("eyebrow")}
         title={t("title")}
         subtitle={t("subtitle")}
         actions={
@@ -294,17 +302,22 @@ export function CalendarPage() {
               <span className={`w-1.5 h-1.5 rounded-full ${TYPE_DOT[ty]}`} /> {t(TYPE_KEY[ty])}
             </span>
           ))}
+          {/* pink-500, not violet-500 — the vacancy-step dot renders directly alongside the event
+              dots above (same day cell, see byDaySteps below), and violet-500 sits only ~14° from
+              the new --star indigo on the hue wheel (they used to be far apart under the old
+              coral accent) — indistinguishable at this dot size. Pink sits in the largest open gap
+              against the whole TYPE_DOT set (indigo/sky/teal/amber/gray). */}
           <span className="inline-flex items-center gap-1 text-[11px] text-ink-dim">
-            <span className="w-1.5 h-1.5 rounded-full bg-alert" /> {t("legend.vacancyStep")}
+            <span className="w-1.5 h-1.5 rounded-full bg-pink-500" /> {t("legend.vacancyStep")}
           </span>
-          <span className="inline-flex items-center gap-1 text-[11px] text-ink-dim">🧠 {t("legend.srsDue")}</span>
+          <span className="inline-flex items-center gap-1 text-[11px] text-ink-dim">{t("legend.srsDue")}</span>
         </div>
       </div>
 
       <Card className="!p-2 md:!p-3">
         <div className="grid grid-cols-7 gap-1 mb-1">
           {weekdays.map((w) => (
-            <div key={w} className="font-display text-[11px] font-bold uppercase tracking-wider text-ink-dim text-center py-1">
+            <div key={w} className="eyebrow text-ink-dim text-center py-1">
               {w}
             </div>
           ))}
@@ -336,8 +349,13 @@ export function CalendarPage() {
                   {events.slice(0, 3).map((e) => (
                     <span key={e.id} className={`w-1.5 h-1.5 rounded-full ${TYPE_DOT[e.type]}`} title={e.title} />
                   ))}
-                  {steps.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-alert" title={t("legend.vacancyStep")} />}
-                  {due > 0 && <span className="text-[10px] leading-none text-ink-dim">🧠{due}</span>}
+                  {steps.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-pink-500" title={t("legend.vacancyStep")} />}
+                  {due > 0 && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] leading-none text-ink-dim">
+                      <CardsStackIcon className="h-2.5 w-2.5" />
+                      {due}
+                    </span>
+                  )}
                 </div>
               </button>
             );
@@ -354,7 +372,7 @@ export function CalendarPage() {
         </div>
 
         {selectedSteps.length === 0 && selectedDue === 0 && selectedEvents.length === 0 ? (
-          <EmptyState icon="🗓️" title={t("empty.title")} hint={t("empty.hint")} />
+          <EmptyState title={t("empty.title")} hint={t("empty.hint")} />
         ) : (
           <div className="space-y-2">
             {selectedSteps.map((s) => (
@@ -375,7 +393,6 @@ export function CalendarPage() {
                 onClick={() => navigate("/study")}
                 className="w-full flex items-center gap-2 text-sm text-left px-2.5 py-2 rounded-lg border border-signal/30 bg-signal/10 hover:bg-signal/20 transition-colors"
               >
-                <span aria-hidden>🧠</span>
                 <span className="text-ink">{t("flashcardsDue", { count: selectedDue })}</span>
                 <span className="ml-auto text-ink-dim text-xs">{t("goToStudy")}</span>
               </button>

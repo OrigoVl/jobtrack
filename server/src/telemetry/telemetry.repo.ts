@@ -16,7 +16,11 @@ import { contextLogger } from "../core/logger.js";
 import { getRequestId } from "../core/request-context.js";
 import { estimateCostUsd } from "../llm/pricing.js";
 
-export type LlmUsageOutcome = "success" | "error" | "cache_hit" | "budget_exceeded";
+// "quota_exceeded" is distinct from "budget_exceeded": the former is a Free-plan user hitting
+// their monthly AI-call allowance (modules/billing/entitlements.ts) — an expected conversion
+// signal — while the latter is the operator-level LLM_DAILY_COST_CAP_USD safety valve tripping,
+// which is closer to an incident. Keeping them separate lets the admin panel tell them apart.
+export type LlmUsageOutcome = "success" | "error" | "cache_hit" | "budget_exceeded" | "quota_exceeded";
 
 export interface LlmUsageRecord {
   userId: UserId;
@@ -33,6 +37,16 @@ export interface LlmUsageRecord {
   cacheHit: boolean;
   latencyMs: number | null;
   outcome: LlmUsageOutcome;
+  /**
+   * Explicit cost override, in USD — when provided, used verbatim instead of being derived from
+   * inputTokens/outputTokens via pricing.ts's per-1M-TOKEN price table. Needed for a call whose
+   * provider bills by a different unit entirely (llm/tts.ts's gpt-4o-mini-tts, billed per
+   * CHARACTER, not per token) — forcing that through estimateCostUsd() would require faking a
+   * token count, which would corrupt inputTokens/outputTokens for any future per-token reporting.
+   * Omitted (undefined) for every existing call site (chat()/embed()), so their behavior — cost
+   * derived from the token table — is unchanged.
+   */
+  costUsd?: number | null;
 }
 
 export async function insertLlmUsage(record: LlmUsageRecord): Promise<void> {
@@ -51,7 +65,7 @@ export async function insertLlmUsage(record: LlmUsageRecord): Promise<void> {
       inputTokens: record.inputTokens,
       outputTokens: record.outputTokens,
       totalTokens: record.totalTokens,
-      costUsd: estimateCostUsd(record.model, record.inputTokens, record.outputTokens),
+      costUsd: record.costUsd !== undefined ? record.costUsd : estimateCostUsd(record.model, record.inputTokens, record.outputTokens),
       cacheHit: record.cacheHit,
       latencyMs: record.latencyMs,
       outcome: record.outcome,

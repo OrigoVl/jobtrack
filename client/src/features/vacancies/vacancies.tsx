@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useUi } from "../../shared/ui-state";
 import {
@@ -13,7 +13,7 @@ import {
 import { api } from "../../shared/api";
 import { useToast } from "../../shared/use-toast";
 import { useConfirm } from "../../shared/use-confirm";
-import { Btn, Card, CardsSkeleton, Dropdown, EmptyState, PageHeader, Spinner } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Dropdown, EmptyState, PageHeader, Select, Spinner } from "../../shared/ui";
 import { DateInput } from "../../shared/date-input";
 import { STATUSES, type Fit, type VacancyStatus } from "../../shared/types";
 import { fitText, fitLabel } from "../../shared/fit-tone";
@@ -21,7 +21,17 @@ import { statusLabel } from "../../shared/status-labels";
 import { STATUS_SELECT_CLASS, DEFAULT_STATUS_SELECT_CLASS } from "../../shared/status-tone";
 import { VacancyBoard } from "./kanban-board";
 import { SimilarVacanciesButton } from "./similar-vacancies-button";
+import { VacancyDetailModal } from "./vacancy-detail-modal";
 import { filterAndSortVacancies, COLUMN_LABEL_KEY, OPTIONAL_COLUMNS, type SortKey, type ColumnKey } from "./vacancies-filter";
+
+// useUi's "vacancies.view" is in-memory only (see ui-state.ts) — it survives switching tabs
+// within the SPA but resets to the default on every reload/new session. The table/board choice
+// specifically should stick across those too, so it's separately mirrored to localStorage here
+// (same pattern as theme.ts), while every other "vacancies.*" useUi key stays session-only.
+const VIEW_STORAGE_KEY = "jobtrack.vacancies.view";
+function readStoredView(): "table" | "board" {
+  return localStorage.getItem(VIEW_STORAGE_KEY) === "board" ? "board" : "table";
+}
 
 /** Triggers a browser download of a JSON file with the given data (for exporting vacancies). */
 function downloadJson(filename: string, data: unknown): void {
@@ -50,6 +60,29 @@ function isStaleApplication(status: string, days: number | null): boolean {
   return days != null && days > STALE_APPLICATION_DAYS && WAITING_STATUSES.includes(status);
 }
 
+const STACK_VISIBLE_COUNT = 3;
+
+/** The table view's stack cell used to render every tag uncollapsed — a vacancy with ~20 tags
+ * stretched across 8 lines and pushed the rest of the table off-screen. Capped the same way
+ * kanban-board.tsx's card already does (a static "+N", not expandable in place) — the full stack
+ * is one click away regardless, via the row's own "open details" button opening
+ * VacancyDetailModal, which always shows it in full. */
+function StackCell({ stack }: { stack: string[] }) {
+  if (stack.length === 0) return <span className="text-xs text-ink-dim">—</span>;
+  const hiddenCount = stack.length - STACK_VISIBLE_COUNT;
+  const shown = hiddenCount > 0 ? stack.slice(0, STACK_VISIBLE_COUNT) : stack;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {shown.map((s) => (
+        <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim border border-grid">
+          {s}
+        </span>
+      ))}
+      {hiddenCount > 0 && <span className="text-[10px] px-1 text-ink-dim self-center">+{hiddenCount}</span>}
+    </div>
+  );
+}
+
 /* ---------- Vacancies ---------- */
 export function Vacancies() {
   const { t } = useTranslation(["vacancies", "common"]);
@@ -57,6 +90,12 @@ export function Vacancies() {
   const { data: vacancies = [], isLoading } = useVacancies();
   const { data: contacts = [] } = useContacts();
   const contactsFor = (vacancyId: number) => contacts.filter((c) => c.vacancyId === vacancyId);
+  // The "Jira issue"-style detail popup — cover letter + fit analysis + every editable field,
+  // scoped to one vacancy (see vacancy-detail-modal.tsx). Kept as the live object from `vacancies`
+  // (re-derived below) rather than just an id, so edits made elsewhere (e.g. the table row itself,
+  // if both are visible) are reflected without an extra lookup.
+  const [detailVacancyId, setDetailVacancyId] = useState<number | null>(null);
+  const detailVacancy = detailVacancyId != null ? vacancies.find((v) => v.id === detailVacancyId) : undefined;
   const addVacancyMutation = useAddVacancy();
   const updateVacancyMutation = useUpdateVacancy();
   const deleteVacancyMutation = useDeleteVacancy();
@@ -65,7 +104,11 @@ export function Vacancies() {
   const { toast } = useToast();
   const jsonFileInputRef = useRef<HTMLInputElement | null>(null);
   const [imp, setImp] = useUi("vacancies.import", "");
-  const [view, setView] = useUi<"table" | "board">("vacancies.view", "table");
+  const [view, setViewUi] = useUi<"table" | "board">("vacancies.view", readStoredView());
+  const setView = (v: "table" | "board") => {
+    setViewUi(v);
+    localStorage.setItem(VIEW_STORAGE_KEY, v);
+  };
   const [search, setSearch] = useUi("vacancies.search", "");
   const [filterStatus, setFilterStatus] = useUi<string>("vacancies.filterStatus", "all");
   const [filterFit, setFilterFit] = useUi<string>("vacancies.filterFit", "all");
@@ -119,6 +162,7 @@ export function Vacancies() {
   return (
     <div className="space-y-4">
       <PageHeader
+        eyebrow={t("eyebrow")}
         title={t("title")}
         subtitle={t("subtitle")}
         actions={
@@ -133,62 +177,87 @@ export function Vacancies() {
             </div>
             <Btn
               loading={addVacancyMutation.isPending}
-              onClick={() => addVacancyMutation.mutate({ company: "New company", position: "Position" })}
+              onClick={() =>
+                addVacancyMutation.mutate(
+                  { company: "New company", position: "Position" },
+                  { onSuccess: (row) => setDetailVacancyId(row.id) },
+                )
+              }
             >
               {t("addVacancy")}
             </Btn>
+            {/* Collapsed by default — the two import forms used to render as full-width cards
+                ABOVE the table/board on every visit, pushing every actual vacancy off-screen on
+                first load. Grouped into one Dropdown, same pattern as cv-builder.tsx's own
+                "Import ▾" menu; data-keep-open on the interactive bits so typing/clicking inside
+                doesn't close the panel out from under the user (see cv-builder.tsx's <select
+                data-keep-open> for the precedent). width=360: wider than Dropdown's 220px
+                default (a short menu-item list) since this panel holds a textarea + descriptive
+                text — Dropdown's positioning math needs the REAL width or the panel overflows
+                the viewport and clips its own content on the right (this happened before this
+                comment was written: the panel was still positioned as if 220px wide). */}
+            <Dropdown label={t("importMenu.label")} align="right" width={360}>
+              <div data-keep-open>
+                <div className="text-sm font-semibold mb-2 text-ink px-1">{t("import.heading")}</div>
+                <textarea
+                  value={imp}
+                  onChange={(e) => setImp(e.target.value)}
+                  aria-label={t("import.ariaLabel")}
+                  placeholder={t("import.placeholder")}
+                  className="w-full h-20 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+                />
+                <Btn className="mt-2 w-full" variant="ghost" onClick={doImport} disabled={!imp} loading={importVacanciesMutation.isPending}>
+                  {importVacanciesMutation.isPending ? t("import.importing") : t("import.importLinks")}
+                </Btn>
+              </div>
+              <div className="border-t border-grid my-2" />
+              <div data-keep-open>
+                <div className="text-sm font-semibold mb-1 text-ink px-1">{t("jsonImportExport.heading")}</div>
+                <p className="text-xs text-ink-dim mb-2 px-1">
+                  {t("jsonImportExport.formatIntro")} <code>job-tracker.json</code> — {t("jsonImportExport.formatSchema")}{" "}
+                  <code>{"{company, pos, level, salary, fit, status, applied, next, notes, url}"}</code>. {t("jsonImportExport.syncNote")}
+                </p>
+                <div className="flex flex-col gap-2">
+                  <input
+                    ref={jsonFileInputRef}
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={onImportJsonFile}
+                    className="hidden"
+                    aria-label={t("jsonImportExport.fileAriaLabel")}
+                  />
+                  <Btn
+                    variant="ghost"
+                    className="w-full"
+                    onClick={() => jsonFileInputRef.current?.click()}
+                    loading={importJsonMutation.isPending}
+                  >
+                    {importJsonMutation.isPending ? t("jsonImportExport.importing") : t("jsonImportExport.importFromFile")}
+                  </Btn>
+                  <Btn variant="ghost" className="w-full" onClick={onExportJson} disabled={vacancies.length === 0}>
+                    {t("jsonImportExport.exportToFile")}
+                  </Btn>
+                </div>
+              </div>
+            </Dropdown>
           </div>
         }
       />
 
-      <Card>
-        <div className="text-sm font-semibold mb-2 text-ink">{t("import.heading")}</div>
-        <textarea
-          value={imp}
-          onChange={(e) => setImp(e.target.value)}
-          aria-label={t("import.ariaLabel")}
-          placeholder={t("import.placeholder")}
-          className="w-full h-20 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
-        />
-        <Btn className="mt-2" variant="ghost" onClick={doImport} disabled={!imp} loading={importVacanciesMutation.isPending}>
-          {importVacanciesMutation.isPending ? t("import.importing") : t("import.importLinks")}
-        </Btn>
-      </Card>
-
-      <Card>
-        <div className="text-sm font-semibold mb-1 text-ink">{t("jsonImportExport.heading")}</div>
-        <p className="text-xs text-ink-dim mb-2">
-          {t("jsonImportExport.formatIntro")} <code>job-tracker.json</code> — {t("jsonImportExport.formatSchema")}{" "}
-          <code>{"{company, pos, level, salary, fit, status, applied, next, notes, url}"}</code>. {t("jsonImportExport.syncNote")}
-        </p>
-        <div className="flex gap-2 flex-wrap">
-          <input
-            ref={jsonFileInputRef}
-            type="file"
-            accept="application/json,.json"
-            onChange={onImportJsonFile}
-            className="hidden"
-            aria-label={t("jsonImportExport.fileAriaLabel")}
-          />
-          <Btn variant="ghost" onClick={() => jsonFileInputRef.current?.click()} loading={importJsonMutation.isPending}>
-            {importJsonMutation.isPending ? t("jsonImportExport.importing") : t("jsonImportExport.importFromFile")}
-          </Btn>
-          <Btn variant="ghost" onClick={onExportJson} disabled={vacancies.length === 0}>
-            {t("jsonImportExport.exportToFile")}
-          </Btn>
-        </div>
-      </Card>
-
       {vacancies.length === 0 ? (
         <Card>
           <EmptyState
-            icon="📋"
             title={t("empty.title")}
             hint={t("empty.hint")}
             action={
               <Btn
                 loading={addVacancyMutation.isPending}
-                onClick={() => addVacancyMutation.mutate({ company: "New company", position: "Position" })}
+                onClick={() =>
+                  addVacancyMutation.mutate(
+                    { company: "New company", position: "Position" },
+                    { onSuccess: (row) => setDetailVacancyId(row.id) },
+                  )
+                }
               >
                 {t("addFirst")}
               </Btn>
@@ -196,7 +265,7 @@ export function Vacancies() {
           />
         </Card>
       ) : view === "board" ? (
-        <VacancyBoard />
+        <VacancyBoard onOpenDetail={setDetailVacancyId} />
       ) : (
         <>
           <Card>
@@ -208,29 +277,21 @@ export function Vacancies() {
                 aria-label={t("filters.searchAriaLabel")}
                 className="flex-1 min-w-[180px] bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
               />
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 text-sm text-ink"
-              >
+              <Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
                 <option value="all">{t("filters.allStatuses")}</option>
                 {STATUSES.map((s) => (
                   <option key={s} value={s}>
                     {statusLabel(s)}
                   </option>
                 ))}
-              </select>
-              <select
-                value={filterFit}
-                onChange={(e) => setFilterFit(e.target.value)}
-                className="bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 text-sm text-ink"
-              >
+              </Select>
+              <Select value={filterFit} onChange={(e) => setFilterFit(e.target.value)}>
                 <option value="all">{t("filters.allFits")}</option>
                 <option value="high">{fitLabel("high")}</option>
                 <option value="med">{fitLabel("med")}</option>
                 <option value="low">{fitLabel("low")}</option>
-              </select>
-              <Dropdown label={`⚙ ${t("filters.columns")}`}>
+              </Select>
+              <Dropdown label={t("filters.columns")}>
                 {OPTIONAL_COLUMNS.map((key) => (
                   <label
                     key={key}
@@ -252,7 +313,6 @@ export function Vacancies() {
           {visibleVacancies.length === 0 ? (
             <Card>
               <EmptyState
-                icon="🔍"
                 title={t("filters.noMatches.title")}
                 hint={t("filters.noMatches.hint")}
                 action={
@@ -264,9 +324,14 @@ export function Vacancies() {
             </Card>
           ) : (
             <Card className="!p-0 overflow-hidden">
-              <div className="overflow-x-auto">
+              {/* `overflow-auto` (not `-x-auto`) + a capped height makes THIS div — not the page —
+                  the scrolling ancestor, which is what lets the `sticky` thead below actually stick:
+                  sticky resolves against the nearest ancestor with non-`visible` overflow, and an
+                  ancestor that never itself scrolls (e.g. this Card's own `overflow-hidden`, which
+                  only exists to clip the table to its rounded corners) makes sticky silently no-op. */}
+              <div className="overflow-auto max-h-[65vh]">
                 <table className="w-full text-sm">
-                  <thead>
+                  <thead className="sticky top-0 z-10">
                     <tr className="text-ink-dim text-xs text-left bg-surface-2 border-b border-grid">
                       <th className="p-3 w-10 text-right">#</th>
                       <th className="p-3 cursor-pointer select-none hover:text-ink" onClick={() => toggleSort("company")}>
@@ -309,8 +374,37 @@ export function Vacancies() {
                       const isSavingRow = updateVacancyMutation.isPending && updateVacancyMutation.variables?.id === row.id;
                       const isDeletingRow = deleteVacancyMutation.isPending && deleteVacancyMutation.variables === row.id;
                       return (
-                        <tr key={row.id} className="border-t border-surface-2 align-top hover:bg-surface-2/60">
-                          <td className="p-3 text-right text-ink-dim text-xs tabular-nums">{i + 1}</td>
+                        <tr
+                          key={row.id}
+                          title={t("detail.openTitle")}
+                          // Clicking anywhere on the row opens the detail popup — EXCEPT an
+                          // actual control (the inline company/position/url inputs, status/fit
+                          // selects, date pickers, Similar-vacancies button, delete button):
+                          // those need the click for themselves. Same pattern as the Kanban
+                          // card's onClick (kanban-board.tsx). A small "open" button in just one
+                          // cell (the original approach here) was too easy to miss — this is the
+                          // discoverable, "click the row like a Jira issue" version.
+                          onClick={(e) => {
+                            if ((e.target as HTMLElement).closest("input, select, textarea, button, a")) return;
+                            setDetailVacancyId(row.id);
+                          }}
+                          className="border-t border-surface-2 align-top hover:bg-surface-2/60 cursor-pointer"
+                        >
+                          <td className="p-3 text-right">
+                            {/* A plain onClick on <tr> isn't reachable by keyboard/screen readers
+                                — this button is the accessible entry point to the same action for
+                                anyone not using a mouse; the row-wide click above is the
+                                discoverable convenience on top of it, not a replacement for it. */}
+                            <button
+                              type="button"
+                              onClick={() => setDetailVacancyId(row.id)}
+                              title={t("detail.openTitle")}
+                              aria-label={t("detail.openAriaLabel", { company: row.company, position: row.position })}
+                              className="text-ink-dim text-xs tabular-nums hover:text-signal hover:underline rounded px-1 -mx-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
+                            >
+                              {i + 1}
+                            </button>
+                          </td>
                           <td className="p-3">
                             <input
                               defaultValue={row.company}
@@ -353,20 +447,7 @@ export function Vacancies() {
                           </td>
                           {isColVisible("stack") && (
                             <td className="p-3 max-w-[220px]">
-                              <div className="flex flex-wrap gap-1">
-                                {row.stack.length === 0 ? (
-                                  <span className="text-xs text-ink-dim">—</span>
-                                ) : (
-                                  row.stack.map((s) => (
-                                    <span
-                                      key={s}
-                                      className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim border border-grid"
-                                    >
-                                      {s}
-                                    </span>
-                                  ))
-                                )}
-                              </div>
+                              <StackCell stack={row.stack} />
                             </td>
                           )}
                           {isColVisible("fit") && (
@@ -405,7 +486,7 @@ export function Vacancies() {
                                       title={c.role || undefined}
                                       className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim border border-grid"
                                     >
-                                      🧑‍🤝‍🧑 {c.name}
+                                      {c.name}
                                     </span>
                                   ))}
                                 </div>
@@ -492,6 +573,7 @@ export function Vacancies() {
           )}
         </>
       )}
+      {detailVacancy && <VacancyDetailModal vacancy={detailVacancy} onClose={() => setDetailVacancyId(null)} />}
     </div>
   );
 }

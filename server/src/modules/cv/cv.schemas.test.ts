@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { CvDocSchema, CvThemeSchema, CvPresetsSchema, CV_SECTIONS } from "./cv.schemas.js";
+import {
+  CvCertificationsSchema,
+  CvContactLinksSchema,
+  CvDocSchema,
+  CvEducationSchema,
+  CvProjectsSchema,
+  CvThemeSchema,
+  CvPresetsSchema,
+  CV_SECTIONS,
+} from "./cv.schemas.js";
 
 describe("CvThemeSchema", () => {
   it("fills every field with defaults when given nothing", () => {
@@ -56,7 +65,7 @@ describe("CvThemeSchema", () => {
 
   it("dedupes order and appends missing sections in default order", () => {
     const out = CvThemeSchema.parse({ order: ["skills", "skills", "bogus", "summary"] });
-    expect(out.order).toEqual(["skills", "summary", "experience", "projects", "education", "languages"]);
+    expect(out.order).toEqual(["skills", "summary", "experience", "projects", "education", "certifications", "languages"]);
   });
 });
 
@@ -116,6 +125,83 @@ describe("CvDocSchema", () => {
     expect(() => CvDocSchema.parse(null)).not.toThrow();
     expect(() => CvDocSchema.parse("not-an-object")).not.toThrow();
     expect(() => CvDocSchema.parse(42)).not.toThrow();
+  });
+});
+
+describe("CvEducationSchema", () => {
+  it("coerces pre-existing plain-string entries into { school, degree: '', period: '' }", () => {
+    // Every education entry saved before this field became structured is a bare string in
+    // user_kv — GET /cv/doc re-validates stored data through this schema on every read, so this
+    // is the actual backward-compat path for old accounts, not just a defensive edge case.
+    expect(CvEducationSchema.parse(["BSc Computer Science, MIT, 2016 – 2020"])).toEqual([
+      { school: "BSc Computer Science, MIT, 2016 – 2020", degree: "", period: "" },
+    ]);
+  });
+
+  it("passes already-structured entries through, trimming/capping fields", () => {
+    const entries = [{ school: "x".repeat(300), degree: "y".repeat(300), period: "z".repeat(100) }];
+    const out = CvEducationSchema.parse(entries);
+    expect(out[0]?.school).toHaveLength(200);
+    expect(out[0]?.degree).toHaveLength(160);
+    expect(out[0]?.period).toHaveLength(60);
+  });
+
+  it("drops entries with every field blank, caps at 20, and never throws on garbage", () => {
+    const entries = Array.from({ length: 25 }, (_, i) => ({ school: `School ${i}`, degree: "", period: "" }));
+    expect(CvEducationSchema.parse(entries)).toHaveLength(20);
+    expect(CvEducationSchema.parse([{ school: "", degree: "", period: "" }, "   "])).toEqual([{ school: "   ", degree: "", period: "" }]);
+    expect(() => CvEducationSchema.parse(null)).not.toThrow();
+    expect(CvEducationSchema.parse(null)).toEqual([]);
+  });
+});
+
+describe("CvProjectsSchema", () => {
+  it("coerces pre-existing plain-string entries into { title, description: '', tech: [], link: '' }", () => {
+    expect(CvProjectsSchema.parse(["Side Project — a thing I built"])).toEqual([
+      { title: "Side Project — a thing I built", description: "", tech: [], link: "" },
+    ]);
+  });
+
+  it("passes already-structured entries through, trimming/capping fields", () => {
+    const out = CvProjectsSchema.parse([
+      { title: "x".repeat(300), description: "y".repeat(600), tech: ["React", "Node", 42, null], link: "z".repeat(400) },
+    ]);
+    expect(out[0]?.title).toHaveLength(200);
+    expect(out[0]?.description).toHaveLength(500);
+    expect(out[0]?.tech).toEqual(["React", "Node"]);
+    expect(out[0]?.link).toHaveLength(300);
+  });
+
+  it("drops entries with every field blank and never throws on garbage", () => {
+    expect(CvProjectsSchema.parse([{ title: "", description: "", tech: [], link: "" }])).toEqual([]);
+    expect(() => CvProjectsSchema.parse(null)).not.toThrow();
+    expect(CvProjectsSchema.parse(null)).toEqual([]);
+  });
+});
+
+describe("CvCertificationsSchema", () => {
+  it("sanitizes fields, caps at 20, drops all-blank entries, and never throws on garbage", () => {
+    const out = CvCertificationsSchema.parse([
+      { name: "AWS Certified Developer", issuer: "Amazon", date: "2023" },
+      { name: "", issuer: "", date: "" },
+    ]);
+    expect(out).toEqual([{ name: "AWS Certified Developer", issuer: "Amazon", date: "2023" }]);
+    expect(() => CvCertificationsSchema.parse(null)).not.toThrow();
+    expect(CvCertificationsSchema.parse(null)).toEqual([]);
+    expect(CvCertificationsSchema.parse(Array.from({ length: 25 }, (_, i) => ({ name: `Cert ${i}` })))).toHaveLength(20);
+  });
+});
+
+describe("CvContactLinksSchema", () => {
+  it("sanitizes fields, caps at 10, drops all-blank entries, and never throws on garbage", () => {
+    const out = CvContactLinksSchema.parse([
+      { label: "LinkedIn", url: "linkedin.com/in/me" },
+      { label: "", url: "" },
+    ]);
+    expect(out).toEqual([{ label: "LinkedIn", url: "linkedin.com/in/me" }]);
+    expect(() => CvContactLinksSchema.parse(null)).not.toThrow();
+    expect(CvContactLinksSchema.parse(null)).toEqual([]);
+    expect(CvContactLinksSchema.parse(Array.from({ length: 15 }, (_, i) => ({ label: `Link ${i}`, url: "x" })))).toHaveLength(10);
   });
 });
 

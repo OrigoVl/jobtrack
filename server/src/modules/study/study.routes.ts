@@ -17,8 +17,9 @@ import { HttpError, authed } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
 import { CARDS } from "./content.js";
 import { slugify } from "../../shared/slug.js";
-import { genDrills, allDrills, genCards, allCards } from "./content-store.js";
+import { genDrills, allDrills, genCards, allCards, trackFor } from "./content-store.js";
 import { scheduleFsrs, type FsrsRating } from "./fsrs.js";
+import { effectiveTrack } from "../../shared/tracks.js";
 
 const r = express.Router();
 
@@ -42,7 +43,8 @@ const GenCardsSchema = z.object({ cards: z.array(z.object({ q: z.string().min(1)
 r.get(
   "/study/content",
   authed(async (userId, _req, res) => {
-    res.json({ cards: CARDS, drills: await allDrills(userId), drillProgress: await getDrillProgress(userId) });
+    const track = await trackFor(userId);
+    res.json({ cards: CARDS, drills: await allDrills(userId, track), drillProgress: await getDrillProgress(userId) });
   }),
 );
 r.put(
@@ -50,7 +52,8 @@ r.put(
   authed(async (userId, req, res) => {
     const id = String(req.body?.id || "");
     const status = String(req.body?.status || "todo");
-    if (!(await allDrills(userId)).some((d) => d.id === id)) throw new HttpError(400, `Unknown task: "${id}"`);
+    const track = await trackFor(userId);
+    if (!(await allDrills(userId, track)).some((d) => d.id === id)) throw new HttpError(400, `Unknown task: "${id}"`);
     if (status !== "solved" && status !== "todo") throw new HttpError(400, `Unknown status: "${status}"`);
     const progress = await setDrillStatus(userId, id, status);
     // Only solving counts as a study action for the streak — unmarking a task back to "todo"
@@ -66,7 +69,8 @@ r.post(
   aiLimiter,
   authed(async (userId, req, res) => {
     const id = String(req.body?.id || "");
-    const drill = (await allDrills(userId)).find((d) => d.id === id);
+    const track = await trackFor(userId);
+    const drill = (await allDrills(userId, track)).find((d) => d.id === id);
     if (!drill) throw new HttpError(400, `Unknown task: "${id}"`);
     if (!llmAvailable()) return res.json({ offline: true, hints: [] });
     const out = await chatJson(
@@ -91,9 +95,10 @@ r.post(
       .trim()
       .slice(0, 60);
     if (!tech) throw new HttpError(400, "No technology specified");
-    if (!llmAvailable()) return res.json({ offline: true, added: 0, drills: await allDrills(userId) });
-    const cat = catFor(tech) || tech;
     const profile = await getProfile(userId);
+    const track = effectiveTrack(profile);
+    if (!llmAvailable()) return res.json({ offline: true, added: 0, drills: await allDrills(userId, track) });
+    const cat = catFor(tech) || tech;
     const role = profile.domain || "specialist";
     const out = await chatJson(
       userId,
@@ -111,7 +116,7 @@ r.post(
     );
     const items = out?.drills ?? [];
     const gen = await genDrills(userId);
-    const existingQ = new Set((await allDrills(userId)).map((d) => d.q));
+    const existingQ = new Set((await allDrills(userId, track)).map((d) => d.q));
     let added = 0;
     for (const it of items.slice(0, 3)) {
       if (existingQ.has(it.q)) continue;
@@ -129,7 +134,7 @@ r.post(
       added++;
     }
     await setKvJson(userId, "genDrills", gen);
-    res.json({ added, drills: await allDrills(userId) });
+    res.json({ added, drills: await allDrills(userId, track) });
   }),
 );
 
@@ -139,6 +144,7 @@ r.post(
   aiLimiter,
   authed(async (userId, req, res) => {
     const profile = await getProfile(userId);
+    const track = effectiveTrack(profile);
     const role = profile.domain || "specialist";
     const topic =
       String(req.body?.topic || "")
@@ -155,11 +161,11 @@ r.post(
       GenCardsSchema,
       // cache: true — same reasoning as study-generate-drills above: dedupe a repeat/retried
       // "generate more" click for the same topic+role instead of paying for another generation.
-      { maxTokens: 900, temperature: 0.5, cache: true, tier: "smart", feature: "study-generate-cards", outputLocale: "app" },
+      { maxTokens: 900, temperature: 0.5, cache: true, tier: "fast", feature: "study-generate-cards", outputLocale: "app" },
     );
     const items = out?.cards ?? [];
     const gen = await genCards(userId);
-    const existingQ = new Set((await allCards(userId)).map((c) => c.q));
+    const existingQ = new Set((await allCards(userId, track)).map((c) => c.q));
     let added = 0;
     for (const it of items.slice(0, 5)) {
       if (existingQ.has(it.q)) continue;
@@ -175,7 +181,8 @@ r.get(
   "/study/due",
   authed(async (userId, _req, res) => {
     const today = new Date().toISOString().slice(0, 10);
-    const cards = await allCards(userId);
+    const track = await trackFor(userId);
+    const cards = await allCards(userId, track);
     const state = await getSrsStateByCard(userId);
     const due = cards.filter((c) => {
       const s = state[c.id];
@@ -193,7 +200,9 @@ r.post(
   "/study/grade",
   authed(async (userId, req, res) => {
     const { cardId, grade } = req.body || {};
-    if (typeof cardId !== "string" || !(await allCards(userId)).some((c) => c.id === cardId)) throw new HttpError(400, "Unknown card");
+    const track = await trackFor(userId);
+    if (typeof cardId !== "string" || !(await allCards(userId, track)).some((c) => c.id === cardId))
+      throw new HttpError(400, "Unknown card");
     // 1=Again (forgot), 2=Hard, 3=Good, 4=Easy — a 4-point FSRS scale instead of the old
     // binary one (0/1), so the algorithm can distinguish "barely remembered" from "recalled
     // instantly" — this is the main advantage of FSRS over SM-2 with its binary rating.

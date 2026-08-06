@@ -2,10 +2,10 @@
   "shared": {
     "offline": "offline",
     "copy": "Copy",
-    "copied": "✓ Copied",
+    "copied": "Copied",
     "generate": "Generate",
-    "saveButton": "💾 Save",
-    "pdfButton": "⬇️ PDF"
+    "saveButton": "Save",
+    "pdfButton": "PDF"
   },
   "templates": {
     "classic": "Classic",
@@ -18,48 +18,74 @@
   },
   "builder": {
     "header": {
+      "eyebrow": "CV tools",
       "title": "CV Builder",
       "subtitle": "A structured resume focused on outcomes. Fill it in from your existing CV, edit it, and export to PDF.",
-      "exportPdf": "⬇️ Export PDF",
+      "exportPdf": "Export PDF",
       "exportPdfTitle": "In the browser's print dialog, the date/document title at the top of pages are disabled automatically; if they still appear — turn off «Headers and footers»",
       "exportPopupBlocked": "Allow pop-ups for this site to export the PDF."
     },
+    "autosave": {
+      "saving": "Saving…",
+      "saved": "All changes saved",
+      "unsavedWarning": "Your CV has unsaved changes. Continue?"
+    },
+    "profiles": {
+      "unnamed": "Untitled CV",
+      "renameHint": "Double-click to rename",
+      "menuAria": "CV options",
+      "rename": "Rename",
+      "duplicate": "Duplicate",
+      "delete": "Delete",
+      "confirmDelete": "Delete “{{name}}”?",
+      "addTab": "New CV",
+      "limitReached": "You can have up to {{max}} CV profiles"
+    },
     "importMenu": {
-      "label": "📎 Import",
-      "fromFile": "📎 From CV file",
+      "label": "Import",
+      "fromFile": "From CV file",
       "parsing": "Parsing…",
-      "linkedin": "🔗 LinkedIn (.zip)",
+      "linkedin": "LinkedIn (.zip)",
       "importingLinkedin": "Importing…",
       "fromProfileText": "From profile text (AI)",
       "linkedinHelpSummary": "Where do I get a LinkedIn .zip?",
       "linkedinHelpBody": "LinkedIn → <b>Settings & Privacy → Data Privacy → Get a copy of your data</b> → «Want something in particular» (Profile, Positions, Skills, Education) → get the archive by email → upload the <b>.zip</b> here."
     },
     "vacancyMenu": {
-      "label": "🎯 Vacancy",
+      "label": "Vacancy",
       "fallback": "Vacancy",
       "compareAgainst": "Compare CV against",
       "noVacancies": "Add vacancies to the tracker first",
       "selectPlaceholder": "— select a vacancy —"
     },
-    "compareButton": "🎯 Compare",
-    "tailorButton": "✨ Tailor CV",
+    "compareButton": "Compare",
+    "tailorButton": "Tailor CV",
     "tailorButtonTitle": "Reorder skills/bullets and rewrite the summary for the selected vacancy",
-    "aiAssistantButton": "🤖 AI Assistant",
+    "aiAssistantButton": "AI Assistant",
+    "aiAssistantProgress": {
+      "heading": "Analyzing your resume…",
+      "hint": "This runs in the background — feel free to keep editing. We'll notify you when it's ready."
+    },
+    "aiAssistantSteps": {
+      "preparing": "Preparing your resume",
+      "generating_feedback": "Getting AI feedback",
+      "finalizing": "Finalizing the report"
+    },
     "suggest": {
       "message": "Your profile already has CV text, but the builder is still empty. Parse it into sections automatically?",
-      "parseCv": "🪄 Parse CV",
+      "parseCv": "Parse CV",
       "later": "Later"
     },
     "reports": {
       "hide": "Hide",
       "tabs": {
-        "tips": "🔎 Tips",
-        "match": "🎯 Vacancy match",
-        "tailor": "✨ Tailored CV"
+        "tips": "Tips",
+        "match": "Vacancy match",
+        "tailor": "Tailored CV"
       },
       "tailor": {
-        "title": "✨ Tailored",
-        "titleFor": "✨ Tailored for \"{{vacancy}}\"",
+        "title": "Tailored",
+        "titleFor": "Tailored for \"{{vacancy}}\"",
         "reorderedSkills_one": "{{count}} skill",
         "reorderedSkills_other": "{{count}} skills",
         "reorderedBullets_one": "{{count}} bullet",
@@ -67,8 +93,8 @@
         "reordered": "Reordered {{skills}} and {{bullets}} to lead with what this vacancy asks for.",
         "reorderedWithSummary": "Reordered {{skills}} and {{bullets}} to lead with what this vacancy asks for, and rewrote the summary.",
         "noChangeNeeded": "Your CV already leads with what this vacancy asks for — nothing needed reordering.",
-        "applyToCv": "✅ Apply to CV",
-        "exportTailoredPdf": "⬇️ Export tailored PDF"
+        "applyToCv": "Apply to CV",
+        "exportTailoredPdf": "Export tailored PDF"
       },
       "match": {
         "summaryUpdatedToast": "Summary updated for the vacancy"
@@ -89,6 +115,7 @@
       "skills": { "title": "Skills", "searchPlaceholder": "Search skill…" },
       "projects": { "title": "Projects" },
       "education": { "title": "Education" },
+      "certifications": { "title": "Certifications" },
       "languages": { "title": "Languages" },
       "design": { "title": "Design" }
     },
@@ -112,6 +139,7 @@
       "needMoreDetails": "Fill in more CV details for analysis",
       "reviewOffline": "Basic analysis (enable LLM for deeper analysis)",
       "reviewReady": "Analysis ready",
+      "reviewNotificationTitle": "Your CV review is ready",
       "analysisError": "Analysis error",
       "cvSaved": "CV saved",
       "aiOffline": "AI offline — enable the key",
@@ -128,14 +156,22 @@
     "roleTitle": "Role / title",
     "rolePlaceholder": "Full-Stack Developer",
     "contacts": "Contacts",
-    "contactsPlaceholder": "email · LinkedIn · GitHub",
+    "contactsPlaceholder": "email · phone · location",
+    "links": {
+      "title": "Links",
+      "addEntry": "+ Add link",
+      "label": "Label",
+      "labelPlaceholder": "LinkedIn",
+      "url": "URL",
+      "urlPlaceholder": "linkedin.com/in/you"
+    },
     "summary": "Summary",
     "summaryChips": {
-      "improve": "✨ Improve",
-      "shorter": "✂️ Shorter",
-      "ats": "🎯 ATS",
-      "technical": "🛠 Technical",
-      "leadership": "🧭 Leadership"
+      "improve": "Improve",
+      "shorter": "Shorter",
+      "ats": "ATS",
+      "technical": "Technical",
+      "leadership": "Leadership"
     }
   },
   "experienceCard": {
@@ -151,12 +187,51 @@
     "company": "Company",
     "period": "Period",
     "periodPlaceholder": "2022 — present",
-    "achievements": "Achievements (one per line)",
-    "resultFocus": "✨ result-focus"
+    "achievements": "Achievements",
+    "resultFocus": "Improve all",
+    "addBullet": "+ Add bullet",
+    "removeBulletAria": "Remove this bullet",
+    "improveBulletTitle": "Improve this bullet",
+    "moveBulletUp": "Move bullet up",
+    "moveBulletDown": "Move bullet down",
+    "bulletPlaceholder": "Describe a specific result…"
   },
   "extraSections": {
-    "projects": { "label": "Projects (one per line)" },
-    "education": { "label": "Education (one per line)" },
+    "projects": {
+      "noneYet": "None yet",
+      "hint": "Add a project with a short description — it'll show up as a separate section in the CV.",
+      "addEntry": "+ Add project",
+      "title": "Project name",
+      "titlePlaceholder": "Personal finance tracker",
+      "description": "Description",
+      "descriptionPlaceholder": "What it does, your role, the result…",
+      "tech": "Tech (comma-separated)",
+      "techPlaceholder": "React, Node.js, PostgreSQL",
+      "link": "Link",
+      "linkPlaceholder": "github.com/you/project"
+    },
+    "education": {
+      "noneYet": "None yet",
+      "hint": "Add a school, degree, and period — they'll show up as a separate section in the CV.",
+      "addEntry": "+ Add entry",
+      "school": "School",
+      "schoolPlaceholder": "Kyiv Polytechnic Institute",
+      "degree": "Degree / field of study",
+      "degreePlaceholder": "BSc Computer Science",
+      "period": "Period",
+      "periodPlaceholder": "2016 — 2020"
+    },
+    "certifications": {
+      "noneYet": "None yet",
+      "hint": "Add a certification or award — it'll show up as a separate section in the CV.",
+      "addEntry": "+ Add entry",
+      "name": "Name",
+      "namePlaceholder": "AWS Certified Developer",
+      "issuer": "Issuer",
+      "issuerPlaceholder": "Amazon Web Services",
+      "date": "Date",
+      "datePlaceholder": "2023"
+    },
     "languages": {
       "native": "Native",
       "conversational": "Conversational",
@@ -185,8 +260,8 @@
       "none": "none",
       "invalidFileToast": "Choose an image file (PNG/JPG)",
       "tooLargeToast": "Image too large (max 8 MB)",
-      "change": "🔄 Change",
-      "add": "🖼 Add",
+      "change": "Change",
+      "add": "Add",
       "remove": "Remove",
       "shape": "Shape",
       "circle": "● Circle",
@@ -201,7 +276,7 @@
   "layoutPresets": {
     "order": {
       "title": "Section order",
-      "twoColHint": "In \"Two columns\", Skills/Languages/Education go in the side column, the rest in the main one."
+      "twoColHint": "In \"Two columns\", Skills/Languages/Education/Certifications go in the side column, the rest in the main one."
     },
     "sections": {
       "summary": "Profile",
@@ -209,6 +284,7 @@
       "experience": "Experience",
       "projects": "Projects",
       "education": "Education",
+      "certifications": "Certifications",
       "languages": "Languages"
     },
     "presets": {
@@ -230,13 +306,13 @@
   "preview": {
     "toolbarLabel": "Preview",
     "pagesHintTitle": "Approximate number of pages when printed to PDF — actual printing may differ slightly",
-    "pageBadgeMulti": "⚠ Page 1 / {{pages}}",
-    "pageBadgeSingle": "✓ 1 page",
+    "pageBadgeMulti": "Page 1 / {{pages}}",
+    "pageBadgeSingle": "1 page",
     "fullscreen": "Fullscreen",
     "exportTitle": "The date/document title at the top of pages is disabled automatically; if it still shows up — turn off 'Headers and footers' in the print dialog",
-    "clickHint": "💡 Click a section in the preview to edit it",
+    "clickHint": "Click a section in the preview to edit it",
     "emptySectionsHint": "Empty sections (won't appear in the PDF): {{sections}}",
-    "previewFab": "👁 Preview",
+    "previewFab": "Preview",
     "closePreviewAria": "Close preview",
     "modalTitle": "CV preview",
     "iframeTitle": "CV",
@@ -247,6 +323,7 @@
       "experience": "Experience",
       "projects": "Projects",
       "education": "Education",
+      "certifications": "Certifications",
       "languages": "Languages"
     }
   },
@@ -264,7 +341,7 @@
     }
   },
   "shareLink": {
-    "title": "🔗 Public CV link",
+    "title": "Public CV link",
     "description": "Anyone with this link can view a read-only copy of your CV — no login required. Useful for sharing in an email or DM instead of attaching a PDF.",
     "create": "Create public link",
     "disable": "Disable",
@@ -282,42 +359,44 @@
     "per100": "/100",
     "clickToAddHint": " — click to add to skills",
     "review": {
-      "title": "🔎 CV Review",
-      "strengths": "✓ Strengths",
+      "title": "CV Review",
+      "strengths": "Strengths",
       "improve": "△ What to improve",
-      "addKeywordsTitle": "🔑 Add keywords (ATS / LinkedIn search)",
-      "rewriteStronger": "✍️ Rewrite stronger (outcome instead of process)",
+      "addKeywordsTitle": "Add keywords (ATS / LinkedIn search)",
+      "rewriteStronger": "Rewrite stronger (outcome instead of process)",
       "applyToBullet": "↳ apply to bullet"
     },
     "match": {
-      "title": "🎯 Vacancy match",
-      "semanticFit": "🧠 Semantic similarity: {{percent}}%",
-      "covered": "✓ Already covered",
+      "title": "Vacancy match",
+      "semanticFit": "Semantic similarity: {{percent}}%",
+      "covered": "Already covered",
       "missingTitle": "△ Missing for this vacancy",
-      "whatToDo": "💡 What to do for this vacancy",
-      "summaryForVacancy": "✍️ Summary for this vacancy",
+      "whatToDo": "What to do for this vacancy",
+      "summaryForVacancy": "Summary for this vacancy",
       "applyToSummary": "Apply to summary"
     }
   },
   "cvPage": {
+    "eyebrow": "CV tools",
     "title": "CV and recommendations",
     "subtitleLlm": "CV analysis against market demand + generation of the Skills section and cover letter.",
     "subtitleOffline": "Offline mode — enable LLM in server/.env for smart advice.",
-    "exportPdf": "⬇️ CV to PDF",
+    "exportPdf": "CV to PDF",
     "uploadLabel": "Upload:",
     "processing": "Processing…",
-    "uploadCvLabel": "📎 CV (PDF / DOCX / TXT)",
+    "uploadCvLabel": "CV (PDF / DOCX / TXT)",
     "aiAnalysisLabel": "AI analysis:",
-    "compareMarket": "🔍 CV vs market",
-    "deepReview": "🔎 Deep review",
+    "compareMarket": "CV vs market",
+    "deepReview": "Deep review",
     "howItWorksSummary": "How does this work, and how do I upload from LinkedIn?",
     "howItWorksBody": "One upload — and your CV works <b>everywhere</b>: market analysis, roadmap, learning plan, recommendations + auto-parsing into sections in <b>the CV Builder</b>. <b>LinkedIn:</b> profile → «More» → «Save to PDF» → upload it here (direct LinkedIn parsing is forbidden by its ToS).",
     "domainLabel": "Profession / role — all AI advice adapts to it",
     "domainPlaceholder": "e.g. Full-Stack developer, UX designer, Marketer…",
+    "trackLabel": "Content track — which interview prep/roadmap content you get",
     "cvTextLabel": "CV text (you can edit or paste manually)",
     "cvTextPlaceholder": "Paste or edit your resume text…",
-    "updateSkillsTitle": "🔧 Update Skills section",
-    "coverLetterTitle": "✉️ Cover letter for a vacancy",
+    "updateSkillsTitle": "Update Skills section",
+    "coverLetterTitle": "Cover letter for a vacancy",
     "coverVacancyAria": "Select a vacancy from the tracker for the cover letter",
     "selectVacancyFromTracker": "— select a vacancy from the tracker —",
     "coverUrlAria": "Vacancy link for the cover letter",
@@ -336,7 +415,7 @@
     }
   },
   "linkedin": {
-    "title": "💼 LinkedIn profile optimizer",
+    "title": "LinkedIn profile optimizer",
     "description": "Generates a headline + \"About\" section from your profile/CV — copy it straight into LinkedIn. No LinkedIn account access needed or used.",
     "regenerate": "↻ Regenerate",
     "offlineNotice": "Offline template — enable LLM in server/.env for a personalized version",
@@ -346,7 +425,7 @@
   "publicShare": {
     "notFoundTitle": "This CV link doesn't exist or has been disabled",
     "notFoundHint": "Double-check the link, or ask its owner for a fresh one.",
-    "footer": "Built with DevRadar — track your own job search free",
+    "footer": "Built with Zorya — track your own job search free",
     "iframeTitle": "CV"
   }
 }

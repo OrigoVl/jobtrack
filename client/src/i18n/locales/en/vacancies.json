@@ -1,34 +1,64 @@
 {
+  "eyebrow": "Track",
   "title": "Vacancies",
   "subtitle": "Track all your vacancies in one place. Paste a vacancy link (from any site — LinkedIn, Djinni, robota.ua, dou.ua, etc.) and the stack fills in itself. In Kanban view, drag cards between statuses, use a card's Move ▾ menu to jump straight to any status, or select a card and press ←/→ — no mouse needed.",
   "view": {
-    "table": "☰ Table",
-    "board": "🗂 Kanban"
+    "table": "Table",
+    "board": "Kanban"
   },
   "similar": {
     "buttonLabel": "Similar vacancies",
-    "heading": "🔗 Similar vacancies",
+    "heading": "Similar vacancies",
     "empty": "Nothing similar found yet",
     "untitled": "Untitled"
   },
   "addVacancy": "+ Add vacancy",
   "addFirst": "+ Add the first one",
+  "importMenu": {
+    "label": "Import"
+  },
+  "detail": {
+    "untitled": "Untitled position",
+    "openTitle": "Open details",
+    "openAriaLabel": "Open details for {{position}} at {{company}}",
+    "openOriginal": "Open original",
+    "positionAriaLabel": "Position",
+    "companyAriaLabel": "Company",
+    "levelPlaceholder": "Level",
+    "levelAriaLabel": "Level",
+    "stackLabel": "Tech stack",
+    "stackPlaceholder": "Add a technology…",
+    "tabs": {
+      "overview": "Overview",
+      "cover": "Cover letter",
+      "fit": "Fit"
+    },
+    "notesLabel": "Notes",
+    "notesPlaceholder": "Anything worth remembering about this vacancy…",
+    "linkedContactsLabel": "Linked contacts",
+    "noLinkedContacts": "No contacts linked yet — link one from the Contacts page.",
+    "regenerate": "Regenerate",
+    "coverEmptyHint": "Generate a cover letter for this vacancy, using your saved CV and the vacancy's own tracked details (level, stack, notes).",
+    "generateFit": "Analyze fit",
+    "fitEmptyHint": "See how well your CV matches this vacancy's requirements — covered skills, gaps, and concrete suggestions.",
+    "noCvHint": "Add your CV text on the CV page first to analyze fit."
+  },
   "import": {
-    "heading": "📥 Import from a DOU export",
+    "heading": "Import from a DOU export",
     "ariaLabel": "HTML or text to import from DOU",
     "placeholder": "Paste the HTML or text of a saved DOU vacancies table — we'll extract every link…",
     "importing": "Importing and analyzing…",
     "importLinks": "Import links"
   },
   "jsonImportExport": {
-    "heading": "🔄 Import / export JSON",
+    "heading": "Import / export JSON",
     "formatIntro": "Format",
     "formatSchema": "an array of",
     "syncNote": "Vacancies with the same link (or company+position) get updated, the rest get added — you can keep the file elsewhere (e.g. in another chat) and just drop it here to sync.",
     "fileAriaLabel": "job-tracker.json file to import",
     "importing": "Importing…",
-    "importFromFile": "⬆ Import from file",
-    "exportToFile": "⬇ Export to job-tracker.json"
+    "importFromFile": "Import from file",
+    "exportToFile": "Export to job-tracker.json"
   },
   "empty": {
     "title": "No vacancies yet",
@@ -99,6 +129,8 @@
       "noData": "No new data found"
     },
     "fetchAllProcessed_one": "Processed {{count}} vacancy — stack updated everywhere",
-    "fetchAllProcessed_other": "Processed {{count}} vacancies — stack updated everywhere"
+    "fetchAllProcessed_other": "Processed {{count}} vacancies — stack updated everywhere",
+    "fetchAllNotificationTitle": "Zorya — vacancy analysis done",
+    "fetchAllError": "Vacancy analysis failed — try again"
   }
 }

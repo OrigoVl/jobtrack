@@ -2,13 +2,14 @@ import { useTranslation } from "react-i18next";
 import { usePopover } from "../../shared/use-popover";
 import { PopoverPanel } from "../../shared/popover";
 import { useSimilarVacancies } from "../../shared/queries/vacancies";
+import { LinkIcon } from "../../shared/icons";
 
 // Matches CalendarPanel's own `w-64` — see date-input.tsx's identical comment: only used to keep
 // the popover inside the viewport (usePopover's computeCoords below), not for layout.
 const PANEL_WIDTH = 256;
 
 /**
- * A small "🔗 similar" toggle that lazily fetches GET /vacancies/:id/similar (pgvector cosine
+ * A small "similar" toggle that lazily fetches GET /vacancies/:id/similar (pgvector cosine
  * similarity, see server/src/modules/vacancies/vacancies.repo.ts#findSimilarVacancies) the first
  * time it's opened — never eagerly for every row, see queries/vacancies.ts#useSimilarVacancies.
  * Renders nothing extra when the list comes back empty (offline, or no other vacancy is close
@@ -34,7 +35,7 @@ export function SimilarVacanciesButton({ vacancyId }: { vacancyId: number }) {
         title={t("similar.buttonLabel")}
         className="text-ink-dim hover:text-signal text-xs shrink-0"
       >
-        🔗
+        <LinkIcon className="h-3.5 w-3.5" />
       </button>
       <PopoverPanel open={open} panelRef={panelRef} coords={coords} onClose={() => setOpen(false)} className="w-64 p-2.5 space-y-2">
         <div className="text-xs font-semibold text-ink-dim">{t("similar.heading")}</div>

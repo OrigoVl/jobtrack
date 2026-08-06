@@ -5,7 +5,7 @@ import { getProfile } from "../../db/index.js";
 import type { UserId } from "../../db/user-id.js";
 import { extractTechs } from "../../shared/tech-dict.js";
 import { chat, chatJson, llmAvailable } from "../../llm/index.js";
-import { demandMap } from "../../shared/demand.js";
+import { computeDemand, computeGapPriority, demandMap, topGapTechs, vacancyStackRows } from "../../shared/demand.js";
 import { semanticSimilarity } from "../../llm/embeddings.js";
 
 export const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
@@ -40,14 +40,20 @@ export interface CvAnalysis {
 
 export async function cvAnalysis(userId: UserId, cvText: string): Promise<CvAnalysis> {
   const profile = await getProfile(userId);
-  const demand = await demandMap(userId);
   const cvTechs = cvText ? extractTechs(cvText).map((t) => t.name) : [];
-  const skills = new Set([...profile.skills, ...cvTechs]);
-  const gaps = Object.entries(demand)
-    .filter(([t]) => !skills.has(t))
-    .sort((a, b) => b[1] - a[1]);
+  // The CV text pasted/uploaded right now may name techs not yet saved to the profile — folded
+  // into "known" here (unlike plan21/projects/resources, which only have profile.skills) so a
+  // gap this exact CV already covers isn't flagged as still missing.
+  const skills = [...new Set([...profile.skills, ...cvTechs])];
+  const rows = await vacancyStackRows(userId);
+  const demand = computeDemand(rows);
+  // Ranked by gapPriority (which gap unlocks the most vacancies), not raw demand (which merely
+  // mentions it most) — see shared/demand.ts's computeGapPriority for why the two can disagree.
+  const gapPriority = computeGapPriority(rows, skills);
+  const knownSet = new Set(skills);
+  const gaps: [string, number][] = topGapTechs(skills, gapPriority).map((tech) => [tech, demand[tech] || 0]);
   const strengths = Object.entries(demand)
-    .filter(([t]) => skills.has(t))
+    .filter(([t]) => knownSet.has(t))
     .sort((a, b) => b[1] - a[1]);
   const role = profile.domain || "specialist";
   let advice = `Strengths in demand: ${strengths
@@ -139,7 +145,7 @@ export async function reviewCv(userId: UserId, cvText: string): Promise<CvReview
   // the resume document itself.
   const out = await chatJson(
     userId,
-    `You are an experienced technical recruiter and career coach for the role "${role}". You give honest, actionable feedback on resumes. Respond with ONLY valid JSON.`,
+    `You are an experienced technical recruiter and career coach for the role "${role}". You give honest, actionable feedback on resumes. Respond with ONLY valid JSON. When writing a "rewrite", don't invent a metric or fact that isn't in the resume — if a rewrite would need one to be strong, say in the "fix" that a specific number should be added, instead of fabricating it.`,
     `Candidate's resume:\n${cvText}\n\n` +
       `Market demand (skills from job postings): ${JSON.stringify(demand)}.\n` +
       `Evaluate the resume on these principles: focus on RESULTS (not process), quantitative metrics, strong verbs, ATS keywords matching demand, specifics on AI/tools (exactly what and what impact).\n` +

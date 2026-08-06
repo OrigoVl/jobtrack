@@ -81,7 +81,11 @@ export function CalendarPanel({
               aria-label={dayAriaLabel.format(cell.date)}
               aria-current={isToday ? "date" : undefined}
               className={`h-7 rounded-lg text-xs ${cell.inMonth ? "text-ink" : "text-ink-dim/50"} ${
-                isSelected ? "bg-signal text-white font-semibold" : isToday ? "border border-signal/60 font-semibold" : "hover:bg-surface-2"
+                isSelected
+                  ? "bg-star text-on-signal font-semibold"
+                  : isToday
+                    ? "border border-signal/60 font-semibold"
+                    : "hover:bg-surface-2"
               }`}
             >
               {cell.date.getDate()}

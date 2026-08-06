@@ -11,22 +11,32 @@ export const STATUS_SELECT_CLASS: Record<VacancyStatus, string> = {
   "Want to apply": "bg-surface-2 text-ink border-grid",
   Applied: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800",
   Screening: "bg-signal/10 text-signal border-signal/30",
-  "Tech interview": "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-800",
+  "Tech interview": "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800",
   "Take-home task": "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-950 dark:text-fuchsia-300 dark:border-fuchsia-800",
-  Final: "bg-alert/10 text-alert border-alert/30",
-  Offer: "bg-signal/10 text-signal border-signal/30",
+  Final: "bg-signal/10 text-signal border-signal/30",
+  Offer: "bg-good/10 text-good border-good/30",
   Rejected: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800",
   Paused: "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
 };
 
+// Screening/Final use the vivid, theme-independent --star token (not the deepened --signal value)
+// — a solid dot needs to read as bold indigo next to the equally-vivid sky-500/purple-500/
+// fuchsia-500 dots, not as the muted, text-contrast-tuned shade. Offer gets its own --good green
+// rather than reusing --star: it's the one genuinely positive outcome in the pipeline, and with
+// --alert now equal to --signal (index.css's glossary — one accent, not two), Offer/Screening/
+// Final would otherwise all render as the exact same indigo dot.
+// "Tech interview" was violet-500 before the accent moved from coral to indigo — violet-500 sits
+// only ~14° away from the new --star indigo on the hue wheel (they used to be worlds apart), so
+// Screening/Tech-interview would have become nearly indistinguishable at dot size. purple-500
+// splits the indigo→fuchsia gap far more evenly (~26°/~22° vs. violet's lopsided ~14°/~34°).
 export const STATUS_DOT_CLASS: Record<VacancyStatus, string> = {
   "Want to apply": "bg-ink-dim",
   Applied: "bg-sky-500",
-  Screening: "bg-signal",
-  "Tech interview": "bg-violet-500",
+  Screening: "bg-star",
+  "Tech interview": "bg-purple-500",
   "Take-home task": "bg-fuchsia-500",
-  Final: "bg-alert",
-  Offer: "bg-signal",
+  Final: "bg-star",
+  Offer: "bg-good",
   Rejected: "bg-rose-500",
   Paused: "bg-zinc-400",
 };
@@ -36,11 +46,11 @@ export const STATUS_DOT_CLASS: Record<VacancyStatus, string> = {
 export const STATUS_BORDER_L_CLASS: Record<VacancyStatus, string> = {
   "Want to apply": "border-l-ink-dim",
   Applied: "border-l-sky-500",
-  Screening: "border-l-signal",
-  "Tech interview": "border-l-violet-500",
+  Screening: "border-l-star",
+  "Tech interview": "border-l-purple-500",
   "Take-home task": "border-l-fuchsia-500",
-  Final: "border-l-alert",
-  Offer: "border-l-signal",
+  Final: "border-l-star",
+  Offer: "border-l-good",
   Rejected: "border-l-rose-500",
   Paused: "border-l-zinc-400",
 };

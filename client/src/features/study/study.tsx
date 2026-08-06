@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
@@ -13,9 +13,13 @@ import {
   useStudy,
 } from "../../shared/queries";
 import { runJs } from "./runner";
-import { Btn, Card, Chip, EmptyState, PageHeader } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Select } from "../../shared/ui";
 import { MockInterview } from "../mock/mock";
 import type { Drill } from "../../shared/types";
+
+// Lazy — @xyflow/react is a real chunk (node-graph editor), no reason to load it for users who
+// only ever use flashcards/drills/mock interview.
+const DesignTrainer = lazy(() => import("../design/design-trainer").then((m) => ({ default: m.DesignTrainer })));
 
 const RUNNABLE_CATS = new Set(["JavaScript", "Algorithms"]);
 
@@ -29,7 +33,7 @@ function DrillSandbox({ drill }: { drill: Drill }) {
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="mt-3 text-sm text-signal font-medium hover:underline self-start">
+      <button onClick={() => setOpen(true)} className="mt-3 text-sm text-ink-dim hover:text-signal font-medium hover:underline self-start">
         {t("sandbox.open")}
       </button>
     );
@@ -75,7 +79,7 @@ function DrillSandbox({ drill }: { drill: Drill }) {
       {result && (
         <div className="border-t border-grid px-3 py-2 text-xs font-mono bg-ink text-surface-2">
           {result.error ? (
-            <div className="text-rose-400 whitespace-pre-wrap">⛔ {result.error}</div>
+            <div className="text-rose-400 whitespace-pre-wrap">{result.error}</div>
           ) : result.logs.length ? (
             result.logs.map((l, idx) => (
               <div key={idx} className="whitespace-pre-wrap">
@@ -105,7 +109,7 @@ export function Study() {
   // "Mock interview" used to be its own sidebar page — merged in here as a third mode, so
   // interview-prep functionality (flashcards, drills, mock interview) lives in one place instead
   // of being scattered across the sidebar (see App.tsx's NAV — /mock now redirects here).
-  const [mode, setMode] = useUi<"srs" | "drill" | "mock">("study.mode", "srs");
+  const [mode, setMode] = useUi<"srs" | "drill" | "mock" | "design">("study.mode", "srs");
   const [i, setI] = useUi("study.index", 0);
   const [show, setShow] = useUi("study.show", false);
   const [drillCat, setDrillCat] = useUi("study.drillCat", "all");
@@ -186,6 +190,7 @@ export function Study() {
   return (
     <div className="space-y-4">
       <PageHeader
+        eyebrow={t("eyebrow")}
         title={t("title")}
         subtitle={t("subtitle")}
         actions={
@@ -215,16 +220,19 @@ export function Study() {
             <Btn variant={mode === "mock" ? "primary" : "ghost"} size="sm" onClick={() => setMode("mock")}>
               {t("tabs.mock")}
             </Btn>
+            <Btn variant={mode === "design" ? "primary" : "ghost"} size="sm" onClick={() => setMode("design")}>
+              {t("tabs.design")}
+            </Btn>
           </div>
         }
       />
-      {mode !== "mock" && (
+      {mode !== "mock" && mode !== "design" && (
         <div className="text-xs text-ink-dim flex gap-4 items-center">
-          <span>
-            ⏱ {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, "0")}
+          <span className="font-mono">
+            {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, "0")}
           </span>
           {(study?.streak.current ?? 0) > 0 && (
-            <span className="text-alert font-medium">🔥 {t("stats.streak", { count: study!.streak.current })}</span>
+            <span className="text-alert font-medium">{t("stats.streak", { count: study!.streak.current })}</span>
           )}
           {mode === "srs" && <span>{t("stats.dueToday", { count: due.length })}</span>}
           {mode === "drill" && <span>{t("stats.solved", { count: solvedCount, total: drills.length })}</span>}
@@ -245,6 +253,12 @@ export function Study() {
       )}
 
       {mode === "mock" && <MockInterview embedded />}
+
+      {mode === "design" && (
+        <Suspense fallback={<CardsSkeleton count={2} />}>
+          <DesignTrainer embedded />
+        </Suspense>
+      )}
 
       {mode === "srs" &&
         (card ? (
@@ -283,42 +297,40 @@ export function Study() {
           </Card>
         ) : (
           <Card>
-            <EmptyState icon="🎉" title={t("srs.empty.title")} hint={t("srs.empty.hint")} />
+            <EmptyState title={t("srs.empty.title")} hint={t("srs.empty.hint")} />
           </Card>
         ))}
 
       {mode === "drill" && (
         <>
           <div className="flex flex-wrap items-center gap-2">
-            <select
+            <Select
               value={drillCat}
               onChange={(e) => {
                 setDrillCat(e.target.value);
                 setI(0);
                 setShow(false);
               }}
-              className="text-sm border border-grid rounded-lg px-3 py-1.5 bg-surface text-ink"
             >
               {cats.map((c) => (
                 <option key={c} value={c}>
                   {c === "all" ? t("drill.allTopics") : c}
                 </option>
               ))}
-            </select>
-            <select
+            </Select>
+            <Select
               value={drillLvl}
               onChange={(e) => {
                 setDrillLvl(e.target.value);
                 setI(0);
                 setShow(false);
               }}
-              className="text-sm border border-grid rounded-lg px-3 py-1.5 bg-surface text-ink"
             >
               <option value="all">{t("drill.difficulty.any")}</option>
               <option value="easy">{t("drill.difficulty.easy")}</option>
               <option value="med">{t("drill.difficulty.med")}</option>
               <option value="hard">{t("drill.difficulty.hard")}</option>
-            </select>
+            </Select>
             <label className="text-sm text-ink-dim flex items-center gap-1.5 cursor-pointer">
               <input
                 type="checkbox"
@@ -367,7 +379,7 @@ export function Study() {
                 <div className="mt-3 space-y-1.5">
                   {hints.slice(0, hintsShown).map((h, idx) => (
                     <div key={`${drill.id}-hint-${idx}`} className="text-sm text-alert bg-alert/10 border border-alert/30 rounded-lg p-2.5">
-                      💡 <b>{t("drill.hintLabel", { num: idx + 1 })}</b> {h}
+                      <b>{t("drill.hintLabel", { num: idx + 1 })}</b> {h}
                     </div>
                   ))}
                 </div>
@@ -425,7 +437,7 @@ export function Study() {
             </Card>
           ) : (
             <Card>
-              <EmptyState icon="🔍" title={t("drill.empty.title")} hint={t("drill.empty.hint")} />
+              <EmptyState title={t("drill.empty.title")} hint={t("drill.empty.hint")} />
             </Card>
           )}
         </>

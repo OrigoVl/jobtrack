@@ -9,7 +9,7 @@ import { STATUS_DOT_CLASS, STATUS_BORDER_L_CLASS, DEFAULT_STATUS_DOT_CLASS, DEFA
 import { SimilarVacanciesButton } from "./similar-vacancies-button";
 
 /* ---------- Vacancies board (drag-and-drop + keyboard) ---------- */
-export function VacancyBoard() {
+export function VacancyBoard({ onOpenDetail }: { onOpenDetail: (id: number) => void }) {
   const { t } = useTranslation(["vacancies", "common"]);
   const { data: vacancies = [] } = useVacancies();
   const updateVacancyMutation = useUpdateVacancy();
@@ -88,6 +88,15 @@ export function VacancyBoard() {
                     aria-label={cardAriaLabel}
                     draggable
                     onDragStart={(e) => e.dataTransfer.setData("text/plain", String(v.id))}
+                    // Opens the "Jira issue"-style detail popup (vacancy-detail-modal.tsx) —
+                    // except when the click actually landed on a real nested control (the "Move ▾"
+                    // dropdown, "Similar vacancies"), which should handle its own click instead.
+                    // A completed drag doesn't fire a click event at all, so this doesn't conflict
+                    // with dragging the card between columns.
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest("button, a")) return;
+                      onOpenDetail(v.id);
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "ArrowRight") {
                         e.preventDefault();
@@ -95,6 +104,11 @@ export function VacancyBoard() {
                       } else if (e.key === "ArrowLeft") {
                         e.preventDefault();
                         moveByKeyboard(v, -1);
+                      } else if ((e.key === "Enter" || e.key === " ") && !(e.target as HTMLElement).closest("button, a")) {
+                        // A real <button> would dispatch this automatically; a div role="button"
+                        // needs it wired by hand for keyboard parity with the onClick above.
+                        e.preventDefault();
+                        onOpenDetail(v.id);
                       }
                     }}
                     className={`relative bg-surface border border-grid border-l-4 ${STATUS_BORDER_L_CLASS[status] ?? DEFAULT_STATUS_BORDER_L_CLASS} rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-card focus:outline-none focus:ring-2 focus:ring-signal/50 transition-opacity ${isSaving ? "opacity-60" : ""}`}
@@ -141,7 +155,7 @@ export function VacancyBoard() {
                         <SimilarVacanciesButton vacancyId={v.id} />
                       </span>
                     </div>
-                    {v.salary && <div className="text-[11px] text-signal mt-1">💰 {v.salary}</div>}
+                    {v.salary && <div className="text-[11px] text-signal mt-1">{v.salary}</div>}
                     {v.next && <div className="text-[11px] text-alert mt-1">⏭ {v.next}</div>}
                   </div>
                 );

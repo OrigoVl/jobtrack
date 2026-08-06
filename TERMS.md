@@ -1,9 +1,11 @@
 # Terms of Service — DRAFT (not published, not legal advice)
 
-> **Status: internal draft.** Placeholders are marked `[LIKE THIS]`. This needs a real lawyer's
-> review before it's linked from the app or presented to a single real paying user. Once
-> approved, this becomes a real page (e.g. `/terms`) with a link in the footer and a checkbox at
-> registration/checkout.
+> **Status: internal draft, now live at `/terms`** (linked from the footer). Placeholders are
+> marked `[LIKE THIS]` and shown as-is on the page — it still needs a real lawyer's review before
+> it's presented as final to a real user. Section 4 ("Subscriptions and billing") now describes
+> the Free/Pro plans and Stripe as payment processor — restored now that billing actually ships
+> (server/src/modules/billing/); it was previously removed from here and from the live page while
+> no payment system existed, to avoid misrepresenting the product.
 
 **Effective date:** [EFFECTIVE DATE]
 **Last updated:** [LAST UPDATED DATE]
@@ -21,14 +23,15 @@ requirement and that the information you provide is accurate.
 
 You're responsible for keeping your password secure and for all activity under your account.
 Tell us immediately (**[SUPPORT EMAIL]**) if you suspect unauthorized access. We may suspend or
-terminate accounts that violate Section 6 (Acceptable Use) or that we reasonably believe are
+terminate accounts that violate Section 5 (Acceptable Use) or that we reasonably believe are
 fraudulent.
 
 ## 3. The Service, and its AI features specifically
 
 The Service provides job-search tracking, CV tools, market-demand analysis, and — when an AI
 provider is configured — AI-assisted features (CV review, cover-letter drafting, mock-interview
-scoring, and similar).
+scoring, and similar). The core Service is free; some AI features are limited on the free plan and
+unlimited (subject to fair use) on the paid plan — see Section 4.
 
 **AI output is a starting point, not a guarantee.** AI-generated text can be inaccurate,
 generic, or occasionally wrong about facts in your own CV/experience. You are solely responsible
@@ -42,27 +45,23 @@ marked as such — the rest of the Service continues to work normally.
 
 ## 4. Subscriptions and billing
 
-**Free plan.** Core tracking, analytics, CV Builder, and practice/flashcard features are free,
-with no time limit, plus a limited monthly allowance of AI actions.
+The Service offers a free plan ("Free") and a paid plan ("Pro"); current features and pricing are
+shown on the [Pricing page](/pricing). Pro is billed monthly, in advance, through **Stripe**, our
+payment processor — we never see or store your card details; Stripe handles that directly and is
+PCI-compliant on our behalf. Your subscription **renews automatically** each month until you
+cancel.
 
-**Paid plan(s).** Unlock a higher monthly AI-action allowance and additional AI features (CV
-tailoring, AI-generated CV drafts) for a recurring fee, billed monthly or annually as you choose,
-through our payment processor ([Paddle / Lemon Squeezy]).
+**Canceling.** Cancel anytime from the Account page ("Manage billing," which opens Stripe's
+Billing Portal). Canceling stops future renewals; you keep Pro access until the end of the period
+you've already paid for. We don't offer partial refunds for unused time within a billing period,
+except where required by applicable law.
 
-**Auto-renewal.** Paid subscriptions renew automatically at the end of each billing period at the
-then-current price, until you cancel. We'll email you before any price change takes effect for
-existing subscribers, with the option to cancel before it applies.
+**Fair use.** Each plan's AI features are subject to a monthly usage allowance (Free) or a
+fair-use spending ceiling (Pro), described on the Pricing page — a safeguard against abuse, not a
+way to advertise a lower quality of service than what typical use actually gets.
 
-**Cancellation.** Cancel anytime from the Account page — you keep paid access until the end of
-the period you already paid for; we don't do partial-period lockouts.
-
-**Refunds.** If you're not satisfied within **14 days** of a new subscription purchase (or a plan
-upgrade), contact **[SUPPORT EMAIL]** for a full refund, no questions asked. Outside that window,
-refunds are at our discretion (e.g. for a documented billing error or extended Service outage).
-
-**Failed payments.** If a renewal payment fails, we'll retry per our payment processor's standard
-schedule and email you; access to paid features pauses (not deletes any data) until payment
-succeeds or you cancel.
+**Price changes.** If we change the price of a plan you're subscribed to, we'll notify you by
+email before it takes effect on your next renewal, with a chance to cancel first.
 
 ## 5. Your content
 
@@ -81,17 +80,18 @@ access to the Service.
 ## 7. Termination
 
 You may delete your account at any time (Account page) — this is immediate, permanent, and
-removes all of your data (see the Privacy Policy). We may suspend or terminate your account for a
-violation of Section 6, with notice where reasonably possible, except where immediate action is
-needed to protect the Service or other users.
+removes all of your data (see the Privacy Policy). **Deleting your account also immediately
+cancels any active Pro subscription** — there is no partial-period access to preserve once the
+account itself is gone. We may suspend or terminate your account for a violation of Section 6,
+with notice where reasonably possible, except where immediate action is needed to protect the
+Service or other users.
 
 ## 8. Disclaimers and limitation of liability
 
 The Service is provided "as is," without warranties of any kind, to the maximum extent permitted
 by law. We are not liable for indirect, incidental, or consequential damages (including lost job
 opportunities, lost income, or reliance on AI-generated content) arising from your use of the
-Service. Our total liability for any claim is limited to the amount you paid us in the 12 months
-before the claim arose, or [$100 / equivalent — CONFIRM], whichever is greater.
+Service, to the maximum extent permitted by law.
 
 Nothing in this section limits liability that cannot be limited under applicable law (e.g.
 liability for our own gross negligence or willful misconduct, under Ukrainian consumer-protection
@@ -106,7 +106,7 @@ effect, with a chance to cancel before the new Terms apply to you.
 
 These Terms are governed by the laws of Ukraine, without regard to conflict-of-law principles.
 [CONFIRM DISPUTE-RESOLUTION MECHANISM — e.g. courts of Ukraine, or arbitration, per your lawyer's
-recommendation once you have paying customers in multiple countries.]
+recommendation once you have users in multiple countries.]
 
 ## 11. Contact
 

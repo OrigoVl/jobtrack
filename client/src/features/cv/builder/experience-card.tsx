@@ -2,7 +2,18 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Btn, Collapse } from "../../../shared/ui";
 import { Field } from "../../../shared/view-kit";
+import { SparkleIcon } from "../../../shared/icons";
 import type { CvExperience } from "../../../shared/types";
+
+/** Moves `arr[from]` to index `to`; a no-op (returns the same array reference) at either edge —
+ * lets callers wire it straight to a disabled-at-the-edge button without their own bounds check. */
+function moveItem<T>(arr: T[], from: number, to: number): T[] {
+  if (to < 0 || to >= arr.length) return arr;
+  const next = [...arr];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
 
 interface ExperienceCardProps {
   experience: CvExperience[];
@@ -13,6 +24,9 @@ interface ExperienceCardProps {
   llm: boolean;
   busyKey: string;
   onImproveBullets: (i: number) => void;
+  /** Improves a single bullet (`busyKey` for this one is `` `bi${i}-${bulletIndex}` ``, distinct
+   * from `onImproveBullets`' whole-entry `` `b${i}` `` so the two loading states never collide). */
+  onImproveBullet: (i: number, bulletIndex: number) => void;
   /** Externally requested entry to expand — e.g. clicking an entry in the live preview. */
   focusIndex?: number | null;
 }
@@ -27,6 +41,7 @@ export function ExperienceCard({
   llm,
   busyKey,
   onImproveBullets,
+  onImproveBullet,
   focusIndex,
 }: ExperienceCardProps) {
   const { t } = useTranslation(["cv", "common"]);
@@ -141,9 +156,9 @@ export function ExperienceCard({
                     maxLength={60}
                   />
                 </div>
-                <label className="block">
-                  <span className="text-xs font-semibold text-ink-dim flex items-center gap-2">
-                    {t("experienceCard.achievements")}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-ink-dim">{t("experienceCard.achievements")}</span>
                     <Btn
                       size="sm"
                       variant="ghost"
@@ -153,13 +168,67 @@ export function ExperienceCard({
                     >
                       {t("experienceCard.resultFocus")}
                     </Btn>
-                  </span>
-                  <textarea
-                    value={e.bullets.join("\n")}
-                    onChange={(ev) => onSet(i, { bullets: ev.target.value.split("\n") })}
-                    className="w-full mt-0.5 h-24 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
-                  />
-                </label>
+                  </div>
+                  {/* One row per bullet (not a single \n-joined textarea) — each has its own
+                      reorder/AI-improve/delete, and an accidental blank line can no longer create
+                      a phantom empty bullet the way splitting a textarea's raw text on "\n" could. */}
+                  {e.bullets.map((bullet, bi) => (
+                    <div key={bi} className="flex items-start gap-1">
+                      <div className="flex flex-col shrink-0 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => onSet(i, { bullets: moveItem(e.bullets, bi, bi - 1) })}
+                          disabled={bi === 0}
+                          aria-label={t("experienceCard.moveBulletUp")}
+                          title={t("experienceCard.moveBulletUp")}
+                          className="text-ink-dim hover:text-ink disabled:opacity-30 disabled:cursor-not-allowed leading-none text-[9px] px-0.5"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onSet(i, { bullets: moveItem(e.bullets, bi, bi + 1) })}
+                          disabled={bi === e.bullets.length - 1}
+                          aria-label={t("experienceCard.moveBulletDown")}
+                          title={t("experienceCard.moveBulletDown")}
+                          className="text-ink-dim hover:text-ink disabled:opacity-30 disabled:cursor-not-allowed leading-none text-[9px] px-0.5"
+                        >
+                          ▼
+                        </button>
+                      </div>
+                      <textarea
+                        value={bullet}
+                        onChange={(ev) => onSet(i, { bullets: e.bullets.map((b, idx) => (idx === bi ? ev.target.value : b)) })}
+                        placeholder={t("experienceCard.bulletPlaceholder")}
+                        rows={1}
+                        className="flex-1 min-w-0 bg-surface-2 border border-grid rounded-lg p-1.5 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-signal/50"
+                      />
+                      <Btn
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onImproveBullet(i, bi)}
+                        loading={busyKey === `bi${i}-${bi}`}
+                        disabled={!llm || !bullet.trim()}
+                        title={t("experienceCard.improveBulletTitle")}
+                        aria-label={t("experienceCard.improveBulletTitle")}
+                      >
+                        <SparkleIcon className="w-3.5 h-3.5" />
+                      </Btn>
+                      <Btn
+                        size="sm"
+                        variant="danger"
+                        onClick={() => onSet(i, { bullets: e.bullets.filter((_, idx) => idx !== bi) })}
+                        aria-label={t("experienceCard.removeBulletAria")}
+                        title={t("experienceCard.removeBulletAria")}
+                      >
+                        ✕
+                      </Btn>
+                    </div>
+                  ))}
+                  <Btn size="sm" variant="ghost" onClick={() => onSet(i, { bullets: [...e.bullets, ""] })}>
+                    {t("experienceCard.addBullet")}
+                  </Btn>
+                </div>
                 <div className="flex justify-end">
                   <Btn
                     size="sm"

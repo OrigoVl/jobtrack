@@ -5,16 +5,43 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { ToastProvider } from "../shared/toast";
 import { useToast } from "../shared/use-toast";
 import { ConfirmDialogProvider } from "../shared/confirm";
-import { useHealth, useRoadmap } from "../shared/queries";
-import { CardsSkeleton, ProgressBar, Btn } from "../shared/ui";
+import { useHealth, useRoadmap, useBilling, useOnboardingState } from "../shared/queries";
+import { CardsSkeleton, ProgressBar, Btn, Wordmark } from "../shared/ui";
 import { useUi } from "../shared/ui-state";
 import { CelebrationOverlay } from "../shared/celebration";
+import { FetchAllJobNotifier } from "../shared/fetch-all-notifier";
+import { CvReviewJobNotifier } from "../shared/cv-review-notifier";
+import { AiQuotaNotifier } from "../shared/ai-quota-notifier";
+import { CalendarReminderNotifier } from "../features/calendar/calendar-reminder-notifier";
 import { LanguageSwitcher } from "../shared/language-switcher";
 import { ThemeSwitcher } from "../shared/theme-switcher";
 import { ErrorBoundary } from "../shared/error-boundary";
 import { useSession, signOut } from "../shared/auth-client";
 import { CommandPalette } from "./command-palette";
 import { NotFound } from "./not-found";
+import {
+  BarChartIcon,
+  BookOpenIcon,
+  BriefcaseIcon,
+  BuildingIcon,
+  CalendarIcon,
+  CardsStackIcon,
+  ChevronsLeftIcon,
+  FileSearchIcon,
+  FileTextIcon,
+  HomeIcon,
+  LayersIcon,
+  LibraryIcon,
+  ListChecksIcon,
+  LogOutIcon,
+  MapIcon,
+  SearchIcon,
+  SettingsIcon,
+  ShieldIcon,
+  UsersIcon,
+  WrenchIcon,
+  type IconComponent,
+} from "../shared/icons";
 
 const Login = lazy(() => import("../features/auth/login").then((m) => ({ default: m.Login })));
 const Register = lazy(() => import("../features/auth/register").then((m) => ({ default: m.Register })));
@@ -39,10 +66,14 @@ const Roadmap = lazy(() => import("../features/roadmap/roadmap").then((m) => ({ 
 const Analytics = lazy(() => import("../features/analytics/charts").then((m) => ({ default: m.Analytics })));
 const Admin = lazy(() => import("../features/admin/admin").then((m) => ({ default: m.Admin })));
 const Account = lazy(() => import("../features/account/account").then((m) => ({ default: m.Account })));
+const Pricing = lazy(() => import("../features/billing/pricing").then((m) => ({ default: m.Pricing })));
+const Welcome = lazy(() => import("../features/welcome/welcome").then((m) => ({ default: m.Welcome })));
 const Calendar = lazy(() => import("../features/calendar/calendar").then((m) => ({ default: m.CalendarPage })));
 const Contacts = lazy(() => import("../features/contacts/contacts").then((m) => ({ default: m.Contacts })));
 // Public (no session) — mounted at the same tier as /login below, NOT inside Shell/AuthGate.
 const CvPublic = lazy(() => import("../features/cv/cv-public").then((m) => ({ default: m.CvPublic })));
+const Privacy = lazy(() => import("../features/legal/privacy").then((m) => ({ default: m.Privacy })));
+const Terms = lazy(() => import("../features/legal/terms").then((m) => ({ default: m.Terms })));
 
 // Static structure — paths/icons/grouping never change with the language, only the label text
 // does. Kept as translation KEYS (resolved to actual NavItem[] inside Shell() below, where
@@ -53,22 +84,22 @@ const CvPublic = lazy(() => import("../features/cv/cv-public").then((m) => ({ de
 // labelKey/sectionKey are typed against the ACTUAL nav.json shape (not a plain `string`) so a
 // typo here is still a tsc error, same guarantee as calling t("...") with a literal — see
 // i18n/i18next.d.ts's own comment on why that matters for the Phase B delegation.
-type NavItem = { path: string; icon: string; label: string };
+type NavItem = { path: string; icon: IconComponent; label: string };
 type NavLabelKey = `items.${keyof (typeof import("../i18n/locales/en/nav.json"))["items"]}`;
 type NavSectionKey = `sections.${keyof (typeof import("../i18n/locales/en/nav.json"))["sections"]}`;
-type NavItemDef = { path: string; icon: string; labelKey: NavLabelKey };
+type NavItemDef = { path: string; icon: IconComponent; labelKey: NavLabelKey };
 const NAV_DEF: { sectionKey: NavSectionKey; items: NavItemDef[] }[] = [
   {
     sectionKey: "sections.jobSearch",
     items: [
-      { path: "/dashboard", icon: "🏠", labelKey: "items.dashboard" },
-      { path: "/vacancies", icon: "📋", labelKey: "items.vacancies" },
-      { path: "/jobs", icon: "🔎", labelKey: "items.jobSearch" },
-      { path: "/analyzer", icon: "🔍", labelKey: "items.vacancyAnalysis" },
-      { path: "/companies", icon: "🏢", labelKey: "items.companies" },
-      { path: "/contacts", icon: "🧑‍🤝‍🧑", labelKey: "items.contacts" },
-      { path: "/analytics", icon: "📊", labelKey: "items.analytics" },
-      { path: "/calendar", icon: "🗓️", labelKey: "items.calendar" },
+      { path: "/dashboard", icon: HomeIcon, labelKey: "items.dashboard" },
+      { path: "/vacancies", icon: BriefcaseIcon, labelKey: "items.vacancies" },
+      { path: "/jobs", icon: SearchIcon, labelKey: "items.jobSearch" },
+      { path: "/analyzer", icon: FileSearchIcon, labelKey: "items.vacancyAnalysis" },
+      { path: "/companies", icon: BuildingIcon, labelKey: "items.companies" },
+      { path: "/contacts", icon: UsersIcon, labelKey: "items.contacts" },
+      { path: "/analytics", icon: BarChartIcon, labelKey: "items.analytics" },
+      { path: "/calendar", icon: CalendarIcon, labelKey: "items.calendar" },
     ],
   },
   {
@@ -77,40 +108,47 @@ const NAV_DEF: { sectionKey: NavSectionKey; items: NavItemDef[] }[] = [
       // Roadmap includes the former "Skill Radar" page as a tab, and Practice includes the
       // former "Mock Interview" page as a mode — related screens grouped instead of scattered
       // across the sidebar (old /radar and /mock links still work, see the redirects below).
-      { path: "/roadmap", icon: "🗺️", labelKey: "items.roadmap" },
-      { path: "/plan21", icon: "📅", labelKey: "items.intensivePlan" },
-      { path: "/learn", icon: "📚", labelKey: "items.learningPlan" },
-      { path: "/study", icon: "🧠", labelKey: "items.practice" },
-      { path: "/projects", icon: "🧩", labelKey: "items.petProjects" },
-      { path: "/resources", icon: "📖", labelKey: "items.resources" },
+      { path: "/roadmap", icon: MapIcon, labelKey: "items.roadmap" },
+      { path: "/plan21", icon: ListChecksIcon, labelKey: "items.intensivePlan" },
+      { path: "/learn", icon: BookOpenIcon, labelKey: "items.learningPlan" },
+      { path: "/study", icon: CardsStackIcon, labelKey: "items.practice" },
+      { path: "/projects", icon: LayersIcon, labelKey: "items.petProjects" },
+      { path: "/resources", icon: LibraryIcon, labelKey: "items.resources" },
     ],
   },
   {
     sectionKey: "sections.profile",
     items: [
-      { path: "/cv", icon: "📄", labelKey: "items.cv" },
-      { path: "/cvbuilder", icon: "🛠", labelKey: "items.cvBuilder" },
-      { path: "/account", icon: "⚙️", labelKey: "items.account" },
+      { path: "/cv", icon: FileTextIcon, labelKey: "items.cv" },
+      { path: "/cvbuilder", icon: WrenchIcon, labelKey: "items.cvBuilder" },
+      { path: "/account", icon: SettingsIcon, labelKey: "items.account" },
     ],
   },
 ];
-const ADMIN_ITEM_DEF: NavItemDef = { path: "/admin", icon: "🛡️", labelKey: "items.admin" };
+const ADMIN_ITEM_DEF: NavItemDef = { path: "/admin", icon: ShieldIcon, labelKey: "items.admin" };
 const DEFAULT_PATH = "/dashboard";
 
 function ToastHost() {
   const { toasts, dismissToast } = useToast();
+  // success uses the vivid `star` fill + dark `on-signal` ink (a solid signal-brown fill would
+  // read as dull/muddy at this size) — error/info keep their existing white-on-dark treatment.
   const tone: Record<string, string> = {
-    success: "bg-signal",
-    error: "bg-rose-600",
-    info: "bg-ink",
+    success: "bg-star text-on-signal",
+    error: "bg-rose-600 text-white",
+    info: "bg-ink text-bg",
   };
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
+    // z-[80] — above every modal/popover overlay in the app (confirm dialog z-[70], the vacancy
+    // detail modal z-[65], popovers z-[60]): a toast is a glanceable, transient confirmation and
+    // must never end up dimmed under another overlay's backdrop just because the two happened to
+    // be triggered by the same action (e.g. adding a vacancy now both toasts AND opens its detail
+    // modal at once — before this fix the modal's backdrop visibly washed the toast out).
+    <div className="fixed bottom-4 right-4 z-[80] flex flex-col gap-2 max-w-sm">
       {toasts.map((t) => (
         <button
           key={t.id}
           onClick={() => dismissToast(t.id)}
-          className={`text-left text-white text-sm px-4 py-2.5 rounded-xl shadow-lg ${tone[t.type]} animate-[jt-fade-in_0.2s_ease-out]`}
+          className={`text-left text-sm px-4 py-2.5 rounded-xl shadow-lg ${tone[t.type]} animate-[jt-fade-in_0.2s_ease-out]`}
         >
           {t.message}
         </button>
@@ -125,18 +163,29 @@ function AiBadge() {
   const llm = data?.llm ?? false;
   return (
     <span
-      className={`font-display text-xs font-medium px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 ${
+      className={`font-mono text-xs font-medium px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 ${
         llm ? "border-signal/30 text-signal bg-signal/10" : "border-grid text-ink-dim bg-surface-2"
       }`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${llm ? "bg-signal" : "bg-ink-dim"}`} />
+      <span className={`w-1.5 h-1.5 rounded-full ${llm ? "bg-star" : "bg-ink-dim"}`} />
       {llm ? t("ai.on") : t("ai.off")}
     </span>
   );
 }
 
-function Brand() {
-  return <div className="font-display text-lg font-bold tracking-tight text-signal">📡 DevRadar</div>;
+/** Shown only when billing is actually configured server-side AND the caller is on a finite
+ * quota (Free) — a Pro/Team user has nothing to count down, and a self-hosted/unconfigured
+ * deployment has no plan concept at all, so this renders nothing in either case. */
+function AiQuotaBadge() {
+  const { t } = useTranslation("billing");
+  const { data } = useBilling();
+  if (!data?.billingEnabled || data.aiCallsPerMonth === null) return null;
+  const remaining = Math.max(0, data.aiCallsPerMonth - data.aiCallsUsed);
+  return (
+    <span className="font-mono text-xs font-medium px-2.5 py-1 rounded-full border border-grid text-ink-dim bg-surface-2 inline-flex items-center gap-1.5">
+      {t("quota.badge", { count: remaining })}
+    </span>
+  );
 }
 
 function SidebarProgress() {
@@ -144,7 +193,7 @@ function SidebarProgress() {
   const { data: roadmap } = useRoadmap();
   if (!roadmap) return null;
   return (
-    <div className="rounded-xl bg-surface-2 border border-grid p-2.5">
+    <div className="rounded-xl bg-surface border border-grid p-2.5">
       <div className="text-xs font-medium text-ink-dim mb-1">
         {t("roadmapProgress", { done: roadmap.progress.done, total: roadmap.progress.total })}
       </div>
@@ -154,17 +203,29 @@ function SidebarProgress() {
 }
 
 function navBtn(item: NavItem, compact = false) {
+  // No font-display here — the landing page's own nav uses its body font, not the display face;
+  // reserve font-display for headings/wordmark. Active state fills with the vivid, theme-
+  // independent `star` (never `signal` — see shared/ui.tsx's Btn-primary comment: `signal` is
+  // deepened/lightened per-theme for AA-contrast TEXT, not tuned as a large filled area). This
+  // used to be `bg-signal`, which happened to look fine in light mode (there `--signal` is a deep
+  // indigo, incidentally close to `--star`) but broke badly in dark mode, where `--signal` flips
+  // to a PALE indigo-300 (tuned to read as text on a dark surface) — filling the whole active nav
+  // row with that pale value made it look like a glaring, washed-out block against the dark
+  // sidebar instead of a confident brand-colored highlight.
   const cls = ({ isActive }: { isActive: boolean }) =>
     compact
-      ? `font-display shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-          isActive ? "bg-signal text-white shadow-sm" : "text-ink-dim hover:bg-surface-2"
+      ? `shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+          isActive ? "bg-star text-on-signal" : "text-ink-dim hover:bg-surface-2"
         }`
-      : `font-display w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-          isActive ? "bg-signal text-white shadow-sm" : "text-ink-dim hover:bg-surface-2"
+      : `w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+          isActive ? "bg-star text-on-signal" : "text-ink-dim hover:bg-surface-2"
         }`;
+  const Icon = item.icon;
   return (
     <NavLink key={item.path} to={item.path} className={cls}>
-      <span className={compact ? "mr-1" : "text-base w-5 text-center"}>{item.icon}</span>
+      <span className={compact ? "mr-1 flex" : "w-5 flex justify-center shrink-0"}>
+        <Icon className="w-4 h-4" />
+      </span>
       {item.label}
     </NavLink>
   );
@@ -176,6 +237,32 @@ function PublicRoute({ children }: { children: ReactNode }) {
   if (isPending) return null;
   if (session) return <Navigate to="/" replace />;
   return <>{children}</>;
+}
+
+/** Sends a stranger who hasn't seen /welcome there at least once — mounted in Shell rather than
+ * gating AuthGate's render on this fetch, so every route doesn't wait on an extra round-trip
+ * before showing anything (the same "watch, don't block" pattern as FetchAllJobNotifier and the
+ * other Shell-mounted notifiers). A one-render flash of the destination page before the redirect
+ * fires is an acceptable trade for that. Renders nothing itself. */
+function WelcomeRedirect() {
+  const { data } = useOnboardingState();
+  const navigate = useNavigate();
+  const location = useLocation();
+  useEffect(() => {
+    if (data?.welcomeSeen === false && location.pathname !== "/welcome") {
+      navigate("/welcome", { replace: true });
+    }
+  }, [data?.welcomeSeen, location.pathname, navigate]);
+  return null;
+}
+
+/** Wraps /welcome — needs a real session (so a signed-out visitor can't reach it) but deliberately
+ * NOT nested inside AuthGate/Shell: it's a focused, chrome-free moment, not a page in the main app. */
+function WelcomeGate() {
+  const { data: session, isPending } = useSession();
+  if (isPending) return null;
+  if (!session) return <Navigate to="/login" replace />;
+  return <Welcome />;
 }
 
 /** Everything under "/" — redirects a signed-out visitor to /login instead of rendering the app shell. */
@@ -248,17 +335,20 @@ function Shell() {
       {!sidebarCollapsed && (
         <aside className="hidden lg:flex flex-col w-64 shrink-0 sticky top-0 h-screen border-r border-grid bg-surface/70 backdrop-blur-md p-3.5 gap-2.5 overflow-y-auto">
           <div className="flex items-center justify-between">
-            <Brand />
+            <Wordmark size="sm" />
+            {/* Same square, bordered shape as the floating "show sidebar" button below (not just a
+                bare glyph) — a real button, not a stray character sitting in the corner. */}
             <button
               onClick={() => setSidebarCollapsed(true)}
               aria-label={t("hideSidebar")}
               title={t("hideSidebar")}
-              className="text-ink-dim hover:text-ink p-1 -m-1 rounded-lg hover:bg-surface-2"
+              className="flex items-center justify-center w-7 h-7 rounded-lg border border-grid text-ink-dim hover:text-ink hover:border-signal/40 hover:bg-surface-2 transition-colors"
             >
-              «
+              <ChevronsLeftIcon className="w-4 h-4" />
             </button>
           </div>
           <AiBadge />
+          <AiQuotaBadge />
           <div className="flex items-center justify-between gap-2">
             <ThemeSwitcher />
             <LanguageSwitcher />
@@ -267,21 +357,22 @@ function Shell() {
             onClick={() => setPaletteOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-grid bg-surface text-xs text-ink-dim hover:border-signal/40 hover:text-ink transition-colors"
           >
-            <span>🔎 {t("search")}</span>
-            <span className="ml-auto font-display text-[10px] bg-surface-2 rounded px-1.5 py-0.5 text-ink-dim">⌘K</span>
+            <span className="flex items-center gap-1.5">
+              <SearchIcon className="w-3.5 h-3.5" />
+              {t("search")}
+            </span>
+            <span className="ml-auto font-mono text-[10px] bg-surface-2 rounded px-1.5 py-0.5 text-ink-dim">⌘K</span>
           </button>
           <nav className="flex flex-col gap-2.5 flex-1">
             {nav.map((group) => (
               <div key={group.section}>
-                <div className="font-display text-[11px] font-bold uppercase tracking-wider text-ink-dim px-3 mb-1">{group.section}</div>
+                <div className="eyebrow text-ink-dim px-3 mb-1">{group.section}</div>
                 <div className="flex flex-col gap-0.5">{group.items.map((it) => navBtn(it))}</div>
               </div>
             ))}
             {isAdmin && (
               <div>
-                <div className="font-display text-[11px] font-bold uppercase tracking-wider text-ink-dim px-3 mb-1">
-                  {t("sections.admin")}
-                </div>
+                <div className="eyebrow text-ink-dim px-3 mb-1">{t("sections.admin")}</div>
                 <div className="flex flex-col gap-0.5">{navBtn(adminItem)}</div>
               </div>
             )}
@@ -290,6 +381,15 @@ function Shell() {
           <Btn variant="ghost" size="sm" onClick={logOut}>
             {t("logOut")}
           </Btn>
+          <div className="flex items-center justify-center gap-3 text-[11px] text-ink-dim">
+            <NavLink to="/privacy" className="hover:text-ink hover:underline">
+              {t("footer.privacy")}
+            </NavLink>
+            <span aria-hidden="true">·</span>
+            <NavLink to="/terms" className="hover:text-ink hover:underline">
+              {t("footer.terms")}
+            </NavLink>
+          </div>
         </aside>
       )}
       {sidebarCollapsed && (
@@ -297,9 +397,9 @@ function Shell() {
           onClick={() => setSidebarCollapsed(false)}
           aria-label={t("showSidebar")}
           title={t("showSidebar")}
-          className="hidden lg:flex fixed top-3 left-3 z-30 items-center justify-center w-8 h-8 rounded-lg border border-grid bg-surface/90 backdrop-blur-md text-ink-dim hover:text-ink hover:border-signal/40 shadow-sm"
+          className="hidden lg:flex fixed top-3 left-3 z-30 items-center justify-center w-8 h-8 rounded-lg border border-grid bg-surface/90 backdrop-blur-md text-ink-dim hover:text-ink hover:border-signal/40 shadow-sm transition-colors"
         >
-          »
+          <ChevronsLeftIcon className="w-4 h-4 rotate-180" />
         </button>
       )}
 
@@ -307,11 +407,12 @@ function Shell() {
       <div className="flex-1 min-w-0">
         <header className="lg:hidden sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-grid">
           <div className="px-4 py-3 flex items-center gap-3">
-            <Brand />
+            <Wordmark size="sm" />
             <div className="ml-auto flex items-center gap-2">
               <AiBadge />
+              <AiQuotaBadge />
               <Btn variant="ghost" size="sm" onClick={() => setPaletteOpen(true)} aria-label={t("openCommandPalette")}>
-                🔎
+                <SearchIcon className="w-4 h-4" />
               </Btn>
               <Btn variant="ghost" size="sm" onClick={logOut}>
                 {t("logOut")}
@@ -321,7 +422,10 @@ function Shell() {
           <nav className="flex gap-1 overflow-x-auto px-3 pb-2 no-scrollbar">{allItems.map((it) => navBtn(it, true))}</nav>
         </header>
 
-        <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* max-w widens when the sidebar is collapsed — otherwise the freed ~256px just becomes
+            idle margin on a wide viewport instead of being reclaimed by the content (the whole
+            point of the collapse toggle, e.g. for the Vacancies Kanban board). */}
+        <main className={`mx-auto px-4 py-6 ${sidebarCollapsed ? "max-w-[96rem]" : "max-w-7xl"}`}>
           <ErrorBoundary key={location.pathname}>
             <Suspense fallback={<CardsSkeleton count={2} />}>
               <Routes>
@@ -350,6 +454,7 @@ function Shell() {
                     guessable/typed spelling — redirect it instead of 404ing on a reasonable guess. */}
                 <Route path="/cv-builder" element={<Navigate to="/cvbuilder" replace />} />
                 <Route path="/account" element={<Account />} />
+                <Route path="/pricing" element={<Pricing />} />
                 <Route
                   path="/admin"
                   element={
@@ -367,9 +472,14 @@ function Shell() {
 
       <ToastHost />
       <CelebrationOverlay />
+      <FetchAllJobNotifier />
+      <CvReviewJobNotifier />
+      <AiQuotaNotifier />
+      <WelcomeRedirect />
+      <CalendarReminderNotifier />
       <CommandPalette
         items={allItems}
-        actions={[{ id: "logout", icon: "🚪", label: t("logOut"), onRun: logOut }]}
+        actions={[{ id: "logout", icon: LogOutIcon, label: t("logOut"), onRun: logOut }]}
         open={paletteOpen}
         setOpen={setPaletteOpen}
       />
@@ -442,10 +552,16 @@ export default function App() {
                     </PublicRoute>
                   }
                 />
+                {/* Needs a session but no Shell chrome — see WelcomeGate's own comment. */}
+                <Route path="/welcome" element={<WelcomeGate />} />
                 {/* Public — no session, no Shell chrome (see cv-public.tsx). Deliberately NOT
                   wrapped in PublicRoute: an already-signed-in visitor should still be able to
                   open a (their own, or anyone else's) shared CV link while logged in. */}
                 <Route path="/cv/public/:slug" element={<CvPublic />} />
+                {/* Public legal pages — reachable signed-in or signed-out (e.g. from the register
+                    page's footer, before an account exists), so also not wrapped in PublicRoute. */}
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
                 <Route path="/*" element={<AuthGate />} />
               </Routes>
             </Suspense>

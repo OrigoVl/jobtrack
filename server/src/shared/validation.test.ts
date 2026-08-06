@@ -3,9 +3,14 @@ import {
   parseVacancyInput,
   parseJsonVacancyItem,
   parseProfileInput,
+  parseSkillLevelInput,
+  parseInterviewTurnInput,
   parseCompanyInput,
   parseContactInput,
   parsePagination,
+  parseDesignGenerateTaskInput,
+  parseDesignGradeInput,
+  parseDesignHelpInput,
   assertSafeVacancyUrl,
   STATUSES,
   FITS,
@@ -131,6 +136,93 @@ describe("parseProfileInput", () => {
   });
 });
 
+describe("parseSkillLevelInput", () => {
+  it("parses a valid tech + level", () => {
+    expect(parseSkillLevelInput({ tech: " React ", level: 72 })).toEqual({ tech: "React", level: 72 });
+  });
+
+  it("accepts level 0 (not the same as absent)", () => {
+    expect(parseSkillLevelInput({ tech: "React", level: 0 })).toEqual({ tech: "React", level: 0 });
+  });
+
+  it("treats null/empty/absent level as clearing the override", () => {
+    expect(parseSkillLevelInput({ tech: "React", level: null })).toEqual({ tech: "React", level: null });
+    expect(parseSkillLevelInput({ tech: "React", level: "" })).toEqual({ tech: "React", level: null });
+    expect(parseSkillLevelInput({ tech: "React" })).toEqual({ tech: "React", level: null });
+  });
+
+  it("rejects an out-of-range or non-integer level", () => {
+    expect(() => parseSkillLevelInput({ tech: "React", level: 101 })).toThrow(HttpError);
+    expect(() => parseSkillLevelInput({ tech: "React", level: -1 })).toThrow(HttpError);
+    expect(() => parseSkillLevelInput({ tech: "React", level: 1.5 })).toThrow(HttpError);
+    expect(() => parseSkillLevelInput({ tech: "React", level: "abc" })).toThrow(HttpError);
+  });
+
+  it("requires a non-empty tech", () => {
+    expect(() => parseSkillLevelInput({ level: 50 })).toThrow(HttpError);
+    expect(() => parseSkillLevelInput({ tech: "  ", level: 50 })).toThrow(HttpError);
+  });
+
+  it("trims and truncates tech at 80 chars", () => {
+    const long = "x".repeat(100);
+    expect(parseSkillLevelInput({ tech: long, level: 1 }).tech).toBe("x".repeat(80));
+  });
+});
+
+describe("parseInterviewTurnInput", () => {
+  it("parses a valid turn with a vacancy and transcript", () => {
+    const out = parseInterviewTurnInput({
+      vacancyId: 5,
+      transcript: [{ q: "Tell me about yourself", a: "I am a developer." }],
+      maxTurns: 6,
+    });
+    expect(out).toEqual({ vacancyId: 5, transcript: [{ q: "Tell me about yourself", a: "I am a developer." }], maxTurns: 6 });
+  });
+
+  it("treats vacancyId null/0/absent as no vacancy", () => {
+    expect(parseInterviewTurnInput({ vacancyId: null, transcript: [] }).vacancyId).toBeNull();
+    expect(parseInterviewTurnInput({ vacancyId: 0, transcript: [] }).vacancyId).toBeNull();
+    expect(parseInterviewTurnInput({ transcript: [] }).vacancyId).toBeNull();
+  });
+
+  it("rejects a non-integer or non-positive vacancyId", () => {
+    expect(() => parseInterviewTurnInput({ vacancyId: -1, transcript: [] })).toThrow(HttpError);
+    expect(() => parseInterviewTurnInput({ vacancyId: 1.5, transcript: [] })).toThrow(HttpError);
+    expect(() => parseInterviewTurnInput({ vacancyId: "abc", transcript: [] })).toThrow(HttpError);
+  });
+
+  it("defaults transcript to an empty array when absent", () => {
+    expect(parseInterviewTurnInput({}).transcript).toEqual([]);
+  });
+
+  it("rejects a non-array transcript", () => {
+    expect(() => parseInterviewTurnInput({ transcript: "not an array" })).toThrow(HttpError);
+  });
+
+  it("rejects a transcript entry missing string q/a", () => {
+    expect(() => parseInterviewTurnInput({ transcript: [{ q: "question only" }] })).toThrow(HttpError);
+    expect(() => parseInterviewTurnInput({ transcript: [{ q: 1, a: "answer" }] })).toThrow(HttpError);
+  });
+
+  it("caps transcript at 10 entries and trims/truncates q/a", () => {
+    const transcript = Array.from({ length: 15 }, (_, i) => ({ q: `q${i}`, a: `a${i}` }));
+    expect(parseInterviewTurnInput({ transcript }).transcript).toHaveLength(10);
+    const long = "x".repeat(3000);
+    const out = parseInterviewTurnInput({ transcript: [{ q: `  ${long}  `, a: long }] });
+    expect(out.transcript[0]!.q).toBe("x".repeat(600));
+    expect(out.transcript[0]!.a).toBe("x".repeat(2000));
+  });
+
+  it("defaults maxTurns to 6 when absent/invalid", () => {
+    expect(parseInterviewTurnInput({}).maxTurns).toBe(6);
+    expect(parseInterviewTurnInput({ maxTurns: 0 }).maxTurns).toBe(6);
+  });
+
+  it("passes through a valid maxTurns", () => {
+    expect(parseInterviewTurnInput({ maxTurns: 8 }).maxTurns).toBe(8);
+  });
+});
+
 describe("parseCompanyInput", () => {
   it("requires a non-empty name", () => {
     expect(() => parseCompanyInput({ name: "  " })).toThrow(HttpError);
@@ -232,5 +324,85 @@ describe("assertSafeVacancyUrl (SSRF guard)", () => {
 
   it("allows a public IPv4 literal (not private/reserved)", () => {
     expect(assertSafeVacancyUrl("https://93.184.216.34/")).toContain("93.184.216.34");
+  });
+});
+
+const designTask = {
+  title: "URL shortener",
+  scenario: "Design a service that shortens long URLs.",
+  requirements: ["Handle 1000 req/s"],
+  constraints: ["2 weeks"],
+  difficulty: "medium",
+};
+const designDiagram = {
+  nodes: [{ id: "1", kind: "client", label: "Client", x: 0, y: 0 }],
+  edges: [],
+};
+
+describe("parseDesignGenerateTaskInput", () => {
+  it("treats absent/0 vacancyId as general (null)", () => {
+    expect(parseDesignGenerateTaskInput({}).vacancyId).toBeNull();
+    expect(parseDesignGenerateTaskInput({ vacancyId: 0 }).vacancyId).toBeNull();
+  });
+
+  it("accepts a positive integer vacancyId", () => {
+    expect(parseDesignGenerateTaskInput({ vacancyId: 5 }).vacancyId).toBe(5);
+  });
+
+  it("rejects a negative/non-integer vacancyId", () => {
+    expect(() => parseDesignGenerateTaskInput({ vacancyId: -1 })).toThrow(HttpError);
+    expect(() => parseDesignGenerateTaskInput({ vacancyId: "abc" })).toThrow(HttpError);
+  });
+});
+
+describe("parseDesignGradeInput", () => {
+  it("parses a valid task + diagram", () => {
+    const out = parseDesignGradeInput({ task: designTask, diagram: designDiagram });
+    expect(out.task.title).toBe("URL shortener");
+    expect(out.diagram.nodes).toEqual([{ id: "1", kind: "client", label: "Client", x: 0, y: 0 }]);
+  });
+
+  it("falls back to 'generic' for an unknown node kind", () => {
+    const out = parseDesignGradeInput({
+      task: designTask,
+      diagram: { nodes: [{ id: "1", kind: "not-a-real-kind", label: "X", x: 0, y: 0 }], edges: [] },
+    });
+    expect(out.diagram.nodes[0]!.kind).toBe("generic");
+  });
+
+  it("falls back to 'medium' for an unknown difficulty", () => {
+    const out = parseDesignGradeInput({ task: { ...designTask, difficulty: "extreme" }, diagram: designDiagram });
+    expect(out.task.difficulty).toBe("medium");
+  });
+
+  it("rejects an edge referencing an unknown node id", () => {
+    expect(() =>
+      parseDesignGradeInput({
+        task: designTask,
+        diagram: { nodes: designDiagram.nodes, edges: [{ id: "e1", source: "1", target: "missing" }] },
+      }),
+    ).toThrow(HttpError);
+  });
+
+  it("caps node/edge counts defensively", () => {
+    const manyNodes = Array.from({ length: 100 }, (_, i) => ({ id: `n${i}`, kind: "generic", label: "", x: 0, y: 0 }));
+    const out = parseDesignGradeInput({ task: designTask, diagram: { nodes: manyNodes, edges: [] } });
+    expect(out.diagram.nodes.length).toBe(40);
+  });
+});
+
+describe("parseDesignHelpInput", () => {
+  it("parses a valid question + task + diagram", () => {
+    const out = parseDesignHelpInput({ task: designTask, diagram: designDiagram, question: "What should I cache?" });
+    expect(out.question).toBe("What should I cache?");
+  });
+
+  it("rejects an empty question", () => {
+    expect(() => parseDesignHelpInput({ task: designTask, diagram: designDiagram, question: "  " })).toThrow(HttpError);
+  });
+
+  it("caps an overly long question", () => {
+    const out = parseDesignHelpInput({ task: designTask, diagram: designDiagram, question: "x".repeat(1000) });
+    expect(out.question.length).toBe(500);
   });
 });

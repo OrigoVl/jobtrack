@@ -5,7 +5,7 @@ import { z } from "zod";
 
 export const CV_TEMPLATES = ["classic", "compact", "academic", "twocol", "minimal", "sidebar", "timeline"] as const;
 export const CV_FONTS = ["sans", "serif"] as const;
-export const CV_SECTIONS = ["summary", "skills", "experience", "projects", "education", "languages"] as const;
+export const CV_SECTIONS = ["summary", "skills", "experience", "projects", "education", "certifications", "languages"] as const;
 export type CvSection = (typeof CV_SECTIONS)[number];
 
 // Zod v4: `.any()`/`.unknown()`, when it's a REQUIRED field in `z.object({...})`, no longer
@@ -118,18 +118,136 @@ export const CvExperienceSchema = z
   .optional()
   .transform((v): CvExperienceItem[] => (Array.isArray(v) ? v.slice(0, 20).map((e) => CvExperienceItemSchema.parse(e)) : []));
 
+export interface CvEducationEntry {
+  school: string;
+  degree: string;
+  period: string;
+}
+
+// Coerces EITHER shape into the structured one: a plain string (every education entry stored
+// before this field was structured — this file's "never reject, coerce to a safe default"
+// philosophy applies to old persisted data too, not just malformed input) becomes `{ school:
+// <that string>, degree: "", period: "" }` — non-lossy, the user can split it into degree/period
+// afterward — while an already-structured entry just gets its fields trimmed/capped.
+const CvEducationEntrySchema = z.any().transform((e): CvEducationEntry =>
+  typeof e === "string"
+    ? { school: e.slice(0, 200), degree: "", period: "" }
+    : {
+        school: typeof e?.school === "string" ? e.school.slice(0, 200) : "",
+        degree: typeof e?.degree === "string" ? e.degree.slice(0, 160) : "",
+        period: typeof e?.period === "string" ? e.period.slice(0, 60) : "",
+      },
+);
+
+export const CvEducationSchema = z
+  .any()
+  .optional()
+  .transform((v): CvEducationEntry[] =>
+    Array.isArray(v)
+      ? v
+          .slice(0, 20)
+          .map((e) => CvEducationEntrySchema.parse(e))
+          .filter((e) => e.school || e.degree || e.period)
+      : [],
+  );
+
+export interface CvProjectEntry {
+  title: string;
+  description: string;
+  tech: string[];
+  link: string;
+}
+
+// Same backward-compat trick as CvEducationEntrySchema above: a plain string (every project
+// entry stored before this field became structured) becomes `{ title: <that string>, ... }` —
+// non-lossy, the one existing line just becomes the project's headline.
+const CvProjectEntrySchema = z.any().transform((e): CvProjectEntry =>
+  typeof e === "string"
+    ? { title: e.slice(0, 200), description: "", tech: [], link: "" }
+    : {
+        title: typeof e?.title === "string" ? e.title.slice(0, 200) : "",
+        description: typeof e?.description === "string" ? e.description.slice(0, 500) : "",
+        tech: strArr(20, 60).parse(e?.tech),
+        link: typeof e?.link === "string" ? e.link.slice(0, 300) : "",
+      },
+);
+
+export const CvProjectsSchema = z
+  .any()
+  .optional()
+  .transform((v): CvProjectEntry[] =>
+    Array.isArray(v)
+      ? v
+          .slice(0, 20)
+          .map((e) => CvProjectEntrySchema.parse(e))
+          .filter((e) => e.title || e.description || e.tech.length || e.link)
+      : [],
+  );
+
+export interface CvCertificationEntry {
+  name: string;
+  issuer: string;
+  date: string;
+}
+
+// No backward-compat coercion needed here (unlike education/projects) — certifications is a
+// brand new field, no account has ever had this stored as a flat string.
+const CvCertificationEntrySchema = z.any().transform((e): CvCertificationEntry => ({
+  name: typeof e?.name === "string" ? e.name.slice(0, 200) : "",
+  issuer: typeof e?.issuer === "string" ? e.issuer.slice(0, 160) : "",
+  date: typeof e?.date === "string" ? e.date.slice(0, 60) : "",
+}));
+
+export const CvCertificationsSchema = z
+  .any()
+  .optional()
+  .transform((v): CvCertificationEntry[] =>
+    Array.isArray(v)
+      ? v
+          .slice(0, 20)
+          .map((e) => CvCertificationEntrySchema.parse(e))
+          .filter((e) => e.name || e.issuer || e.date)
+      : [],
+  );
+
+export interface CvContactLink {
+  label: string;
+  url: string;
+}
+
+// Additive alongside the freeform `contact` string, not a replacement for it — see the client's
+// CvDoc.links doc comment for why there's no coercion from an old `contact` blob into this shape.
+const CvContactLinkSchema = z.any().transform((e): CvContactLink => ({
+  label: typeof e?.label === "string" ? e.label.slice(0, 60) : "",
+  url: typeof e?.url === "string" ? e.url.slice(0, 300) : "",
+}));
+
+export const CvContactLinksSchema = z
+  .any()
+  .optional()
+  .transform((v): CvContactLink[] =>
+    Array.isArray(v)
+      ? v
+          .slice(0, 10)
+          .map((e) => CvContactLinkSchema.parse(e))
+          .filter((e) => e.label || e.url)
+      : [],
+  );
+
 export const CvDocSchema = z.preprocess(
   asObject,
   z.object({
     name: str(120),
     title: str(160),
     contact: str(400),
+    links: CvContactLinksSchema,
     summary: str(1500),
     photo: CvPhotoSchema,
     skills: strArr(60),
     experience: CvExperienceSchema,
-    education: strArr(20),
-    projects: strArr(20),
+    education: CvEducationSchema,
+    projects: CvProjectsSchema,
+    certifications: CvCertificationsSchema,
     languages: CvLanguagesSchema,
     theme: CvThemeSchema,
   }),

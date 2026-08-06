@@ -30,6 +30,8 @@ const TABLES = [
   "llm_usage",
   "product_events",
   "digest_preferences",
+  "stripe_events",
+  "subscriptions",
   "session",
   "account",
   "verification",

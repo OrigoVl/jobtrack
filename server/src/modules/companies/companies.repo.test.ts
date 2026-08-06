@@ -12,6 +12,8 @@ const USER_B = "user-b" as UserId;
 let listCompanies: typeof import("./companies.repo.js").listCompanies;
 let upsertCompany: typeof import("./companies.repo.js").upsertCompany;
 let findCompanyByName: typeof import("./companies.repo.js").findCompanyByName;
+let getCompanyDiagram: typeof import("./companies.repo.js").getCompanyDiagram;
+let setCompanyDiagram: typeof import("./companies.repo.js").setCompanyDiagram;
 
 beforeAll(async () => {
   const testDb = await createTestDb();
@@ -22,6 +24,8 @@ beforeAll(async () => {
   listCompanies = repo.listCompanies;
   upsertCompany = repo.upsertCompany;
   findCompanyByName = repo.findCompanyByName;
+  getCompanyDiagram = repo.getCompanyDiagram;
+  setCompanyDiagram = repo.setCompanyDiagram;
 });
 
 describe("companies.repo (PGlite)", () => {
@@ -49,5 +53,31 @@ describe("companies.repo (PGlite)", () => {
     expect(rowsB).toHaveLength(1);
     expect(rowsB[0]?.name).toBe("Acme");
     expect(rowsB[0]?.notes).toBe("user B's notes");
+  });
+});
+
+describe("company diagram (user_kv-backed, PGlite)", () => {
+  it("getCompanyDiagram() returns null before anything is saved", async () => {
+    const companyA = await findCompanyByName(USER_A, "Acme");
+    expect(await getCompanyDiagram(USER_A, companyA!.id)).toBeNull();
+  });
+
+  it("setCompanyDiagram() then getCompanyDiagram() round-trips the diagram", async () => {
+    const companyA = await findCompanyByName(USER_A, "Acme");
+    const diagram = { nodes: [{ id: "1", kind: "client" as const, label: "Client", x: 0, y: 0 }], edges: [] };
+    await setCompanyDiagram(USER_A, companyA!.id, diagram);
+    expect(await getCompanyDiagram(USER_A, companyA!.id)).toEqual(diagram);
+  });
+
+  it("is isolated per user even for the same numeric company id shape (different real ids)", async () => {
+    const companyA = await findCompanyByName(USER_A, "Acme");
+    const companyB = await findCompanyByName(USER_B, "Acme");
+    // Both users' companies happen to be named "Acme" but are different rows/ids — confirm B's
+    // diagram key is independent of A's, not accidentally shared by name.
+    await setCompanyDiagram(USER_B, companyB!.id, { nodes: [], edges: [] });
+    const diagramA = await getCompanyDiagram(USER_A, companyA!.id);
+    const diagramB = await getCompanyDiagram(USER_B, companyB!.id);
+    expect(diagramA?.nodes.length).toBe(1);
+    expect(diagramB?.nodes.length).toBe(0);
   });
 });

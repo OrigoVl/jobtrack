@@ -4,8 +4,9 @@ import { getProfile, getSrsStateByCard, getReachedCounts, getFunnelConversion, g
 import { chatJson, llmAvailable } from "../../llm/index.js";
 import { authed } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
-import { demandMap } from "../../shared/demand.js";
+import { demandMap, gapPriorityMap } from "../../shared/demand.js";
 import { allCards } from "../study/content-store.js";
+import { effectiveTrack } from "../../shared/tracks.js";
 import { listVacancyStatusRows, listVacancyStatusNextRows } from "../vacancies/vacancies.repo.js";
 import { FUNNEL_PROGRESSION_ORDER, buildAnalyticsSummary, buildFocusSummary, heuristicFocus } from "./analytics.service.js";
 
@@ -25,11 +26,10 @@ r.get(
     const rows = await listVacancyStatusRows(userId);
     const reached = await getReachedCounts(userId);
     const demand = await demandMap(userId);
-    const profile = await getProfile(userId);
-    const { funnel, funnelReached, byDate, radar } = buildAnalyticsSummary(rows, reached, demand, profile.skills);
+    const { funnel, funnelReached, byDate } = buildAnalyticsSummary(rows, reached);
     const conversion = await getFunnelConversion(userId, FUNNEL_PROGRESSION_ORDER);
     const stageDurations = (await getAvgDaysInStage(userId)).filter((d) => d.count >= 2); // count===1 is statistically insignificant, just noise in the UI
-    res.json({ funnel, funnelReached, byDate, demand, radar, conversion, stageDurations });
+    res.json({ funnel, funnelReached, byDate, demand, conversion, stageDurations });
   }),
 );
 
@@ -38,24 +38,29 @@ r.get(
   aiLimiter,
   authed(async (userId, _req, res) => {
     const profile = await getProfile(userId);
-    const demand = await demandMap(userId);
+    const [demand, gapPriority] = await Promise.all([demandMap(userId), gapPriorityMap(userId, profile.skills)]);
     const rows = await listVacancyStatusNextRows(userId);
     const today = new Date().toISOString().slice(0, 10);
     const nowMs = Date.now();
     const srs = await getSrsStateByCard(userId);
-    const cards = await allCards(userId);
+    const cards = await allCards(userId, effectiveTrack(profile));
     const dueCards = cards.filter((c) => {
       const s = srs[c.id];
       return !s || s.due <= today;
     }).length;
-    const summary = buildFocusSummary({ rows, demand, knownSkills: profile.skills, dueCards, today, nowMs });
+    const summary = buildFocusSummary({ rows, demand, gapPriority, knownSkills: profile.skills, dueCards, today, nowMs });
     if (!llmAvailable()) return res.json({ offline: true, actions: heuristicFocus(summary) });
     const role = profile.domain || "professional";
     const out = await chatJson(
       userId,
-      `You are a career mentor for a candidate (${role}) job-hunting. You analyze their state and give the 3 most important concrete actions for this week. Reply with ONLY valid JSON.`,
+      `You are a career mentor for a candidate (${role}) job-hunting. You analyze their state and give the 3 most important concrete actions for this week.`,
+      // Both example placeholder VALUES below are deliberately non-English filler ("…", not
+      // "short action"/"1 sentence why") — an English-worded format example next to "title"
+      // was observed leaking into the actual response even with outputLocale: "app" (system
+      // prompt) set: the LLM translated "why" but kept "title" in English, apparently reading
+      // the format spec's own English placeholder words as content to preserve literally.
       `Search state (JSON): ${JSON.stringify(summary)}.\n` +
-        `Give exactly 3 priority actions with an explanation of why now. Format strictly: {"actions":[{"title":"short action","why":"1 sentence why"}]}`,
+        `Give exactly 3 priority actions with an explanation of why now. Both "title" and "why" must be in the language you were told to respond in above (this instruction itself stays in English regardless — only YOUR reply follows that language). Format strictly as JSON: {"actions":[{"title":"…","why":"…"}]}`,
       FocusActionsSchema,
       // "fast": prioritizing 3 actions from a structured funnel state — a light task, doesn't
       // need "smart"-tier; cheaper and faster for a card the user sees every day.

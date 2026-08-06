@@ -2,7 +2,10 @@ import { kbFor } from "../knowledge/knowledge-base.js";
 import { slugify as slug } from "../../shared/slug.js";
 import type { DynamicKnowledge } from "../knowledge/knowledge.service.js";
 import { getLocale } from "../../core/request-context.js";
+import { topGapTechs } from "../../shared/demand.js";
+import { ukPluralForm } from "../../shared/locale.js";
 import type { AppLocale } from "../../shared/locale.js";
+import { effectiveTrack, type Track } from "../../shared/tracks.js";
 
 // Dynamic fast-track plan: built from REAL gaps (vacancy demand − skills from CV/profile).
 // Vacancies or CV change → the plan changes. Progress is stored under stable ids (per technology).
@@ -26,17 +29,6 @@ export interface PlanPhase {
 
 const MAX_GAPS = 5;
 const MAX_TOPICS_PER_TECH = 4;
-
-/** Slavic 1/2-4/5+ plural rule (11-14 are always the "many" form even though they end in a
- * digit that would otherwise read as "few") — same algorithm i18next applies to uk_one/_few/_many
- * client-side, hand-rolled here since this is plain server template text, not an i18next key. */
-function ukPluralForm(n: number, one: string, few: string, many: string): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
-  return many;
-}
 
 /** All locale-varying copy for the generated 21-day plan, in one place so buildTechPhase/
  * buildRefreshPhase/buildPlan stay plain template logic — no scattered ternaries. */
@@ -126,9 +118,9 @@ const COPY: Record<
   },
 };
 
-function buildTechPhase(tech: string, count: number, index: number, dyn?: DynamicKnowledge): PlanPhase {
+function buildTechPhase(tech: string, count: number, index: number, dyn: DynamicKnowledge | undefined, track: Track): PlanPhase {
   const copy = COPY[getLocale()];
-  const kb = kbFor(tech);
+  const kb = kbFor(tech, track);
   const isAi = dyn?.source === "ai";
   const source = dyn?.learn?.length ? dyn.learn : kb.learn;
   const topics = source.length ? source.slice(0, MAX_TOPICS_PER_TECH) : [copy.fallbackTopic(tech)];
@@ -168,35 +160,41 @@ function buildRefreshPhase(strengths: [string, number][]): PlanPhase {
 
 interface PlanGapTechsInput {
   profile: { skills: string[] };
-  demand: Record<string, number>;
+  /** gapPriorityMap()'s output — "which gap unlocks the most vacancies", not raw demand. */
+  gapPriority: Record<string, number>;
 }
 
-/** Gap technologies worth generating personal content for (top by demand). */
-export function planGapTechs({ profile, demand }: PlanGapTechsInput): string[] {
-  const known = new Set(profile.skills);
-  return Object.entries(demand)
-    .sort((a, b) => b[1] - a[1])
-    .filter(([tech]) => !known.has(tech))
-    .slice(0, MAX_GAPS)
-    .map(([tech]) => tech);
+/** Gap technologies worth generating personal content for, ranked by gapPriority (see shared/demand.ts). */
+export function planGapTechs({ profile, gapPriority }: PlanGapTechsInput): string[] {
+  return topGapTechs(profile.skills, gapPriority, MAX_GAPS);
 }
 
 interface BuildPlanInput {
-  profile: { skills: string[] };
+  profile: { skills: string[]; domain?: string; track?: Track };
   demand: Record<string, number>;
+  /** gapPriorityMap()'s output — decides WHICH gaps make the cut and in what order; `demand`
+   * above is still used for each phase's displayed vacancy count and the refresh-phase ordering. */
+  gapPriority: Record<string, number>;
   knowledgeByTech?: Record<string, DynamicKnowledge>;
 }
 
 /** Builds a personal plan from the profile and market demand. Returns phases with sequential day numbering. */
 const FINAL_DAY_IDS = ["final-algo", "final-sysdesign", "final-behavioral"] as const;
 
-export function buildPlan({ profile, demand, knowledgeByTech = {} }: BuildPlanInput): PlanPhase[] {
+export function buildPlan({ profile, demand, gapPriority, knowledgeByTech = {} }: BuildPlanInput): PlanPhase[] {
   const known = new Set(profile.skills);
-  const ranked = Object.entries(demand).sort((a, b) => b[1] - a[1]);
-  const gaps = ranked.filter(([tech]) => !known.has(tech)).slice(0, MAX_GAPS);
+  const track = effectiveTrack(profile);
+  const gapOrder = topGapTechs(profile.skills, gapPriority, MAX_GAPS);
+  const gaps: [string, number][] = gapOrder.map((tech) => [tech, demand[tech] || 0]);
   const phases: PlanPhase[] = gaps.length
-    ? gaps.map(([tech, count], i) => buildTechPhase(tech, count, i, knowledgeByTech[tech]))
-    : [buildRefreshPhase(ranked.filter(([tech]) => known.has(tech)))];
+    ? gaps.map(([tech, count], i) => buildTechPhase(tech, count, i, knowledgeByTech[tech], track))
+    : [
+        buildRefreshPhase(
+          Object.entries(demand)
+            .filter(([tech]) => known.has(tech))
+            .sort((a, b) => b[1] - a[1]),
+        ),
+      ];
   const finalPhase = COPY[getLocale()].finalPhase;
   phases.push({
     id: "ph-final",

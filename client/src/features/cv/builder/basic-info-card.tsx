@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Field } from "../../../shared/view-kit";
-import type { CvDoc } from "../../../shared/types";
+import { Btn, Spinner } from "../../../shared/ui";
+import type { CvContactLink, CvDoc } from "../../../shared/types";
 
 export type SummaryStyle = "improve" | "shorter" | "ats" | "technical" | "leadership";
 const SUMMARY_CHIP_KEYS: [
@@ -19,6 +20,55 @@ const SUMMARY_CHIP_KEYS: [
   ["technical", "generalSection.summaryChips.technical"],
   ["leadership", "generalSection.summaryChips.leadership"],
 ];
+
+interface ContactLinksEditorProps {
+  links: CvContactLink[];
+  onChange: (links: CvContactLink[]) => void;
+}
+
+/** Structured links (LinkedIn/GitHub/portfolio/etc.), each its own label+URL row — additive
+ * alongside the freeform Contacts field above (which stays free text for email/phone), not a
+ * replacement for it. Keeps a label as plain text rather than a fixed dropdown: a link genuinely
+ * doesn't need to be one of a fixed set ("Blog", "Behance", "Stack Overflow" all just as valid). */
+function ContactLinksEditor({ links, onChange }: ContactLinksEditorProps) {
+  const { t } = useTranslation(["cv", "common"]);
+  const setLink = (i: number, p: Partial<CvContactLink>) => onChange(links.map((l, idx) => (idx === i ? { ...l, ...p } : l)));
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-ink-dim">{t("generalSection.links.title")}</span>
+        <Btn size="sm" variant="ghost" onClick={() => onChange([...links, { label: "", url: "" }])}>
+          {t("generalSection.links.addEntry")}
+        </Btn>
+      </div>
+      {links.map((l, i) => (
+        <div key={i} className="flex items-end gap-2">
+          <div className="w-32">
+            <Field
+              label={t("generalSection.links.label")}
+              value={l.label}
+              onChange={(v) => setLink(i, { label: v })}
+              placeholder={t("generalSection.links.labelPlaceholder")}
+              maxLength={60}
+            />
+          </div>
+          <div className="flex-1">
+            <Field
+              label={t("generalSection.links.url")}
+              value={l.url}
+              onChange={(v) => setLink(i, { url: v })}
+              placeholder={t("generalSection.links.urlPlaceholder")}
+              maxLength={300}
+            />
+          </div>
+          <Btn size="sm" variant="danger" onClick={() => onChange(links.filter((_, idx) => idx !== i))}>
+            ✕
+          </Btn>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 interface GeneralSectionProps {
   doc: CvDoc;
@@ -57,6 +107,7 @@ export function GeneralSection({ doc, onChange, llm, busyStyle, onImproveSummary
         placeholder={t("generalSection.contactsPlaceholder")}
         maxLength={400}
       />
+      <ContactLinksEditor links={doc.links ?? []} onChange={(links) => onChange({ links })} />
       <label className="block">
         <span className="text-xs font-semibold text-ink-dim">{t("generalSection.summary")}</span>
         <textarea
@@ -76,7 +127,7 @@ export function GeneralSection({ doc, onChange, llm, busyStyle, onImproveSummary
             disabled={!llm || !doc.summary.trim() || !!busyStyle}
             className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-surface-2 text-ink-dim border border-grid hover:bg-signal/10 hover:text-signal hover:border-signal/30 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {busyStyle === style ? "⏳" : null} {t(labelKey)}
+            {busyStyle === style && <Spinner className="w-3 h-3" />} {t(labelKey)}
           </button>
         ))}
       </div>

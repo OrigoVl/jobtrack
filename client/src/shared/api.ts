@@ -1,12 +1,15 @@
 import type {
+  AdminBillingSummary,
   AdminLlmUsageSummary,
   AdminOverview,
   AdminProductEventsSummary,
   AdminUsersResult,
   Analytics,
   AnalyzeResult,
+  BillingState,
   CalendarEvent,
   CalendarEventInput,
+  CheckoutPlan,
   CombinedCalendar,
   Company,
   Contact,
@@ -15,12 +18,21 @@ import type {
   CvDoc,
   CvMatch,
   CvPreset,
+  CvProfile,
+  CvProfileFull,
   CvReview,
+  CvReviewJobState,
   CvShare,
   CvTailorResult,
+  DesignDefenseTurnResult,
+  DesignDiagram,
+  DesignExercise,
+  DesignGrade,
+  DesignHistoryEntry,
+  DesignTask,
   DigestPreferences,
   Drill,
-  FetchAllResult,
+  FetchAllJobState,
   FocusWeek,
   JobSearchResult,
   JsonVacancyImportResult,
@@ -28,6 +40,7 @@ import type {
   LearnData,
   LinkedInOptimizeResult,
   MockEvaluation,
+  InterviewTurnResult,
   OutreachResult,
   Plan21Data,
   Profile,
@@ -56,11 +69,23 @@ function handleUnauthorized(): void {
   }
 }
 
+// Advisory header set by server/src/app.ts (fed by llm/client.ts's plan-quota check via
+// core/request-context.ts's markAiQuotaExceeded()) on ANY AI response once a Free-plan user
+// hits their monthly quota — the response body itself is untouched (the offline-fallback result
+// still ships), so this is purely additive metadata an unaware caller ignores. Dispatched as a
+// DOM event rather than threaded through every one of the ~26 AI call sites' return types; see
+// shared/ai-quota-notifier.tsx, the sole listener.
+export const AI_QUOTA_EXCEEDED_EVENT = "zorya:ai-quota-exceeded";
+
 // Shared by every fetch call site below (the JSON path in req(), and the two FormData uploads
 // that can't go through req() itself — see importLinkedIn/uploadCV) so the 401/error-body
 // handling lives in exactly one place.
 async function handleResponse<T>(res: Response): Promise<T> {
   if (res.status === 401) handleUnauthorized();
+  // Optional chaining: a real fetch() Response always has `.headers`, but several existing
+  // tests (api.test.ts) mock a bare `{ ok, status, json }` object without one — this stays a
+  // no-op there instead of throwing on an unrelated advisory check.
+  if (res.headers?.get("X-AI-Quota-Exceeded")) window.dispatchEvent(new Event(AI_QUOTA_EXCEEDED_EVENT));
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
     // `code` (server/src/core/http.ts's HttpError optional 4th param, surfaced by
@@ -108,7 +133,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ html }),
     }),
-  fetchAllVacancies: () => req<FetchAllResult>("/vacancies/fetch-all", { method: "POST", body: "{}" }),
+  fetchAllVacancies: () => req<FetchAllJobState>("/vacancies/fetch-all", { method: "POST", body: "{}" }),
+  fetchAllStatus: () => req<FetchAllJobState | null>("/vacancies/fetch-all/status"),
   fetchVacancyUrl: (url: string) => req<{ text: string }>("/vacancies/fetch-url", { method: "POST", body: JSON.stringify({ url }) }),
   importVacanciesJson: (items: unknown[]) =>
     req<JsonVacancyImportResult>("/vacancies/import-json", { method: "POST", body: JSON.stringify(items) }),
@@ -119,31 +145,47 @@ export const api = {
   saveProfile: (p: Profile) => req<Profile>("/profile", { method: "PUT", body: JSON.stringify(p) }),
   analyzeCV: (cvText: string) => req<CvAnalysis>("/cv/analyze", { method: "POST", body: JSON.stringify({ cvText }) }),
   reviewCV: (cvText: string) => req<CvReview>("/cv/review", { method: "POST", body: JSON.stringify({ cvText }) }),
-  cvDoc: () => req<CvDoc>("/cv/doc"),
-  saveCvDoc: (doc: CvDoc) => req<CvDoc>("/cv/doc", { method: "PUT", body: JSON.stringify(doc) }),
+  startCvReviewJob: (cvText: string) => req<CvReviewJobState>("/cv/review/start", { method: "POST", body: JSON.stringify({ cvText }) }),
+  cvReviewJobStatus: () => req<CvReviewJobState | null>("/cv/review/status"),
+  cvProfiles: () => req<CvProfile[]>("/cv/profiles"),
+  createCvProfile: (name: string) => req<CvProfileFull>("/cv/profiles", { method: "POST", body: JSON.stringify({ name }) }),
+  duplicateCvProfile: (id: number) => req<CvProfileFull>(`/cv/profiles/${id}/duplicate`, { method: "POST" }),
+  renameCvProfile: (id: number, name: string) => req<CvProfile>(`/cv/profiles/${id}`, { method: "PUT", body: JSON.stringify({ name }) }),
+  deleteCvProfile: (id: number) => req<{ ok: boolean }>(`/cv/profiles/${id}`, { method: "DELETE" }),
+  cvDoc: (profileId: number) => req<CvDoc>(`/cv/profiles/${profileId}/doc`),
+  saveCvDoc: (profileId: number, doc: CvDoc) => req<CvDoc>(`/cv/profiles/${profileId}/doc`, { method: "PUT", body: JSON.stringify(doc) }),
   matchVacancy: (cvText: string, jobTitle: string, jobText: string) =>
     req<CvMatch>("/cv/match", { method: "POST", body: JSON.stringify({ cvText, jobTitle, jobText }) }),
   tailorCv: (doc: CvDoc, jobTitle: string, jobText: string) =>
     req<CvTailorResult>("/cv/tailor", { method: "POST", body: JSON.stringify({ doc, jobTitle, jobText }) }),
-  cvPresets: () => req<{ presets: CvPreset[] }>("/cv/presets"),
-  saveCvPresets: (presets: CvPreset[]) => req<{ presets: CvPreset[] }>("/cv/presets", { method: "PUT", body: JSON.stringify({ presets }) }),
-  generateCvDoc: (cvText: string) =>
-    req<{ offline?: boolean; doc: CvDoc }>("/cv/doc/generate", { method: "POST", body: JSON.stringify({ cvText }) }),
+  cvPresets: (profileId: number) => req<{ presets: CvPreset[] }>(`/cv/profiles/${profileId}/presets`),
+  saveCvPresets: (profileId: number, presets: CvPreset[]) =>
+    req<{ presets: CvPreset[] }>(`/cv/profiles/${profileId}/presets`, { method: "PUT", body: JSON.stringify({ presets }) }),
+  generateCvDoc: (profileId: number, cvText: string) =>
+    req<{ offline?: boolean; doc: CvDoc }>(`/cv/profiles/${profileId}/doc/generate`, { method: "POST", body: JSON.stringify({ cvText }) }),
   improveCv: (text: string, kind: "bullet" | "summary", style?: "improve" | "shorter" | "ats" | "technical" | "leadership") =>
     req<{ text: string; offline?: boolean }>("/cv/improve", { method: "POST", body: JSON.stringify({ text, kind, style }) }),
   searchJobs: (q: string, region = "all") => req<JobSearchResult>(`/jobs/search?q=${encodeURIComponent(q)}&region=${region}`),
-  importLinkedIn: async (file: File) => {
+  importLinkedIn: async (profileId: number, file: File) => {
     const fd = new FormData();
     fd.append("file", file);
     // No "content-type" here — the browser sets its own multipart boundary for FormData; setting
     // one manually would break the upload.
-    const res = await fetch(`${base}/cv/linkedin-import`, { method: "POST", body: fd, headers: { "x-locale": i18n.language } });
+    const res = await fetch(`${base}/cv/profiles/${profileId}/linkedin-import`, {
+      method: "POST",
+      body: fd,
+      headers: { "x-locale": i18n.language },
+    });
     return handleResponse<{ doc: CvDoc }>(res);
   },
-  uploadCV: async (file: File) => {
+  uploadCV: async (profileId: number, file: File) => {
     const fd = new FormData();
     fd.append("file", file);
-    const res = await fetch(`${base}/cv/upload`, { method: "POST", body: fd, headers: { "x-locale": i18n.language } });
+    const res = await fetch(`${base}/cv/profiles/${profileId}/upload`, {
+      method: "POST",
+      body: fd,
+      headers: { "x-locale": i18n.language },
+    });
     return handleResponse<{ text: string; skills: string[]; detected: string[]; domain?: string; cvDoc?: CvDoc | null } & CvAnalysis>(res);
   },
   skillsUpdate: (completed: string[]) =>
@@ -157,6 +199,8 @@ export const api = {
   roadmap: () => req<RoadmapData>("/roadmap"),
   setRoadmapStatus: (tech: string, status: RoadmapStatus) =>
     req<{ ok: boolean }>("/roadmap/progress", { method: "PUT", body: JSON.stringify({ tech, status }) }),
+  setSkillLevel: (tech: string, level: number | null) =>
+    req<{ ok: boolean; levels: Record<string, number> }>("/roadmap/level", { method: "PUT", body: JSON.stringify({ tech, level }) }),
   knowledge: (tech: string) => req<KnowledgeData>(`/knowledge/${encodeURIComponent(tech)}`),
 
   resources: () => req<ResourcesData>("/resources"),
@@ -196,6 +240,9 @@ export const api = {
 
   companies: () => req<Company[]>("/companies"),
   saveCompany: (c: Partial<Company>) => req<{ ok: boolean }>("/companies", { method: "POST", body: JSON.stringify(c) }),
+  companyDiagram: (id: number) => req<DesignDiagram | null>(`/companies/${id}/diagram`),
+  saveCompanyDiagram: (id: number, diagram: DesignDiagram) =>
+    req<DesignDiagram>(`/companies/${id}/diagram`, { method: "PUT", body: JSON.stringify(diagram) }),
 
   coverLetter: (vacancyText: string, company: string) =>
     req<{ text: string; offline?: boolean }>("/llm/cover-letter", {
@@ -205,11 +252,32 @@ export const api = {
 
   evaluateMock: (question: string, answer: string, reference: string) =>
     req<MockEvaluation>("/mock/evaluate", { method: "POST", body: JSON.stringify({ question, answer, reference }) }),
+  interviewTurn: (vacancyId: number | null, transcript: { q: string; a: string }[], maxTurns: number) =>
+    req<InterviewTurnResult>("/mock/interview", { method: "POST", body: JSON.stringify({ vacancyId, transcript, maxTurns }) }),
+  // Cloud neural TTS for the voice mock interview (see mock/speech.ts's speak()). Doesn't go
+  // through req() — the response is raw audio bytes on success, not JSON, and a 204 ("cloud TTS
+  // unavailable: no key / cost cap / call failed") is an expected fallback signal, not an error —
+  // so this never throws, it just resolves to `null` and lets the caller fall back to
+  // speechSynthesis. Same non-standard-fetch style as importLinkedIn/uploadCV above.
+  speakViaCloudTts: async (text: string): Promise<Blob | null> => {
+    try {
+      const res = await fetch(`${base}/mock/speak`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-locale": i18n.language },
+        body: JSON.stringify({ text }),
+      });
+      if (res.status === 204 || !res.ok) return null;
+      return await res.blob();
+    } catch {
+      return null;
+    }
+  },
 
   adminOverview: (days = 30) => req<AdminOverview>(`/admin/overview?days=${days}`),
   adminUsers: (limit = 50, offset = 0) => req<AdminUsersResult>(`/admin/users?limit=${limit}&offset=${offset}`),
   adminLlmUsage: (days = 30) => req<AdminLlmUsageSummary>(`/admin/llm-usage?days=${days}`),
   adminProductEvents: (days = 30) => req<AdminProductEventsSummary>(`/admin/product-events?days=${days}`),
+  adminBilling: (days = 30) => req<AdminBillingSummary>(`/admin/billing?days=${days}`),
   adminBanUser: (userId: string, reason?: string) =>
     req<{ ok: boolean }>(`/admin/users/${userId}/ban`, { method: "POST", body: JSON.stringify({ reason }) }),
   adminUnbanUser: (userId: string) => req<{ ok: boolean }>(`/admin/users/${userId}/unban`, { method: "POST" }),
@@ -238,9 +306,10 @@ export const api = {
   contactOutreach: (id: number, kind: "intro" | "followup") =>
     req<OutreachResult>(`/contacts/${id}/outreach`, { method: "POST", body: JSON.stringify({ kind }) }),
 
-  cvShare: () => req<CvShare | null>("/cv/share"),
-  generateCvShare: () => req<CvShare>("/cv/share", { method: "POST" }),
-  setCvShareEnabled: (enabled: boolean) => req<CvShare>("/cv/share", { method: "PUT", body: JSON.stringify({ enabled }) }),
+  cvShare: (profileId: number) => req<CvShare | null>(`/cv/profiles/${profileId}/share`),
+  generateCvShare: (profileId: number) => req<CvShare>(`/cv/profiles/${profileId}/share`, { method: "POST" }),
+  setCvShareEnabled: (profileId: number, enabled: boolean) =>
+    req<CvShare>(`/cv/profiles/${profileId}/share`, { method: "PUT", body: JSON.stringify({ enabled }) }),
   // Public — no session required, matches the server route not being behind authed(). Still
   // goes through the same `req()` helper (nothing about it depends on a cookie being present).
   cvPublic: (slug: string) => req<{ doc: CvDoc }>(`/cv/public/${encodeURIComponent(slug)}`),
@@ -250,4 +319,29 @@ export const api = {
   digestPreferences: () => req<DigestPreferences>("/digest/preferences"),
   setDigestEnabled: (enabled: boolean) =>
     req<DigestPreferences>("/digest/preferences", { method: "PUT", body: JSON.stringify({ enabled }) }),
+
+  designCurrent: () => req<DesignExercise | null>("/design/current"),
+  designTask: (vacancyId?: number) =>
+    req<{ offline?: boolean; task: DesignTask | null }>("/design/task", { method: "POST", body: JSON.stringify({ vacancyId }) }),
+  designGrade: (task: DesignTask, diagram: DesignDiagram) =>
+    req<DesignGrade>("/design/grade", { method: "POST", body: JSON.stringify({ task, diagram }) }),
+  designHelp: (task: DesignTask, diagram: DesignDiagram, question: string) =>
+    req<{ offline?: boolean; answer: string }>("/design/help", { method: "POST", body: JSON.stringify({ task, diagram, question }) }),
+  designHistory: () => req<DesignHistoryEntry[]>("/design/history"),
+  designDefense: (task: DesignTask, diagram: DesignDiagram, transcript: { q: string; a: string }[], maxTurns: number) =>
+    req<DesignDefenseTurnResult>("/design/defense", {
+      method: "POST",
+      body: JSON.stringify({ task, diagram, transcript, maxTurns }),
+    }),
+
+  telegramStatus: () => req<{ linked: boolean }>("/telegram/status"),
+  createTelegramLinkToken: () => req<{ deepLink: string }>("/telegram/link-token", { method: "POST", body: "{}" }),
+  unlinkTelegram: () => req<{ linked: boolean }>("/telegram/unlink", { method: "POST", body: "{}" }),
+
+  onboardingState: () => req<{ welcomeSeen: boolean }>("/onboarding/state"),
+  markWelcomeSeen: () => req<{ welcomeSeen: boolean }>("/onboarding/welcome-seen", { method: "POST", body: "{}" }),
+
+  billingMe: () => req<BillingState>("/billing/me"),
+  createCheckout: (plan: CheckoutPlan) => req<{ url: string }>("/billing/checkout", { method: "POST", body: JSON.stringify({ plan }) }),
+  openBillingPortal: () => req<{ url: string }>("/billing/portal", { method: "POST", body: "{}" }),
 };

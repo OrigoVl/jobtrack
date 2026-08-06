@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * End-to-end test of "✨ Tailor CV" (POST /cv/tailor, cv-builder.tsx): adapts the CV Builder doc
+ * End-to-end test of "Tailor CV" (POST /cv/tailor, cv-builder.tsx): adapts the CV Builder doc
  * to a specific vacancy — reorders the candidate's own skills/experience bullets by relevance
  * (a deterministic algorithm, works offline too — see cv-tailor.service.ts) and swaps in a
  * rewritten summary only when the LLM actually produced one. E2E always runs with the LLM
@@ -26,16 +26,19 @@ test("tailoring the CV for a selected vacancy shows a report tab and can be appl
   await skillInput.press("Enter");
   await expect(page.getByLabel("Remove React")).toBeVisible();
 
-  await page.getByRole("button", { name: /^🎯 Vacancy/ }).click();
+  await page.getByRole("button", { name: /^Vacancy/ }).click();
   await page.getByRole("combobox").selectOption({ index: 1 }); // newest vacancy first (ORDER BY id DESC)
 
-  const tailorBtn = page.getByRole("button", { name: "✨ Tailor CV" });
+  const tailorBtn = page.getByRole("button", { name: "Tailor CV" });
   await expect(tailorBtn).toBeEnabled();
   await tailorBtn.click();
 
-  await expect(page.getByText(/^✨ Tailored/)).toBeVisible();
+  // /^Tailored for/, not just /^Tailored/ — a toast reading "Tailored offline — …" appears at the
+  // same time, and now that emoji no longer set the two strings apart, a bare /^Tailored/ regex
+  // matches both (strict-mode violation).
+  await expect(page.getByText(/^Tailored for/)).toBeVisible();
 
-  const applyBtn = page.getByRole("button", { name: "✅ Apply to CV" });
+  const applyBtn = page.getByRole("button", { name: "Apply to CV" });
   await applyBtn.click();
   await expect(page.getByText("Tailored version applied to the builder — remember to Save")).toBeVisible();
 });

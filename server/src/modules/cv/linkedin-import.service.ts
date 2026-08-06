@@ -88,15 +88,20 @@ export function parseLinkedInArchive(buffer: Buffer): ParsedLinkedInCv {
   const skillRows = readCsv("Skills.csv");
   const eduRows = readCsv("Education.csv");
   const projectRows = readCsv("Projects.csv");
+  const certRows = readCsv("Certifications.csv");
   const languageRows = readCsv("Languages.csv");
   const emailRows = readCsv("Email Addresses.csv");
   const email =
     emailRows.find((r) => (r.Primary || "").toLowerCase() === "yes")?.["Email Address"] || emailRows[0]?.["Email Address"] || "";
-  const contact = [email, profile["Geo Location"], profile.Websites].filter(Boolean).join(" · ");
+  const contact = [email, profile["Geo Location"]].filter(Boolean).join(" · ");
   return {
     name: [profile["First Name"], profile["Last Name"]].filter(Boolean).join(" "),
     title: profile.Headline || "",
     contact,
+    // LinkedIn's own profile "Websites" column is a real URL — a structured link, not a plain
+    // contact line, so it goes to `links` instead of getting joined into `contact` like the rest
+    // (it used to be, before this field existed).
+    links: profile.Websites ? [{ label: "Website", url: profile.Websites }] : [],
     summary: profile.Summary || "",
     photo: "",
     skills: skillRows.map((s) => s.Name).filter((n): n is string => Boolean(n)),
@@ -107,9 +112,21 @@ export function parseLinkedInArchive(buffer: Buffer): ParsedLinkedInCv {
       bullets: toBullets(p.Description),
     })),
     education: eduRows
-      .map((e) => [e["Degree Name"], e["School Name"], formatPeriod(e["Start Date"], e["End Date"])].filter(Boolean).join(", "))
-      .filter(Boolean),
-    projects: projectRows.map((p) => [p.Title, p.Description].filter(Boolean).join(" — ")).filter(Boolean),
+      .map((e) => ({
+        school: e["School Name"] || "",
+        degree: e["Degree Name"] || "",
+        period: formatPeriod(e["Start Date"], e["End Date"]),
+      }))
+      .filter((e) => e.school || e.degree || e.period),
+    projects: projectRows
+      .map((p) => ({ title: p.Title || "", description: p.Description || "", tech: [], link: "" }))
+      .filter((p) => p.title || p.description),
+    // LinkedIn's export has a start/end date pair here too, but a certification's own real-world
+    // convention is just "issued <date>", not a range (most never end, and the handful that do
+    // expire don't read as "2023 – present" the way a job or degree would) — the start date alone.
+    certifications: certRows
+      .map((c) => ({ name: c.Name || "", issuer: c.Authority || "", date: (c["Started On"] || "").trim() }))
+      .filter((c) => c.name || c.issuer),
     languages: languageRows.map((l) => ({ name: (l.Name || "").trim(), level: (l.Proficiency || "").trim() })).filter((l) => l.name),
   };
 }

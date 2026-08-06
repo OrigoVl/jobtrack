@@ -11,7 +11,7 @@ function Harness() {
   const fire = useFireCelebration();
   return (
     <>
-      <button type="button" onClick={() => fire("🎉", "Congrats!")}>
+      <button type="button" onClick={() => fire("Congrats!")}>
         Fire
       </button>
       <CelebrationOverlay />
@@ -36,7 +36,6 @@ describe("CelebrationOverlay / useFireCelebration", () => {
     render(<Harness />);
     fireEvent.click(screen.getByText("Fire"));
     expect(screen.getByText("Congrats!")).toBeInTheDocument();
-    expect(screen.getByText("🎉")).toBeInTheDocument();
   });
 
   it("auto-dismisses after a few seconds", () => {

@@ -48,7 +48,7 @@ export function ForgotPassword() {
         </Btn>
       </form>
       <div className="mt-4 text-sm">
-        <Link to="/login" className="text-signal hover:underline">
+        <Link to="/login" className="text-ink-dim hover:text-signal hover:underline">
           {t("forgotPassword.backToLogin")}
         </Link>
       </div>

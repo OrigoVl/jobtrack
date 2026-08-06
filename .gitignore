@@ -45,6 +45,12 @@ e2e/.auth/
 
 # Claude Code — personal/ephemeral state, never shared across machines (unlike .claude/settings.json,
 # .claude/agents/, .claude/hooks/, which ARE meant to be checked in as team-shared config).
+.claude/*
+.claude/_
+.claude/settings.json
 .claude/settings.local.json
 .claude/worktrees/
 .claude/scheduled_tasks.lock
+.claude/agents/
+.claude/hooks/
+.claude/skills/

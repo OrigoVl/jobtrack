@@ -4,13 +4,16 @@
 // pre-aggregation), and "re-check a handful of saved searches every few hours" doesn't come
 // close to that bar yet. Every run re-fetches the SAME aggregators /jobs/search already uses
 // (job-search.service.ts) — no separate scraping logic to maintain.
-import { fetchRemotive, fetchArbeitnow, fetchDou, type RawJob } from "../jobs/job-search.service.js";
+import type { RawJob } from "../jobs/job-search.service.js";
+import { fetchAllSources } from "../jobs/job-sources.js";
 import { sendEmail } from "../../shared/email.js";
+import { sendTelegramMessage } from "../../shared/telegram.js";
 import { contextLogger } from "../../core/logger.js";
 import { getProfile } from "../../db/index.js";
 import { extractTechs } from "../../shared/tech-dict.js";
 import { computeFit } from "../vacancies/vacancy-text.js";
 import type { Fit } from "../../shared/validation.js";
+import { getTelegramChatId } from "../telegram/telegram.repo.js";
 import { listAllSavedSearches, recordRunResult, type SavedSearchForRun } from "./saved-searches.repo.js";
 
 export const DEFAULT_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
@@ -18,15 +21,11 @@ export const DEFAULT_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
 // so this keeps a single row from growing without bound over months of runs.
 const MAX_TRACKED_URLS = 500;
 
+/** Thin wrapper kept for this module's own naming/call sites — modules/jobs/job-sources.ts is
+ * the actual registry both this scheduler and /jobs/search (jobs.routes.ts) fetch from now,
+ * instead of each hardcoding the same 7-way Promise.all. */
 export async function fetchJobsForRegion(query: string, region: string): Promise<RawJob[]> {
-  const wantUa = region === "all" || region === "ua";
-  const wantRemote = region === "all" || region === "remote";
-  const [dou, remotive, arbeitnow] = await Promise.all([
-    wantUa ? fetchDou(query) : Promise.resolve([]),
-    wantRemote ? fetchRemotive(query) : Promise.resolve([]),
-    wantRemote ? fetchArbeitnow(query) : Promise.resolve([]),
-  ]);
-  return [...dou, ...remotive, ...arbeitnow];
+  return fetchAllSources(query, region);
 }
 
 export interface DiffResult {
@@ -104,6 +103,18 @@ function digestHtml(search: SavedSearchForRun, newJobs: RankedJob[]): string {
   );
 }
 
+/** Plain-text rendering of the same content, for Telegram — same reasoning as
+ * digest.service.ts#digestText: `parse_mode: "HTML"` doesn't support <ul>/<li>/<p>. */
+function digestText(search: SavedSearchForRun, newJobs: RankedJob[]): string {
+  const label = search.label || search.query;
+  const lines = newJobs.slice(0, 25).map((j) => `${j.fit === "high" ? "🎯 " : ""}${j.position} — ${j.company} (${j.location})\n${j.url}`);
+  const more = newJobs.length > 25 ? [`...and ${newJobs.length - 25} more.`] : [];
+  const heading =
+    `${newJobs.length} new posting${newJobs.length === 1 ? "" : "s"} for your saved search "${label}"` +
+    `${newJobs.some((j) => j.fit === "high") ? " (🎯 = strong match with your profile)" : ""}:`;
+  return [heading, ...lines, ...more].join("\n\n");
+}
+
 async function processOneSavedSearch(search: SavedSearchForRun): Promise<void> {
   const jobs = await fetchJobsForRegion(search.query, search.region);
   const { newJobs, nextSeenUrls } = diffNewJobs(jobs, search.lastSeenUrls);
@@ -117,6 +128,10 @@ async function processOneSavedSearch(search: SavedSearchForRun): Promise<void> {
       subject: `${newJobs.length} new job${newJobs.length === 1 ? "" : "s"} for "${search.label || search.query}"`,
       html: digestHtml(search, ranked),
     });
+    // A separate, independent channel — see digest.scheduler.ts's identical wiring for the
+    // weekly digest.
+    const chatId = await getTelegramChatId(search.userId);
+    if (chatId) await sendTelegramMessage(chatId, digestText(search, ranked));
   }
   await recordRunResult(search.id, nextSeenUrls, notify);
 }

@@ -6,6 +6,7 @@ export const SECTION_LABELS: [CvSection, string][] = [
   ["experience", "Experience"],
   ["projects", "Projects"],
   ["education", "Education"],
+  ["certifications", "Certifications"],
   ["languages", "Languages"],
 ];
 export const DEFAULT_ORDER: CvSection[] = SECTION_LABELS.map(([k]) => k);
@@ -49,8 +50,68 @@ export function buildCvHtml(doc: CvDoc): string {
         `<div class="company">${esc(e.company)}</div>${e.bullets.filter(Boolean).length ? `<ul>${list(e.bullets)}</ul>` : ""}</div>`,
     )
     .join("");
+  // Reuses the `.exp`/`.row`/`.period`/`.company` classes Experience entries already style —
+  // same visual hierarchy (a bold headline + period, then a subdued second line) without new CSS.
+  // `degree` is the headline when present; a pre-structuring entry that only ever had one line
+  // (migrated into `school` alone, see cv.schemas.ts's CvEducationSchema) falls back to using
+  // `school` as the headline instead of rendering an empty bold line above it.
+  const eduEntries = doc.education
+    .filter((e) => e.school.trim() || e.degree.trim() || e.period.trim())
+    .map(
+      (e) =>
+        `<div class="exp"><div class="row"><span class="role">${esc(e.degree || e.school)}</span><span class="period">${esc(e.period)}</span></div>` +
+        (e.degree && e.school ? `<div class="company">${esc(e.school)}</div>` : "") +
+        `</div>`,
+    )
+    .join("");
+  // Same reuse trick as eduEntries above: `.exp`/`.row`/`.role`/`.company` give title+meta+
+  // description the same visual rhythm as an Experience entry, with no new CSS. `meta` combines
+  // tech tags and the link into one subdued line (both optional) rather than two near-identical
+  // secondary lines.
+  const projEntries = doc.projects
+    .filter((p) => p.title.trim() || p.description.trim() || p.tech.length || p.link.trim())
+    .map((p) => {
+      const meta = [p.tech.length ? p.tech.join(" · ") : "", p.link.trim()].filter(Boolean).join(" · ");
+      return (
+        `<div class="exp">` +
+        (p.title ? `<div class="row"><span class="role">${esc(p.title)}</span></div>` : "") +
+        (meta ? `<div class="company">${esc(meta)}</div>` : "") +
+        (p.description ? `<p>${esc(p.description)}</p>` : "") +
+        `</div>`
+      );
+    })
+    .join("");
+  // Same reuse trick again: `.role` for the cert name, `.company` for issuer+date combined (both
+  // optional, so a cert with only a name still renders sensibly).
+  const certEntries = (doc.certifications ?? [])
+    .filter((c) => c.name.trim() || c.issuer.trim() || c.date.trim())
+    .map((c) => {
+      const meta = [c.issuer.trim(), c.date.trim()].filter(Boolean).join(" · ");
+      return (
+        `<div class="exp">` +
+        (c.name ? `<div class="row"><span class="role">${esc(c.name)}</span></div>` : "") +
+        (meta ? `<div class="company">${esc(meta)}</div>` : "") +
+        `</div>`
+      );
+    })
+    .join("");
+  // Structured links render as real, clickable anchors right in the same contact line (PDFs
+  // preserve hyperlinks fine) — `.contact a` below just inherits the surrounding muted color
+  // instead of the browser's default blue, so a link doesn't visually clash with the plain-text
+  // contact info next to it. A bare domain (no scheme) gets `https://` prepended for the href
+  // only — the visible label text is left exactly as typed.
+  const linksLine = (doc.links ?? [])
+    .filter((l) => l.label.trim() || l.url.trim())
+    .map((l) => {
+      const url = l.url.trim();
+      const label = l.label.trim() || url;
+      if (!url) return esc(label);
+      const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+      return `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(label)}</a>`;
+    })
+    .join(" · ");
   const photoImg = doc.photo && t.showPhoto !== false ? `<img class="photo" src="${doc.photo}" alt="Photo"/>` : "";
-  const hmeta = `<div class="hmeta" data-section="general"><h1>${esc(doc.name)}</h1><div class="title">${esc(doc.title)}</div><div class="contact">${esc(doc.contact)}</div></div>`;
+  const hmeta = `<div class="hmeta" data-section="general"><h1>${esc(doc.name)}</h1><div class="title">${esc(doc.title)}</div><div class="contact">${esc(doc.contact)}${doc.contact.trim() && linksLine ? " · " : ""}${linksLine}</div></div>`;
   const langs = (doc.languages || []).filter((l) => l && l.name);
   const useInline = t.template === "compact" || t.template === "academic";
   const secSkillsChips = doc.skills.length
@@ -61,8 +122,9 @@ export function buildCvHtml(doc: CvDoc): string {
     summary: wrap("summary", doc.summary ? `${H("Profile")}<p>${esc(doc.summary)}</p>` : ""),
     skills: wrap("skills", useInline ? secSkillsInline : secSkillsChips),
     experience: doc.experience.length ? `${H("Experience")}${exp}` : "",
-    projects: wrap("projects", doc.projects.filter(Boolean).length ? `${H("Projects")}<ul>${list(doc.projects)}</ul>` : ""),
-    education: wrap("education", doc.education.filter(Boolean).length ? `${H("Education")}<ul>${list(doc.education)}</ul>` : ""),
+    projects: wrap("projects", projEntries ? `${H("Projects")}${projEntries}` : ""),
+    education: wrap("education", eduEntries ? `${H("Education")}${eduEntries}` : ""),
+    certifications: wrap("certifications", certEntries ? `${H("Certifications")}${certEntries}` : ""),
     languages: wrap(
       "languages",
       langs.length
@@ -70,9 +132,9 @@ export function buildCvHtml(doc: CvDoc): string {
         : "",
     ),
   };
-  const order = (t.order && t.order.length ? t.order : ["summary", "skills", "experience", "projects", "education", "languages"]).filter(
-    (k) => k in sec,
-  );
+  const order = (
+    t.order && t.order.length ? t.order : ["summary", "skills", "experience", "projects", "education", "certifications", "languages"]
+  ).filter((k) => k in sec);
   const pick = (keys: string[]) =>
     order
       .filter((k) => keys.includes(k))
@@ -87,7 +149,7 @@ export function buildCvHtml(doc: CvDoc): string {
   let extraCss = "";
   const headerRow = `<header class="hrow" data-section="general">${photoImg}${hmeta}</header>`;
   if (t.template === "twocol") {
-    const aside = `${photoImg}${pick(["skills", "languages", "education"])}`;
+    const aside = `${photoImg}${pick(["skills", "languages", "education", "certifications"])}`;
     const main = pick(["summary", "experience", "projects"]);
     layout = `<header class="hrow" data-section="general">${hmeta}</header><div class="cols"><aside>${aside}</aside><main>${main}</main></div>`;
     extraCss =
@@ -105,8 +167,8 @@ export function buildCvHtml(doc: CvDoc): string {
     const aside =
       `${photoImg}<div class="s-name">${esc(doc.name)}</div>` +
       `${doc.title ? `<div class="s-title">${esc(doc.title)}</div>` : ""}` +
-      `${doc.contact ? `<div class="s-contact">${esc(doc.contact)}</div>` : ""}` +
-      pick(["skills", "languages", "education"]);
+      `${doc.contact.trim() || linksLine ? `<div class="s-contact">${esc(doc.contact)}${doc.contact.trim() && linksLine ? " · " : ""}${linksLine}</div>` : ""}` +
+      pick(["skills", "languages", "education", "certifications"]);
     const main = pick(["summary", "experience", "projects"]);
     layout = `<div class="cols sidebar-layout"><aside class="side-panel" data-section="general">${aside}</aside><main>${main}</main></div>`;
     extraCss =
@@ -116,10 +178,10 @@ export function buildCvHtml(doc: CvDoc): string {
       `.side-panel .photo{display:block;margin:0 auto 14px;width:${px(fs * 6)};height:${px(fs * 6)}}` +
       `.s-name{font-size:${px(fs * 1.4)};font-weight:800;color:#0f172a;text-align:center}` +
       `.s-title{color:${t.accent};font-weight:600;text-align:center;margin-top:2px;font-size:${px(fs * 0.95)}}` +
-      `.s-contact{color:#64748b;font-size:${px(fs * 0.82)};text-align:center;margin:6px 0 18px;word-break:break-word}` +
+      `.s-contact{color:#64748b;font-size:${px(fs * 0.82)};text-align:center;margin:6px 0 18px;word-break:break-word}.s-contact a{color:inherit}` +
       `main{flex:1;min-width:0}`;
   } else if (t.template === "academic") {
-    layout = `${headerRow}${pick(["summary", "experience", "projects", "education", "skills", "languages"])}`;
+    layout = `${headerRow}${pick(["summary", "experience", "projects", "education", "certifications", "skills", "languages"])}`;
     extraCss =
       "header.hrow{flex-direction:column;text-align:center;border-bottom:2px solid " +
       t.accent +
@@ -151,7 +213,7 @@ export function buildCvHtml(doc: CvDoc): string {
     `.photo{width:${px(fs * 6.4)};height:${px(fs * 6.4)};border-radius:${t.photoShape === "square" ? px(fs * 0.85) : "50%"};object-fit:cover;border:3px solid ${t.accent}33;flex:0 0 auto}` +
     `.lvl{color:${t.accent}}` +
     `.title{color:${t.accent};font-weight:600;font-size:${px(fs * 1.15)};margin-top:2px}` +
-    `.contact{color:#64748b;font-size:${px(fs * 0.9)};margin-top:4px}` +
+    `.contact{color:#64748b;font-size:${px(fs * 0.9)};margin-top:4px}.contact a{color:inherit}` +
     `h2{font-size:${px(fs * 0.92)};text-transform:uppercase;letter-spacing:.06em;color:${t.accent};border-bottom:2px solid ${t.accent}22;padding-bottom:3px;margin:${gap} 0 8px}` +
     `p{margin:0 0 8px}.exp{margin-bottom:${compact ? "8px" : "12px"}}` +
     `.row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}` +
@@ -198,6 +260,8 @@ export function cvDocToText(doc: CvDoc): string {
   if (doc.name) lines.push(doc.name);
   if (doc.title) lines.push(doc.title);
   if (doc.contact) lines.push(doc.contact);
+  const links = (doc.links ?? []).filter((l) => l.label.trim() || l.url.trim());
+  if (links.length) lines.push(links.map((l) => [l.label, l.url].filter(Boolean).join(": ")).join(" · "));
   if (doc.summary) lines.push(`\nProfile:\n${doc.summary}`);
   if (doc.skills.length) lines.push(`\nSkills: ${doc.skills.join(", ")}`);
   if (doc.experience.length) {
@@ -207,10 +271,18 @@ export function cvDocToText(doc: CvDoc): string {
       e.bullets.filter(Boolean).forEach((b) => lines.push(`- ${b}`));
     });
   }
-  const projects = doc.projects.filter(Boolean);
+  const projects = doc.projects
+    .filter((p) => p.title.trim() || p.description.trim())
+    .map((p) => [p.title, p.description, p.tech.join(", "), p.link].filter(Boolean).join(" — "));
   if (projects.length) lines.push(`\nProjects:\n${projects.join("\n")}`);
-  const education = doc.education.filter(Boolean);
+  const education = doc.education
+    .filter((e) => e.school.trim() || e.degree.trim() || e.period.trim())
+    .map((e) => [e.degree, e.school, e.period].filter(Boolean).join(", "));
   if (education.length) lines.push(`\nEducation:\n${education.join("\n")}`);
+  const certifications = (doc.certifications ?? [])
+    .filter((c) => c.name.trim() || c.issuer.trim() || c.date.trim())
+    .map((c) => [c.name, c.issuer, c.date].filter(Boolean).join(", "));
+  if (certifications.length) lines.push(`\nCertifications:\n${certifications.join("\n")}`);
   const langs = (doc.languages || []).filter((l) => l.name);
   if (langs.length) lines.push(`\nLanguages: ${langs.map((l) => `${l.name} (${l.level})`).join(", ")}`);
   return lines.join("\n");

@@ -3,7 +3,6 @@ import { useUi } from "./ui-state";
 
 export interface CelebrationEvent {
   id: number;
-  emoji: string;
   message: string;
 }
 
@@ -15,5 +14,5 @@ export interface CelebrationEvent {
  * mounted once in Shell(), picks it up regardless of which route is active. */
 export function useFireCelebration() {
   const [, setActive] = useUi<CelebrationEvent | null>("celebration.active", null);
-  return useCallback((emoji: string, message: string) => setActive({ id: Date.now(), emoji, message }), [setActive]);
+  return useCallback((message: string) => setActive({ id: Date.now(), message }), [setActive]);
 }

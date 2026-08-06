@@ -3,10 +3,13 @@
 // is out of proportion for this app's scale). Runs frequently (every few hours) but each user is
 // only actually emailed once `isDigestDue` says a week has passed since their last digest.
 import { sendEmail } from "../../shared/email.js";
+import { sendTelegramMessage } from "../../shared/telegram.js";
+import { env } from "../../config/env.js";
 import { contextLogger } from "../../core/logger.js";
 import { getStudyStreak } from "../../db/kv.js";
 import { listVacancyDigestRows } from "../vacancies/vacancies.repo.js";
 import { getCombinedCalendar } from "../calendar/calendar.service.js";
+import { getTelegramChatId } from "../telegram/telegram.repo.js";
 import { listDigestEnabledUsers, recordDigestSent, type DigestUserForRun } from "./digest.repo.js";
 import {
   isDigestDue,
@@ -14,6 +17,7 @@ import {
   buildUpcomingItems,
   hasDigestContent,
   digestHtml,
+  digestText,
   type DigestContent,
 } from "./digest.service.js";
 
@@ -37,6 +41,19 @@ async function buildDigestContent(userId: DigestUserForRun["userId"], nowMs: num
   };
 }
 
+// Reachable from inside the email itself (not just the in-app toggle at /account) — a recipient
+// must be able to opt out without first having to know the setting exists and sign in to find it.
+// env.auth.baseUrl is the app's own public origin: in production the same Express server serves
+// both the API and the built client (see config/env.ts's clientDistPath), so it's also the
+// correct base for a client-side link, not just an API host.
+function digestFooter(): string {
+  return (
+    `<p style="color:#888;font-size:12px;margin-top:16px;">` +
+    `You're receiving this because weekly email digests are enabled on your account. ` +
+    `<a href="${env.auth.baseUrl}/account">Manage digest preferences</a>.</p>`
+  );
+}
+
 async function processOneUserDigest(u: DigestUserForRun, nowMs: number): Promise<void> {
   if (!isDigestDue(u.lastSentAt, nowMs)) return;
   const content = await buildDigestContent(u.userId, nowMs);
@@ -44,7 +61,12 @@ async function processOneUserDigest(u: DigestUserForRun, nowMs: number): Promise
   // next scheduler tick re-checks this user in a few hours rather than silently waiting a full
   // week, so a stale application that appears the day after a quiet check is still caught soon.
   if (!hasDigestContent(content)) return;
-  await sendEmail({ to: u.userEmail, subject: "Your DevRadar weekly digest", html: digestHtml(content) });
+  await sendEmail({ to: u.userEmail, subject: "Your Zorya weekly digest", html: digestHtml(content) + digestFooter() });
+  // A separate, independent channel — not a replacement for email. A linked chat id gets the
+  // same content, rendered as plain text (see digest.service.ts#digestText's own comment on why
+  // it can't just reuse digestHtml's output).
+  const chatId = await getTelegramChatId(u.userId);
+  if (chatId) await sendTelegramMessage(chatId, digestText(content));
   await recordDigestSent(u.userId);
 }
 

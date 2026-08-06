@@ -80,6 +80,17 @@ test("navigates to Vacancies from a vacancy's next-step marker on the calendar",
   expect(addRes.ok()).toBeTruthy();
   const vacancy = (await addRes.json()) as { id: number; company: string };
 
+  // "+ Add vacancy" now opens the detail modal (features/vacancies/vacancy-detail-modal.tsx) for
+  // filling it in right away — close it to get back to the table, which is what the rest of this
+  // test actually exercises (also avoids a duplicate-label match: the modal has its own "Next
+  // step date" field with the same aria-label as the table's). Waiting for the dialog to actually
+  // be visible first matters: the mutation's success callback (which opens it) runs a render
+  // cycle after the awaited network response above, so it isn't necessarily on-screen yet.
+  const addDialog = page.getByRole("dialog");
+  await expect(addDialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(addDialog).not.toBeVisible();
+
   await page.getByLabel(`Next step date — ${vacancy.company}`).fill(todayDisplay);
   await page.waitForResponse((r) => r.url().includes(`/api/vacancies/${vacancy.id}`) && r.request().method() === "PUT");
 

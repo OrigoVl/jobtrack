@@ -2,29 +2,30 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>DevRadar Job Clipper</title>
+    <title>Zorya Job Clipper</title>
     <style>
       /* Same design-token palette as the app (client/src/index.css) — hardcoded hex here since an
          extension popup can't share the app's CSS bundle, and this is a handful of rules, not
-         worth a build step for. */
+         worth a build step for. System font stack, not the app's self-hosted Bricolage
+         Grotesque/Public Sans/JetBrains Mono: a popup can't load /fonts/*.woff2 (different
+         origin, no web_accessible_resources entry), so naming a font here that can't actually
+         load would just be silently ignored in favor of the fallback anyway. */
       body {
         margin: 0;
         width: 320px;
         font-family:
-          "IBM Plex Sans",
-          -apple-system,
           system-ui,
+          -apple-system,
           sans-serif;
-        background: #f3f7f4;
-        color: #0e1613;
+        background: #faf9f6;
+        color: #171416;
       }
       header {
         padding: 12px 14px;
-        border-bottom: 1px solid #d4e0d8;
-        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        border-bottom: 1px solid #ece7e0;
         font-weight: 700;
-        letter-spacing: -0.02em;
-        color: #0e8f5c;
+        letter-spacing: -0.01em;
+        color: #171416;
       }
       main {
         padding: 14px;
@@ -37,7 +38,7 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.06em;
-        color: #4c5f56;
+        color: #6b6560;
         margin-bottom: 2px;
       }
       .value {
@@ -45,24 +46,24 @@
         word-break: break-word;
       }
       #confidence.high {
-        color: #0e8f5c;
+        color: #1a7350;
       }
       #confidence.low {
-        color: #b45309;
+        color: #312a96;
       }
       #url {
         font-size: 11px;
-        color: #4c5f56;
+        color: #6b6560;
         word-break: break-all;
       }
       button {
         width: 100%;
         padding: 10px;
         border: none;
-        border-radius: 8px;
-        background: #0e8f5c;
-        color: white;
-        font-weight: 600;
+        border-radius: 999px;
+        background: #4338ca;
+        color: #fff;
+        font-weight: 700;
         font-size: 13px;
         cursor: pointer;
       }
@@ -73,13 +74,13 @@
       #status {
         margin-top: 10px;
         font-size: 12px;
-        color: #4c5f56;
+        color: #6b6560;
         min-height: 16px;
       }
     </style>
   </head>
   <body>
-    <header>🚀 DevRadar Job Clipper</header>
+    <header>Zorya Job Clipper</header>
     <main>
       <div class="field">
         <div class="label">Position</div>
@@ -96,7 +97,7 @@
         <div class="label">Page</div>
         <div id="url"></div>
       </div>
-      <button id="save" disabled>Save to DevRadar</button>
+      <button id="save" disabled>Save to Zorya</button>
       <div id="status"></div>
     </main>
     <script src="popup.js"></script>

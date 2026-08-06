@@ -64,15 +64,17 @@ function buildLinkedInZip(files: Record<string, string>): Buffer {
 }
 
 describe("parseLinkedInArchive()", () => {
-  it("parses profile, positions, skills, education, projects, and languages into a CV doc", () => {
+  it("parses profile, positions, skills, education, projects, certifications, and languages into a CV doc", () => {
     const zip = buildLinkedInZip({
-      "Profile.csv": 'First Name,Last Name,Headline,Summary,Geo Location,Websites\nAda,Lovelace,Engineer,"Builds things",Kyiv,\n',
+      "Profile.csv":
+        'First Name,Last Name,Headline,Summary,Geo Location,Websites\nAda,Lovelace,Engineer,"Builds things",Kyiv,https://ada.dev\n',
       "Positions.csv":
         "Company Name,Title,Description,Started On,Finished On\n" +
         'Acme,Backend Engineer,"Built APIs\nShipped features",Jan 2020,Dec 2022\n',
       "Skills.csv": "Name\nTypeScript\nPostgreSQL\n",
       "Education.csv": "School Name,Degree Name,Start Date,End Date\nKyiv Polytechnic,BSc Computer Science,2016,2020\n",
       "Projects.csv": "Title,Description\nSide Project,A thing I built\n",
+      "Certifications.csv": "Name,Authority,Started On,Finished On\nAWS Certified Developer,Amazon,2023\n",
       "Languages.csv": "Name,Proficiency\nUkrainian,Native\nEnglish,Professional\n",
       "Email Addresses.csv": "Email Address,Primary\nold@example.com,No\nnew@example.com,Yes\n",
     });
@@ -83,12 +85,14 @@ describe("parseLinkedInArchive()", () => {
     expect(doc.title).toBe("Engineer");
     expect(doc.summary).toBe("Builds things");
     expect(doc.contact).toBe("new@example.com · Kyiv"); // the Primary=Yes email wins, not the first row
+    expect(doc.links).toEqual([{ label: "Website", url: "https://ada.dev" }]); // not joined into contact
     expect(doc.skills).toEqual(["TypeScript", "PostgreSQL"]);
     expect(doc.experience).toEqual([
       { role: "Backend Engineer", company: "Acme", period: "Jan 2020 – Dec 2022", bullets: ["Built APIs", "Shipped features"] },
     ]);
-    expect(doc.education).toEqual(["BSc Computer Science, Kyiv Polytechnic, 2016 – 2020"]);
-    expect(doc.projects).toEqual(["Side Project — A thing I built"]);
+    expect(doc.education).toEqual([{ school: "Kyiv Polytechnic", degree: "BSc Computer Science", period: "2016 – 2020" }]);
+    expect(doc.projects).toEqual([{ title: "Side Project", description: "A thing I built", tech: [], link: "" }]);
+    expect(doc.certifications).toEqual([{ name: "AWS Certified Developer", issuer: "Amazon", date: "2023" }]);
     expect(doc.languages).toEqual([
       { name: "Ukrainian", level: "Native" },
       { name: "English", level: "Professional" },
@@ -114,6 +118,8 @@ describe("parseLinkedInArchive()", () => {
     expect(doc.experience).toEqual([]);
     expect(doc.education).toEqual([]);
     expect(doc.projects).toEqual([]);
+    expect(doc.certifications).toEqual([]);
+    expect(doc.links).toEqual([]);
     expect(doc.languages).toEqual([]);
     expect(doc.contact).toBe("");
   });

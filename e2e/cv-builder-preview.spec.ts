@@ -20,7 +20,9 @@ test("CV preview shows a page-count badge and opens/closes a real fullscreen ove
   await expect(badge).toBeVisible();
   await expect(badge).toHaveText(/Page \d+ \/ \d+$/);
 
-  const openFullscreen = page.getByRole("button", { name: "⛶" });
+  // Accessible name now comes from the button's `title` attribute (its content is an icon-only
+  // ExpandIcon SVG, no text) — "Fullscreen" (cv.json's preview.fullscreen), not the old "⛶" glyph.
+  const openFullscreen = page.getByRole("button", { name: "Fullscreen" });
   await openFullscreen.click();
 
   const modalHeading = page.getByText("CV preview", { exact: true });

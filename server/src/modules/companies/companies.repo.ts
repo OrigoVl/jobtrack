@@ -3,9 +3,11 @@
 // an Express request/response. Every function is scoped by `userId` (see server/src/db/user-id.ts).
 import { and, eq } from "drizzle-orm";
 import db from "../../db/client.js";
+import { getKvJson, setKvJson } from "../../db/kv.js";
 import { companies } from "../../db/schema/index.js";
 import type { UserId } from "../../db/user-id.js";
 import type { CompanyInput } from "../../shared/validation.js";
+import type { DesignDiagram } from "../design/design.service.js";
 
 export interface Company {
   id: number;
@@ -48,4 +50,20 @@ export async function getCompanyById(userId: UserId, id: number): Promise<Compan
     .from(companies)
     .where(and(eq(companies.userId, userId), eq(companies.id, id)));
   return row;
+}
+
+// A freeform system-architecture diagram attached to a company (e.g. "here's how their system
+// works, from what I learned in the interview") — reuses the architecture trainer's canvas
+// (client/src/features/design/design-canvas.tsx) with no task/grading involved. Stored in
+// user_kv, NOT a new column on `companies`: a diagram-only save must never risk silently wiping
+// `notes`/`questions` the way companies.routes.ts's non-partial upsert would, and this matches
+// the design module's own `designExercise` blob pattern (no migration needed).
+const companyDiagramKey = (companyId: number) => `companyDiagram:${companyId}`;
+
+export async function getCompanyDiagram(userId: UserId, companyId: number): Promise<DesignDiagram | null> {
+  return getKvJson<DesignDiagram>(userId, companyDiagramKey(companyId));
+}
+
+export async function setCompanyDiagram(userId: UserId, companyId: number, diagram: DesignDiagram): Promise<void> {
+  await setKvJson(userId, companyDiagramKey(companyId), diagram);
 }

@@ -9,7 +9,7 @@ import {
   useUpdateContact,
   useVacancies,
 } from "../../shared/queries";
-import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Spinner } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Select, Spinner } from "../../shared/ui";
 import { useConfirm } from "../../shared/use-confirm";
 import type { Contact, ContactInput, OutreachResult } from "../../shared/types";
 
@@ -121,10 +121,10 @@ function ContactModal({
         </label>
         <label className="block">
           <span className="text-xs font-semibold text-ink-dim">{t("modal.company")}</span>
-          <select
+          <Select
             value={form.companyId ?? ""}
             onChange={(e) => set("companyId", e.target.value ? Number(e.target.value) : null)}
-            className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+            className="w-full mt-0.5 bg-surface-2 focus:outline-none focus:ring-2 focus:ring-signal/50"
           >
             <option value="">{t("modal.companyNone")}</option>
             {companies.map((c) => (
@@ -132,14 +132,14 @@ function ContactModal({
                 {c.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="block">
           <span className="text-xs font-semibold text-ink-dim">{t("modal.vacancy")}</span>
-          <select
+          <Select
             value={form.vacancyId ?? ""}
             onChange={(e) => set("vacancyId", e.target.value ? Number(e.target.value) : null)}
-            className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+            className="w-full mt-0.5 bg-surface-2 focus:outline-none focus:ring-2 focus:ring-signal/50"
           >
             <option value="">{t("modal.vacancyNone")}</option>
             {vacancies.map((v) => (
@@ -147,7 +147,7 @@ function ContactModal({
                 {v.company} — {v.position || t("modal.vacancyUntitled")}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
@@ -256,11 +256,16 @@ export function Contacts() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title={t("title")} subtitle={t("subtitle")} actions={<Btn onClick={openNew}>{t("addContact")}</Btn>} />
+      <PageHeader
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        subtitle={t("subtitle")}
+        actions={<Btn onClick={openNew}>{t("addContact")}</Btn>}
+      />
 
       {!contacts || contacts.length === 0 ? (
         <Card>
-          <EmptyState icon="🧑‍🤝‍🧑" title={t("empty.title")} hint={t("empty.hint")} />
+          <EmptyState title={t("empty.title")} hint={t("empty.hint")} />
         </Card>
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
@@ -299,17 +304,17 @@ export function Contacts() {
                 <div className="flex flex-wrap gap-2 mt-2 text-xs">
                   {linkedVacancy(c.vacancyId) && (
                     <span className="px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim border border-grid">
-                      🔗 {linkedVacancy(c.vacancyId)!.company}
+                      {linkedVacancy(c.vacancyId)!.company}
                       {linkedVacancy(c.vacancyId)!.position ? ` — ${linkedVacancy(c.vacancyId)!.position}` : ""}
                     </span>
                   )}
                   {c.email && (
-                    <a href={`mailto:${c.email}`} className="text-signal hover:underline">
+                    <a href={`mailto:${c.email}`} className="text-ink-dim hover:text-signal hover:underline">
                       {c.email}
                     </a>
                   )}
                   {c.linkedinUrl && (
-                    <a href={c.linkedinUrl} target="_blank" rel="noreferrer" className="text-signal hover:underline">
+                    <a href={c.linkedinUrl} target="_blank" rel="noreferrer" className="text-ink-dim hover:text-signal hover:underline">
                       {t("linkedin")}
                     </a>
                   )}

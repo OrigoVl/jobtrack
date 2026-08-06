@@ -41,5 +41,5 @@ export function maybeNotifyFollowUps(overdueCount: number, dueTodayCount: number
   const parts: string[] = [];
   if (overdueCount > 0) parts.push(`${overdueCount} overdue ${overdueCount === 1 ? "step" : "steps"}`);
   if (dueTodayCount > 0) parts.push(`${dueTodayCount} due today`);
-  new Notification("DevRadar — stay on top of it", { body: `You have ${parts.join(" and ")}. Check the "Vacancies" tab.` });
+  new Notification("Zorya — stay on top of it", { body: `You have ${parts.join(" and ")}. Check the "Vacancies" tab.` });
 }

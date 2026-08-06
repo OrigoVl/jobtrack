@@ -1,5 +1,5 @@
 import express from "express";
-import { getProfile, setProfile, getKvJson, setKvJson } from "../../db/index.js";
+import { getProfile, setProfile } from "../../db/index.js";
 import { parseLinkedInArchive } from "./linkedin-import.service.js";
 import { extractSkills, detectDomain } from "../../shared/skill-extraction.js";
 import { chat, llmAvailable } from "../../llm/index.js";
@@ -10,9 +10,13 @@ import { parseProfileInput } from "../../shared/validation.js";
 import { uploadSingle } from "../../shared/upload.js";
 import { CvDocSchema, CvPresetsSchema } from "./cv.schemas.js";
 import { cvAnalysis, reviewCv, matchCv, strs } from "./cv-analysis.service.js";
+import { startCvReviewJob, getCvReviewJob } from "./cv-review-job.js";
 import { tailorCv } from "./cv-tailor.service.js";
-import { emptyCvDoc, parseCvDocFromText } from "./cv-document.service.js";
+import { parseCvDocFromText } from "./cv-document.service.js";
 import { optimizeLinkedInProfile } from "./cv-linkedin.service.js";
+import { getProfileFull, updateProfileDoc, updateProfilePresets } from "./cv-profiles.repo.js";
+import { ensureProfiles, createNewProfile, duplicateProfile, renameProfileById, deleteProfileById } from "./cv-profiles.service.js";
+import type { UserId } from "../../db/user-id.js";
 
 const r = express.Router();
 
@@ -39,10 +43,12 @@ r.post(
 );
 
 r.post(
-  "/cv/upload",
+  "/cv/profiles/:id/upload",
   aiLimiter,
   uploadSingle("file"),
   authed(async (userId, req, res) => {
+    const id = Number(req.params.id);
+    const current = await requireProfile(userId, id);
     if (!req.file) throw new HttpError(400, "No file received");
     const text = await extractText(req.file.buffer, req.file.originalname, req.file.mimetype);
     if (!text || text.trim().length < 20) {
@@ -62,9 +68,9 @@ r.post(
     // saved profile.cvText.
     const [analysis, cvDoc] = await Promise.all([
       cvAnalysis(userId, text),
-      llmAvailable() ? parseCvDocFromText(userId, profile.cvText) : Promise.resolve(null),
+      llmAvailable() ? parseCvDocFromText(userId, profile.cvText, current.doc.theme) : Promise.resolve(null),
     ]);
-    if (cvDoc) await setKvJson(userId, "cvDoc", cvDoc);
+    if (cvDoc) await updateProfileDoc(userId, id, cvDoc);
     res.json({ text: profile.cvText, skills: profile.skills, detected: cvTechs, domain: profile.domain, cvDoc, ...analysis });
   }),
 );
@@ -114,6 +120,25 @@ r.post(
   }),
 );
 
+// ---------- CV Builder's "AI Assistant" review, backgrounded (see cv-review-job.ts) ----------
+r.post(
+  "/cv/review/start",
+  aiLimiter,
+  authed(async (userId, req, res) => {
+    const cvText = String(req.body?.cvText || (await getProfile(userId)).cvText || "").slice(0, 8000);
+    if (cvText.trim().length < 30) throw new HttpError(400, "Not enough CV text to review", null, "CV_TEXT_TOO_SHORT");
+    res.status(202).json(await startCvReviewJob(userId, cvText));
+  }),
+);
+// Polled by the client (~every second) while a review job is running — deliberately NOT behind
+// aiLimiter, same reasoning as GET /vacancies/fetch-all/status.
+r.get(
+  "/cv/review/status",
+  authed(async (userId, _req, res) => {
+    res.json(await getCvReviewJob(userId));
+  }),
+);
+
 // ---------- comparing a CV against a specific vacancy ----------
 r.post(
   "/cv/match",
@@ -143,40 +168,68 @@ r.post(
   }),
 );
 
-// ---------- CV builder (structured resume) ----------
+// ---------- CV builder (structured resume) — multiple named profiles per user ----------
+async function requireProfile(userId: UserId, id: number) {
+  const profile = await getProfileFull(userId, id);
+  if (!profile) throw new HttpError(404, "CV profile not found", null, "CV_PROFILE_NOT_FOUND");
+  return profile;
+}
+
 r.get(
-  "/cv/doc",
-  authed(async (userId, _req, res) => {
-    const stored = await getKvJson(userId, "cvDoc");
-    res.json(stored ? CvDocSchema.parse(stored) : await emptyCvDoc(userId));
-  }),
+  "/cv/profiles",
+  authed(async (userId, _req, res) => res.json(await ensureProfiles(userId))),
+);
+r.post(
+  "/cv/profiles",
+  authed(async (userId, req, res) => res.status(201).json(await createNewProfile(userId, String(req.body?.name || "")))),
+);
+r.post(
+  "/cv/profiles/:id/duplicate",
+  authed(async (userId, req, res) => res.status(201).json(await duplicateProfile(userId, Number(req.params.id)))),
 );
 r.put(
-  "/cv/doc",
+  "/cv/profiles/:id",
+  authed(async (userId, req, res) => res.json(await renameProfileById(userId, Number(req.params.id), String(req.body?.name || "")))),
+);
+r.delete(
+  "/cv/profiles/:id",
   authed(async (userId, req, res) => {
+    await deleteProfileById(userId, Number(req.params.id));
+    res.json({ ok: true });
+  }),
+);
+r.get(
+  "/cv/profiles/:id/doc",
+  authed(async (userId, req, res) => res.json((await requireProfile(userId, Number(req.params.id))).doc)),
+);
+r.put(
+  "/cv/profiles/:id/doc",
+  authed(async (userId, req, res) => {
+    const id = Number(req.params.id);
+    await requireProfile(userId, id);
     const doc = CvDocSchema.parse(req.body);
-    await setKvJson(userId, "cvDoc", doc);
-    res.json(doc);
+    res.json(await updateProfileDoc(userId, id, doc));
   }),
 );
 r.get(
-  "/cv/presets",
-  authed(async (userId, _req, res) => {
-    res.json({ presets: CvPresetsSchema.parse(await getKvJson(userId, "cvPresets")) });
-  }),
+  "/cv/profiles/:id/presets",
+  authed(async (userId, req, res) => res.json({ presets: (await requireProfile(userId, Number(req.params.id))).presets })),
 );
 r.put(
-  "/cv/presets",
+  "/cv/profiles/:id/presets",
   authed(async (userId, req, res) => {
+    const id = Number(req.params.id);
+    await requireProfile(userId, id);
     const presets = CvPresetsSchema.parse(req.body?.presets);
-    await setKvJson(userId, "cvPresets", presets);
-    res.json({ presets });
+    res.json({ presets: await updateProfilePresets(userId, id, presets) });
   }),
 );
 r.post(
-  "/cv/linkedin-import",
+  "/cv/profiles/:id/linkedin-import",
   uploadSingle("file"),
   authed(async (userId, req, res) => {
+    const id = Number(req.params.id);
+    await requireProfile(userId, id);
     if (!req.file) throw new HttpError(400, "No file received");
     let parsed;
     try {
@@ -193,7 +246,7 @@ r.post(
       throw new HttpError(422, "No Profile.csv / Positions.csv / Skills.csv found in the archive.", null, "LINKEDIN_ARCHIVE_MISSING_FILES");
     }
     const doc = CvDocSchema.parse(parsed);
-    await setKvJson(userId, "cvDoc", doc);
+    await updateProfileDoc(userId, id, doc);
     const profile = await getProfile(userId);
     profile.skills = Array.from(new Set([...profile.skills, ...doc.skills]));
     if (!profile.domain && doc.title) profile.domain = doc.title.slice(0, 80);
@@ -202,14 +255,15 @@ r.post(
   }),
 );
 r.post(
-  "/cv/doc/generate",
+  "/cv/profiles/:id/doc/generate",
   aiLimiter,
   authed(async (userId, req, res) => {
+    const id = Number(req.params.id);
+    const current = await requireProfile(userId, id);
     const cvText = String(req.body?.cvText || (await getProfile(userId)).cvText || "").slice(0, 8000);
-    if (!llmAvailable() || cvText.trim().length < 30)
-      return res.json({ offline: !llmAvailable(), doc: (await getKvJson(userId, "cvDoc")) || (await emptyCvDoc(userId)) });
-    const doc = await parseCvDocFromText(userId, cvText);
-    await setKvJson(userId, "cvDoc", doc);
+    if (!llmAvailable() || cvText.trim().length < 30) return res.json({ offline: !llmAvailable(), doc: current.doc });
+    const doc = await parseCvDocFromText(userId, cvText, current.doc.theme);
+    await updateProfileDoc(userId, id, doc);
     res.json({ doc });
   }),
 );
@@ -245,7 +299,7 @@ r.post(
       userId,
       `You are a resume editor for the role "${role}". Write concisely, with a focus on results, in the original language.`,
       `${guide}\n\nOriginal: ${text.slice(0, 600)}`,
-      { maxTokens: 200, temperature: 0.5, cache: true, tier: "smart", feature: "cv-improve" },
+      { maxTokens: 200, temperature: 0.5, cache: true, feature: "cv-improve" },
     );
     res.json({ text: out || text });
   }),

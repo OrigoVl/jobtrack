@@ -115,7 +115,7 @@ export function SkillsInput({
   };
 
   return (
-    <label className="block">
+    <label className="block relative">
       {!hideLabel && <span className="text-xs font-semibold text-ink-dim">{label}</span>}
       <div className="mt-0.5 flex flex-wrap items-center gap-1.5 bg-surface-2 border border-grid rounded-lg p-1.5 focus-within:ring-2 focus-within:ring-signal/50">
         {skills.map((s, i) => (
@@ -149,7 +149,10 @@ export function SkillsInput({
         />
       </div>
       {focused && suggestions.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        // absolute overlay, not in normal flow — pushing surrounding layout when this appears/
+        // disappears (e.g. on blur, which fires before a click on a nearby button/field commits)
+        // shifts everything below it by a few pixels right as the click lands, dropping the click.
+        <div className="absolute left-0 right-0 top-full z-10 mt-1.5 flex flex-wrap items-center gap-1.5 bg-surface border border-grid rounded-lg p-2 shadow-lg">
           <span className="text-[11px] text-ink-dim">{t("skillsInput.suggestions")}</span>
           {suggestions.map((s) => (
             <button

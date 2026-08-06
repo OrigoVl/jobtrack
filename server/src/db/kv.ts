@@ -81,6 +81,21 @@ export async function setRoadmapStatus(userId: UserId, tech: string, status: str
   return progress;
 }
 
+export async function getSkillLevels(userId: UserId): Promise<Record<string, number>> {
+  return (await getKvObj(userId, "skillLevels")) as Record<string, number>;
+}
+/** Unlike setRoadmapStatus above, `level: null` DOES delete the entry: there the default is
+ * derived from the CV (isKnown ? "done" : "todo"), so deleting an explicit value could roll back
+ * to a different default on the next GET. Here "no entry" IS the intended default — "trust the
+ * computed level" — so clearing an override must actually remove it, not just set some sentinel. */
+export async function setSkillLevel(userId: UserId, tech: string, level: number | null): Promise<Record<string, number>> {
+  const levels = await getSkillLevels(userId);
+  if (level == null) delete levels[tech];
+  else levels[tech] = level;
+  await setKvObj(userId, "skillLevels", levels);
+  return levels;
+}
+
 export interface StreakState {
   current: number;
   longest: number;

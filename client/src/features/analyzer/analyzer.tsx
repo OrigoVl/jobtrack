@@ -2,22 +2,30 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
-import { useAddVacancy, useFetchAllVacancies } from "../../shared/queries";
-import { Btn, Card, Chip, PageHeader } from "../../shared/ui";
+import { useAddVacancy, useFetchAllJobStatus, useStartFetchAllJob, useVacancies } from "../../shared/queries";
+import { Btn, Card, Chip, PageHeader, ProgressBar } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
-import type { AnalyzeResult, Fit, FetchAllResult } from "../../shared/types";
+import type { AnalyzeResult, Fit } from "../../shared/types";
 import { fitText } from "../../shared/fit-tone";
+import { VacancyDetailModal } from "../vacancies/vacancy-detail-modal";
 
 /* ---------- Analyzer ---------- */
 export function Analyzer() {
   const { t } = useTranslation(["analyzer", "common"]);
   const addVacancyMutation = useAddVacancy();
-  const fetchAllVacanciesMutation = useFetchAllVacancies();
+  const startFetchAllMutation = useStartFetchAllJob();
+  // Polled globally (see shared/fetch-all-notifier.tsx, mounted once at the app shell) — this
+  // page just reads whatever the shared job state currently is, so progress/results are visible
+  // here regardless of whether THIS page or the notifier itself started the poll.
+  const { data: job } = useFetchAllJobStatus();
+  const { data: vacancies = [] } = useVacancies();
   const [text, setText] = useUi("analyzer.text", "");
   const [res, setRes] = useUi<AnalyzeResult | null>("analyzer.res", null);
-  const [batch, setBatch] = useUi<FetchAllResult | null>("analyzer.batch", null);
   const [busy, setBusy] = useState(false);
-  const [batchBusy, setBatchBusy] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [detailVacancyId, setDetailVacancyId] = useState<number | null>(null);
+  const detailVacancy = detailVacancyId != null ? vacancies.find((v) => v.id === detailVacancyId) : undefined;
+
   const run = async () => {
     setBusy(true);
     try {
@@ -28,44 +36,93 @@ export function Analyzer() {
       setBusy(false);
     }
   };
-  const fetchAll = async () => {
-    setBatchBusy(true);
-    setBatch(null);
-    try {
-      setBatch(await fetchAllVacanciesMutation.mutateAsync());
-    } finally {
-      setBatchBusy(false);
-    }
-  };
+
+  const isRunning = job?.status === "running";
+
   return (
     <div className="space-y-4">
-      <PageHeader title={t("title")} subtitle={t("subtitle")} />
+      <PageHeader eyebrow={t("eyebrow")} title={t("title")} subtitle={t("subtitle")} />
 
       <Card>
         <div className="text-sm font-semibold mb-1 text-ink">{t("autoParse.heading")}</div>
         <p className="text-xs text-ink-dim mb-2">{t("autoParse.description")}</p>
-        <Btn onClick={fetchAll} loading={batchBusy}>
-          {batchBusy ? t("autoParse.analyzing") : t("autoParse.button")}
+        <Btn onClick={() => startFetchAllMutation.mutate()} loading={startFetchAllMutation.isPending || isRunning} disabled={isRunning}>
+          {isRunning ? t("autoParse.analyzing") : t("autoParse.button")}
         </Btn>
-        {batch && (
-          <div className="mt-3 text-sm">
-            <div className="text-ink-dim mb-2">
-              {t("autoParse.processed")} <b>{batch.processed}</b>
-            </div>
-            <div className="space-y-1 max-h-64 overflow-auto">
-              {batch.results.map((r) => (
-                <div key={r.id} className="flex gap-2 items-start border-b border-surface-2 pb-1">
-                  <span className="font-medium w-28 shrink-0 truncate">{r.company}</span>
-                  {r.error ? (
-                    <span className="text-rose-600 text-xs">{r.error}</span>
-                  ) : (
-                    <span className="text-xs text-ink-dim">
-                      {(r.techs || []).join(", ")} <span className={"ml-1 " + fitText[(r.fit as Fit) || "med"]}>· {r.fit}</span>
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
+        {job && (
+          <div className="mt-3">
+            <div className="text-xs text-ink-dim mb-1">{t("autoParse.progress", { processed: job.processed, total: job.total })}</div>
+            {isRunning && (
+              <div className="mb-2">
+                <ProgressBar value={job.processed} max={job.total} />
+              </div>
+            )}
+            {job.status === "error" && <div className="text-rose-600 text-xs mb-2">{job.error || t("autoParse.errorGeneric")}</div>}
+            {job.results.length > 0 && (
+              <div className="space-y-1 max-h-64 overflow-auto text-sm">
+                {job.results.map((r) => {
+                  const expanded = expandedId === r.id;
+                  const vacancy = vacancies.find((v) => v.id === r.id);
+                  return (
+                    <div key={r.id} className="border-b border-surface-2 pb-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(expanded ? null : r.id)}
+                        aria-expanded={expanded}
+                        className="w-full flex gap-2 items-start text-left py-0.5"
+                      >
+                        <span className="font-medium w-28 shrink-0 truncate">{r.company}</span>
+                        {r.error ? (
+                          <span className="text-rose-600 text-xs">{r.error}</span>
+                        ) : (
+                          <span className="text-xs text-ink-dim">
+                            {(r.techs || []).join(", ")} <span className={"ml-1 " + fitText[(r.fit as Fit) || "med"]}>· {r.fit}</span>
+                          </span>
+                        )}
+                      </button>
+                      {expanded && !r.error && (
+                        <div className="mt-1.5 space-y-2 pl-1">
+                          {r.level && <Chip>{r.level}</Chip>}
+                          <div>
+                            <div className="text-[11px] text-ink-dim mb-0.5">{t("result.match")}</div>
+                            <div className="flex flex-wrap gap-1">
+                              {r.match?.length ? (
+                                r.match.map((m) => (
+                                  <Chip key={m} tone="emerald">
+                                    {m}
+                                  </Chip>
+                                ))
+                              ) : (
+                                <span className="text-ink-dim text-xs">—</span>
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[11px] text-ink-dim mb-0.5">{t("result.gaps")}</div>
+                            <div className="flex flex-wrap gap-1">
+                              {r.gap?.length ? (
+                                r.gap.map((g) => (
+                                  <Chip key={g} tone="rose">
+                                    {g}
+                                  </Chip>
+                                ))
+                              ) : (
+                                <span className="text-ink-dim text-xs">{t("result.noGaps")}</span>
+                              )}
+                            </div>
+                          </div>
+                          {vacancy && (
+                            <Btn size="sm" variant="ghost" onClick={() => setDetailVacancyId(r.id)}>
+                              {t("autoParse.viewDetails")}
+                            </Btn>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </Card>
@@ -140,6 +197,8 @@ export function Analyzer() {
           </Btn>
         </Card>
       )}
+
+      {detailVacancy && <VacancyDetailModal vacancy={detailVacancy} initialTab="fit" onClose={() => setDetailVacancyId(null)} />}
     </div>
   );
 }

@@ -18,6 +18,9 @@ export function useAdminLlmUsage(days: number) {
 export function useAdminProductEvents(days: number) {
   return useQuery({ queryKey: [...queryKeys.adminProductEvents, days], queryFn: () => api.adminProductEvents(days) });
 }
+export function useAdminBilling(days: number) {
+  return useQuery({ queryKey: [...queryKeys.adminBilling, days], queryFn: () => api.adminBilling(days) });
+}
 
 export function useBanUser() {
   const qc = useQueryClient();

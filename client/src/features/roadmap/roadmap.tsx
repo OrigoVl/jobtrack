@@ -1,35 +1,33 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
-import { Card, CardsSkeleton, Chip, EmptyState, PageHeader, ProgressBar, Segmented } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, ProgressBar, Segmented } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
 import { useUi } from "../../shared/ui-state";
-import { useHealth, useRoadmap, useSetRoadmapStatus } from "../../shared/queries";
-import { SkillRadar } from "../analytics/charts";
+import { useHealth, useRoadmap, useSetRoadmapStatus, useSetSkillLevel } from "../../shared/queries";
+import { SkillRadar } from "./skill-radar";
+import { STATUS_LABEL_KEY } from "./radar-data";
+import { roadmapGroupLabel } from "../../shared/roadmap-group-labels";
 import type { KnowledgeData, RoadmapNode, RoadmapStatus } from "../../shared/types";
 
-// A Record (not a template literal built from the runtime status) so each value stays a literal
-// key i18next's typed t() can verify against roadmap.json — same trick as calendar.tsx's TYPE_KEY,
-// for the same reason. Unlike shared/status-labels.ts's statusKey() (VacancyStatus is typed as a
-// loose `string` for legacy-data reasons), RoadmapStatus is a genuine closed union, so no runtime
-// fallback/cast is needed here.
-const STATUS_LABEL_KEY: Record<RoadmapStatus, "status.done" | "status.learning" | "status.todo"> = {
-  done: "status.done",
-  learning: "status.learning",
-  todo: "status.todo",
-};
+// "done"/"learning" each get their own stoplight hue (--good green / --progress amber) rather
+// than the brand indigo: with --alert now equal to --signal (see index.css's glossary — this
+// landing has one accent, not two), all three statuses would otherwise render as either the same
+// indigo or an unstyled neutral, making "todo"/"learning"/"done" impossible to tell apart at a
+// glance on this page specifically (the one place in the app where that 3-way distinction is the
+// entire point).
 const STATUS_META: Record<RoadmapStatus, { text: string; badge: string; ring: string; border: string }> = {
-  done: { text: "text-signal", badge: "bg-signal text-white", ring: "ring-4 ring-signal/15", border: "border-signal" },
-  learning: { text: "text-alert", badge: "bg-alert text-white", ring: "ring-4 ring-alert/15", border: "border-alert" },
+  done: { text: "text-good", badge: "bg-good text-on-signal", ring: "ring-4 ring-good/15", border: "border-good" },
+  learning: { text: "text-progress", badge: "bg-progress text-on-signal", ring: "ring-4 ring-progress/15", border: "border-progress" },
   todo: { text: "text-ink-dim", badge: "bg-surface", ring: "", border: "border-grid" },
 };
 const CARD_TINT: Record<RoadmapStatus, string> = {
-  done: "bg-signal/[0.04] border-signal/25 hover:border-signal/60",
-  learning: "bg-alert/[0.05] border-alert/25 hover:border-alert/60",
+  done: "bg-good/[0.04] border-good/25 hover:border-good/60",
+  learning: "bg-progress/[0.05] border-progress/25 hover:border-progress/60",
   todo: "bg-surface border-grid hover:border-signal/40",
 };
 const NEXT: Record<RoadmapStatus, RoadmapStatus> = { todo: "learning", learning: "done", done: "todo" };
-const ICON: Record<RoadmapStatus, string> = { done: "✓", learning: "…", todo: "" };
+const ICON: Record<RoadmapStatus, string> = { done: "✓", learning: "", todo: "" };
 
 /** A ring-shaped progress readout (SVG donut) — the "instrument panel" stand-in for a linear bar,
  * used both for the page-level total and each group's mini summary. Local to this feature: nothing
@@ -50,7 +48,7 @@ function RadialProgress({ value, max, size = 88, stroke = 8 }: { value: number; 
         strokeDashoffset={c * (1 - pct)}
         strokeLinecap="round"
         fill="none"
-        className="stroke-signal transition-[stroke-dashoffset] duration-700 ease-out"
+        className="stroke-star transition-[stroke-dashoffset] duration-700 ease-out"
       />
     </svg>
   );
@@ -58,7 +56,7 @@ function RadialProgress({ value, max, size = 88, stroke = 8 }: { value: number; 
 
 const pill = (active: boolean) =>
   `shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${
-    active ? "bg-signal text-white border-signal shadow-sm" : "bg-surface-2 text-ink-dim border-grid hover:text-ink hover:border-signal/40"
+    active ? "bg-star text-on-signal border-star" : "bg-surface-2 text-ink-dim border-grid hover:text-ink hover:border-signal/40"
   }`;
 
 function Node({ node }: { node: RoadmapNode }) {
@@ -66,9 +64,12 @@ function Node({ node }: { node: RoadmapNode }) {
   const { data: health } = useHealth();
   const llm = health?.llm ?? false;
   const setRoadmapStatusMutation = useSetRoadmapStatus();
+  const setSkillLevelMutation = useSetSkillLevel();
   const [open, setOpen] = useState(false);
   const [dyn, setDyn] = useState<KnowledgeData | null>(null);
   const [loadingDyn, setLoadingDyn] = useState(false);
+  const [levelDraft, setLevelDraft] = useState(node.level);
+  useEffect(() => setLevelDraft(node.level), [node.level]);
   useEffect(() => {
     if (!open || !llm || dyn || loadingDyn) return;
     setLoadingDyn(true);
@@ -90,13 +91,22 @@ function Node({ node }: { node: RoadmapNode }) {
         aria-label={`${node.tech}: ${statusLabel}. ${t("nodeStatusHint")}`}
         className={`absolute left-0 top-2 z-10 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all ${meta.badge} ${meta.border} ${meta.ring}`}
       >
-        {ICON[node.status]}
+        {node.status === "learning" ? (
+          <span className="flex items-center gap-0.5" aria-hidden>
+            <span className="w-1 h-1 rounded-full bg-on-signal" />
+            <span className="w-1 h-1 rounded-full bg-on-signal" />
+            <span className="w-1 h-1 rounded-full bg-on-signal" />
+          </span>
+        ) : (
+          ICON[node.status]
+        )}
       </button>
       <div className={`rounded-xl border transition-colors ${CARD_TINT[node.status]}`}>
         <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
           <span className="font-semibold text-ink">{node.tech}</span>
           {node.demand > 0 && <Chip tone="indigo">{t("demandChip", { count: node.demand })}</Chip>}
           {node.known && <Chip tone="emerald">{t("inProfile")}</Chip>}
+          <Chip tone={node.levelManual != null ? "amber" : "slate"}>{t("radar.tooltip.level", { level: node.level })}</Chip>
           {node.drillsTotal > 0 && (
             <Chip tone={node.drillsSolved === node.drillsTotal ? "emerald" : "slate"}>
               ⌨ {node.drillsSolved}/{node.drillsTotal}
@@ -107,6 +117,57 @@ function Node({ node }: { node: RoadmapNode }) {
         </button>
         {open && (
           <div className="px-3 pb-3 border-t border-surface-2 pt-3 space-y-3">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-ink-dim">{t("level.heading")}</span>
+                <Chip tone={node.levelManual != null ? "amber" : "slate"}>
+                  {node.levelManual != null ? t("level.manual") : t("level.auto")}
+                </Chip>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={levelDraft}
+                  onChange={(e) => setLevelDraft(Number(e.target.value))}
+                  aria-label={t("level.sliderLabel", { tech: node.tech })}
+                  className="flex-1 accent-signal"
+                />
+                <span className="text-sm font-semibold text-ink w-9 text-right">{levelDraft}</span>
+                {levelDraft !== node.level && (
+                  <Btn
+                    size="sm"
+                    loading={setSkillLevelMutation.isPending && setSkillLevelMutation.variables?.tech === node.tech}
+                    onClick={() => setSkillLevelMutation.mutate({ tech: node.tech, level: levelDraft })}
+                  >
+                    {t("common:actions.save")}
+                  </Btn>
+                )}
+                {node.levelManual != null && (
+                  <Btn
+                    size="sm"
+                    variant="ghost"
+                    loading={setSkillLevelMutation.isPending && setSkillLevelMutation.variables?.tech === node.tech}
+                    onClick={() => setSkillLevelMutation.mutate({ tech: node.tech, level: null })}
+                  >
+                    {t("level.reset")}
+                  </Btn>
+                )}
+              </div>
+              <div className="text-xs text-ink-dim mt-1">{t("level.hint")}</div>
+              <div className="text-xs text-ink-dim mt-1">
+                {t("radar.tooltip.parts", {
+                  status: t(STATUS_LABEL_KEY[node.status]),
+                  drills: node.levelParts.drills ?? t("level.none"),
+                  recall: node.levelParts.recall ?? t("level.none"),
+                })}
+              </div>
+              {node.practiceShared && (
+                <div className="text-xs text-alert mt-1">⚠ {t("level.sharedTrack", { cat: node.practiceCat, tech: node.tech })}</div>
+              )}
+            </div>
             {loadingDyn && <div className="text-xs text-ink-dim">{t("personalizing")}</div>}
             {dyn?.focus && (
               <div className="rounded-lg bg-signal/10 border border-signal/20 p-2.5 text-sm text-signal">
@@ -143,9 +204,9 @@ function Node({ node }: { node: RoadmapNode }) {
                       href={r.u}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-xs px-2.5 py-1 rounded-lg bg-surface-2 text-signal hover:bg-grid transition-colors"
+                      className="text-xs px-2.5 py-1 rounded-lg bg-surface-2 text-ink-dim hover:text-signal hover:bg-grid transition-colors"
                     >
-                      {r.t} ↗{r.ai ? " ✨" : ""}
+                      {r.t} ↗
                     </a>
                   ))}
                 </div>
@@ -178,6 +239,7 @@ export function Roadmap() {
   return (
     <div className="space-y-4">
       <PageHeader
+        eyebrow={t("eyebrow")}
         title={t("title")}
         subtitle={t("subtitle")}
         actions={
@@ -197,7 +259,7 @@ export function Roadmap() {
       ) : (
         <>
           <Card className="relative overflow-hidden">
-            {/* faint radar-sweep rings — a quiet nod to the "DevRadar" theme, not a literal chart */}
+            {/* faint decorative rings in the corner — not a literal chart */}
             <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 w-56 h-56 rounded-full border border-signal/10" />
             <div aria-hidden className="pointer-events-none absolute -right-4 -top-4 w-28 h-28 rounded-full border border-signal/10" />
             <div className="flex flex-wrap items-center gap-5">
@@ -207,21 +269,25 @@ export function Roadmap() {
                   <span className="font-display text-lg font-bold text-ink">{pct}%</span>
                 </div>
               </div>
-              <div className="flex-1 min-w-[200px]">
-                <div className="text-sm font-semibold text-ink mb-2">
-                  {t("progress.prefix")} <span className="text-signal">{done}</span> {t("progress.suffix", { count: total })}
+              <div className="flex-1 min-w-[260px]">
+                <div className="text-sm font-semibold text-ink mb-3">
+                  {t("progress.prefix")} <span className="text-ink font-semibold">{done}</span> {t("progress.suffix", { count: total })}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Chip tone="emerald">
-                    <span className="w-1.5 h-1.5 rounded-full bg-signal" /> {t(STATUS_LABEL_KEY.done)} · {done}
-                  </Chip>
-                  <Chip tone="amber">
-                    <span className="w-1.5 h-1.5 rounded-full bg-alert" /> {t(STATUS_LABEL_KEY.learning)} · {learning}
-                  </Chip>
-                  <Chip tone="slate">
-                    <span className="w-1.5 h-1.5 rounded-full border border-grid bg-surface" /> {t(STATUS_LABEL_KEY.todo)} ·{" "}
-                    {total - done - learning}
-                  </Chip>
+                {/* A hairline-gap grid of stat cells (thin 1px gaps between cells sharing one
+                    border) instead of three loose pill chips. */}
+                <div className="grid grid-cols-3 gap-px bg-grid border border-grid rounded-lg overflow-hidden">
+                  <div className="bg-surface p-2.5">
+                    <div className="eyebrow text-good">{t(STATUS_LABEL_KEY.done)}</div>
+                    <div className="font-display text-xl font-bold text-ink mt-0.5">{done}</div>
+                  </div>
+                  <div className="bg-surface p-2.5">
+                    <div className="eyebrow text-progress">{t(STATUS_LABEL_KEY.learning)}</div>
+                    <div className="font-display text-xl font-bold text-ink mt-0.5">{learning}</div>
+                  </div>
+                  <div className="bg-surface p-2.5">
+                    <div className="eyebrow text-ink-dim">{t(STATUS_LABEL_KEY.todo)}</div>
+                    <div className="font-display text-xl font-bold text-ink mt-0.5">{total - done - learning}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -232,7 +298,7 @@ export function Roadmap() {
               </button>
               {roadmap.groups.map((g) => (
                 <button key={g.group} onClick={() => setGroup(g.group)} className={pill(group === g.group)}>
-                  {g.group} <span className="opacity-60">· {g.nodes.length}</span>
+                  {roadmapGroupLabel(g.group)} <span className="opacity-60">· {g.nodes.length}</span>
                 </button>
               ))}
               <span className="w-px h-5 bg-grid mx-1 shrink-0" />
@@ -244,7 +310,7 @@ export function Roadmap() {
 
           {groups.length === 0 ? (
             <Card>
-              <EmptyState icon="✨" title={t("empty.title")} hint={t("empty.hint")} />
+              <EmptyState title={t("empty.title")} hint={t("empty.hint")} />
             </Card>
           ) : (
             <div className="grid md:grid-cols-2 gap-4 items-start">
@@ -255,7 +321,9 @@ export function Roadmap() {
                     <div className="flex items-center gap-3 mb-4">
                       <RadialProgress value={groupDone} max={g.nodes.length} size={36} stroke={4} />
                       <div className="min-w-0">
-                        <div className="text-sm font-bold uppercase tracking-wide text-ink font-display truncate">{g.group}</div>
+                        <div className="text-sm font-bold uppercase tracking-wide text-ink font-display truncate">
+                          {roadmapGroupLabel(g.group)}
+                        </div>
                         <div className="text-xs text-ink-dim">{t("groupKnown", { done: groupDone, total: g.nodes.length })}</div>
                       </div>
                     </div>

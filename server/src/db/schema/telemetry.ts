@@ -33,7 +33,7 @@ export const llmUsage = pgTable(
     costUsd: real("cost_usd"),
     cacheHit: boolean("cache_hit").notNull().default(false),
     latencyMs: integer("latency_ms"),
-    outcome: text().notNull(), // "success" | "error" | "cache_hit"
+    outcome: text().notNull(), // LlmUsageOutcome (telemetry/telemetry.repo.ts) — kept as free text, not an enum, for the same reason `feature` is
     reqId: text("req_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

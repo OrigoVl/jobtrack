@@ -16,6 +16,7 @@ export function Plan21() {
   return (
     <div className="space-y-4">
       <PageHeader
+        eyebrow={t("eyebrow")}
         title={t("title")}
         subtitle={t("subtitle")}
         actions={<Chip tone="emerald">{t("daysTotal", { count: allDays.length })}</Chip>}

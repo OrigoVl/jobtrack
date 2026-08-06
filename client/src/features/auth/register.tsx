@@ -34,7 +34,7 @@ export function Register() {
       <AuthLayout title={t("register.checkEmail.title")} subtitle={t("register.checkEmail.subtitle")}>
         <p className="text-sm text-ink-dim">
           {t("register.checkEmail.instructions")}{" "}
-          <Link to="/login" className="text-signal hover:underline">
+          <Link to="/login" className="text-ink-dim hover:text-signal hover:underline">
             {t("register.checkEmail.logIn")}
           </Link>
           .
@@ -71,7 +71,7 @@ export function Register() {
       </form>
       <div className="mt-4 text-sm">
         <span className="text-ink-dim">{t("register.alreadyHaveAccount")}</span>
-        <Link to="/login" className="text-signal hover:underline">
+        <Link to="/login" className="text-ink-dim hover:text-signal hover:underline">
           {t("register.logIn")}
         </Link>
       </div>

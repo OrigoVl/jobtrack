@@ -65,9 +65,9 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
                 href={r.u}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs px-2.5 py-1 rounded-lg bg-surface-2 text-signal hover:bg-grid"
+                className="text-xs px-2.5 py-1 rounded-lg bg-surface-2 text-ink-dim hover:text-signal hover:bg-grid"
               >
-                {r.t} ↗{r.ai ? " ✨" : ""}
+                {r.t} ↗
               </a>
             ))}
           </div>
@@ -107,6 +107,7 @@ export function LearnPlan({ llm }: { llm: boolean }) {
   return (
     <div className="space-y-4">
       <PageHeader
+        eyebrow={t("eyebrow")}
         title={t("title")}
         subtitle={t("subtitle", { count: learn.totalVacancies })}
         actions={
@@ -137,7 +138,7 @@ export function LearnPlan({ llm }: { llm: boolean }) {
       <div className="text-sm text-ink-dim">{t("gapsByPriority", { count: learn.gaps.length })}</div>
       {learn.gaps.length === 0 && (
         <Card>
-          <div className="text-signal font-medium">{t("allCovered")}</div>
+          <div className="text-ink font-medium">{t("allCovered")}</div>
         </Card>
       )}
       {learn.gaps.map((g, idx) => (

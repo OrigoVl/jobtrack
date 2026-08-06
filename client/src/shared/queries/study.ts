@@ -15,7 +15,9 @@ export function useGradeCard() {
   const onError = useMutationErrorToast();
   return useMutation({
     mutationFn: ({ cardId, grade }: { cardId: string; grade: number }) => api.grade(cardId, grade),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.study }),
+    // Grading also changes the roadmap's flashcard-recall level component for that card's tech.
+    onSuccess: () =>
+      Promise.all([qc.invalidateQueries({ queryKey: queryKeys.study }), qc.invalidateQueries({ queryKey: queryKeys.roadmap })]),
     onError,
   });
 }
@@ -76,7 +78,8 @@ export function useGenerateCards() {
   return useMutation({
     mutationFn: (topic: string) => api.generateCards(topic),
     onSuccess: async (res, topic) => {
-      await qc.invalidateQueries({ queryKey: queryKeys.study });
+      // New cards change the roadmap's cardsTotal/recall level component for that topic's tech.
+      await Promise.all([qc.invalidateQueries({ queryKey: queryKeys.study }), qc.invalidateQueries({ queryKey: queryKeys.roadmap })]);
       toast(
         res.offline ? t("toasts.aiOffline") : res.added ? t("toasts.cardsAdded", { count: res.added, topic }) : t("toasts.cardsNoneAdded"),
         res.added ? "success" : "info",

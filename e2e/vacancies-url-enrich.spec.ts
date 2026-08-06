@@ -24,6 +24,15 @@ test("saving a vacancy url pointing at a private/internal address is blocked wit
     page.getByRole("button", { name: "+ Add vacancy" }).click(),
   ]);
   expect(addResponse.ok()).toBeTruthy();
+  // "+ Add vacancy" now opens the detail modal for filling it in right away (vacancy-detail-modal.tsx)
+  // — close it to reach the table's own url input underneath, which is what this test exercises.
+  // Waiting for it to actually be visible first matters: it opens from the add-mutation's success
+  // callback, a render cycle after the awaited network response above, so it isn't necessarily
+  // on-screen yet.
+  const addDialog = page.getByRole("dialog");
+  await expect(addDialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(addDialog).not.toBeVisible();
 
   const urlInput = page.locator("table tbody tr").first().getByPlaceholder("Vacancy link (from any site) → the stack fills in itself…");
   await expect(urlInput).toBeVisible();

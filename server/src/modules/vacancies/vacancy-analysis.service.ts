@@ -21,7 +21,7 @@ export async function fetchVacancyText(url: string): Promise<string> {
   const ac = new AbortController();
   const to = setTimeout(() => ac.abort(), 12000);
   try {
-    const res = await fetch(safeUrl, { headers: { "user-agent": "Mozilla/5.0 (DevRadar)" }, signal: ac.signal });
+    const res = await fetch(safeUrl, { headers: { "user-agent": "Mozilla/5.0 (Zorya)" }, signal: ac.signal });
     if (!res.ok) throw new HttpError(502, "HTTP " + res.status);
     return stripHtml(await res.text());
   } finally {

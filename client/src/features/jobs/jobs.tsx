@@ -3,13 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
-import { useAddVacancy, useAddSavedSearch, useDeleteSavedSearch, useProfile, useSavedSearches } from "../../shared/queries";
-import { Btn, Card, Chip, EmptyState, PageHeader, Segmented, Spinner } from "../../shared/ui";
+import { useAddVacancy, useAddSavedSearch, useDeleteSavedSearch, useProfile, useSavedSearches, useVacancies } from "../../shared/queries";
+import { Btn, Card, Chip, Dropdown, EmptyState, PageHeader, Segmented, Select, Spinner } from "../../shared/ui";
 import { useConfirm } from "../../shared/use-confirm";
+import { filterAndSortJobs, ALL_JOB_SOURCES, type JobSortKey } from "./jobs-filter";
 import type { JobResult, JobSearchRegion, JobSearchResult } from "../../shared/types";
 
 /** Job alerts (saved searches) — a re-runs-every-few-hours background email digest of newly
- * appeared postings for a query/region (see the "🔔 Alert me" button next to the search bar
+ * appeared postings for a query/region (see the "Alert me" button next to the search bar
  * below, and server/src/modules/saved-searches/). Just the list + delete here. */
 function SavedSearchesCard() {
   const { t, i18n } = useTranslation(["jobs", "common"]);
@@ -99,12 +100,20 @@ export function Jobs() {
     if (country.geoId) li.set("geoId", country.geoId);
     if (country.wt) li.set("f_WT", country.wt);
     const slug = (q.trim() || "jobs").replace(/\s+/g, "-").toLowerCase();
+    // RemoteOK's own site search is a path, not a query param — confirmed live: remoteok.com/
+    // remote-<term>-jobs (spaces joined with "+", e.g. remoteok.com/remote-api+dev-jobs).
+    const remoteOkSlug = (q.trim() || "dev").trim().split(/\s+/).join("+").toLowerCase();
     return [
       { label: t("external.linkedin"), url: `https://www.linkedin.com/jobs/search/?${li.toString()}` },
       { label: t("external.djinni"), url: `https://djinni.co/jobs/?all-keywords=${e}` },
       { label: t("external.dou"), url: `https://jobs.dou.ua/vacancies/?search=${e}` },
       { label: t("external.workUa"), url: `https://www.work.ua/jobs/?search=${e}` },
       { label: t("external.robotaUa"), url: `https://robota.ua/zapros/${encodeURIComponent(slug)}/ukraine` },
+      { label: t("external.remoteok"), url: `https://remoteok.com/remote-${remoteOkSlug}-jobs` },
+      { label: t("external.remotive"), url: `https://remotive.com/remote-jobs?query=${e}` },
+      { label: t("external.arbeitnow"), url: `https://www.arbeitnow.com/?search=${e}` },
+      { label: t("external.jobicy"), url: `https://jobicy.com/jobs?s=${e}` },
+      { label: t("external.weworkremotely"), url: `https://weworkremotely.com/remote-jobs-search?term=${e}` },
     ];
   };
   const { data: profile } = useProfile();
@@ -117,6 +126,11 @@ export function Jobs() {
   const [region, setRegion] = useUi<JobSearchRegion>("jobs.region", "all");
   const [page, setPage] = useUi("jobs.page", 1);
   const [pageSize, setPageSize] = useUi("jobs.pageSize", 8);
+  const [hiddenSources, setHiddenSources] = useUi<string[]>("jobs.hiddenSources", []);
+  const [hideAdded, setHideAdded] = useUi("jobs.hideAdded", false);
+  const [sortBy, setSortBy] = useUi<JobSortKey>("jobs.sortBy", "relevance");
+  const toggleSource = (src: string) =>
+    setHiddenSources(hiddenSources.includes(src) ? hiddenSources.filter((s) => s !== src) : [...hiddenSources, src]);
   // Parameters of the last submitted search — separate from the "live" input, so we
   // don't hit the network on every keystroke, and results get cached via TanStack Query.
   const [submitted, setSubmitted] = useUi<{ q: string; region: string } | null>("jobs.submitted", null);
@@ -149,9 +163,20 @@ export function Jobs() {
     });
     setAdded((a) => ({ ...a, [job.url]: true }));
   };
+  // Already-tracked vacancies (from the tracker itself, not just this session's "added" clicks) —
+  // combined below with `added` so "hide already tracked" also catches jobs added in a PAST
+  // session, not only ones added in this one.
+  const { data: vacancies = [] } = useVacancies();
+  const trackedUrls = new Set([...vacancies.map((v) => v.url).filter(Boolean), ...Object.keys(added).filter((url) => added[url])]);
+  const visibleJobs = data ? filterAndSortJobs(data.jobs, { hiddenSources, hideAdded, trackedUrls, sortBy }) : [];
+  const hasActiveJobFilters = hiddenSources.length > 0 || hideAdded;
+  const resetJobFilters = () => {
+    setHiddenSources([]);
+    setHideAdded(false);
+  };
   return (
     <div className="space-y-4">
-      <PageHeader title={t("title")} subtitle={t("subtitle")} />
+      <PageHeader eyebrow={t("eyebrow")} title={t("title")} subtitle={t("subtitle")} />
       <Card>
         <div className="flex gap-2 flex-wrap">
           <input
@@ -186,6 +211,22 @@ export function Jobs() {
               { value: "remote", label: t("search.sourceRemote") },
             ]}
           />
+          <Dropdown label={t("results.filterSources")}>
+            {ALL_JOB_SOURCES.map((src) => (
+              <label
+                key={src}
+                className="flex items-center gap-2 px-2 py-1.5 text-sm text-ink rounded-lg hover:bg-surface-2 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={!hiddenSources.includes(src)}
+                  onChange={() => toggleSource(src)}
+                  className="accent-signal"
+                />
+                {src}
+              </label>
+            ))}
+          </Dropdown>
         </div>
         <div className="text-xs text-ink-dim mt-2">{t("search.hint")}</div>
       </Card>
@@ -195,17 +236,13 @@ export function Jobs() {
         <div className="text-xs text-ink-dim mb-2">{t("external.hint")}</div>
         <div className="flex gap-2 items-center flex-wrap mb-2">
           <span className="text-xs font-semibold text-ink-dim">{t("external.countryLabel")}</span>
-          <select
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            className="bg-surface-2 border border-grid rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
-          >
+          <Select value={country} onChange={(e) => setCountry(e.target.value)}>
             {LI_COUNTRIES.map((c) => (
               <option key={c.code} value={c.code}>
                 {countryLabel(c.code)}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="flex flex-wrap gap-2">
           {externalLinks(effectiveQ, LI_COUNTRIES.find((c) => c.code === country) ?? LI_COUNTRIES[0]).map((l) => (
@@ -214,7 +251,7 @@ export function Jobs() {
               href={l.url}
               target="_blank"
               rel="noreferrer"
-              className="text-sm px-3 py-1.5 rounded-lg bg-surface-2 text-signal hover:bg-grid transition-colors font-medium"
+              className="text-sm px-3 py-1.5 rounded-lg bg-surface-2 text-ink-dim hover:text-signal hover:bg-grid transition-colors font-medium"
             >
               {l.label} ↗
             </a>
@@ -223,30 +260,71 @@ export function Jobs() {
       </Card>
       {isError && !loading && (
         <Card>
-          <EmptyState icon="⚠️" title={t("results.searchFailedTitle")} hint={t("results.searchFailedHint")} />
+          <EmptyState title={t("results.searchFailedTitle")} hint={t("results.searchFailedHint")} />
         </Card>
       )}
-      {data && data.jobs.length === 0 && (
+      {data && data.needsQuery && (
+        <Card>
+          <EmptyState title={t("results.needsQueryTitle")} hint={t("results.needsQueryHint")} />
+        </Card>
+      )}
+      {data && !data.needsQuery && data.jobs.length === 0 && (
         <Card>
           <EmptyState
-            icon="🔍"
             title={t("results.nothingFoundTitle")}
             hint={data.offline ? t("results.nothingFoundHintOffline") : t("results.nothingFoundHint")}
           />
         </Card>
       )}
+      {data && data.jobs.length > 0 && (
+        <Card>
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="flex items-center gap-1.5 text-sm text-ink-dim cursor-pointer">
+              <input type="checkbox" checked={hideAdded} onChange={(e) => setHideAdded(e.target.checked)} className="accent-signal" />
+              {t("results.hideAdded")}
+            </label>
+            <span className="text-xs font-semibold text-ink-dim ml-2">{t("results.sortBy")}</span>
+            <Segmented
+              value={sortBy}
+              onChange={setSortBy}
+              options={[
+                { value: "relevance", label: t("results.sortRelevance") },
+                { value: "newest", label: t("results.sortNewest") },
+              ]}
+            />
+            {hasActiveJobFilters && (
+              <Btn size="sm" variant="ghost" onClick={resetJobFilters}>
+                {t("results.resetFilters")}
+              </Btn>
+            )}
+          </div>
+        </Card>
+      )}
+      {data && data.jobs.length > 0 && visibleJobs.length === 0 && (
+        <Card>
+          <EmptyState
+            title={t("results.noMatches.title")}
+            hint={t("results.noMatches.hint")}
+            action={
+              <Btn size="sm" variant="ghost" onClick={resetJobFilters}>
+                {t("results.resetFilters")}
+              </Btn>
+            }
+          />
+        </Card>
+      )}
       {data &&
-        data.jobs.length > 0 &&
+        visibleJobs.length > 0 &&
         (() => {
-          const totalPages = Math.max(1, Math.ceil(data.jobs.length / pageSize));
+          const totalPages = Math.max(1, Math.ceil(visibleJobs.length / pageSize));
           const current = Math.min(page, totalPages);
           const start = (current - 1) * pageSize;
-          const pageJobs = data.jobs.slice(start, start + pageSize);
+          const pageJobs = visibleJobs.slice(start, start + pageSize);
           return (
             <div className="space-y-2">
               <div ref={listTopRef} className="scroll-mt-4 flex items-center gap-2 flex-wrap">
                 <div className="text-sm text-ink-dim">
-                  {t("results.found", { count: data.count, query: data.query, start: start + 1, end: start + pageJobs.length })}
+                  {t("results.found", { count: visibleJobs.length, query: data.query, start: start + 1, end: start + pageJobs.length })}
                 </div>
                 <div className="ml-auto flex items-center gap-1.5 text-xs text-ink-dim">
                   <span>{t("results.perPage")}</span>
@@ -273,7 +351,14 @@ export function Jobs() {
                       <Chip>{job.source}</Chip>
                       <span className="text-xs text-ink-dim ml-auto">{job.location}</span>
                     </div>
-                    <div className="text-sm text-ink-dim">{job.company}</div>
+                    <div className="flex items-center gap-2 text-sm text-ink-dim">
+                      <span>{job.company}</span>
+                      {job.postedAt && (
+                        <span className="text-xs text-ink-dim ml-auto">
+                          {t("results.postedOn", { date: new Date(job.postedAt).toLocaleDateString() })}
+                        </span>
+                      )}
+                    </div>
                     {job.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {job.tags.slice(0, 8).map((tag) => (
@@ -286,7 +371,7 @@ export function Jobs() {
                         href={job.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm px-3 py-1.5 rounded-lg bg-surface-2 text-signal hover:bg-grid transition-colors"
+                        className="text-sm px-3 py-1.5 rounded-lg bg-surface-2 text-ink-dim hover:text-signal hover:bg-grid transition-colors"
                       >
                         {t("results.open")}
                       </a>

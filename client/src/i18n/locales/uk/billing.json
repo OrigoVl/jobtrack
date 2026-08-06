@@ -1,0 +1,36 @@
+{
+  "eyebrow": "Тарифи",
+  "title": "Тарифи",
+  "subtitle": "Усе, що працює офлайн, лишається безкоштовним — завжди.",
+  "notConfigured": "Оплата не налаштована на цьому розгортанні.",
+  "currentPlan": "Поточний тариф",
+  "upgradeButton": "Перейти на Pro",
+  "manageBillingButton": "Керувати оплатою",
+  "free": {
+    "name": "Free",
+    "price": "$0",
+    "features": ["Необмежений трекер вакансій, Kanban, CV-білдер", "Roadmap, pet-проекти, флешкартки й дрили", "20 AI-дій на місяць"]
+  },
+  "pro": {
+    "name": "Pro",
+    "price": "$9/міс",
+    "features": [
+      "Необмежений AI: аналіз вакансій, mock-інтерв'ю, cover letters",
+      "LinkedIn optimizer, семантичний матчинг вакансій",
+      "Пріоритетна підтримка"
+    ]
+  },
+  "plan": {
+    "heading": "Тариф",
+    "free": "Free",
+    "pro": "Pro",
+    "quotaUsed": "Використано {{used}}/{{limit}} AI-дій цього місяця",
+    "unlimitedAi": "AI без лімітів",
+    "renewsOn": "Продовжується {{date}}",
+    "cancelsOn": "Закінчується {{date}}"
+  },
+  "quota": {
+    "badge": "{{count}} AI лишилось",
+    "exceededToast": "Ви використали всі AI-дії на цей місяць — ця відповідь офлайн. Перейдіть на Pro для необмеженого AI."
+  }
+}

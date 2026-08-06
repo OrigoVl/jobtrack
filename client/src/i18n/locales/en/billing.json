@@ -1,0 +1,36 @@
+{
+  "eyebrow": "Pricing",
+  "title": "Pricing",
+  "subtitle": "Everything that works offline stays free, no matter what.",
+  "notConfigured": "Billing isn't configured on this deployment.",
+  "currentPlan": "Current plan",
+  "upgradeButton": "Upgrade to Pro",
+  "manageBillingButton": "Manage billing",
+  "free": {
+    "name": "Free",
+    "price": "$0",
+    "features": ["Unlimited job tracker, Kanban, CV builder", "Roadmap, pet projects, flashcards & drills", "20 AI actions per month"]
+  },
+  "pro": {
+    "name": "Pro",
+    "price": "$9/mo",
+    "features": [
+      "Unlimited AI: vacancy analysis, mock interviews, cover letters",
+      "LinkedIn optimizer, semantic vacancy matching",
+      "Priority support"
+    ]
+  },
+  "plan": {
+    "heading": "Plan",
+    "free": "Free",
+    "pro": "Pro",
+    "quotaUsed": "{{used}}/{{limit}} AI actions used this month",
+    "unlimitedAi": "Unlimited AI",
+    "renewsOn": "Renews on {{date}}",
+    "cancelsOn": "Ends on {{date}}"
+  },
+  "quota": {
+    "badge": "{{count}} AI left",
+    "exceededToast": "You've used all your AI actions for this month — this reply used the offline fallback. Upgrade for unlimited AI."
+  }
+}

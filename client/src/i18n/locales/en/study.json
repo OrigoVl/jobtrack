@@ -1,10 +1,12 @@
 {
+  "eyebrow": "Practice",
   "title": "Practice",
   "subtitle": "Smart flashcards with spaced repetition (like Anki) + a drill mode with hands-on problems.",
   "tabs": {
-    "flashcards": "🃏 Flashcards",
-    "drill": "⌨️ Drill",
-    "mock": "🎤 Mock interview"
+    "flashcards": "Flashcards",
+    "drill": "Drill",
+    "mock": "Mock interview",
+    "design": "Architecture"
   },
   "stats": {
     "dueToday": "Due for review today: {{count}}",
@@ -13,15 +15,15 @@
     "streak_one": "{{count}}-day streak",
     "streak_other": "{{count}}-day streak"
   },
-  "moreCards": "✨ More cards for \"{{topic}}\"",
+  "moreCards": "More cards for \"{{topic}}\"",
   "llmKeyRequired": "An LLM key is required",
   "srs": {
-    "showAnswer": "👁 Show answer",
+    "showAnswer": "Show answer",
     "grade": {
-      "again": "🔁 Again",
-      "hard": "😓 Hard",
-      "good": "✅ Good",
-      "easy": "🚀 Easy"
+      "again": "Again",
+      "hard": "Hard",
+      "good": "Good",
+      "easy": "Easy"
     },
     "empty": {
       "title": "All cards for today are done!",
@@ -37,21 +39,21 @@
       "hard": "hard"
     },
     "unsolvedOnly": "unsolved only",
-    "moreProblems": "✨ More problems for \"{{tech}}\"",
+    "moreProblems": "More problems for \"{{tech}}\"",
     "problemsCount_one": "{{count}} problem",
     "problemsCount_other": "{{count}} problems",
-    "aiTailored": "✨ AI tailored for you",
-    "solvedBadge": "✓ solved",
+    "aiTailored": "AI tailored for you",
+    "solvedBadge": "solved",
     "hintLabel": "Hint {{num}}:",
     "hintsAiOffline": "AI is offline — enable a key in server/.env for hints.",
-    "showSolution": "👁 Show solution",
+    "showSolution": "Show solution",
     "hintButton": {
-      "first": "💡 Hint",
-      "another": "💡 Another hint",
-      "none": "💡 No more hints"
+      "first": "Hint",
+      "another": "Another hint",
+      "none": "No more hints"
     },
     "reset": "↩︎ Reset",
-    "done": "✅ Done",
+    "done": "Done",
     "previous": "← Previous",
     "next": "Next →",
     "empty": {
@@ -60,12 +62,12 @@
     }
   },
   "sandbox": {
-    "open": "🧪 Open sandbox (run code)",
-    "title": "🧪 JS Sandbox",
+    "open": "Open sandbox (run code)",
+    "title": "JS Sandbox",
     "run": "▶ Run",
     "reset": "Reset",
     "done": "Done (no console.log). Time: {{ms}} ms",
-    "time": "⏱ {{ms}} ms"
+    "time": "{{ms}} ms"
   },
   "toasts": {
     "aiOffline": "AI offline — enable the key in server/.env",

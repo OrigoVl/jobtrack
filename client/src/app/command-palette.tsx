@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
+import type { IconComponent } from "../shared/icons";
 
 export interface PaletteNavItem {
   path: string;
-  icon: string;
+  icon: IconComponent;
   label: string;
 }
 export interface PaletteAction {
   id: string;
-  icon: string;
+  icon: IconComponent;
   label: string;
   onRun: () => void;
 }
@@ -59,7 +60,7 @@ export function CommandPalette({
   }, [open]);
 
   const results = useMemo(() => {
-    type Entry = { key: string; icon: string; label: string; run: () => void };
+    type Entry = { key: string; icon: IconComponent; label: string; run: () => void };
     const navEntries: Entry[] = items.map((it) => ({
       key: `nav-${it.path}`,
       icon: it.icon,
@@ -132,7 +133,9 @@ export function CommandPalette({
                 i === active ? "bg-signal/10 text-signal" : "text-ink"
               }`}
             >
-              <span className="text-base w-5 text-center">{r.icon}</span>
+              <span className="w-5 flex justify-center shrink-0">
+                <r.icon className="w-4 h-4" />
+              </span>
               {r.label}
             </button>
           ))}

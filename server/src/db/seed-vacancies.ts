@@ -1,8 +1,19 @@
-// Initial data for an empty DB: a default candidate profile + sample vacancies (DOU),
-// so the app has something to work with right after the first run.
+// Two profiles: EMPTY_PROFILE (real registration — see db/bootstrap.ts#seedProfileIfEmpty) and
+// SAMPLE_PROFILE + SEED_VACANCIES (fictional demo data, only for bootstrapUser()'s still-unwired
+// sample-data path — see that file's own comment for why it's deliberately not used at signup).
+// Every new REAL account used to get SAMPLE_PROFILE by mistake — someone else's fictional résumé
+// (15 Vue/Nuxt/Azure skills, "Full-Stack Developer, 7 years") — which pre-completed the
+// dashboard's onboarding checklist and skewed /jobs/search's no-query fallback for every single
+// signup. EMPTY_PROFILE is the fix; SAMPLE_PROFILE is kept, renamed, for bootstrapUser().
 import type { Profile } from "./types.js";
 
-export const DEFAULT_PROFILE: Profile = {
+export const EMPTY_PROFILE: Profile = {
+  skills: [],
+  cvText: "",
+  domain: undefined,
+};
+
+export const SAMPLE_PROFILE: Profile = {
   skills: [
     "JavaScript",
     "TypeScript",

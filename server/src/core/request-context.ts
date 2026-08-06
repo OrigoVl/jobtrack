@@ -13,13 +13,30 @@ import { DEFAULT_LOCALE, type AppLocale } from "../shared/locale.js";
 interface RequestContextStore {
   reqId: string;
   locale: AppLocale;
+  // Mutable flags set mid-request by code with no direct access to `res` (llm/client.ts's plan
+  // quota check) and read back by app.ts's response middleware to attach an advisory header —
+  // one seam instead of threading a signal through every AI route's response shape. Plain
+  // object (not a Set) since there's exactly one flag today; add fields here, not a second store.
+  flags: { aiQuotaExceeded: boolean };
 }
 
 const storage = new AsyncLocalStorage<RequestContextStore>();
 
 /** Runs `fn` in the context of a specific request — called once from the middleware in app.ts. */
 export function runWithRequestContext<T>(reqId: string, locale: AppLocale, fn: () => T): T {
-  return storage.run({ reqId, locale }, fn);
+  return storage.run({ reqId, locale, flags: { aiQuotaExceeded: false } }, fn);
+}
+
+/** Called by llm/client.ts's plan-quota check when a Free-plan user is over their monthly AI
+ * quota — a no-op outside a request context (boot-time code, the scheduler, tests). */
+export function markAiQuotaExceeded(): void {
+  const store = storage.getStore();
+  if (store) store.flags.aiQuotaExceeded = true;
+}
+
+/** Read by app.ts's response middleware to decide whether to attach X-AI-Quota-Exceeded. */
+export function wasAiQuotaExceeded(): boolean {
+  return storage.getStore()?.flags.aiQuotaExceeded ?? false;
 }
 
 /** The current request's reqId, if running inside `runWithRequestContext` (otherwise undefined). */

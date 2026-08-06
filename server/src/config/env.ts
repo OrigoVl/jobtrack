@@ -36,10 +36,10 @@ const RawEnvSchema = z
     LLM_PROVIDER: z.enum(["openai", "anthropic"]).default("openai"),
     OPENAI_API_KEY: z.string().trim().min(1).optional(),
     OPENAI_MODEL: z.string().trim().min(1).default("gpt-4o-mini"),
-    OPENAI_MODEL_SMART: z.string().trim().min(1).default("gpt-4o"),
+    OPENAI_MODEL_SMART: z.string().trim().min(1).default("gpt-5"),
     ANTHROPIC_API_KEY: z.string().trim().min(1).optional(),
     ANTHROPIC_MODEL: z.string().trim().min(1).default("claude-haiku-4-5-20251001"),
-    ANTHROPIC_MODEL_SMART: z.string().trim().min(1).default("claude-sonnet-4-5-20250929"),
+    ANTHROPIC_MODEL_SMART: z.string().trim().min(1).default("claude-sonnet-5"),
     // How long to wait for a response from the LLM provider before giving up — so a hung
     // OpenAI/Anthropic response doesn't hold the user's request (and connection) forever.
     // Two-tier timeout: "fast" (extraction/hints) fails faster than "smart" (complex
@@ -50,9 +50,31 @@ const RawEnvSchema = z
     // Soft per-user daily spend cap in USD, estimated from llm_usage's costUsd (llm/pricing.ts) —
     // 0 (default) disables it. aiLimiter (core/rate-limit.ts) already caps REQUEST rate, but a
     // user could still stay within that rate while racking up real $ cost on repeated "smart"-tier
-    // calls; this bounds the $ instead of the request count. Deliberately a single global number,
-    // not per-feature/per-plan — this app has no billing tiers to key it off of.
+    // calls; this bounds the $ instead of the request count. A single global number, deliberately
+    // ORTHOGONAL to the per-plan quota below — this is an operator safety valve against
+    // catastrophic spend by ANY account (including a paying one), while BILLING_FREE_AI_CALLS_PER_MONTH
+    // is a product limit on the Free plan. Layered, not replaced by billing: see llm/client.ts.
     LLM_DAILY_COST_CAP_USD: z.coerce.number().nonnegative().default(0),
+
+    // Stripe (optional) — not set → the entire billing module is inert: no quota enforcement,
+    // no plan/pricing UI, aiLimiter stays at its flat default. Same graceful-offline-fallback
+    // shape as the LLM/email keys above. All three must be set together (enforced below) since a
+    // partial config (e.g. a secret key with no webhook secret) would silently accept payments
+    // without ever being able to activate the resulting subscription.
+    STRIPE_SECRET_KEY: z.string().trim().min(1).optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().trim().min(1).optional(),
+    STRIPE_PRICE_PRO_MONTHLY: z.string().trim().min(1).optional(),
+    // Free-tier quota, in billable AI calls per UTC calendar month — NOT a dollar figure,
+    // deliberately: estimateCostUsd() (llm/pricing.ts) returns null for any model outside its
+    // hardcoded price table, and is explicitly documented as "not a billing-accurate figure", so
+    // enforcing a $ promise on Free would let a model change (or a self-hosted deployment) hand
+    // out an effectively unlimited quota. A call count can't be evaded that way.
+    BILLING_FREE_AI_CALLS_PER_MONTH: z.coerce.number().int().nonnegative().default(20),
+    // Pro-tier fair-use ceiling, in USD/month — NOT the Free quota's mechanism (calls), because
+    // this one exists purely to keep a single power-user account from running the per-seat
+    // margin negative, not to be a marketing-facing number. Reuses the same $ estimate as
+    // LLM_DAILY_COST_CAP_USD, just windowed monthly and scoped to Pro/Team accounts.
+    BILLING_PRO_MONTHLY_COST_CEILING_USD: z.coerce.number().nonnegative().default(5),
     // Express "trust proxy" — should only be enabled if the app actually sits behind a
     // reverse proxy/LB (nginx, Cloudflare, etc.), otherwise req.ip and rate-limit would see
     // the proxy's IP instead of the client's. Disabled by default (the app listens directly).
@@ -74,6 +96,13 @@ const RawEnvSchema = z
     // effective limit becomes N times higher than declared).
     REDIS_URL: z.string().trim().min(1).optional(),
 
+    // Telegram (optional, both or neither) — not set → account linking is hidden in the UI and
+    // the digest/saved-searches schedulers only ever notify by email, same graceful-offline-
+    // fallback shape as the LLM/email/Stripe keys above. Get a token from @BotFather; the
+    // username (no leading @) is needed client-side to build the t.me deep link.
+    TELEGRAM_BOT_TOKEN: z.string().trim().min(1).optional(),
+    TELEGRAM_BOT_USERNAME: z.string().trim().min(1).optional(),
+
     // better-auth: signs/encrypts session cookies and tokens — required in production
     // (enforced below), with an obviously-insecure dev-only fallback so a fresh local checkout
     // doesn't need any auth setup to run `pnpm dev`.
@@ -86,7 +115,7 @@ const RawEnvSchema = z
     // no email provider at all. EMAIL_FROM defaults to Resend's shared sandbox sender, which
     // only delivers to the Resend account's own verified email until a custom domain is set up.
     RESEND_API_KEY: z.string().trim().min(1).optional(),
-    EMAIL_FROM: z.string().trim().min(1).default("DevRadar <onboarding@resend.dev>"),
+    EMAIL_FROM: z.string().trim().min(1).default("Zorya <onboarding@resend.dev>"),
     // Google OAuth (optional) — both or neither (enforced below); absent → the client hides the
     // "Continue with Google" button and only email+password is offered.
     GOOGLE_CLIENT_ID: z.string().trim().min(1).optional(),
@@ -104,6 +133,21 @@ const RawEnvSchema = z
         code: "custom",
         path: ["GOOGLE_CLIENT_ID"],
         message: "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must both be set, or both left unset",
+      });
+    }
+    if (!!v.TELEGRAM_BOT_TOKEN !== !!v.TELEGRAM_BOT_USERNAME) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["TELEGRAM_BOT_TOKEN"],
+        message: "TELEGRAM_BOT_TOKEN and TELEGRAM_BOT_USERNAME must both be set, or both left unset",
+      });
+    }
+    const stripeVars = [v.STRIPE_SECRET_KEY, v.STRIPE_WEBHOOK_SECRET, v.STRIPE_PRICE_PRO_MONTHLY];
+    if (new Set(stripeVars.map((x) => !!x)).size > 1) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["STRIPE_SECRET_KEY"],
+        message: "STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and STRIPE_PRICE_PRO_MONTHLY must all be set, or all left unset",
       });
     }
   });
@@ -158,6 +202,14 @@ export const env = {
   logsDashboardUrl: raw.LOGS_DASHBOARD_URL ?? null,
   redisUrl: raw.REDIS_URL,
 
+  telegram: {
+    botToken: raw.TELEGRAM_BOT_TOKEN,
+    botUsername: raw.TELEGRAM_BOT_USERNAME,
+    get isAvailable(): boolean {
+      return !!env.telegram.botToken && !!env.telegram.botUsername;
+    },
+  },
+
   auth: {
     // INSECURE dev-only fallback — never used in production (BETTER_AUTH_SECRET is required
     // there, enforced above). Fixed rather than randomly generated per boot so sessions survive
@@ -175,6 +227,20 @@ export const env = {
     from: raw.EMAIL_FROM,
     get isAvailable(): boolean {
       return !!env.email.resendApiKey;
+    },
+  },
+
+  billing: {
+    stripeSecretKey: raw.STRIPE_SECRET_KEY,
+    stripeWebhookSecret: raw.STRIPE_WEBHOOK_SECRET,
+    pricePro: raw.STRIPE_PRICE_PRO_MONTHLY,
+    freeAiCallsPerMonth: raw.BILLING_FREE_AI_CALLS_PER_MONTH,
+    proMonthlyCostCeilingUsd: raw.BILLING_PRO_MONTHLY_COST_CEILING_USD,
+    // Gates the ENTIRE billing module — every dev machine, all of e2e, and every self-hoster
+    // leave these three unset, so this is false there and the module adds zero DB reads/UI to
+    // the existing app. See llm/client.ts's quota check and core/rate-limit.ts's per-plan limit.
+    get isAvailable(): boolean {
+      return !!env.billing.stripeSecretKey && !!env.billing.stripeWebhookSecret && !!env.billing.pricePro;
     },
   },
 

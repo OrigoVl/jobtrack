@@ -15,6 +15,7 @@ const SECTION_LABEL_KEY: Record<
   | "layoutPresets.sections.experience"
   | "layoutPresets.sections.projects"
   | "layoutPresets.sections.education"
+  | "layoutPresets.sections.certifications"
   | "layoutPresets.sections.languages"
 > = {
   summary: "layoutPresets.sections.summary",
@@ -22,6 +23,7 @@ const SECTION_LABEL_KEY: Record<
   experience: "layoutPresets.sections.experience",
   projects: "layoutPresets.sections.projects",
   education: "layoutPresets.sections.education",
+  certifications: "layoutPresets.sections.certifications",
   languages: "layoutPresets.sections.languages",
 };
 
@@ -93,7 +95,6 @@ export function LayoutPresetsPanel({
       </Section>
       <Section
         title={t("layoutPresets.presets.title")}
-        icon="💾"
         hint={presets.length ? t("layoutPresets.presets.savedCount", { count: presets.length }) : undefined}
       >
         {presets.length > 0 && (

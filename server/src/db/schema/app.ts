@@ -1,4 +1,4 @@
-// Postgres schema (Drizzle) for DevRadar's own domain tables. Multi-tenant from day one:
+// Postgres schema (Drizzle) for Zorya's own domain tables. Multi-tenant from day one:
 // every table carries `userId`, a real FK to better-auth's `user` table (schema/auth.ts) with
 // ON DELETE CASCADE — deleting a user's account cleanly removes all of their data.
 import {
@@ -287,19 +287,59 @@ export const savedSearches = pgTable(
   ],
 );
 
+// Multiple named CV/resume versions per user (e.g. "Backend", "Management") — the CV Builder's
+// tab strip. Capped at 5/user in application code (cv-profiles.service.ts), not a DB constraint:
+// same "app-level cap, not a check constraint" choice this codebase already makes elsewhere (see
+// e.g. CvContactLinksSchema's array-size caps). `doc`/`presets` hold exactly what previously lived
+// in user_kv under the flat "cvDoc"/"cvPresets" keys — validated through CvDocSchema/
+// CvPresetsSchema on every read, same as before, just scoped to a row instead of a KV key.
+// `position` is insertion order for the tab strip (no drag-reorder UI yet, so this is just
+// "0, 1, 2, ..." at creation time).
+export const cvProfiles = pgTable(
+  "cv_profiles",
+  {
+    id: integer().primaryKey().generatedByDefaultAsIdentity(),
+    userId: userIdCol(),
+    name: text().notNull().default(""),
+    doc: jsonb().notNull(),
+    presets: jsonb().notNull().default([]),
+    position: integer().notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Covers the tab-strip list query (ordered, scoped to one user).
+    index("cv_profiles_user_position_idx").on(t.userId, t.position),
+    // FK target for cv_shares' composite FK below.
+    uniqueIndex("cv_profiles_user_id_key").on(t.userId, t.id),
+  ],
+);
+
 // Shareable public CV link (Phase 9) — GET /api/cv/public/:slug (no authed()) looks up the slug
-// here and, if enabled, serves ONLY that user's `cvDoc` (user_kv) — see modules/cv-shares/.
-// One row per user (unique on userId): "generate" upserts a fresh random slug rather than
-// accumulating old ones, so a previously-shared link stops working the moment a new one is made.
+// here and, if enabled, serves ONLY that profile's `doc` (cv_profiles) — see modules/cv-shares/.
+// One row per (user, profile) — unique on (userId, profileId): "generate" upserts a fresh random
+// slug rather than accumulating old ones, so a previously-shared link stops working the moment a
+// new one is made for that same profile.
+// `profileId` is nullable at the DB level ONLY so this migration's `ADD COLUMN` doesn't fail
+// against any pre-existing rows from the single-profile era (`ALTER ... NOT NULL` with no
+// DEFAULT rejects a non-empty table) — the app layer (cv-shares.repo.ts) always writes a real
+// profileId; a one-off script backfills old rows once, same "one-off script, not a hand-edited
+// migration" split this codebase already uses (see server/scripts/).
 export const cvShares = pgTable(
   "cv_shares",
   {
     slug: text().primaryKey(),
     userId: userIdCol(),
+    profileId: integer("profile_id"),
     enabled: boolean().notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("cv_shares_user_id_key").on(t.userId)],
+  (t) => [
+    // Postgres treats each NULL as distinct in a unique index, so pre-backfill rows with a NULL
+    // profileId never collide with each other or with a real one.
+    uniqueIndex("cv_shares_user_profile_key").on(t.userId, t.profileId),
+    foreignKey({ columns: [t.userId, t.profileId], foreignColumns: [cvProfiles.userId, cvProfiles.id] }).onDelete("cascade"),
+  ],
 );
 
 // One row per user — opt-in for the periodic email digest (stale applications, study streak,

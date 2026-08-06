@@ -1,10 +1,12 @@
 # Privacy Policy — DRAFT (not published, not legal advice)
 
-> **Status: internal draft.** Placeholders are marked `[LIKE THIS]`. This needs a real lawyer's
-> review before it's linked from the app or presented to a single real paying user — it is a
-> solid, standard-practice starting point, not a substitute for legal counsel. Once approved,
-> this becomes a real page (e.g. `/privacy`) with a link in the footer and a checkbox at
-> registration.
+> **Status: internal draft, now live at `/privacy`** (linked from the footer). Placeholders are
+> marked `[LIKE THIS]` and shown as-is on the page — it is a solid, standard-practice starting
+> point, not a substitute for a real lawyer's review, which is still needed before this is
+> presented as final to a real user. The payment-processor sub-processor (Stripe) and
+> subscription-status data below are restored now that billing actually ships
+> (server/src/modules/billing/) — they were previously removed here and from the live page while
+> no payment system existed.
 
 **Effective date:** [EFFECTIVE DATE]
 **Last updated:** [LAST UPDATED DATE]
@@ -28,14 +30,15 @@ estimated cost — used for your own usage limits (see Section 5) and our intern
 We do **not** store the AI provider's raw responses beyond what's needed to show you the result;
 see Section 3 for what's sent to the AI provider itself.
 
+**Subscription/billing data.** If you subscribe to a paid plan: your plan, subscription status,
+and renewal date, plus the Stripe customer/subscription identifiers needed to manage your
+subscription. **We never see or store your card number or other payment details** — Stripe
+collects and processes those directly; we only receive the identifiers above and status updates
+(e.g. "payment succeeded," "subscription renewed").
+
 **Usage/product analytics.** Which features you use and when (e.g. that you ran a job search),
 aggregated for product improvement. We do not sell this data or use it for advertising — we don't
 run ads.
-
-**Payment data.** Handled entirely by our payment processor ([Paddle/Lemon Squeezy — TBD]), which
-acts as merchant of record. We never receive or store your card number, CVV, or full billing
-details — we only receive a subscription status (active/canceled/past due) and enough
-transaction metadata to reconcile your account access.
 
 **Technical/error data.** IP address (for rate-limiting and abuse prevention), request logs, and
 error reports (via Sentry) — the latter with secrets (passwords, tokens, cookies, authorization
@@ -54,9 +57,9 @@ headers) automatically redacted before being sent.
 | Who | What they receive | Why |
 |---|---|---|
 | **[OpenAI / Anthropic — whichever is configured]** | The text you submit to an AI feature (CV text, job posting text, your prompt) | To generate the AI response you requested (CV review, cover letter, mock interview scoring, etc.) |
+| **Stripe** | Your email address, and (directly from you, never through us) your payment details, if you subscribe to a paid plan | Processing payments and managing your subscription — Stripe is PCI-compliant; we never see your card details |
 | **Resend** | Your email address | Sending verification, password-reset, and account-deletion-confirmation emails |
 | **Sentry** | Error reports (secrets redacted) | Diagnosing bugs/crashes |
-| **[Paddle / Lemon Squeezy]** | Email, subscription status | Payment processing, billing, and tax compliance (they act as merchant of record) |
 | **[Railway / hosting provider]** | Everything (it's the infrastructure your data lives on) | Hosting the database and application |
 
 We do not sell your data to anyone, for any reason. If you have an AI feature turned off (no
@@ -70,15 +73,19 @@ Clauses / the provider's own data processing agreement — CONFIRM WITH ACTUAL D
 
 Your content stays until you delete it or delete your account. Account deletion is immediate and
 permanent (see Section 5) — it cascades to every table: profile, vacancies, companies, CV
-documents, study progress, and usage history. We don't keep a "soft-deleted" copy afterward.
+documents, study progress, subscription/billing status, and usage history. If you have an active
+paid subscription, deleting your account also cancels it immediately with Stripe (see the Terms
+of Service, Section 7) — Stripe retains its own transaction records per its own retention policy
+and applicable financial-recordkeeping law, independent of this deletion. We don't keep a
+"soft-deleted" copy afterward.
 
 Error logs and usage/product analytics are retained for [90 / 180 days — CONFIRM RETENTION
 POLICY] for debugging and product-improvement purposes, then aggregated or discarded.
 
 ## 5. Your rights
 
-- **Export.** Download a full copy of your own data (profile, vacancies, companies, study
-  progress) as JSON at any time from the Account page.
+- **Export.** Download a full copy of your own data (profile, vacancies, companies, contacts,
+  study progress) as JSON at any time from the Account page.
 - **Deletion.** Permanently delete your account and everything in it, at any time, from the
   Account page — a confirmation email prevents accidental/malicious deletion, but once confirmed
   it cannot be undone.

@@ -35,6 +35,29 @@
     "med": "Med",
     "low": "Low"
   },
+  "tracks": {
+    "auto": "Auto-detect from CV",
+    "software": "Software Development",
+    "qa": "QA",
+    "devops": "DevOps",
+    "data": "Data",
+    "design": "Design",
+    "product": "Product",
+    "security": "Security",
+    "sysadmin": "System Administration"
+  },
+  "roadmapGroups": {
+    "core": "Core",
+    "frontend": "Frontend",
+    "backend": "Backend",
+    "database": "Database",
+    "devops": "DevOps",
+    "testing": "Testing",
+    "ai": "AI",
+    "tools": "Tools",
+    "other": "Other",
+    "skillsInDemand": "Skills in demand"
+  },
   "errors": {
     "generic": "An error occurred",
     "UNSUPPORTED_FILE_TYPE": "Unsupported file type. Allowed: PDF, DOCX, DOC, TXT, ZIP.",
@@ -54,6 +77,9 @@
     "CV_SHARE_NOT_GENERATED": "No share link yet — generate one first",
     "CV_TEXT_TOO_SHORT": "There isn't enough CV content yet — add a few more details first.",
     "CV_NO_VACANCY_DATA": "This vacancy has no details to compare against yet",
-    "CV_FILL_IN_FIRST": "Fill in the CV first"
+    "CV_FILL_IN_FIRST": "Fill in the CV first",
+    "ALREADY_SUBSCRIBED": "You already have an active paid subscription",
+    "NO_STRIPE_CUSTOMER": "Subscribe first — billing management isn't available yet",
+    "UNKNOWN_PLAN": "Unknown plan"
   }
 }

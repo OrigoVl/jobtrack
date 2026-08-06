@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Btn, Segmented, Section } from "../../../shared/ui";
 import { useToast } from "../../../shared/use-toast";
+import { UserIcon } from "../../../shared/icons";
 import type { CvDoc, CvTheme } from "../../../shared/types";
 import { PhotoCropper } from "./photo-cropper";
 
@@ -59,7 +60,6 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
     <>
       <Section
         title={t("appearance.template.title")}
-        icon="🧩"
         defaultOpen
         hint={t(TEMPLATE_KEYS.find(([id]) => id === theme.template)?.[1] ?? "templates.classic")}
       >
@@ -75,7 +75,7 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
           ))}
         </div>
       </Section>
-      <Section title={t("appearance.style.title")} icon="🎨" hint={`${fontLabel(theme.font)} · ${Math.round(theme.scale * 100)}%`}>
+      <Section title={t("appearance.style.title")} hint={`${fontLabel(theme.font)} · ${Math.round(theme.scale * 100)}%`}>
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <label className="flex items-center gap-2 text-sm text-ink-dim">
             {t("appearance.style.accent")}
@@ -117,7 +117,6 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
       </Section>
       <Section
         title={t("appearance.photo.title")}
-        icon="🖼"
         hint={
           doc.photo ? (theme.showPhoto === false ? t("appearance.photo.hidden") : t("appearance.photo.added")) : t("appearance.photo.none")
         }
@@ -131,9 +130,9 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             />
           ) : (
             <div
-              className={`w-16 h-16 bg-surface-2 border-2 border-dashed border-grid grid place-items-center text-ink-dim text-xl ${theme.photoShape === "square" ? "rounded-lg" : "rounded-full"}`}
+              className={`w-16 h-16 bg-surface-2 border-2 border-dashed border-grid grid place-items-center text-ink-dim ${theme.photoShape === "square" ? "rounded-lg" : "rounded-full"}`}
             >
-              👤
+              <UserIcon className="h-6 w-6" />
             </div>
           )}
           <div className="flex gap-1.5 flex-wrap">

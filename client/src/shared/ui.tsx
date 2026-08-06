@@ -1,21 +1,31 @@
 import { forwardRef, useLayoutEffect, useRef, useState } from "react";
-import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 import { usePopover } from "./use-popover";
 import { PopoverPanel } from "./popover";
+import { ChevronDownIcon } from "./icons";
 
 type Variant = "primary" | "ghost" | "danger" | "subtle";
 type Size = "sm" | "md";
 
-// DevRadar design tokens (client/tailwind.config.js + src/index.css) — signal (phosphor green)
-// replaces the old indigo-600 as the single primary accent, alert (amber) is used sparingly for
-// warnings/highlights. Danger stays on Tailwind's built-in rose palette — that's a semantic
-// error/destructive color, not part of the brand token system being reskinned here.
+// Zorya design tokens (client/tailwind.config.js + src/index.css) — a solid accent fill always
+// uses the vivid, theme-independent `star` (whatever hue the brand accent currently is — see
+// index.css) with light `on-signal` ink, matching the landing page's own `.btn-primary` (never
+// the deepened `signal`/`alert` values, which are tuned for AA-contrast TEXT on a light surface,
+// not a large filled area — using them as a fill reads as dull/muddy rather than vivid). Danger
+// stays on Tailwind's built-in rose palette — that's a semantic error/destructive color, not part
+// of the brand token system being reskinned here.
+// Every variant shares the same `hover:-translate-y-px` tactile lift (the landing's own
+// `.btn-primary` motion) — previously only `primary` had it, which read as an ad-hoc one-off
+// instead of a deliberate motion language; `disabled:translate-y-0` above resets it uniformly.
+// Shape is a full pill (`rounded-full` below, on the base class) matching the landing's own
+// `.btn { border-radius: 999px }` exactly — this app's buttons used to be `rounded-lg` (8px,
+// rectangular), a leftover from before the reskin's colors/fonts were synced.
 const VARIANT: Record<Variant, string> = {
-  primary: "bg-signal text-white shadow-sm hover:opacity-90 active:opacity-100",
-  ghost: "bg-surface-2 text-ink border border-grid hover:bg-grid/50",
-  subtle: "bg-transparent text-ink-dim hover:bg-surface-2",
+  primary: "bg-star text-on-signal hover:opacity-90 active:opacity-100 hover:-translate-y-px",
+  ghost: "bg-surface-2 text-ink border border-grid hover:bg-grid/50 hover:-translate-y-px",
+  subtle: "bg-transparent text-ink-dim hover:bg-surface-2 hover:-translate-y-px",
   danger:
-    "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800 dark:hover:bg-rose-900",
+    "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800 dark:hover:bg-rose-900 hover:-translate-y-px",
 };
 const SIZE: Record<Size, string> = { sm: "px-2.5 py-1.5 text-xs", md: "px-3.5 py-2 text-sm" };
 
@@ -42,7 +52,7 @@ export const Btn = forwardRef<
       {...rest}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 focus-visible:ring-offset-1 ${VARIANT[variant]} ${SIZE[size]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 focus-visible:ring-offset-1 ${VARIANT[variant]} ${SIZE[size]} ${className}`}
     >
       {loading && <Spinner className={size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5"} />}
       {children}
@@ -50,18 +60,79 @@ export const Btn = forwardRef<
   );
 });
 
+/** A native `<select>` with `appearance-none` + an on-brand chevron overlay, replacing whatever
+ * arrow glyph the OS/browser draws by default (see icons.tsx's ChevronDownIcon). Forwards every
+ * native select prop/attribute (value, onChange, aria-label, ...) — this only owns the chevron. */
+export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select(
+  { className = "", children, ...rest },
+  ref,
+) {
+  return (
+    <div className="relative inline-block">
+      <select
+        ref={ref}
+        {...rest}
+        className={`appearance-none pr-8 text-sm border border-grid rounded-lg px-3 py-2 bg-surface text-ink ${className}`}
+      >
+        {children}
+      </select>
+      <ChevronDownIcon className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ink-dim" />
+    </div>
+  );
+});
+
+const WORDMARK_SIZE = { sm: "text-lg", md: "text-xl", lg: "text-2xl" } as const;
+
+/** The brand mark — matches the landing page's own current `.wordmark`: a small filled sparkle
+ * glyph (`--star`, the vivid theme-independent accent) followed by "Zorya" in the display face,
+ * `font-weight: 800`, plain `--ink` color. The landing's own mark has gained/dropped this glyph a
+ * few times already this project's life (plain-text-only, then this sparkle) — re-check the
+ * landing before assuming this is final. Sized in `em` off the surrounding text (not a fixed
+ * pixel size) so it scales automatically with `size` instead of needing its own per-size lookup.
+ * A one-off filled glyph, not part of the shared line-icon set in `shared/icons.tsx` — those are
+ * all `stroke`-based UI icons reused across many components; this is a single decorative mark
+ * used only here. */
+export function Wordmark({ size = "md", className = "" }: { size?: "sm" | "md" | "lg"; className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-[0.2em] font-display font-extrabold ${WORDMARK_SIZE[size]} text-ink ${className}`}>
+      <svg viewBox="0 0 24 24" fill="rgb(var(--star))" className="h-[0.6em] w-[0.6em] shrink-0" aria-hidden="true">
+        <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .962 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .962L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.962 0z" />
+      </svg>
+      Zorya
+    </span>
+  );
+}
+
+/** `rounded-card` (18px, tailwind.config.js) + `.card-shadow` (index.css) match the landing
+ * page's own `.card` rule exactly — the single reused card shape its whole design rests on. */
 export function Card({ className = "", children, ...rest }: { className?: string } & HTMLAttributes<HTMLDivElement>) {
   return (
-    <div {...rest} className={`rounded-2xl bg-surface border border-grid shadow-card p-4 md:p-5 ${className}`}>
+    <div {...rest} className={`rounded-card card-shadow bg-surface border border-grid p-4 md:p-5 ${className}`}>
       {children}
     </div>
   );
 }
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
+/** `eyebrow` reproduces the landing page's own section anatomy — a small uppercase mono kicker
+ * line sitting directly above the heading (`.section-head .eyebrow` there) — so every page's
+ * header echoes the same rhythm the landing introduces the product with. Optional: most pages
+ * don't need it, a few (Dashboard, Vacancies, Roadmap) use it to name the "what this screen is
+ * for" in one word, the way the landing names each pillar ("Track", "Decode", "Practice"). */
+export function PageHeader({
+  eyebrow,
+  title,
+  subtitle,
+  actions,
+}: {
+  eyebrow?: string;
+  title: string;
+  subtitle?: string;
+  actions?: ReactNode;
+}) {
   return (
     <div className="flex items-start gap-3 flex-wrap">
       <div className="min-w-0">
+        {eyebrow && <div className="eyebrow text-signal mb-1.5">{eyebrow}</div>}
         <h2 className="font-display text-2xl font-bold tracking-tight text-ink">{title}</h2>
         {subtitle && <p className="text-sm text-ink-dim mt-1 max-w-2xl">{subtitle}</p>}
       </div>
@@ -70,15 +141,44 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   );
 }
 
+/** A single-sentence callout with a bold accent rule down its left edge, in the display face —
+ * ported from the landing page's `.kicker` (the pull-quote-style line each section opens with,
+ * e.g. "Every posting is a signal."). Use for the one insight on a screen that deserves to read
+ * as a headline, not another card among cards — a bottleneck finding, a standout stat, a nudge. */
+export function Kicker({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <div
+      className={`border-l-[3px] border-signal pl-4 md:pl-5 font-display text-lg md:text-xl font-medium text-ink leading-snug ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** A small bordered square holding a bold mono number — the landing's CV-tools numbering
+ * (`.cv-item .mark`, "01"/"02"/...) for any ordered list of steps/tools/pillars that benefits from
+ * feeling counted rather than bulleted. `n` is 1-based; renders zero-padded to 2 digits. */
+export function NumberedMark({ n, className = "" }: { n: number; className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center shrink-0 w-8 h-8 rounded-md border border-grid font-mono font-bold text-xs text-signal ${className}`}
+    >
+      {String(n).padStart(2, "0")}
+    </span>
+  );
+}
+
 // Tone keys are kept as-is (many call sites across features pass tone="indigo"/"emerald"/"amber")
-// — only the underlying palette changed. "indigo" and "emerald" both resolve to the single new
-// "signal" accent (there's one green in the rebranded token system, not two), "amber" resolves
-// to "alert", "rose" (errors/destructive) is untouched.
+// — only the underlying palette changed. "indigo"/"emerald"/"amber" all resolve to the single
+// brand accent ("signal"/"alert" are the same value — see index.css's glossary, one accent not
+// two). "good" is the one genuinely distinct tone, for contexts that need a real third hue (e.g.
+// fit-tone.ts's "high fit" vs "medium fit") — "rose" (errors/destructive) is untouched.
 const CHIP_TONE = {
   slate: "bg-surface-2 text-ink-dim border-grid",
   indigo: "bg-signal/10 text-signal border-signal/30",
   emerald: "bg-signal/10 text-signal border-signal/30",
   amber: "bg-alert/10 text-alert border-alert/30",
+  good: "bg-good/10 text-good border-good/30",
   rose: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800",
 } as const;
 
@@ -97,15 +197,15 @@ export function ProgressBar({ value, max, tone = "indigo" }: { value: number; ma
   void tone;
   return (
     <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
-      <div className="h-full bg-signal rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+      <div className="h-full bg-star rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
     </div>
   );
 }
 
-export function EmptyState({ icon, title, hint, action }: { icon: string; title: string; hint?: string; action?: ReactNode }) {
+export function EmptyState({ icon, title, hint, action }: { icon?: string; title: string; hint?: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center text-center py-10 px-4">
-      <div className="text-4xl mb-3">{icon}</div>
+      {icon && <div className="text-4xl mb-3">{icon}</div>}
       <div className="font-semibold text-ink">{title}</div>
       {hint && <div className="text-sm text-ink-dim mt-1 max-w-md">{hint}</div>}
       {action && <div className="mt-4">{action}</div>}
@@ -131,7 +231,7 @@ export function Segmented<T extends string | number>({
         <button
           key={String(o.value)}
           onClick={() => onChange(o.value)}
-          className={`${pad} rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${value === o.value ? "bg-surface text-signal shadow-sm" : "text-ink-dim hover:text-ink"}`}
+          className={`${pad} rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${value === o.value ? "bg-surface text-signal" : "text-ink-dim hover:text-ink"}`}
         >
           {o.label}
         </button>
@@ -230,7 +330,7 @@ export function Section({
   const open = openProp ?? openState;
   const toggle = () => (onToggle ? onToggle(!open) : setOpenState((v) => !v));
   return (
-    <div className={bare ? "" : "rounded-xl border border-grid bg-surface overflow-hidden"}>
+    <div className={bare ? "" : "rounded-card card-shadow border border-grid bg-surface overflow-hidden"}>
       <button
         type="button"
         onClick={toggle}
@@ -245,29 +345,51 @@ export function Section({
         </span>
       </button>
       <Collapse open={open}>
-        <div className={`space-y-3 ${bare ? "pb-3 pt-1" : "px-3.5 pb-3.5 pt-1 border-t border-grid"}`}>{children}</div>
+        <div className={`space-y-3 ${bare ? "pb-3 pt-1" : "px-3.5 pb-3.5 pt-3 border-t border-grid"}`}>{children}</div>
       </Collapse>
     </div>
   );
 }
 
-const DROPDOWN_WIDTH = 220; // matches the panel's own min-w-[220px]
+const DEFAULT_DROPDOWN_WIDTH = 220; // matches the panel's own default min-w-[220px]
 
 /** A button that opens a panel below it — closes on outside click/Escape. Used to group several
  * related actions under one header button (e.g. "Import ▾") instead of a row of equal-weight
  * buttons. The panel is portaled (see shared/popover.tsx) so it isn't clipped when the button
- * lives inside a scrollable container (a table, the Kanban board's horizontal scroller, …). */
-export function Dropdown({ label, align = "left", children }: { label: ReactNode; align?: "left" | "right"; children: ReactNode }) {
+ * lives inside a scrollable container (a table, the Kanban board's horizontal scroller, …).
+ * `width` MUST match whatever the panel's own content actually renders at (default 220px, for
+ * the common case of a short list of menu items) — the positioning math below needs the real
+ * width to keep the panel on-screen; a panel that's actually wider than assumed (e.g. one holding
+ * a form with a textarea) would get positioned as if it were narrower and overflow the viewport,
+ * clipping its own content on the right. */
+export function Dropdown({
+  label,
+  align = "left",
+  width = DEFAULT_DROPDOWN_WIDTH,
+  children,
+}: {
+  label: ReactNode;
+  align?: "left" | "right";
+  width?: number;
+  children: ReactNode;
+}) {
   const { open, setOpen, anchorRef, panelRef, coords } = usePopover((rect) => {
-    const rawLeft = align === "right" ? rect.right - DROPDOWN_WIDTH : rect.left;
-    return { top: rect.bottom + 4, left: Math.min(Math.max(8, rawLeft), window.innerWidth - DROPDOWN_WIDTH - 8) };
+    const rawLeft = align === "right" ? rect.right - width : rect.left;
+    return { top: rect.bottom + 4, left: Math.min(Math.max(8, rawLeft), window.innerWidth - width - 8) };
   });
   return (
     <div ref={anchorRef} className="relative inline-block">
       <Btn size="sm" variant="ghost" onClick={() => setOpen(!open)} aria-expanded={open}>
         {label} <span className={`text-[10px] transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
       </Btn>
-      <PopoverPanel open={open} panelRef={panelRef} coords={coords} onClose={() => setOpen(false)} className="min-w-[220px] p-2 space-y-1">
+      <PopoverPanel
+        open={open}
+        panelRef={panelRef}
+        coords={coords}
+        onClose={() => setOpen(false)}
+        className="p-2 space-y-1"
+        style={{ width }}
+      >
         {children}
       </PopoverPanel>
     </div>

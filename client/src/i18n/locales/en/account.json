@@ -1,9 +1,20 @@
 {
+  "eyebrow": "Account",
   "title": "Account",
   "subtitle": "Export your data, or permanently delete your account.",
   "theme": {
     "heading": "Theme",
     "description": "Switch between a light and dark look."
+  },
+  "notifications": {
+    "heading": "Browser notifications",
+    "description": "A heads-up when a vacancy step goes overdue or is due today, and a warning a few minutes before a calendar event starts.",
+    "enableButton": "Enable notifications",
+    "disableButton": "Disable notifications",
+    "unsupported": "Notifications aren't supported in this browser.",
+    "enabledToast": "Notifications enabled",
+    "deniedToast": "Notification permission was not granted",
+    "disabledToast": "Notifications disabled"
   },
   "digest": {
     "heading": "Weekly email digest",
@@ -16,9 +27,16 @@
       "disabled": "Weekly digest disabled"
     }
   },
+  "telegram": {
+    "heading": "Telegram notifications",
+    "description": "Get job-alert and weekly-digest notifications in Telegram, in addition to email.",
+    "linkButton": "Link Telegram",
+    "linkedBadge": "Linked",
+    "unlinkButton": "Unlink"
+  },
   "export": {
     "heading": "Export your data",
-    "description": "Downloads a JSON file with your profile, vacancies, companies, and study progress — everything you've created in DevRadar.",
+    "description": "Downloads a JSON file with your profile, vacancies, companies, and study progress — everything you've created in Zorya.",
     "button": "Export my data"
   },
   "deleteAccount": {

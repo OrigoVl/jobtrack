@@ -113,3 +113,25 @@ export function digestHtml(content: DigestContent): string {
   }
   return parts.join("");
 }
+
+/** Plain-text rendering of the SAME DigestContent, for Telegram — its `parse_mode: "HTML"` only
+ * accepts a narrow tag subset (b/i/a/code/pre; none of the <ul>/<li>/<p> digestHtml() above
+ * uses), so this mirrors that function's structure/thresholds with newline-joined lines instead
+ * of markup, rather than reusing its HTML output. */
+export function digestText(content: DigestContent): string {
+  const parts: string[] = [];
+  if (content.staleApplications.length > 0) {
+    const lines = content.staleApplications.slice(0, MAX_ITEMS).map((v) => `• ${v.company} — ${v.position} (${v.daysWaiting}d waiting)`);
+    const more = content.staleApplications.length > MAX_ITEMS ? [`...and ${content.staleApplications.length - MAX_ITEMS} more.`] : [];
+    const heading = `${content.staleApplications.length} application${content.staleApplications.length === 1 ? "" : "s"} with no response in over ${STALE_APPLICATION_DAYS} days:`;
+    parts.push([heading, ...lines, ...more].join("\n"));
+  }
+  if (content.upcoming.length > 0) {
+    const lines = content.upcoming.slice(0, MAX_ITEMS).map((u) => `• ${u.date} — ${u.label}`);
+    parts.push([`Coming up in the next ${DIGEST_INTERVAL_DAYS} days:`, ...lines].join("\n"));
+  }
+  if (content.streak.current > 0) {
+    parts.push(`🔥 ${content.streak.current}-day study streak — keep it going!`);
+  }
+  return parts.join("\n\n");
+}

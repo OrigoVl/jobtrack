@@ -49,7 +49,7 @@ export function Login() {
         <GoogleButton />
       </form>
       <div className="mt-4 flex justify-between text-sm">
-        <Link to="/register" className="text-signal hover:underline">
+        <Link to="/register" className="text-ink-dim hover:text-signal hover:underline">
           {t("login.createAccount")}
         </Link>
         <Link to="/forgot-password" className="text-ink-dim hover:underline">

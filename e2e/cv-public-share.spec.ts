@@ -31,7 +31,7 @@ test("generates a public CV link, viewable without any session, and disables cle
   const publicContext = await context.browser()!.newContext();
   const publicPage = await publicContext.newPage();
   await publicPage.goto(`/cv/public/${share.slug}`);
-  await expect(publicPage.getByText("Built with DevRadar", { exact: false })).toBeVisible();
+  await expect(publicPage.getByText("Built with Zorya", { exact: false })).toBeVisible();
   await expect(publicPage.frameLocator("iframe[title='CV']").getByText("E2E Public CV Person")).toBeVisible();
   await publicContext.close();
 

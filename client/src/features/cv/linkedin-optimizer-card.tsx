@@ -4,7 +4,7 @@ import { useLinkedInOptimize } from "../../shared/queries";
 import { Btn, Card, Chip } from "../../shared/ui";
 import type { LinkedInOptimizeResult } from "../../shared/types";
 
-/** Copy-to-clipboard button — shows "✓ Copied" for 2s, same pattern as ShareLinkCard's copy button. */
+/** Copy-to-clipboard button — shows "Copied" for 2s, same pattern as ShareLinkCard's copy button. */
 function CopyButton({ text }: { text: string }) {
   const { t } = useTranslation(["cv", "common"]);
   const [copied, setCopied] = useState(false);

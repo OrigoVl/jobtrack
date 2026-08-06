@@ -94,13 +94,46 @@ export const apiLimiter = rateLimit({
   store: sharedStore("rl:api:"),
 });
 
+// An unauthenticated caller never actually reaches an AI route's handler (every one is wrapped
+// in authed(), which 401s first) — this only bounds the brief window where aiLimiter itself runs
+// before that check does, so it doesn't need to track any plan.
+const ANONYMOUS_AI_RATE_LIMIT = 10;
+// Free's own rate limit, kept as a plain constant here (not read from modules/billing/plans.ts)
+// so this file's only dependency on the billing module is the single LAZY import below — this
+// is the value returned when that import/lookup fails, matching the module's own default.
+const FREE_AI_RATE_LIMIT = 30;
+
+// `../modules/billing/entitlements.js` is imported LAZILY (dynamic import inside the function
+// below, not a static top-level one) for the exact reason http.ts's getSession() is: it
+// transitively imports billing.repo.ts's static `db/client.js`, which opens a real Postgres
+// pool (and runs migrate-on-boot) as an import-time side effect. A static import here would
+// force rate-limit.test.ts's `vi.resetModules()` + dynamic `import("./rate-limit.js")` to open a
+// real DB connection just to check that apiLimiter/aiLimiter are constructible.
+async function aiRateLimitForRequest(req: Request): Promise<number> {
+  const userId = await getSessionUserIdForRateLimit(req);
+  if (!userId) return ANONYMOUS_AI_RATE_LIMIT;
+  try {
+    const { getEntitlements } = await import("../modules/billing/entitlements.js");
+    return (await getEntitlements(userId)).aiRateLimit;
+  } catch (err) {
+    // Fail open to the Free default rather than let a billing-table hiccup break AI rate
+    // limiting entirely — same fail-open bias as llm/client.ts's plan-quota check.
+    contextLogger().error({ err, userId }, "Failed to resolve plan for AI rate limit — using the Free default");
+    return FREE_AI_RATE_LIMIT;
+  }
+}
+
 // A separate, stricter limit specifically for endpoints that call the LLM (OpenAI/Anthropic).
 // Each such request costs real money and a few seconds of provider latency, so the limit is
 // much lower than the general `apiLimiter` — so a frontend bug or script can't burn through
-// the paid quota in minutes.
+// the paid quota in minutes. The ceiling itself now varies by plan (Free stays at the original
+// hardcoded 30 — byte-identical to before when billing is unconfigured — Pro/Team get more
+// headroom); see aiRateLimitForRequest above. express-rate-limit compares the CURRENT count
+// against whatever `limit` returns on THIS request, so an upgrade takes effect on the very next
+// request with no cache to invalidate.
 export const aiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 30,
+  limit: aiRateLimitForRequest,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many AI requests. Wait a few minutes and try again.", code: "AI_RATE_LIMITED" },

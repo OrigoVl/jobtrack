@@ -66,7 +66,7 @@ export function runJs(code: string): Promise<RunResult> {
     const timeoutId = setTimeout(() => {
       finish({
         logs: [],
-        error: `⏱ Execution time limit exceeded (${EXECUTION_TIMEOUT_MS} ms) — possibly an infinite loop.`,
+        error: `Execution time limit exceeded (${EXECUTION_TIMEOUT_MS} ms) — possibly an infinite loop.`,
         ms: Math.round(performance.now() - start),
       });
     }, EXECUTION_TIMEOUT_MS);

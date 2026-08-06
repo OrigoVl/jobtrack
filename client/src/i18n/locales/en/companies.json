@@ -1,4 +1,5 @@
 {
+  "eyebrow": "Network",
   "title": "Companies",
   "subtitle": "Keep notes on companies and a bank of 'what they asked here' questions — so you can prep with focus.",
   "nameAriaLabel": "Company name",
@@ -14,5 +15,12 @@
   "questionsPlaceholder": "Questions they asked (one per line)…",
   "toasts": {
     "saved": "Saved"
+  },
+  "diagram": {
+    "show": "Show system diagram",
+    "hide": "Hide system diagram",
+    "showFor": "Show system diagram for {{name}}",
+    "hideFor": "Hide system diagram for {{name}}",
+    "save": "Save diagram"
   }
 }

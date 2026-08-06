@@ -64,6 +64,27 @@
       "when": 1785848208258,
       "tag": "0008_overrated_blade",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785970759338,
+      "tag": "0009_young_banshee",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785976411565,
+      "tag": "0010_red_red_wolf",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785978362242,
+      "tag": "0011_lean_tusk",
+      "breakpoints": true
     }
   ]
 }

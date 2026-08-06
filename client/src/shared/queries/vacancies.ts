@@ -78,7 +78,7 @@ export function useUpdateVacancy() {
       // unrelated edit to a vacancy that's already an Offer (e.g. tweaking its salary) doesn't
       // re-fire the confetti every time.
       if (variables.patch.status === "Offer" && prev?.status !== "Offer") {
-        fireCelebration("🎉", t("toasts.offerCelebration", { company: row.company }));
+        fireCelebration(t("toasts.offerCelebration", { company: row.company }));
       }
     },
     onError,
@@ -144,16 +144,32 @@ export function useImportVacanciesJson() {
   });
 }
 
-export function useFetchAllVacancies() {
-  const { toast } = useToast();
-  const { t } = useTranslation("vacancies");
+// Polled while a fetch-all job is running (server/src/modules/vacancies/fetch-all-job.ts) — the
+// batch re-analysis loop runs as a background job now (previously a single blocking request), so
+// progress is observed by polling GET /vacancies/fetch-all/status instead of awaiting the POST.
+// staleTime: 0 overrides the app-wide 5-minute default (App.tsx's QueryClient) so polling isn't
+// suppressed; refetchInterval's function form self-stops once the job leaves "running".
+export function useFetchAllJobStatus() {
+  return useQuery({
+    queryKey: queryKeys.fetchAllStatus,
+    queryFn: api.fetchAllStatus,
+    staleTime: 0,
+    refetchInterval: (query) => (query.state.data?.status === "running" ? 1500 : false),
+  });
+}
+
+// Just starts the job (POST returns immediately, see fetch-all-job.ts) — the completion toast/
+// cache-invalidation/notification live in FetchAllJobNotifier (mounted once at the app shell),
+// not here, since the job may finish long after this mutation itself has settled.
+export function useStartFetchAllJob() {
+  const qc = useQueryClient();
   const onError = useMutationErrorToast();
-  const invalidateAll = useInvalidateAll();
   return useMutation({
     mutationFn: () => api.fetchAllVacancies(),
-    onSuccess: async (res) => {
-      await invalidateAll();
-      toast(t("toasts.fetchAllProcessed", { count: res.processed }), "success");
+    onSuccess: (job) => {
+      // Seed the status query immediately so polling reflects "running" right away instead of
+      // waiting for the first interval tick.
+      qc.setQueryData(queryKeys.fetchAllStatus, job);
     },
     onError,
   });

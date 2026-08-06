@@ -1,6 +1,7 @@
 // Lightweight input DTO validation with no external dependencies (in the node:sqlite spirit — zero-deps).
 import net from "node:net";
 import { HttpError } from "../core/http.js";
+import { isTrack, type Track } from "./tracks.js";
 
 export const STATUSES = [
   "Want to apply",
@@ -22,6 +23,7 @@ export const ROADMAP_STATUSES = ["todo", "learning", "done"] as const;
 export type RoadmapStatus = (typeof ROADMAP_STATUSES)[number];
 
 const asString = (value: unknown, fallback = ""): string => (typeof value === "string" ? value : value == null ? fallback : String(value));
+const asNumber = (value: unknown, fallback = 0): number => (Number.isFinite(Number(value)) ? Number(value) : fallback);
 
 function toStringArray(value: unknown, field: string): string[] {
   if (value == null) return [];
@@ -166,6 +168,7 @@ export interface ProfileInput {
   skills: string[];
   cvText: string;
   domain?: string;
+  track?: Track;
 }
 
 export function parseProfileInput(body: unknown): ProfileInput {
@@ -173,7 +176,64 @@ export function parseProfileInput(body: unknown): ProfileInput {
   const has = (key: string) => Object.prototype.hasOwnProperty.call(b, key);
   const out: ProfileInput = { skills: toStringArray(b.skills, "skills"), cvText: asString(b.cvText).slice(0, 20000) };
   if (has("domain")) out.domain = asString(b.domain).trim().slice(0, 80);
+  // An empty/invalid track clears the override (falls back to auto-detection), rather than
+  // throwing — this field is a convenience selector, not a value with a "wrong" input to reject.
+  if (has("track")) {
+    const track = asString(b.track).trim();
+    out.track = isTrack(track) ? track : undefined;
+  }
   return out;
+}
+
+export interface SkillLevelInput {
+  tech: string;
+  /** null clears a manual override, going back to the computed level. */
+  level: number | null;
+}
+
+/** PUT /roadmap/level body. `level` null/empty/absent clears the override. */
+export function parseSkillLevelInput(body: unknown): SkillLevelInput {
+  const b = (body || {}) as Record<string, unknown>;
+  const tech = asString(b.tech).trim().slice(0, 80);
+  if (!tech) throw new HttpError(400, "No skill specified");
+  if (b.level == null || b.level === "") return { tech, level: null };
+  const n = Number(b.level);
+  if (!Number.isInteger(n) || n < 0 || n > 100) throw new HttpError(400, 'Field "level" must be an integer between 0 and 100');
+  return { tech, level: n };
+}
+
+// Shared by parseInterviewTurnInput and parseDesignTaskInput — both accept an optional vacancy to
+// scope generation to (0/null/absent means "general").
+function parseOptionalVacancyId(value: unknown): number | null {
+  if (value == null || value === 0) return null;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, 'Field "vacancyId" must be a positive integer');
+  return n;
+}
+
+export interface InterviewTurnInput {
+  vacancyId: number | null;
+  transcript: { q: string; a: string }[];
+  maxTurns: number;
+}
+
+/** POST /mock/interview body — see mock-interview.service.ts. `transcript` is the whole
+ * conversation so far (this endpoint is stateless), capped defensively since its length directly
+ * gates how many chatJson calls a single request can trigger downstream. */
+export function parseInterviewTurnInput(body: unknown): InterviewTurnInput {
+  const b = (body || {}) as Record<string, unknown>;
+  const vacancyId = parseOptionalVacancyId(b.vacancyId);
+  if (b.transcript != null && !Array.isArray(b.transcript)) throw new HttpError(400, 'Field "transcript" must be an array');
+  const transcript = ((b.transcript as unknown[]) || []).slice(0, 10).map((item, i) => {
+    const it = (item || {}) as Record<string, unknown>;
+    if (typeof it.q !== "string" || typeof it.a !== "string")
+      throw new HttpError(400, `Transcript entry ${i} must have string "q" and "a"`);
+    return { q: it.q.trim().slice(0, 600), a: it.a.trim().slice(0, 2000) };
+  });
+  // Clamped here AND again in mock-interview.service.ts (belt and suspenders) — this value gates
+  // how many chatJson calls a single request can trigger, so it's never trusted from just one layer.
+  const maxTurns = Math.max(3, Math.min(10, Number(b.maxTurns) || 6));
+  return { vacancyId, transcript, maxTurns };
 }
 
 export interface CompanyInput {
@@ -245,6 +305,27 @@ export interface DigestPreferencesInput {
 export function parseDigestPreferencesInput(body: unknown): DigestPreferencesInput {
   const b = (body || {}) as Record<string, unknown>;
   return { enabled: b.enabled === true };
+}
+
+// Only a plan NAME, checked against a hardcoded whitelist — the Stripe price id itself is
+// resolved server-side from env (modules/billing/plans.ts), never accepted from the client. A
+// checkout request must never be able to supply its own priceId/amount/quantity/coupon: this is
+// the one input-validation function in this file whose job is partly security (plan escalation),
+// not just shape-checking.
+export const CHECKOUT_PLANS = ["pro"] as const;
+export type CheckoutPlan = (typeof CHECKOUT_PLANS)[number];
+
+export interface CheckoutInput {
+  plan: CheckoutPlan;
+}
+
+export function parseCheckoutInput(body: unknown): CheckoutInput {
+  const b = (body || {}) as Record<string, unknown>;
+  const plan = b.plan;
+  if (typeof plan !== "string" || !CHECKOUT_PLANS.includes(plan as CheckoutPlan)) {
+    throw new HttpError(400, `Invalid plan: "${String(plan)}"`, null, "UNKNOWN_PLAN");
+  }
+  return { plan: plan as CheckoutPlan };
 }
 
 export const JOB_SEARCH_REGIONS = ["all", "ua", "remote"] as const;
@@ -326,6 +407,194 @@ export function parseCalendarEventInput(body: unknown, { partial = false }: { pa
     }
   }
   return out;
+}
+
+const DESIGN_NODE_KINDS = [
+  "client",
+  "loadBalancer",
+  "service",
+  "database",
+  "cache",
+  "queue",
+  "cdn",
+  "storage",
+  "thirdParty",
+  "generic",
+] as const;
+type DesignNodeKind = (typeof DESIGN_NODE_KINDS)[number];
+// Bounds how large a diagram (and therefore how big a grade/help prompt) a single request can
+// produce — clamped here AND again by design.service.ts's own callers, same "belt and suspenders"
+// as parseInterviewTurnInput's maxTurns above.
+const MAX_DESIGN_NODES = 40;
+const MAX_DESIGN_EDGES = 80;
+// Freeform pen/shape/arrow/text annotations (see design.service.ts's DesignAnnotation comment for
+// why these never reach the grading prompt) — capped the same "belt and suspenders" way as the
+// node/edge counts above, plus their own point-count cap since a single pen stroke can otherwise
+// carry an unbounded number of points.
+const MAX_DESIGN_ANNOTATIONS = 60;
+const MAX_FREEHAND_POINTS = 500;
+const DESIGN_ANNOTATION_KINDS = ["freehand", "rectangle", "ellipse", "arrow", "text"] as const;
+type DesignAnnotationKind = (typeof DESIGN_ANNOTATION_KINDS)[number];
+const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i;
+const DEFAULT_ANNOTATION_COLOR = "#4338ca";
+
+export interface DesignGenerateTaskInput {
+  vacancyId: number | null;
+}
+
+/** POST /design/task body — an optional vacancy to bias the generated task toward (see
+ * design.service.ts's buildVacancyDesignContext). Absent/0 means a general task. */
+export function parseDesignGenerateTaskInput(body: unknown): DesignGenerateTaskInput {
+  const b = (body || {}) as Record<string, unknown>;
+  return { vacancyId: parseOptionalVacancyId(b.vacancyId) };
+}
+
+export interface DesignTaskInput {
+  title: string;
+  scenario: string;
+  requirements: string[];
+  constraints: string[];
+  difficulty: "easy" | "medium" | "hard";
+}
+
+// The client resends the whole task it was given (POST /design/grade and /design/help are
+// stateless, like /mock/interview) — re-validated/clamped here rather than trusted, since it
+// flows straight into an LLM prompt.
+function parseDesignTask(raw: unknown): DesignTaskInput {
+  const b = (raw || {}) as Record<string, unknown>;
+  const difficulty = asString(b.difficulty, "medium");
+  return {
+    title: asString(b.title).trim().slice(0, 200),
+    scenario: asString(b.scenario).slice(0, 2000),
+    requirements: toStringArray(b.requirements, "requirements").slice(0, 20),
+    constraints: toStringArray(b.constraints, "constraints").slice(0, 20),
+    difficulty: (["easy", "medium", "hard"].includes(difficulty) ? difficulty : "medium") as DesignTaskInput["difficulty"],
+  };
+}
+
+export type DesignAnnotationInput =
+  | { id: string; kind: "freehand"; color: string; points: { x: number; y: number }[] }
+  | { id: string; kind: "rectangle" | "ellipse"; color: string; x: number; y: number; width: number; height: number }
+  | { id: string; kind: "arrow"; color: string; x1: number; y1: number; x2: number; y2: number }
+  | { id: string; kind: "text"; color: string; x: number; y: number; text: string };
+
+function parseDesignAnnotation(item: unknown, i: number): DesignAnnotationInput | null {
+  const it = (item || {}) as Record<string, unknown>;
+  const id = asString(it.id).trim().slice(0, 100) || `annotation-${i}`;
+  const rawKind = asString(it.kind);
+  if (!DESIGN_ANNOTATION_KINDS.includes(rawKind as DesignAnnotationKind)) return null;
+  const kind = rawKind as DesignAnnotationKind;
+  const rawColor = asString(it.color);
+  const color = HEX_COLOR_RE.test(rawColor) ? rawColor : DEFAULT_ANNOTATION_COLOR;
+  switch (kind) {
+    case "freehand": {
+      const rawPoints = Array.isArray(it.points) ? it.points : [];
+      const points = rawPoints
+        .slice(0, MAX_FREEHAND_POINTS)
+        .map((p) => ({ x: asNumber((p as Record<string, unknown>)?.x), y: asNumber((p as Record<string, unknown>)?.y) }));
+      return points.length < 2 ? null : { id, kind: "freehand", color, points };
+    }
+    case "rectangle":
+    case "ellipse":
+      return { id, kind, color, x: asNumber(it.x), y: asNumber(it.y), width: asNumber(it.width), height: asNumber(it.height) };
+    case "arrow":
+      return { id, kind: "arrow", color, x1: asNumber(it.x1), y1: asNumber(it.y1), x2: asNumber(it.x2), y2: asNumber(it.y2) };
+    case "text":
+      return { id, kind: "text", color, x: asNumber(it.x), y: asNumber(it.y), text: asString(it.text).slice(0, 500) };
+  }
+}
+
+export interface DesignDiagramInput {
+  nodes: { id: string; kind: DesignNodeKind; label: string; x: number; y: number }[];
+  edges: { id: string; source: string; target: string; label?: string }[];
+  annotations: DesignAnnotationInput[];
+}
+
+/** Also reused directly by companies.routes.ts's PUT /companies/:id/diagram — same shape, same
+ * size caps, whether the diagram is part of a grading request or saved standalone on a company. */
+export function parseDesignDiagramInput(raw: unknown): DesignDiagramInput {
+  const b = (raw || {}) as Record<string, unknown>;
+  if (b.nodes != null && !Array.isArray(b.nodes)) throw new HttpError(400, 'Field "nodes" must be an array');
+  if (b.edges != null && !Array.isArray(b.edges)) throw new HttpError(400, 'Field "edges" must be an array');
+  if (b.annotations != null && !Array.isArray(b.annotations)) throw new HttpError(400, 'Field "annotations" must be an array');
+  const nodes = ((b.nodes as unknown[]) || []).slice(0, MAX_DESIGN_NODES).map((item, i) => {
+    const it = (item || {}) as Record<string, unknown>;
+    const id = asString(it.id).trim().slice(0, 100);
+    if (!id) throw new HttpError(400, `Node ${i} is missing an id`);
+    const kind = asString(it.kind, "generic");
+    return {
+      id,
+      kind: (DESIGN_NODE_KINDS.includes(kind as DesignNodeKind) ? kind : "generic") as DesignNodeKind,
+      label: asString(it.label).trim().slice(0, 80),
+      x: asNumber(it.x),
+      y: asNumber(it.y),
+    };
+  });
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  const edges = ((b.edges as unknown[]) || []).slice(0, MAX_DESIGN_EDGES).map((item, i) => {
+    const it = (item || {}) as Record<string, unknown>;
+    const id = asString(it.id).trim().slice(0, 100) || `edge-${i}`;
+    const source = asString(it.source).trim();
+    const target = asString(it.target).trim();
+    if (!nodeIds.has(source) || !nodeIds.has(target)) throw new HttpError(400, `Edge ${i} references an unknown node`);
+    const label = asString(it.label).trim().slice(0, 60);
+    return label ? { id, source, target, label } : { id, source, target };
+  });
+  const annotations = ((b.annotations as unknown[]) || [])
+    .slice(0, MAX_DESIGN_ANNOTATIONS)
+    .map((item, i) => parseDesignAnnotation(item, i))
+    .filter((a): a is DesignAnnotationInput => a != null);
+  return { nodes, edges, annotations };
+}
+
+export interface DesignGradeInput {
+  task: DesignTaskInput;
+  diagram: DesignDiagramInput;
+}
+
+/** POST /design/grade body — see design.service.ts's gradeDesign(). */
+export function parseDesignGradeInput(body: unknown): DesignGradeInput {
+  const b = (body || {}) as Record<string, unknown>;
+  return { task: parseDesignTask(b.task), diagram: parseDesignDiagramInput(b.diagram) };
+}
+
+export interface DesignHelpInput {
+  task: DesignTaskInput;
+  diagram: DesignDiagramInput;
+  question: string;
+}
+
+/** POST /design/help body — see design.service.ts's helpWithDesign(). */
+export function parseDesignHelpInput(body: unknown): DesignHelpInput {
+  const b = (body || {}) as Record<string, unknown>;
+  const question = asString(b.question).trim().slice(0, 500);
+  if (!question) throw new HttpError(400, 'Field "question" is required');
+  return { task: parseDesignTask(b.task), diagram: parseDesignDiagramInput(b.diagram), question };
+}
+
+export interface DesignDefenseInput {
+  task: DesignTaskInput;
+  diagram: DesignDiagramInput;
+  transcript: { q: string; a: string }[];
+  maxTurns: number;
+}
+
+/** POST /design/defense body — see design.service.ts's runDefenseTurn(). Stateless, like
+ * /mock/interview: `transcript` is the whole discussion so far, capped defensively since its
+ * length directly gates how many chatJson calls a single request can trigger downstream. */
+export function parseDesignDefenseInput(body: unknown): DesignDefenseInput {
+  const b = (body || {}) as Record<string, unknown>;
+  if (b.transcript != null && !Array.isArray(b.transcript)) throw new HttpError(400, 'Field "transcript" must be an array');
+  const transcript = ((b.transcript as unknown[]) || []).slice(0, 10).map((item, i) => {
+    const it = (item || {}) as Record<string, unknown>;
+    if (typeof it.q !== "string" || typeof it.a !== "string")
+      throw new HttpError(400, `Transcript entry ${i} must have string "q" and "a"`);
+    return { q: it.q.trim().slice(0, 600), a: it.a.trim().slice(0, 2000) };
+  });
+  // Clamped here AND again in design.service.ts (belt and suspenders), same reasoning as
+  // parseInterviewTurnInput's maxTurns above — this value gates chatJson call count.
+  const maxTurns = Math.max(2, Math.min(4, Number(b.maxTurns) || 3));
+  return { task: parseDesignTask(b.task), diagram: parseDesignDiagramInput(b.diagram), transcript, maxTurns };
 }
 
 export function parseText(body: unknown, field = "text", { min = 1, max = 20000 }: { min?: number; max?: number } = {}): string {

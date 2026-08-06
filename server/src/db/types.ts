@@ -1,11 +1,15 @@
 // Domain row shapes. Postgres jsonb columns (stack/questions/v) come back from Drizzle already
 // parsed into their native JS type — unlike the old SQLite TEXT-as-JSON columns, nothing here
 // needs a JSON.parse() step at the call site.
+import type { Track } from "../shared/tracks.js";
 
 export interface Profile {
   skills: string[];
   cvText: string;
   domain?: string;
+  /** Explicit content-track override — when unset, effectiveTrack() (shared/tracks.ts)
+   * auto-detects from domain/cvText instead. */
+  track?: Track;
 }
 
 export interface VacancyRow {

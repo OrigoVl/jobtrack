@@ -1,5 +1,6 @@
 {
   "page": {
+    "eyebrow": "Admin",
     "title": "Admin",
     "subtitle": "Users & activity, LLM cost, and product analytics — aggregates only, no CV text or per-user search history."
   },
@@ -8,6 +9,7 @@
     "users": "Users",
     "llm": "LLM cost",
     "product": "Product",
+    "billing": "Billing",
     "logs": "Logs & errors"
   },
   "dayRange": {
@@ -31,6 +33,9 @@
       "joined": "Joined",
       "vacancies": "Vacancies",
       "llmCallsRecent": "LLM calls (recent)",
+      "plan": "Plan",
+      "costRecent": "Cost (recent)",
+      "blockedRecent": "Blocked (recent)",
       "bannedBadge": "banned",
       "actions": "Actions"
     },
@@ -51,7 +56,18 @@
     "totalCostHint": "estimated — see llm/pricing.ts",
     "totalCallsLabel": "Total calls ({{days}}d)",
     "costByFeature": "Cost by feature",
-    "costByDay": "Cost by day"
+    "costByDay": "Cost by day",
+    "costByModel": "Cost by model",
+    "costByTier": "Cost by tier",
+    "costByOutcome": "Calls by outcome",
+    "cachedLabel": "cached",
+    "outcomeLabels": {
+      "success": "Success",
+      "error": "Error",
+      "cache_hit": "Cache hit",
+      "budget_exceeded": "Daily cost cap hit",
+      "quota_exceeded": "Free plan quota hit"
+    }
   },
   "product": {
     "empty": {
@@ -61,6 +77,14 @@
     "eventsByType": "Events by type",
     "searchesByDay": "Job searches by day",
     "topSearchQueries": "Top search queries"
+  },
+  "billing": {
+    "notConfigured": "Billing isn't configured on this deployment.",
+    "planMix": "Plan mix",
+    "estimatedMrr": "Estimated MRR ({{days}}d)",
+    "estimatedMrrHint": "count of active paid subscriptions × the current Pro price — a display estimate, not reconciled against Stripe",
+    "quotaExceeded": "Free quota hit ({{days}}d)",
+    "budgetExceeded": "Daily cost cap hit ({{days}}d)"
   },
   "logs": {
     "empty": {

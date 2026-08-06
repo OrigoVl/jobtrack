@@ -4,12 +4,14 @@ import type { TFunction } from "i18next";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useToast } from "../../shared/use-toast";
-import { useApplyCvUpload, useProfile, useSaveProfile, useVacancies } from "../../shared/queries";
-import { Btn, Card, Chip, PageHeader, Segmented, Spinner } from "../../shared/ui";
+import { useApplyCvUpload, useCvProfiles, useProfile, useSaveProfile, useVacancies } from "../../shared/queries";
+import { Btn, Card, Chip, PageHeader, Segmented, Select, Spinner } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
 import type { CvAnalysis, CvMatch, CvReview, Vacancy } from "../../shared/types";
 import { Field, SkillsInput } from "../../shared/view-kit";
 import { LinkedInOptimizerCard } from "./linkedin-optimizer-card";
+import { TRACKS, type Track } from "../../shared/tracks";
+import { trackLabel } from "../../shared/track-labels";
 
 /** Composes vacancy text from fields already saved in the tracker (position/company/level/stack/notes) —
  * the same data set already shown in the vacancy table, assembled into one block for the LLM prompt. */
@@ -59,7 +61,7 @@ export function CvReviewPanel({
   onApplyRewrite?: (before: string, after: string) => void;
 }) {
   const { t } = useTranslation(["cv", "common"]);
-  const tone = review.score == null ? "bg-ink-dim" : review.score >= 75 ? "bg-signal" : review.score >= 50 ? "bg-alert" : "bg-rose-500";
+  const tone = review.score == null ? "bg-ink-dim" : review.score >= 75 ? "bg-good" : review.score >= 50 ? "bg-star" : "bg-rose-500";
   return (
     <Card className="space-y-3">
       <div className="flex items-center gap-2">
@@ -80,7 +82,7 @@ export function CvReviewPanel({
       {review.summary && <Markdown text={review.summary} className="text-sm text-ink-dim space-y-2" />}
       {review.strengths.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-signal mb-1">{t("reports.review.strengths")}</div>
+          <div className="text-xs font-semibold text-ink mb-1">{t("reports.review.strengths")}</div>
           <ul className="list-disc pl-5 text-sm text-ink space-y-0.5">
             {review.strengths.map((s, i) => (
               <li key={i}>{s}</li>
@@ -156,7 +158,7 @@ export function CvMatchPanel({
   onApplySummary?: (s: string) => void;
 }) {
   const { t } = useTranslation(["cv", "common"]);
-  const tone = match.score >= 75 ? "bg-signal" : match.score >= 50 ? "bg-alert" : "bg-rose-500";
+  const tone = match.score >= 75 ? "bg-good" : match.score >= 50 ? "bg-star" : "bg-rose-500";
   return (
     <Card className="space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
@@ -178,7 +180,7 @@ export function CvMatchPanel({
       {match.verdict && <Markdown text={match.verdict} className="text-sm text-ink-dim space-y-2" />}
       {match.matched.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-signal mb-1">{t("reports.match.covered")}</div>
+          <div className="text-xs font-semibold text-ink mb-1">{t("reports.match.covered")}</div>
           <div className="flex flex-wrap gap-1.5">
             {match.matched.map((k) => (
               <Chip key={k} tone="emerald">
@@ -225,7 +227,7 @@ export function CvMatchPanel({
       )}
       {match.tailoredSummary && (
         <div className="rounded-lg border border-signal/30 bg-signal/10/50 p-2.5 space-y-1.5">
-          <div className="text-xs font-semibold text-signal">{t("reports.match.summaryForVacancy")}</div>
+          <div className="text-xs font-semibold text-ink">{t("reports.match.summaryForVacancy")}</div>
           <Markdown text={match.tailoredSummary} className="text-sm text-ink space-y-2" />
           {onApplySummary && (
             <Btn size="sm" onClick={() => onApplySummary(match.tailoredSummary)}>
@@ -243,8 +245,13 @@ export function CVView({ llm }: { llm: boolean }) {
   const { data: vacancies = [] } = useVacancies();
   const saveProfileMutation = useSaveProfile();
   const applyCvUpload = useApplyCvUpload();
+  // Uploading here parses into the structured CV Builder doc as a side effect (r.cvDoc below) —
+  // this page predates CV Builder's multiple profiles, so it always targets the first (default)
+  // one, same as the Dashboard's read-only ResumeCompleteness card.
+  const { data: cvProfiles } = useCvProfiles();
+  const defaultCvProfileId = cvProfiles?.[0]?.id;
   const { toast } = useToast();
-  const [draft, setDraft] = useUi<{ cvText: string; skills: string[]; domain?: string } | null>("cv.draft", null);
+  const [draft, setDraft] = useUi<{ cvText: string; skills: string[]; domain?: string; track?: Track } | null>("cv.draft", null);
   const [analysis, setAnalysis] = useUi<CvAnalysis | null>("cv.analysis", null);
   const [review, setReview] = useUi<CvReview | null>("cv.review", null);
   const [skillsOut, setSkillsOut] = useUi("cv.skillsOut", "");
@@ -282,7 +289,9 @@ export function CVView({ llm }: { llm: boolean }) {
   const cvText = draft?.cvText ?? profile?.cvText ?? "";
   const skills = draft?.skills ?? profile?.skills ?? [];
   const domain = draft?.domain ?? profile?.domain ?? "";
-  const patch = (p: Partial<{ cvText: string; skills: string[]; domain: string }>) => setDraft({ cvText, skills, domain, ...p });
+  const track = draft?.track ?? profile?.track;
+  const patch = (p: Partial<{ cvText: string; skills: string[]; domain: string; track: Track | undefined }>) =>
+    setDraft({ cvText, skills, domain, track, ...p });
   const analyze = async () => {
     setBusyAnalysis(true);
     try {
@@ -319,10 +328,10 @@ export function CVView({ llm }: { llm: boolean }) {
   };
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (!f) return;
+    if (!f || !defaultCvProfileId) return;
     setBusy("upload");
     try {
-      const r = await api.uploadCV(f);
+      const r = await api.uploadCV(defaultCvProfileId, f);
       setDraft({ cvText: r.text, skills: r.skills });
       setAnalysis(r);
       await applyCvUpload(r);
@@ -337,6 +346,7 @@ export function CVView({ llm }: { llm: boolean }) {
   return (
     <div className="space-y-4">
       <PageHeader
+        eyebrow={t("cvPage.eyebrow")}
         title={t("cvPage.title")}
         subtitle={llm ? t("cvPage.subtitleLlm") : t("cvPage.subtitleOffline")}
         actions={
@@ -344,7 +354,7 @@ export function CVView({ llm }: { llm: boolean }) {
             <Btn variant="ghost" onClick={() => exportPdf(t("preview.iframeTitle"), cvText)} disabled={!cvText.trim()}>
               {t("cvPage.exportPdf")}
             </Btn>
-            <Btn loading={saveProfileMutation.isPending} onClick={() => saveProfileMutation.mutate({ skills, cvText, domain })}>
+            <Btn loading={saveProfileMutation.isPending} onClick={() => saveProfileMutation.mutate({ skills, cvText, domain, track })}>
               {t("shared.saveButton")}
             </Btn>
           </>
@@ -354,7 +364,7 @@ export function CVView({ llm }: { llm: boolean }) {
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold text-ink-dim">{t("cvPage.uploadLabel")}</span>
           <label
-            className={`inline-flex items-center gap-1.5 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer transition-colors ${busy === "upload" ? "bg-signal/40 text-white" : "bg-signal text-white hover:opacity-90"}`}
+            className={`inline-flex items-center gap-1.5 rounded-lg font-semibold px-3 py-1.5 text-xs cursor-pointer transition-colors ${busy === "upload" ? "bg-star/40 text-on-signal" : "bg-star text-on-signal hover:opacity-90"}`}
           >
             {busy === "upload" ? (
               <>
@@ -363,7 +373,13 @@ export function CVView({ llm }: { llm: boolean }) {
             ) : (
               t("cvPage.uploadCvLabel")
             )}
-            <input type="file" accept=".pdf,.docx,.txt" onChange={onFile} className="hidden" disabled={busy === "upload"} />
+            <input
+              type="file"
+              accept=".pdf,.docx,.txt"
+              onChange={onFile}
+              className="hidden"
+              disabled={busy === "upload" || !defaultCvProfileId}
+            />
           </label>
           <span className="mx-1 h-5 w-px bg-grid" aria-hidden />
           <span className="text-xs font-semibold text-ink-dim">{t("cvPage.aiAnalysisLabel")}</span>
@@ -389,6 +405,21 @@ export function CVView({ llm }: { llm: boolean }) {
           placeholder={t("cvPage.domainPlaceholder")}
           maxLength={120}
         />
+        <label className="block">
+          <span className="text-xs font-semibold text-ink-dim">{t("cvPage.trackLabel")}</span>
+          <Select
+            value={track ?? ""}
+            onChange={(e) => patch({ track: e.target.value ? (e.target.value as Track) : undefined })}
+            className="w-full mt-0.5"
+          >
+            <option value="">{t("common:tracks.auto")}</option>
+            {TRACKS.map((tr) => (
+              <option key={tr} value={tr}>
+                {trackLabel(tr)}
+              </option>
+            ))}
+          </Select>
+        </label>
         <label className="block">
           <span className="text-xs font-semibold text-ink-dim">{t("cvPage.cvTextLabel")}</span>
           <textarea
@@ -462,11 +493,11 @@ export function CVView({ llm }: { llm: boolean }) {
         <Card className="space-y-2">
           <div className="text-sm font-semibold text-ink">{t("cvPage.coverLetterTitle")}</div>
           {vacancies.length > 0 && (
-            <select
+            <Select
               value={coverVacId}
               onChange={(e) => pickCoverVacancy(Number(e.target.value))}
               aria-label={t("cvPage.coverVacancyAria")}
-              className="w-full bg-surface-2 border border-grid rounded-lg p-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-signal/50"
+              className="w-full"
             >
               <option value={0}>{t("cvPage.selectVacancyFromTracker")}</option>
               {vacancies.map((v) => (
@@ -475,7 +506,7 @@ export function CVView({ llm }: { llm: boolean }) {
                   {v.company ? ` — ${v.company}` : ""}
                 </option>
               ))}
-            </select>
+            </Select>
           )}
           <div className="flex gap-1.5">
             <input

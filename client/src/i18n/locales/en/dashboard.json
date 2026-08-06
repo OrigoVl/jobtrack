@@ -1,8 +1,9 @@
 {
+  "eyebrow": "Today's signal",
   "title": "Dashboard",
   "subtitle": "Your job-search HQ: vacancy progress, upcoming steps, and quick access to everything.",
   "onboarding": {
-    "heading": "👋 Get set up",
+    "heading": "Get set up",
     "progress": "{{done}}/{{total}} steps done",
     "steps": {
       "vacancy": "Add your first vacancy",
@@ -23,38 +24,58 @@
     "active": "Active",
     "inInterviews": "In interviews",
     "cardsLearned": "Cards learned",
-    "streak": "Day streak"
+    "streak": "Day streak",
+    "dueToday_one": "{{count}} due today",
+    "dueToday_other": "{{count}} due today",
+    "streakRecord_one": "record: {{count}} day",
+    "streakRecord_other": "record: {{count}} days"
+  },
+  "designReminder": {
+    "heading": "System-design interview coming up",
+    "message_one": "In {{count}} day — worth a practice round in the Architecture trainer.",
+    "message_other": "In {{count}} days — worth a practice round in the Architecture trainer.",
+    "cta": "Practice now"
+  },
+  "bottleneck": {
+    "text": "Longest stuck stage: \"{{status}}\" — {{days}} days on average"
   },
   "focusWeek": {
-    "heading": "🎯 Focus of the week",
-    "analyzing": "✨ Analyzing your search status…",
+    "heading": "Focus of the week",
+    "analyzing": "Analyzing your search status…",
     "empty": "Add a few vacancies — and personalized priorities for the week will show up here.",
     "offline": "Basic tips (AI offline). Set a key in server/.env for personalized analysis."
   },
   "roadmapProgress": {
-    "heading": "🗺️ Roadmap progress",
+    "heading": "Roadmap progress",
     "open": "Open →",
     "skillsKnown": "{{done}} of {{total}} skills marked as known",
-    "topGap": "top-priority gap: {{tech}}"
+    "learning_one": "{{count}} in progress",
+    "learning_other": "{{count}} in progress",
+    "topGap": "top-priority gap: {{tech}}",
+    "strengths": "Strong in: {{techs}}"
   },
   "upcomingSteps": {
-    "heading": "📅 Upcoming steps",
-    "disableReminders": "Disable reminders",
-    "remindersEnabled": "🔔 Reminders enabled (turn off)",
-    "enableReminders": "🔔 Enable reminders",
-    "empty": "Nothing scheduled — add a \"next step\" date on your vacancies."
+    "heading": "Upcoming steps",
+    "empty": "Nothing scheduled — add a \"next step\" date on your vacancies.",
+    "emptyCta": "Add a date to a vacancy →",
+    "eventsHeading": "Upcoming events"
   },
-  "quickActions": {
-    "heading": "⚡ Quick actions",
-    "vacancyAnalysis": "🔍 Vacancy analysis",
-    "roadmap": "🗺️ Roadmap",
-    "review": "🧠 Review",
-    "cvAnalysis": "📄 CV analysis",
-    "cardsDueToday": "Cards due for review today:"
+  "skillRadar": {
+    "heading": "Skill radar",
+    "open": "Open →",
+    "caption": "Demand vs your level (0–100)"
   },
-  "notifications": {
-    "enabledToast": "Reminders enabled — we'll check for overdue steps next time you open the app",
-    "deniedToast": "Notification permission was not granted",
-    "disabledToast": "Reminders disabled"
+  "progressNext": {
+    "heading": "Progress & next steps"
+  },
+  "cvCompleteness": {
+    "heading": "Resume completeness",
+    "open": "Open →"
+  },
+  "staleContacts": {
+    "heading": "Reach out again",
+    "open": "Open →",
+    "daysSince_one": "{{count}} day ago",
+    "daysSince_other": "{{count}} days ago"
   }
 }

@@ -13,6 +13,9 @@ export interface Project {
   tech: string[];
   goal: string;
   dod: ProjectDodItem[];
+  /** True for an AI-generated idea tailored to this candidate's own gaps (projects.service.ts) —
+   * omitted (falsy) on this file's static ladder, used as an offline/no-gaps fallback. */
+  personalized?: boolean;
 }
 
 export const PROJECTS: Project[] = [

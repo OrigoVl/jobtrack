@@ -105,11 +105,26 @@ describe("detectDomain()", () => {
 
   const CV_TEXT = "Five years of experience building web applications with React, Node.js, and PostgreSQL.";
 
-  it("offline: returns an empty string, never calls chatJson()", async () => {
+  it("offline: guesses a coarse domain from CV text (regex-only), never calls chatJson()", async () => {
     vi.mocked(llmAvailable).mockReturnValue(false);
 
-    expect(await detectDomain(BOOTSTRAP_USER_ID, CV_TEXT)).toBe("");
+    // CV_TEXT mentions both React (Frontend) and Node.js/PostgreSQL (Backend) tech-dict cats.
+    expect(await detectDomain(BOOTSTRAP_USER_ID, CV_TEXT)).toBe("Full-Stack Developer");
     expect(chatJson).not.toHaveBeenCalled();
+  });
+
+  it("offline: resolves a non-software track from an explicit keyword signal", async () => {
+    vi.mocked(llmAvailable).mockReturnValue(false);
+
+    expect(await detectDomain(BOOTSTRAP_USER_ID, "5 years as a QA Automation Engineer testing web apps.")).toBe("QA Engineer");
+  });
+
+  it("offline: falls back to a plain 'Software Developer' label with no recognizable tech", async () => {
+    vi.mocked(llmAvailable).mockReturnValue(false);
+
+    expect(await detectDomain(BOOTSTRAP_USER_ID, "Five years of experience leading engineering teams and shipping products.")).toBe(
+      "Software Developer",
+    );
   });
 
   it("short text (<30 chars): returns an empty string without calling the LLM", async () => {

@@ -6,11 +6,17 @@ import { contextLogger } from "../core/logger.js";
 import { hashString } from "../shared/hash.js";
 import { env } from "../config/env.js";
 import { insertLlmUsage, getUserCostUsdSince, type LlmUsageOutcome } from "../telemetry/telemetry.repo.js";
-import { getLocale } from "../core/request-context.js";
+import { getLocale, markAiQuotaExceeded } from "../core/request-context.js";
+import { getAiQuotaState } from "../modules/billing/entitlements.js";
 import type { AppLocale } from "../shared/locale.js";
 
 export type LlmTier = "fast" | "smart";
 type LlmProvider = "openai" | "anthropic";
+// Claude Sonnet 5's `output_config.effort` levels (Anthropic Messages API) — controls thinking
+// depth/token spend. Not supported at all by Haiku 4.5 (this app's "fast"-tier model): sending it
+// there is a 400, so it's only ever forwarded for the "smart" tier on the Anthropic provider —
+// see ChatOptions.effort and callProviderOnce() below.
+export type LlmEffort = "low" | "medium" | "high" | "xhigh" | "max";
 
 export interface ChatOptions {
   json?: boolean;
@@ -41,6 +47,19 @@ export interface ChatOptions {
    * prose (study hints, interview feedback, the vacancy fit summary, etc.).
    */
   outputLocale?: "app" | "en";
+  /**
+   * Explicit Claude Sonnet 5 "thinking effort" level, forwarded to Anthropic as
+   * `output_config: {effort: ...}` (see callProviderOnce() below). Only meaningful for the
+   * `"smart"` tier on the Anthropic provider — Haiku 4.5 (the `"fast"` tier model) does NOT
+   * support this parameter and returns a 400 if it's sent, so it's deliberately dropped for any
+   * `"fast"`-tier call, including a "smart" call downgraded to "fast" by the daily cost cap in
+   * chat() below. When omitted on a smart-tier call, defaults to `"medium"` — Anthropic's own
+   * guidance is that `medium` is unusually strong on this model, often comparable to `high` at
+   * meaningfully lower cost/latency (previously, no explicit effort was sent, which silently ran
+   * at the API's own default of `"high"`). Pass an explicit value to override this default for a
+   * specific call site.
+   */
+  effort?: LlmEffort;
 }
 
 const LANGUAGE_NAME: Record<AppLocale, string> = { en: "English", uk: "Ukrainian" };
@@ -98,15 +117,16 @@ export async function chat<T extends object = Record<string, unknown>>(
 // per-user/per-feature usage views (Phase 5/6) — the cache itself stays content-hash-keyed and
 // deliberately global (see db/llm-cache.ts), not per-user.
 export async function chat(userId: UserId, system: string, user: string, options: ChatOptions = {}): Promise<LlmResult> {
-  const {
-    json = false,
-    maxTokens = 900,
-    temperature = 0.4,
-    cache = false,
-    tier = "fast",
-    feature = "unspecified",
-    outputLocale = "en",
-  } = options;
+  const { json = false, maxTokens = 900, temperature = 0.4, cache = false, feature = "unspecified", outputLocale = "en" } = options;
+  // `let`, not `const`: the daily cost cap below can downgrade a "smart" request down to "fast"
+  // instead of blocking it outright — see that check's own comment.
+  let tier = options.tier ?? "fast";
+  // Effective `effort` for THIS call — only ever set for the "smart" tier (see ChatOptions.effort's
+  // own comment for why "fast"/Haiku must never receive it): defaults to "medium" unless the call
+  // site passed an explicit override. Also a `let`: cleared alongside `tier` below if the daily
+  // cost cap downgrades this call from smart to fast mid-call, or the downgraded request would
+  // 400 on Haiku.
+  let effectiveEffort: LlmEffort | undefined = tier === "smart" ? (options.effort ?? "medium") : undefined;
   if (!llmAvailable()) return null;
   // Folded in before both the cache key and the actual provider call below — see
   // withLocaleInstruction's own comment for why an `en`/`uk` response never collides in cache.
@@ -117,7 +137,12 @@ export async function chat(userId: UserId, system: string, user: string, options
   // provider (primary or fallback) ultimately answered; and changing OPENAI_MODEL/
   // ANTHROPIC_MODEL in .env for the same tier still correctly does NOT invalidate the old cache
   // (as before) — this is an acceptable tradeoff, the same one that existed before the fallback logic.
-  const cacheKey = cache ? "llm:" + hashString([tier, mode, effectiveSystem, user].join("|")) : null;
+  // Named as a function (not inlined at each call site) because the daily cost cap below can
+  // downgrade `tier` from "smart" to "fast" AFTER the initial lookup — the final cache WRITE
+  // must key off the tier that actually produced `result`, or a fast-tier answer would be stored
+  // under (and later served back for) the smart-tier cache key.
+  const buildCacheKey = (t: LlmTier) => (cache ? "llm:" + hashString([t, mode, effectiveSystem, user].join("|")) : null);
+  const cacheKey = buildCacheKey(tier);
   if (cacheKey) {
     const hit = await getLlmCache<{ value: LlmResult }>(cacheKey);
     if (hit) {
@@ -138,6 +163,39 @@ export async function chat(userId: UserId, system: string, user: string, options
       return hit.value;
     }
   }
+  // Plan quota (Free tier) — checked BEFORE the operator's global cost cap below, and only when
+  // billing is actually configured (env.billing.isAvailable), so an unconfigured/self-hosted
+  // deployment adds ZERO extra DB round trips and behaves byte-identically to before. Only on a
+  // cache MISS, same reasoning as the cap below. Wrapped in its own try/catch so a failure to
+  // read the entitlement/usage state fails OPEN (the call proceeds) rather than taking AI
+  // features down over an unrelated billing-table hiccup — countBillableAiCalls already fails
+  // open internally (see billing.repo.ts), but getSubscription() itself can still throw.
+  if (env.billing.isAvailable) {
+    try {
+      const quota = await getAiQuotaState(userId);
+      if (!quota.allowed) {
+        markAiQuotaExceeded();
+        contextLogger().warn(
+          { userId, feature, tier, used: quota.used, limit: quota.limit },
+          "User's monthly AI quota reached, falling back to offline for this call",
+        );
+        recordLlmUsage({
+          userId,
+          feature,
+          tier,
+          provider: null,
+          model: null,
+          usage: null,
+          cacheHit: false,
+          latencyMs: 0,
+          outcome: "quota_exceeded",
+        });
+        return null;
+      }
+    } catch (err) {
+      contextLogger().error({ err, userId, feature }, "Failed to check AI plan quota — failing open");
+    }
+  }
   // Gated on env.llm.dailyCostCapUsd > 0 (default 0/disabled) so this never adds a DB round trip
   // for the common case — and only runs on a cache MISS, since a cache hit costs nothing and
   // shouldn't be blocked by a cap meant to bound real provider spend.
@@ -148,26 +206,47 @@ export async function chat(userId: UserId, system: string, user: string, options
     // null means the telemetry read itself failed — fail OPEN (allow the call) rather than take
     // AI features down because of an unrelated DB hiccup; see getUserCostUsdSince's own comment.
     if (spentToday !== null && spentToday >= env.llm.dailyCostCapUsd) {
-      contextLogger().warn(
-        { userId, feature, tier, spentToday, capUsd: env.llm.dailyCostCapUsd },
-        "User's daily LLM cost cap reached, falling back to offline for this call",
-      );
-      recordLlmUsage({
-        userId,
-        feature,
-        tier,
-        provider: null,
-        model: null,
-        usage: null,
-        cacheHit: false,
-        latencyMs: 0,
-        outcome: "budget_exceeded",
-      });
-      return null;
+      if (tier === "smart") {
+        // Degrade instead of cut off: there's a cheaper tier to fall back to, so the call still
+        // goes out (on the fast/cheap model) instead of forcing the offline heuristic — a "smart"
+        // caller gets a worse-but-real answer rather than none at all.
+        contextLogger().warn(
+          { userId, feature, tier, spentToday, capUsd: env.llm.dailyCostCapUsd },
+          "User's daily LLM cost cap reached, downgrading this call from smart to fast tier",
+        );
+        tier = "fast";
+        // Fast/Haiku doesn't support `effort` at all (400 if sent) — must be cleared here, not
+        // just left at whatever the smart-tier default/override above resolved to.
+        effectiveEffort = undefined;
+      } else {
+        // Already on the cheapest tier — nothing left to downgrade to, so this is still a cutoff.
+        contextLogger().warn(
+          { userId, feature, tier, spentToday, capUsd: env.llm.dailyCostCapUsd },
+          "User's daily LLM cost cap reached, falling back to offline for this call",
+        );
+        recordLlmUsage({
+          userId,
+          feature,
+          tier,
+          provider: null,
+          model: null,
+          usage: null,
+          cacheHit: false,
+          latencyMs: 0,
+          outcome: "budget_exceeded",
+        });
+        return null;
+      }
     }
   }
   const started = Date.now();
-  const { result, provider, model, usage } = await callProvider(effectiveSystem, user, { json, maxTokens, temperature, tier });
+  const { result, provider, model, usage } = await callProvider(effectiveSystem, user, {
+    json,
+    maxTokens,
+    temperature,
+    tier,
+    effort: effectiveEffort,
+  });
   recordLlmUsage({
     userId,
     feature,
@@ -179,7 +258,8 @@ export async function chat(userId: UserId, system: string, user: string, options
     latencyMs: Date.now() - started,
     outcome: result != null ? "success" : "error",
   });
-  if (cacheKey && result != null) await setLlmCache(cacheKey, { value: result });
+  const finalCacheKey = buildCacheKey(tier);
+  if (finalCacheKey && result != null) await setLlmCache(finalCacheKey, { value: result });
   return result;
 }
 
@@ -191,6 +271,8 @@ interface CallProviderOptions {
   maxTokens: number;
   temperature: number;
   tier: LlmTier;
+  /** Effective per-call effort (already resolved/cleared by chat() above) — see ChatOptions.effort. */
+  effort?: LlmEffort;
 }
 
 interface CallProviderOnceOptions {
@@ -199,6 +281,8 @@ interface CallProviderOnceOptions {
   temperature: number;
   model: string;
   timeoutMs: number;
+  /** Only ever forwarded to Anthropic — see callProviderOnce()'s own comment. */
+  effort?: LlmEffort;
 }
 
 // Provider HTTP statuses worth a single retry: transient infrastructure failures
@@ -231,7 +315,7 @@ interface CallProviderResult {
 async function callProvider(
   system: string,
   user: string,
-  { json, maxTokens, temperature, tier }: CallProviderOptions,
+  { json, maxTokens, temperature, tier, effort }: CallProviderOptions,
 ): Promise<CallProviderResult> {
   const providers = availableProviders();
   const timeoutMs = tier === "smart" ? env.llm.timeoutMs : env.llm.timeoutMsFast;
@@ -244,7 +328,7 @@ async function callProvider(
     lastModel = model;
     const isLastProvider = i === providers.length - 1;
     for (let attempt = 0; attempt < 2; attempt++) {
-      const outcome = await callProviderOnce(provider, system, user, { json, maxTokens, temperature, model, timeoutMs });
+      const outcome = await callProviderOnce(provider, system, user, { json, maxTokens, temperature, model, timeoutMs, effort });
       if (outcome.result != null) return { result: outcome.result, provider, model, usage: outcome.usage };
       if (outcome.retryable && attempt === 0) {
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
@@ -266,7 +350,7 @@ async function callProviderOnce(
   provider: LlmProvider,
   system: string,
   user: string,
-  { json, maxTokens, temperature, model, timeoutMs }: CallProviderOnceOptions,
+  { json, maxTokens, temperature, model, timeoutMs, effort }: CallProviderOnceOptions,
 ): Promise<{ result: LlmResult; retryable: boolean; usage: LlmUsage | null }> {
   // AbortSignal.timeout — so a stuck provider response doesn't hold the user's request
   // (and the server connection) indefinitely; the error is caught below and
@@ -287,8 +371,18 @@ async function callProviderOnce(
           model,
           max_tokens: maxTokens,
           temperature,
-          system,
+          // Array-of-content-blocks form (rather than a plain string) so Anthropic can cache this
+          // block server-side (https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching) —
+          // repeated calls sharing the same system prompt (CV-review rubric, mock-interview grading
+          // rubric, cv-doc-parse instructions, ...) get it served from cache instead of reprocessed
+          // at full cost every time. Below the provider's cacheable minimum, this silently doesn't
+          // cache — no special-casing needed for short prompts.
+          system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
           messages: [{ role: "user", content: user }],
+          // Only ever present for a "smart"-tier call (see chat()'s effectiveEffort/ChatOptions.effort) —
+          // Haiku 4.5 ("fast" tier) doesn't support `effort` at all and 400s if it's sent, so `effort`
+          // is `undefined` for every fast-tier call and this key is omitted entirely, not sent as null.
+          ...(effort ? { output_config: { effort } } : {}),
         }),
       });
       // Previously r.ok was not checked here: a provider that responded 401/404/429/500 with a JSON body

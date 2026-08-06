@@ -4,6 +4,7 @@ import { chatJson, llmAvailable } from "../llm/index.js";
 import { getLlmCache, setLlmCache } from "../db/llm-cache.js";
 import type { UserId } from "../db/user-id.js";
 import { hashString } from "./hash.js";
+import { DEFAULT_TRACK, resolveTrack, type Track } from "./tracks.js";
 
 const SkillsSchema = z.object({ skills: z.array(z.string()) });
 const DomainSchema = z.object({ domain: z.string().catch("") });
@@ -20,6 +21,36 @@ const DomainSchema = z.object({ domain: z.string().catch("") });
 // hash of the input text, NOT by locale like llm/client.ts's own cache — a Ukrainian-language
 // result cached under that key would leak to the next request with the same CV/vacancy text,
 // regardless of that request's own locale. Keep this English-only, always.
+
+// English label per track for the offline (no-LLM) domain guess below — kept in the same
+// English-only register as the rest of this module (see the i18n note above): this is a coarse
+// fallback, not a substitute for the LLM's actual free-form phrasing.
+const TRACK_DOMAIN_LABEL: Record<Track, string> = {
+  software: "Software Developer",
+  qa: "QA Engineer",
+  devops: "DevOps Engineer",
+  data: "Data Analyst",
+  design: "UX/UI Designer",
+  product: "Product Manager",
+  security: "Security Engineer",
+  sysadmin: "System Administrator",
+};
+
+/** Offline (no LLM key) best-effort domain guess from CV text: resolveTrack's keyword signals
+ * first, then — for the common case where none of those fire and the track falls back to
+ * "software" — a finer frontend/backend/full-stack read off which tech-dict categories the CV's
+ * own stack actually matches, so an offline React+Node CV doesn't just read as "software". */
+function offlineDomainGuess(cvText: string): string {
+  const track = resolveTrack(undefined, cvText);
+  if (track !== DEFAULT_TRACK) return TRACK_DOMAIN_LABEL[track];
+  const cats = new Set(extractTechs(cvText).map((t) => t.cat));
+  const hasFrontend = cats.has("Frontend");
+  const hasBackend = cats.has("Backend");
+  if (hasFrontend && hasBackend) return "Full-Stack Developer";
+  if (hasFrontend) return "Frontend Developer";
+  if (hasBackend) return "Backend Developer";
+  return TRACK_DOMAIN_LABEL.software;
+}
 
 function dedupe(values: string[]): string[] {
   const seen = new Map<string, string>();
@@ -54,7 +85,8 @@ export async function extractSkills(userId: UserId, text: string): Promise<strin
 
 /** Determines the candidate's profession/role from their CV (for personalizing prompts). */
 export async function detectDomain(userId: UserId, cvText: string): Promise<string> {
-  if (!llmAvailable() || !cvText || cvText.trim().length < 30) return "";
+  if (!cvText || cvText.trim().length < 30) return "";
+  if (!llmAvailable()) return offlineDomainGuess(cvText);
   const cacheKey = `domain:${hashString(cvText)}`;
   const cached = await getLlmCache<{ domain: string }>(cacheKey);
   if (cached) return cached.domain;

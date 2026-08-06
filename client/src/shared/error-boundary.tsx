@@ -40,7 +40,6 @@ class ErrorBoundaryBase extends Component<Props, State> {
     return (
       <div className="max-w-xl mx-auto mt-16 px-4">
         <Card className="text-center space-y-3">
-          <div className="text-4xl">⚠️</div>
           <h2 className="font-bold text-lg text-ink">{t("errorBoundary.title")}</h2>
           <p className="text-sm text-ink-dim">{t("errorBoundary.hint")}</p>
           <pre className="text-left text-xs bg-surface-2 border border-grid rounded-lg p-2.5 text-ink-dim overflow-x-auto">

@@ -8,18 +8,41 @@ import { SEED_VACANCIES } from "./seed-vacancies.js";
 const USER_A = BOOTSTRAP_USER_ID;
 const USER_B = "user-b" as UserId;
 
+let testDb: Awaited<ReturnType<typeof createTestDb>>;
 let bootstrapUser: typeof import("./bootstrap.js").bootstrapUser;
+let seedProfileIfEmpty: typeof import("./bootstrap.js").seedProfileIfEmpty;
 let getProfile: typeof import("./kv.js").getProfile;
 let listVacancies: typeof import("../modules/vacancies/vacancies.repo.js").listVacancies;
 
 beforeAll(async () => {
-  const testDb = await createTestDb();
+  testDb = await createTestDb();
   await insertTestUser(testDb, USER_A);
   await insertTestUser(testDb, USER_B);
   vi.doMock("./client.js", () => ({ default: testDb }));
   bootstrapUser = (await import("./bootstrap.js")).bootstrapUser;
+  seedProfileIfEmpty = (await import("./bootstrap.js")).seedProfileIfEmpty;
   getProfile = (await import("./kv.js")).getProfile;
   listVacancies = (await import("../modules/vacancies/vacancies.repo.js")).listVacancies;
+});
+
+describe("seedProfileIfEmpty() (PGlite)", () => {
+  it("gives a brand-new REAL registration an EMPTY profile, never SAMPLE_PROFILE's fictional résumé", async () => {
+    const userId = "user-real-signup" as UserId;
+    await insertTestUser(testDb, userId);
+    await seedProfileIfEmpty(userId);
+    const profile = await getProfile(userId);
+    expect(profile).toEqual({ skills: [], cvText: "", domain: undefined });
+  });
+
+  it("is idempotent — never overwrites a profile the user (or bootstrapUser) already set", async () => {
+    const userId = "user-real-signup-2" as UserId;
+    await insertTestUser(testDb, userId);
+    const { setProfile } = await import("./kv.js");
+    await setProfile(userId, { skills: ["Rust"], cvText: "hi", domain: "Backend" });
+    await seedProfileIfEmpty(userId);
+    const profile = await getProfile(userId);
+    expect(profile.domain).toBe("Backend");
+  });
 });
 
 describe("bootstrapUser() (PGlite)", () => {

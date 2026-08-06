@@ -16,16 +16,30 @@ import db from "./client.js";
 import { userKv, vacancies } from "./schema/index.js";
 import { setProfile } from "./kv.js";
 import { recordStatusChange } from "./vacancy-history.js";
-import { DEFAULT_PROFILE, SEED_VACANCIES } from "./seed-vacancies.js";
+import { EMPTY_PROFILE, SAMPLE_PROFILE, SEED_VACANCIES } from "./seed-vacancies.js";
 import type { UserId } from "./user-id.js";
 
-export async function seedProfileIfEmpty(userId: UserId): Promise<void> {
+async function hasProfileRow(userId: UserId): Promise<boolean> {
   const [row] = await db
     .select({ k: userKv.k })
     .from(userKv)
     .where(and(eq(userKv.userId, userId), eq(userKv.k, "profile")));
-  if (row) return;
-  await setProfile(userId, DEFAULT_PROFILE);
+  return !!row;
+}
+
+/** Wired into real user registration (auth/auth.ts's `databaseHooks.user.create.after`) — every
+ * new account needs at least a profile row, or getProfile() throws and most features break on
+ * first use. Writes EMPTY_PROFILE, deliberately NOT SAMPLE_PROFILE below — a stranger who just
+ * registered gets a blank slate (and a real 0/4 onboarding checklist), never someone else's
+ * fictional résumé. */
+export async function seedProfileIfEmpty(userId: UserId): Promise<void> {
+  if (await hasProfileRow(userId)) return;
+  await setProfile(userId, EMPTY_PROFILE);
+}
+
+async function seedSampleProfileIfEmpty(userId: UserId): Promise<void> {
+  if (await hasProfileRow(userId)) return;
+  await setProfile(userId, SAMPLE_PROFILE);
 }
 
 async function seedVacanciesIfEmpty(userId: UserId): Promise<void> {
@@ -40,7 +54,10 @@ async function seedVacanciesIfEmpty(userId: UserId): Promise<void> {
   }
 }
 
+/** The fictional-profile + full sample-vacancy-set path — NOT wired into real registration (see
+ * seedProfileIfEmpty above). Kept, tested, for a still-open "seed a demo account with sample
+ * data" product decision. */
 export async function bootstrapUser(userId: UserId): Promise<void> {
-  await seedProfileIfEmpty(userId);
+  await seedSampleProfileIfEmpty(userId);
   await seedVacanciesIfEmpty(userId);
 }

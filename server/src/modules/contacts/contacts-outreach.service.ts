@@ -66,7 +66,7 @@ export async function draftOutreachMessage(
     // No cache: like writing.routes.ts's cover letter, "regenerate" for this feature just means
     // clicking the same button again — caching would silently return the same text every time
     // despite the deliberately high temperature.
-    { maxTokens: 400, temperature: 0.7, tier: "fast", feature: "contact-outreach" },
+    { maxTokens: 400, temperature: 0.7, tier: "fast", feature: "contact-outreach", outputLocale: "app" },
   );
   if (!out) return { message: offlineOutreachMessage(contact, kind, ctx), offline: true };
   return { message: out.message, offline: false };

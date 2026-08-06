@@ -8,15 +8,9 @@ import { chat, llmAvailable } from "../../llm/index.js";
 import { HttpError, authed } from "../../core/http.js";
 import { contextLogger } from "../../core/logger.js";
 import { aiLimiter } from "../../core/rate-limit.js";
-import {
-  parseVacancyInput,
-  parseJsonVacancyItem,
-  parseText,
-  parsePagination,
-  type Fit,
-  type JsonVacancyItem,
-} from "../../shared/validation.js";
+import { parseVacancyInput, parseJsonVacancyItem, parseText, parsePagination, type JsonVacancyItem } from "../../shared/validation.js";
 import { fetchVacancyText, computeFit, quickAnalyze, tryAutoEnrichStack } from "./vacancy-analysis.service.js";
+import { getFetchAllJob, startFetchAllJob } from "./fetch-all-job.js";
 import { vacancyEmbeddingText } from "./vacancy-text.js";
 import { findSimhashDuplicate } from "../jobs/job-dedupe.js";
 import {
@@ -34,7 +28,6 @@ import {
   updateVacancyEmbedding,
   findSimilarVacancies,
   deleteVacancy,
-  listVacanciesWithUrl,
 } from "./vacancies.repo.js";
 import type { UserId } from "../../db/user-id.js";
 
@@ -252,29 +245,24 @@ r.post(
   "/vacancies/fetch-all",
   aiLimiter,
   authed(async (userId, _req, res) => {
-    const rows = await listVacanciesWithUrl(userId);
-    const results: Array<{ id: number; company: string; techs?: string[]; level?: string; fit?: Fit; error?: string }> = [];
-    for (const v of rows) {
-      try {
-        const text = await fetchVacancyText(v.url);
-        if (text.length < 200) {
-          results.push({ id: v.id, company: v.company, error: "empty/unavailable" });
-          continue;
-        }
-        const a = await quickAnalyze(userId, text);
-        await updateVacancyEnrichment(userId, v.id, { stack: a.techs, level: a.level || v.level, fit: a.fit });
-        results.push({ id: v.id, company: v.company, techs: a.techs, level: a.level, fit: a.fit });
-      } catch (e) {
-        results.push({ id: v.id, company: v.company, error: (e as Error).message });
-      }
-      await new Promise((resolve) => setTimeout(resolve, 400)); // polite pause
-    }
-    const failed = results.filter((r) => r.error).length;
-    // The user only sees errors per individual vacancy in results; an aggregate log is needed to
-    // notice a systemic problem (e.g. a source started blocking scraping en masse),
-    // rather than guessing from individual rows in the UI.
-    if (failed > 0) contextLogger().warn({ processed: results.length, failed }, "Bulk vacancy re-parse: some URLs failed");
-    res.json({ processed: results.length, results });
+    // Fire-and-forget: startFetchAllJob() persists initial state and kicks off the actual
+    // per-vacancy loop WITHOUT awaiting it (see fetch-all-job.ts) — this request just starts (or,
+    // if one's already running, returns) the job, it doesn't wait for it to finish. Previously
+    // this loop ran synchronously here, holding the connection open for the entire batch
+    // (30-90+ seconds for 20+ vacancies) with zero progress visible to the client in between.
+    const job = await startFetchAllJob(userId);
+    res.status(202).json(job);
+  }),
+);
+
+// Polled by the client (~every 1.5s) while a fetch-all job is running — deliberately NOT behind
+// aiLimiter (30 req/15min): that budget is for the "start" call above, not for a client polling a
+// single in-flight job every couple seconds. The general apiLimiter (mounted on all of /api/*)
+// already covers this.
+r.get(
+  "/vacancies/fetch-all/status",
+  authed(async (userId, _req, res) => {
+    res.json(await getFetchAllJob(userId));
   }),
 );
 

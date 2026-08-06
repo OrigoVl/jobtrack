@@ -28,7 +28,10 @@ function flattenCvDoc(doc: CvDoc): string {
     parts.push(`${e.role} — ${e.company} (${e.period})`);
     parts.push(...e.bullets);
   });
-  parts.push(...doc.education, ...doc.projects);
+  parts.push(
+    ...doc.education.map((e) => [e.degree, e.school, e.period].filter(Boolean).join(", ")),
+    ...doc.projects.map((p) => [p.title, p.description].filter(Boolean).join(" — ")),
+  );
   return parts.filter(Boolean).join("\n");
 }
 

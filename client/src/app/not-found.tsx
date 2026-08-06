@@ -10,7 +10,6 @@ export function NotFound() {
   return (
     <Card>
       <EmptyState
-        icon="🧭"
         title={t("notFound.title")}
         hint={t("notFound.hint")}
         action={

@@ -1,7 +1,9 @@
 {
+  "eyebrow": "Проєкти",
   "title": "Пет-проєкти",
   "subtitle": "Драбина з 4 проєктів на стеку твоїх вакансій. Кожен закриває конкретну прогалину і стає доказом навичок на GitHub. Познач виконані пункти Definition of Done.",
   "doneCount": "{{done}} / {{total}} виконано",
   "definitionOfDone": "Definition of Done",
-  "progress": "{{done}} / {{total}}"
+  "progress": "{{done}} / {{total}}",
+  "aiIdea": "AI-ідея"
 }
