@@ -12,8 +12,8 @@ const USER_B = "user-b" as UserId;
 let listCompanies: typeof import("./companies.repo.js").listCompanies;
 let upsertCompany: typeof import("./companies.repo.js").upsertCompany;
 let findCompanyByName: typeof import("./companies.repo.js").findCompanyByName;
-let getCompanyDiagram: typeof import("./companies.repo.js").getCompanyDiagram;
-let setCompanyDiagram: typeof import("./companies.repo.js").setCompanyDiagram;
+let updateCompany: typeof import("./companies.repo.js").updateCompany;
+let deleteCompany: typeof import("./companies.repo.js").deleteCompany;
 
 beforeAll(async () => {
   const testDb = await createTestDb();
@@ -24,8 +24,8 @@ beforeAll(async () => {
   listCompanies = repo.listCompanies;
   upsertCompany = repo.upsertCompany;
   findCompanyByName = repo.findCompanyByName;
-  getCompanyDiagram = repo.getCompanyDiagram;
-  setCompanyDiagram = repo.setCompanyDiagram;
+  updateCompany = repo.updateCompany;
+  deleteCompany = repo.deleteCompany;
 });
 
 describe("companies.repo (PGlite)", () => {
@@ -56,28 +56,45 @@ describe("companies.repo (PGlite)", () => {
   });
 });
 
-describe("company diagram (user_kv-backed, PGlite)", () => {
-  it("getCompanyDiagram() returns null before anything is saved", async () => {
-    const companyA = await findCompanyByName(USER_A, "Acme");
-    expect(await getCompanyDiagram(USER_A, companyA!.id)).toBeNull();
+describe("updateCompany() (PGlite)", () => {
+  it("renames a company and updates its notes/questions by id", async () => {
+    await upsertCompany(USER_A, { name: "Initech", notes: "old notes", questions: [] });
+    const initech = await findCompanyByName(USER_A, "Initech");
+    const updated = await updateCompany(USER_A, initech!.id, { name: "Initech Renamed", notes: "new notes", questions: ["Q1"] });
+    expect(updated).toEqual(expect.objectContaining({ id: initech!.id, name: "Initech Renamed", notes: "new notes", questions: ["Q1"] }));
+    expect(await findCompanyByName(USER_A, "Initech")).toBeUndefined();
   });
 
-  it("setCompanyDiagram() then getCompanyDiagram() round-trips the diagram", async () => {
-    const companyA = await findCompanyByName(USER_A, "Acme");
-    const diagram = { nodes: [{ id: "1", kind: "client" as const, label: "Client", x: 0, y: 0 }], edges: [] };
-    await setCompanyDiagram(USER_A, companyA!.id, diagram);
-    expect(await getCompanyDiagram(USER_A, companyA!.id)).toEqual(diagram);
+  it("does not let one user update another user's company (returns undefined, row untouched)", async () => {
+    const initech = await findCompanyByName(USER_A, "Initech Renamed");
+    const updated = await updateCompany(USER_B, initech!.id, { name: "Hijacked", notes: "", questions: [] });
+    expect(updated).toBeUndefined();
+    expect(await findCompanyByName(USER_A, "Initech Renamed")).toBeDefined();
   });
 
-  it("is isolated per user even for the same numeric company id shape (different real ids)", async () => {
-    const companyA = await findCompanyByName(USER_A, "Acme");
-    const companyB = await findCompanyByName(USER_B, "Acme");
-    // Both users' companies happen to be named "Acme" but are different rows/ids — confirm B's
-    // diagram key is independent of A's, not accidentally shared by name.
-    await setCompanyDiagram(USER_B, companyB!.id, { nodes: [], edges: [] });
-    const diagramA = await getCompanyDiagram(USER_A, companyA!.id);
-    const diagramB = await getCompanyDiagram(USER_B, companyB!.id);
-    expect(diagramA?.nodes.length).toBe(1);
-    expect(diagramB?.nodes.length).toBe(0);
+  it("renaming into a name already used by another of this user's companies violates the unique index", async () => {
+    await upsertCompany(USER_A, { name: "Umbrella", notes: "", questions: [] });
+    const initech = await findCompanyByName(USER_A, "Initech Renamed");
+    // The repo function itself does no pre-check — companies.routes.ts's PUT handler is
+    // responsible for calling findCompanyByName first and turning this into a clean 409 before
+    // ever reaching here (see updateCompany's own comment).
+    await expect(updateCompany(USER_A, initech!.id, { name: "Umbrella", notes: "", questions: [] })).rejects.toThrow();
+  });
+});
+
+describe("deleteCompany() (PGlite)", () => {
+  it("does not let one user delete another user's company", async () => {
+    await upsertCompany(USER_B, { name: "Globex", notes: "", questions: [] });
+    const globex = await findCompanyByName(USER_B, "Globex");
+    const deleted = await deleteCompany(USER_A, globex!.id);
+    expect(deleted).toBe(0);
+    expect(await findCompanyByName(USER_B, "Globex")).toBeDefined();
+  });
+
+  it("removes the row and reports 1 row deleted", async () => {
+    const globex = await findCompanyByName(USER_B, "Globex");
+    const deleted = await deleteCompany(USER_B, globex!.id);
+    expect(deleted).toBe(1);
+    expect(await findCompanyByName(USER_B, "Globex")).toBeUndefined();
   });
 });

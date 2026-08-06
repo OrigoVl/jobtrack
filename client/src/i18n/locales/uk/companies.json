@@ -13,14 +13,12 @@
   "notesPlaceholder": "Нотатки (стек, люди, зарплата, враження)…",
   "questionsAriaLabel": "Питання, які ставили в {{name}}",
   "questionsPlaceholder": "Питання, які ставили (по одному в рядку)…",
+  "renameAriaLabel": "Перейменувати {{name}}",
+  "editAriaLabel": "Редагувати {{name}}",
+  "deleteAriaLabel": "Видалити {{name}}",
+  "deleteConfirmTitle": "Видалити {{name}}?",
   "toasts": {
-    "saved": "Збережено"
-  },
-  "diagram": {
-    "show": "Показати схему системи",
-    "hide": "Сховати схему системи",
-    "showFor": "Показати схему системи для {{name}}",
-    "hideFor": "Сховати схему системи для {{name}}",
-    "save": "Зберегти схему"
+    "saved": "Збережено",
+    "deleted": "Видалено"
   }
 }

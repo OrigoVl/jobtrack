@@ -81,6 +81,8 @@
     "CONTACT_NAME_REQUIRED": "Contact name is required",
     "CONTACT_NOT_FOUND": "This contact no longer exists",
     "COMPANY_NAME_REQUIRED": "Company name is required",
+    "COMPANY_NAME_TAKEN": "You already have a company with this name",
+    "COMPANY_NOT_FOUND": "This company no longer exists",
     "CALENDAR_EVENT_NOT_FOUND": "This event no longer exists",
     "CV_SHARE_NOT_GENERATED": "No share link yet — generate one first",
     "CV_TEXT_TOO_SHORT": "There isn't enough CV content yet — add a few more details first.",

@@ -3,11 +3,9 @@
 // an Express request/response. Every function is scoped by `userId` (see server/src/db/user-id.ts).
 import { and, eq } from "drizzle-orm";
 import db from "../../db/client.js";
-import { getKvJson, setKvJson } from "../../db/kv.js";
 import { companies } from "../../db/schema/index.js";
 import type { UserId } from "../../db/user-id.js";
 import type { CompanyInput } from "../../shared/validation.js";
-import type { DesignDiagram } from "../design/design.service.js";
 
 export interface Company {
   id: number;
@@ -30,8 +28,31 @@ export async function upsertCompany(userId: UserId, input: CompanyInput): Promis
     });
 }
 
-// Only used by data-isolation tests (see companies.repo.test.ts) — not exercised by any route,
-// since companies.routes.ts never needs to look one up by id directly.
+// Cascades to that company's `contacts` rows (see contacts' composite FK in db/schema/app.ts).
+export async function deleteCompany(userId: UserId, id: number): Promise<number> {
+  const deleted = await db
+    .delete(companies)
+    .where(and(eq(companies.userId, userId), eq(companies.id, id)))
+    .returning({ id: companies.id });
+  return deleted.length;
+}
+
+// Update-by-id (unlike upsertCompany, which matches on name) — the only way to rename a company,
+// since renaming through upsertCompany's (userId, name) conflict target would just insert a new
+// row under the new name and leave the old one behind. companies.routes.ts checks the new name
+// isn't already taken by another row (via findCompanyByName) before calling this, for a clean 409
+// instead of surfacing the raw `companies_user_name_key` violation.
+export async function updateCompany(userId: UserId, id: number, input: CompanyInput): Promise<Company | undefined> {
+  const [row] = await db
+    .update(companies)
+    .set({ name: input.name, notes: input.notes, questions: input.questions })
+    .where(and(eq(companies.userId, userId), eq(companies.id, id)))
+    .returning();
+  return row;
+}
+
+// Also used by companies.routes.ts's PUT /companies/:id to reject renaming into a name already
+// used by another of this user's companies (the unique index is on (userId, name)).
 export async function findCompanyByName(userId: UserId, name: string): Promise<Company | undefined> {
   const [row] = await db
     .select()
@@ -50,20 +71,4 @@ export async function getCompanyById(userId: UserId, id: number): Promise<Compan
     .from(companies)
     .where(and(eq(companies.userId, userId), eq(companies.id, id)));
   return row;
-}
-
-// A freeform system-architecture diagram attached to a company (e.g. "here's how their system
-// works, from what I learned in the interview") — reuses the architecture trainer's canvas
-// (client/src/features/design/design-canvas.tsx) with no task/grading involved. Stored in
-// user_kv, NOT a new column on `companies`: a diagram-only save must never risk silently wiping
-// `notes`/`questions` the way companies.routes.ts's non-partial upsert would, and this matches
-// the design module's own `designExercise` blob pattern (no migration needed).
-const companyDiagramKey = (companyId: number) => `companyDiagram:${companyId}`;
-
-export async function getCompanyDiagram(userId: UserId, companyId: number): Promise<DesignDiagram | null> {
-  return getKvJson<DesignDiagram>(userId, companyDiagramKey(companyId));
-}
-
-export async function setCompanyDiagram(userId: UserId, companyId: number, diagram: DesignDiagram): Promise<void> {
-  await setKvJson(userId, companyDiagramKey(companyId), diagram);
 }

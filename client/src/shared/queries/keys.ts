@@ -17,8 +17,6 @@ export const queryKeys = {
   projects: ["projects"] as const,
   plan21: ["plan21"] as const,
   companies: ["companies"] as const,
-  // Parameterized: spread with the company id, e.g. [...queryKeys.companyDiagram, id].
-  companyDiagram: ["companyDiagram"] as const,
   adminOverview: ["adminOverview"] as const,
   adminUsers: ["adminUsers"] as const,
   adminLlmUsage: ["adminLlmUsage"] as const,
@@ -29,7 +27,7 @@ export const queryKeys = {
   contacts: ["contacts"] as const,
   cvProfiles: ["cvProfiles"] as const,
   // Parameterized: spread with the profile id, e.g. [...queryKeys.cvDoc, profileId] (same
-  // convention as similarVacancies/companyDiagram above) — a CV Builder tab's own doc/share.
+  // convention as similarVacancies above) — a CV Builder tab's own doc/share.
   cvShare: ["cvShare"] as const,
   digestPreferences: ["digestPreferences"] as const,
   fetchAllStatus: ["fetchAllStatus"] as const,

@@ -81,6 +81,8 @@
     "CONTACT_NAME_REQUIRED": "Вкажіть ім'я контакту",
     "CONTACT_NOT_FOUND": "Цього контакту більше не існує",
     "COMPANY_NAME_REQUIRED": "Вкажіть назву компанії",
+    "COMPANY_NAME_TAKEN": "У вас уже є компанія з такою назвою",
+    "COMPANY_NOT_FOUND": "Цієї компанії більше не існує",
     "CALENDAR_EVENT_NOT_FOUND": "Цієї події більше не існує",
     "CV_SHARE_NOT_GENERATED": "Посилання ще не створено — спершу згенеруйте його",
     "CV_TEXT_TOO_SHORT": "Замало вмісту в резюме — додайте ще трохи деталей.",

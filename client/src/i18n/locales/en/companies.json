@@ -13,14 +13,12 @@
   "notesPlaceholder": "Notes (stack, people, salary, impressions)…",
   "questionsAriaLabel": "Questions asked at {{name}}",
   "questionsPlaceholder": "Questions they asked (one per line)…",
+  "renameAriaLabel": "Rename {{name}}",
+  "editAriaLabel": "Edit {{name}}",
+  "deleteAriaLabel": "Delete {{name}}",
+  "deleteConfirmTitle": "Delete {{name}}?",
   "toasts": {
-    "saved": "Saved"
-  },
-  "diagram": {
-    "show": "Show system diagram",
-    "hide": "Hide system diagram",
-    "showFor": "Show system diagram for {{name}}",
-    "hideFor": "Hide system diagram for {{name}}",
-    "save": "Save diagram"
+    "saved": "Saved",
+    "deleted": "Deleted"
   }
 }

@@ -245,9 +245,8 @@ export const api = {
 
   companies: () => req<Company[]>("/companies"),
   saveCompany: (c: Partial<Company>) => req<{ ok: boolean }>("/companies", { method: "POST", body: JSON.stringify(c) }),
-  companyDiagram: (id: number) => req<DesignDiagram | null>(`/companies/${id}/diagram`),
-  saveCompanyDiagram: (id: number, diagram: DesignDiagram) =>
-    req<DesignDiagram>(`/companies/${id}/diagram`, { method: "PUT", body: JSON.stringify(diagram) }),
+  updateCompany: (id: number, c: Partial<Company>) => req<Company>(`/companies/${id}`, { method: "PUT", body: JSON.stringify(c) }),
+  deleteCompany: (id: number) => req<{ ok: boolean; deleted: number }>(`/companies/${id}`, { method: "DELETE" }),
 
   coverLetter: (vacancyText: string, company: string) =>
     req<{ text: string; offline?: boolean }>("/llm/cover-letter", {

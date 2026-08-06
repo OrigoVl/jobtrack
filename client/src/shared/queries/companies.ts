@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
-import type { Company, DesignDiagram } from "../types";
+import type { Company } from "../types";
 import { useToast } from "../use-toast";
 import { useMutationErrorToast } from "../use-error-toast";
 import { queryKeys } from "./keys";
@@ -25,28 +25,34 @@ export function useSaveCompany() {
   });
 }
 
-// A company's freeform architecture diagram (see companies.repo.ts's own comment — reuses the
-// design trainer's canvas, no task/grading involved). `enabled` gates the fetch to only when the
-// company's diagram section is actually expanded, same "don't fetch every row eagerly" convention
-// as similar-vacancies-button.tsx's useSimilarVacancies(vacancyId, open).
-export function useCompanyDiagram(companyId: number, enabled: boolean) {
-  return useQuery({
-    queryKey: [...queryKeys.companyDiagram, companyId],
-    queryFn: () => api.companyDiagram(companyId),
-    enabled,
-  });
-}
-
-export function useSaveCompanyDiagram(companyId: number) {
+// Used to save edits to an EXISTING company (notes/questions, and the name itself) — unlike
+// useSaveCompany's POST (which upserts by name and would silently create a duplicate row instead
+// of renaming), this PUTs by id so a name change actually renames the row.
+export function useUpdateCompany() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { t } = useTranslation("companies");
   const onError = useMutationErrorToast();
   return useMutation({
-    mutationFn: (diagram: DesignDiagram) => api.saveCompanyDiagram(companyId, diagram),
-    onSuccess: (diagram) => {
-      qc.setQueryData<DesignDiagram>([...queryKeys.companyDiagram, companyId], diagram);
+    mutationFn: ({ id, patch }: { id: number; patch: Partial<Company> }) => api.updateCompany(id, patch),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: queryKeys.companies });
       toast(t("toasts.saved"), "success");
+    },
+    onError,
+  });
+}
+
+export function useDeleteCompany() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { t } = useTranslation("companies");
+  const onError = useMutationErrorToast();
+  return useMutation({
+    mutationFn: (id: number) => api.deleteCompany(id),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: queryKeys.companies });
+      toast(t("toasts.deleted"), "success");
     },
     onError,
   });

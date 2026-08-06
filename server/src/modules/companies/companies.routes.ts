@@ -1,8 +1,7 @@
 import express from "express";
 import { authed, HttpError } from "../../core/http.js";
-import { parseCompanyInput, parseDesignDiagramInput } from "../../shared/validation.js";
-import type { UserId } from "../../db/user-id.js";
-import { getCompanyById, getCompanyDiagram, listCompanies, setCompanyDiagram, upsertCompany } from "./companies.repo.js";
+import { parseCompanyInput } from "../../shared/validation.js";
+import { deleteCompany, findCompanyByName, listCompanies, updateCompany, upsertCompany } from "./companies.repo.js";
 
 const r = express.Router();
 
@@ -22,32 +21,27 @@ r.post(
   }),
 );
 
-// ---------- company system-architecture diagram (reuses the design trainer's canvas, no task/
-// grading involved — see companies.repo.ts's own comment on why this is user_kv, not a column) ----------
-async function assertOwnCompany(userId: UserId, id: number) {
-  const company = await getCompanyById(userId, id);
-  if (!company) throw new HttpError(404, `Unknown company: ${id}`);
-}
-
-r.get(
-  "/companies/:id/diagram",
+r.put(
+  "/companies/:id",
   authed(async (userId, req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, "Invalid company id");
-    await assertOwnCompany(userId, id);
-    res.json(await getCompanyDiagram(userId, id));
+    const b = parseCompanyInput(req.body);
+    const nameOwner = await findCompanyByName(userId, b.name);
+    if (nameOwner && nameOwner.id !== id) throw new HttpError(409, `Company name already in use: ${b.name}`, null, "COMPANY_NAME_TAKEN");
+    const updated = await updateCompany(userId, id, b);
+    if (!updated) throw new HttpError(404, `Unknown company: ${id}`, null, "COMPANY_NOT_FOUND");
+    res.json(updated);
   }),
 );
 
-r.put(
-  "/companies/:id/diagram",
+r.delete(
+  "/companies/:id",
   authed(async (userId, req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, "Invalid company id");
-    await assertOwnCompany(userId, id);
-    const diagram = parseDesignDiagramInput(req.body);
-    await setCompanyDiagram(userId, id, diagram);
-    res.json(diagram);
+    const deleted = await deleteCompany(userId, id);
+    res.json({ ok: true, deleted });
   }),
 );
 
