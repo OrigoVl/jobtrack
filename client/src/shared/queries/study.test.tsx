@@ -46,6 +46,7 @@ describe("useSetDrillStatus", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     // The roadmap shows a counter of solved drills — that needs to be invalidated too.
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.roadmap });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.drillArchive });
   });
 
   it("rolls back drillProgress when the server call fails", async () => {

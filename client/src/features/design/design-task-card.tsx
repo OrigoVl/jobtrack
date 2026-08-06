@@ -4,8 +4,7 @@ import { useConfirm } from "../../shared/use-confirm";
 import { useUi } from "../../shared/ui-state";
 import { useVacancies } from "../../shared/queries";
 import type { DesignTask } from "../../shared/types";
-
-const DIFFICULTY_TONE = { easy: "good", medium: "amber", hard: "rose" } as const;
+import { DIFFICULTY_TONE, designDifficultyLabel } from "./design-difficulty";
 
 // Vacancy picker mirrors mock/voice-interview.tsx's exactly (0 = general, positive id = tailored)
 // — same useUi persistence convention, own key so it doesn't collide with the mock tab's.
@@ -78,7 +77,7 @@ export function DesignTaskCard({
         <div className="flex-1 min-w-[200px]">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-ink">{task.title}</span>
-            <Chip tone={DIFFICULTY_TONE[task.difficulty]}>{t(`task.difficulty.${task.difficulty}`)}</Chip>
+            <Chip tone={DIFFICULTY_TONE[task.difficulty]}>{designDifficultyLabel(task.difficulty)}</Chip>
           </div>
           <p className="text-sm text-ink-dim mt-1">{task.scenario}</p>
         </div>

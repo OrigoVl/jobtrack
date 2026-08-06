@@ -11,7 +11,6 @@ import type { InterviewTurnInput } from "../../shared/validation.js";
 
 export const MIN_TURNS = 3;
 export const MAX_TURNS = 10;
-export const DEFAULT_TURNS = 6;
 
 export interface InterviewReview {
   score: number;

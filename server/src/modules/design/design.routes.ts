@@ -20,11 +20,20 @@ import {
   type DesignHistoryEntry,
   type DesignTask,
 } from "./design.service.js";
+import {
+  appendDesignArchive,
+  designArchiveEntryFromGrade,
+  removeDesignArchiveEntry,
+  updateDesignArchiveEntry,
+  type DesignArchiveEditableFields,
+  type DesignArchiveEntry,
+} from "./design-archive.js";
 
 const r = express.Router();
 
 const CURRENT_EXERCISE_KEY = "designExercise";
 const HISTORY_KEY = "designHistory";
+const ARCHIVE_KEY = "designArchive";
 
 interface DesignExercise {
   task: DesignTask;
@@ -73,6 +82,9 @@ r.post(
       gradedAt: new Date().toISOString(),
     };
     await setKvJson(userId, HISTORY_KEY, appendDesignHistory(history, entry));
+    const archive = (await getKvJson<DesignArchiveEntry[]>(userId, ARCHIVE_KEY)) || [];
+    const archiveEntry = designArchiveEntryFromGrade(task, diagram, grade, entry.gradedAt);
+    await setKvJson(userId, ARCHIVE_KEY, appendDesignArchive(archive, archiveEntry));
     res.json(grade);
   }),
 );
@@ -81,6 +93,40 @@ r.get(
   "/design/history",
   authed(async (userId, _req, res) => {
     res.json((await getKvJson<DesignHistoryEntry[]>(userId, HISTORY_KEY)) || []);
+  }),
+);
+
+r.get(
+  "/design/archive",
+  authed(async (userId, _req, res) => {
+    res.json((await getKvJson<DesignArchiveEntry[]>(userId, ARCHIVE_KEY)) || []);
+  }),
+);
+
+r.put(
+  "/design/archive/:id",
+  authed(async (userId, req, res) => {
+    const id = String(req.params.id);
+    const patch: Partial<DesignArchiveEditableFields> = {};
+    if (typeof req.body?.title === "string") patch.title = req.body.title;
+    if (typeof req.body?.scenario === "string") patch.scenario = req.body.scenario;
+    if (typeof req.body?.summary === "string") patch.summary = req.body.summary;
+    if (typeof req.body?.tip === "string") patch.tip = req.body.tip;
+    const archive = (await getKvJson<DesignArchiveEntry[]>(userId, ARCHIVE_KEY)) || [];
+    const updated = updateDesignArchiveEntry(archive, id, patch);
+    if (!updated) throw new HttpError(404, `Unknown archive entry: "${id}"`);
+    await setKvJson(userId, ARCHIVE_KEY, updated);
+    res.json(updated.find((e) => e.id === id));
+  }),
+);
+
+r.delete(
+  "/design/archive/:id",
+  authed(async (userId, req, res) => {
+    const id = String(req.params.id);
+    const archive = (await getKvJson<DesignArchiveEntry[]>(userId, ARCHIVE_KEY)) || [];
+    await setKvJson(userId, ARCHIVE_KEY, removeDesignArchiveEntry(archive, id));
+    res.json({ ok: true });
   }),
 );
 

@@ -13,6 +13,7 @@ import {
   useStudy,
 } from "../../shared/queries";
 import { runJs } from "./runner";
+import { DrillArchivePanel } from "./drill-archive-panel";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Select } from "../../shared/ui";
 import { MockInterview } from "../mock/mock";
 import type { Drill } from "../../shared/types";
@@ -459,6 +460,7 @@ export function Study() {
               <EmptyState title={t("drill.empty.title")} hint={t("drill.empty.hint")} />
             </Card>
           )}
+          <DrillArchivePanel />
         </>
       )}
     </div>

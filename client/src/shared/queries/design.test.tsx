@@ -96,5 +96,6 @@ describe("useGradeDesign", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.designHistory });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.designArchive });
   });
 });

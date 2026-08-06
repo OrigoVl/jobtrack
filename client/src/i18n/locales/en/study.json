@@ -61,6 +61,15 @@
       "hint": "Try a different topic, difficulty, or turn off \"unsolved only\"."
     }
   },
+  "archive": {
+    "heading_one": "Solved archive ({{count}} task)",
+    "heading_other": "Solved archive ({{count}} tasks)",
+    "solution": "Solution",
+    "collapse": "Collapse",
+    "questionLabel": "Question",
+    "explanationLabel": "Explanation",
+    "deleteConfirmTitle": "Delete this archived task?"
+  },
   "sandbox": {
     "open": "Open sandbox (run code)",
     "title": "JS Sandbox",
@@ -76,6 +85,8 @@
     "drillsNoneAdded": "No new tasks generated (all already exist)",
     "cardsAdded_one": "Added {{count}} new card for \"{{topic}}\"",
     "cardsAdded_other": "Added {{count}} new cards for \"{{topic}}\"",
-    "cardsNoneAdded": "No new cards generated (all already exist)"
+    "cardsNoneAdded": "No new cards generated (all already exist)",
+    "archiveUpdated": "Archived task updated",
+    "archiveDeleted": "Archived task deleted"
   }
 }

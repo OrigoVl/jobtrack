@@ -28,7 +28,6 @@ export interface DesignEdge {
 // below: a system-design grade is about the structural components and their connections, not
 // freehand scribbles, so annotations never reach the LLM. Optional on DesignDiagram so every
 // existing call site/fixture that builds a diagram literal without one still compiles.
-export type DesignAnnotationKind = "freehand" | "rectangle" | "ellipse" | "arrow" | "text";
 interface DesignAnnotationBase {
   id: string;
   color: string;
@@ -371,7 +370,6 @@ export async function helpWithDesign(
 // can reuse mock/voice-interview.tsx's turn-management logic almost verbatim.
 export const MIN_DEFENSE_TURNS = 2;
 export const MAX_DEFENSE_TURNS = 4;
-export const DEFAULT_DEFENSE_TURNS = 3;
 
 export interface DesignDefenseReview {
   score: number;

@@ -5,13 +5,15 @@
 // distinction admin.service.ts's PII note draws for the admin panel.
 import { eq } from "drizzle-orm";
 import db from "../../db/client.js";
-import { companies, contacts, cvProfiles, srs, userKv, vacancies, vacancyStatusHistory } from "../../db/schema/index.js";
+import { companies, contacts, cvProfiles, srs, userKv, vacancyStatusHistory } from "../../db/schema/index.js";
 import type { UserId } from "../../db/user-id.js";
+import type { VacancyRow } from "../../db/types.js";
+import { listVacancies } from "../vacancies/vacancies.repo.js";
 
 export interface AccountExport {
   exportedAt: string;
   profile: Record<string, unknown>;
-  vacancies: (typeof vacancies.$inferSelect)[];
+  vacancies: VacancyRow[];
   companies: (typeof companies.$inferSelect)[];
   vacancyStatusHistory: (typeof vacancyStatusHistory.$inferSelect)[];
   srs: (typeof srs.$inferSelect)[];
@@ -22,7 +24,7 @@ export interface AccountExport {
 export async function exportAccountData(userId: UserId): Promise<AccountExport> {
   const [kv, vac, comp, history, srsRows, contactRows, cvProfileRows] = await Promise.all([
     db.select().from(userKv).where(eq(userKv.userId, userId)),
-    db.select().from(vacancies).where(eq(vacancies.userId, userId)),
+    listVacancies(userId),
     db.select().from(companies).where(eq(companies.userId, userId)),
     db.select().from(vacancyStatusHistory).where(eq(vacancyStatusHistory.userId, userId)),
     db.select().from(srs).where(eq(srs.userId, userId)),

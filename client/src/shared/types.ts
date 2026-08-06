@@ -228,6 +228,20 @@ export interface StudyState {
   drillProgress: Record<string, string>;
 }
 
+/** GET /study/archive — snapshot of each solved drill (q/sol/exp), newest first. */
+export interface DrillArchiveEntry {
+  id: string;
+  drillId: string;
+  cat: string;
+  lvl: string;
+  q: string;
+  sol: string;
+  exp: string;
+  generated?: boolean;
+  tech?: string;
+  solvedAt: string;
+}
+
 export interface ProjectDoD {
   id: string;
   text: string;
@@ -859,6 +873,17 @@ export interface DesignHistoryEntry {
   difficulty: DesignTask["difficulty"];
   score: number;
   offline: boolean;
+  gradedAt: string;
+}
+
+/** GET /design/archive — full task/diagram/grade snapshot of each graded exercise, newest first,
+ * capped server-side. Unlike DesignHistoryEntry (score-only, feeds the progression indicator),
+ * this is a fully reviewable "task + solution" record — every grade is its own entry. */
+export interface DesignArchiveEntry {
+  id: string;
+  task: DesignTask;
+  diagram: DesignDiagram;
+  grade: DesignGrade;
   gradedAt: string;
 }
 

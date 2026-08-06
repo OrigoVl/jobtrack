@@ -4,4 +4,3 @@
 // is server-only logic that runs against the CV text, not something the client needs.
 export const TRACKS = ["software", "qa", "devops", "data", "design", "product", "security", "sysadmin", "pm", "ba"] as const;
 export type Track = (typeof TRACKS)[number];
-export const DEFAULT_TRACK: Track = "software";

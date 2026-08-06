@@ -76,6 +76,25 @@
   "history": {
     "heading": "Минулі спроби"
   },
+  "archive": {
+    "heading_one": "Архів розв'язаних ({{count}} завдання)",
+    "heading_few": "Архів розв'язаних ({{count}} завдання)",
+    "heading_many": "Архів розв'язаних ({{count}} завдань)",
+    "heading_other": "Архів розв'язаних ({{count}} завдання)",
+    "collapse": "Згорнути",
+    "scenario": "Сценарій",
+    "diagram": "Схема",
+    "score": "Оцінка: {{score}}",
+    "titleLabel": "Назва",
+    "scenarioLabel": "Сценарій",
+    "summaryLabel": "Підсумок",
+    "tipLabel": "Порада",
+    "deleteConfirmTitle": "Видалити це завдання з архіву?",
+    "toasts": {
+      "updated": "Завдання в архіві оновлено",
+      "deleted": "Завдання видалено з архіву"
+    }
+  },
   "level": {
     "heading": "Твій рівень System Design: {{level}}/100",
     "sample_one": "на основі {{count}} оціненої вправи",

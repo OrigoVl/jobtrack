@@ -5,6 +5,7 @@ import { CheckCircleIcon, TrashIcon } from "../../shared/icons";
 import { useDesignCurrent, useDesignHistory, useGenerateDesignTask, useGradeDesign, useHealth } from "../../shared/queries";
 import { useToast } from "../../shared/use-toast";
 import { computeDesignLevel } from "../../shared/design-level";
+import { DesignArchivePanel } from "./design-archive-panel";
 import { DesignCanvas } from "./design-canvas";
 import { DesignDefensePanel } from "./design-defense-panel";
 import { DesignTaskCard } from "./design-task-card";
@@ -120,6 +121,7 @@ export function DesignTrainer({ embedded = false }: { embedded?: boolean } = {})
         </>
       )}
       <DesignHistoryPanel />
+      <DesignArchivePanel />
     </div>
   );
 }

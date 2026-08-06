@@ -1,8 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Card, Chip } from "../../shared/ui";
 import { useDesignHistory } from "../../shared/queries";
-
-const DIFFICULTY_TONE = { easy: "good", medium: "amber", hard: "rose" } as const;
+import { DIFFICULTY_TONE, designDifficultyLabel } from "./design-difficulty";
 
 // Compact past-attempts list — score + title + date, no diagram (see DesignHistoryEntry: a
 // lightweight log, not a resumable history of full diagrams).
@@ -22,7 +21,7 @@ export function DesignHistoryPanel() {
               {entry.score}
             </span>
             <span className="text-ink truncate flex-1">{entry.title}</span>
-            <Chip tone={DIFFICULTY_TONE[entry.difficulty]}>{t(`task.difficulty.${entry.difficulty}`)}</Chip>
+            <Chip tone={DIFFICULTY_TONE[entry.difficulty]}>{designDifficultyLabel(entry.difficulty)}</Chip>
             <span className="text-xs text-ink-dim shrink-0">{new Date(entry.gradedAt).toLocaleDateString()}</span>
           </li>
         ))}

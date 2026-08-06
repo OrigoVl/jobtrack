@@ -1,13 +1,48 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
-import type { StudyState } from "../types";
+import type { DrillArchiveEntry, StudyState } from "../types";
 import { useToast } from "../use-toast";
 import { useMutationErrorToast } from "../use-error-toast";
 import { queryKeys } from "./keys";
 
 export function useStudy() {
   return useQuery({ queryKey: queryKeys.study, queryFn: api.study });
+}
+
+export function useDrillArchive() {
+  return useQuery({ queryKey: queryKeys.drillArchive, queryFn: api.drillArchive });
+}
+
+export function useUpdateDrillArchiveEntry() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { t } = useTranslation("study");
+  const onError = useMutationErrorToast();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<Pick<DrillArchiveEntry, "q" | "sol" | "exp">> }) =>
+      api.updateDrillArchiveEntry(id, patch),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: queryKeys.drillArchive });
+      toast(t("toasts.archiveUpdated"), "success");
+    },
+    onError,
+  });
+}
+
+export function useDeleteDrillArchiveEntry() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { t } = useTranslation("study");
+  const onError = useMutationErrorToast();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteDrillArchiveEntry(id),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: queryKeys.drillArchive });
+      toast(t("toasts.archiveDeleted"), "success");
+    },
+    onError,
+  });
 }
 
 export function useGradeCard() {
@@ -44,7 +79,11 @@ export function useSetDrillStatus() {
       return { previous };
     },
     // The roadmap shows a counter of solved drills per topic — that needs updating too.
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.roadmap }),
+    onSuccess: (_data, vars) =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.roadmap }),
+        ...(vars.status === "solved" ? [qc.invalidateQueries({ queryKey: queryKeys.drillArchive })] : []),
+      ]),
     onError: (e, _vars, ctx) => {
       if (ctx?.previous) qc.setQueryData(queryKeys.study, ctx.previous);
       onErrorToast(e);

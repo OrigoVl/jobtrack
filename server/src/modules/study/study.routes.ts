@@ -4,6 +4,7 @@ import {
   getProfile,
   getDrillProgress,
   setDrillStatus,
+  getKvJson,
   setKvJson,
   getSrsStateByCard,
   getSrsRow,
@@ -20,8 +21,17 @@ import { slugify } from "../../shared/slug.js";
 import { genDrills, allDrills, genCards, allCards, trackFor } from "./content-store.js";
 import { scheduleFsrs, type FsrsRating } from "./fsrs.js";
 import { effectiveTrack } from "../../shared/tracks.js";
+import {
+  appendDrillArchive,
+  drillArchiveEntryFromDrill,
+  removeDrillArchiveEntry,
+  updateDrillArchiveEntry,
+  type DrillArchiveEditableFields,
+  type DrillArchiveEntry,
+} from "./study-archive.js";
 
 const r = express.Router();
+const DRILL_ARCHIVE_KEY = "drillArchive";
 
 const HintsSchema = z.object({ hints: z.array(z.string()) });
 // `.catch("med")` on lvl (not a strict enum failure) — the model sometimes returns something
@@ -58,8 +68,47 @@ r.put(
     const progress = await setDrillStatus(userId, id, status);
     // Only solving counts as a study action for the streak — unmarking a task back to "todo"
     // isn't something to reward.
-    if (status === "solved") await recordStudyActivity(userId);
+    if (status === "solved") {
+      await recordStudyActivity(userId);
+      const drill = (await allDrills(userId, track)).find((d) => d.id === id)!;
+      const history = (await getKvJson<DrillArchiveEntry[]>(userId, DRILL_ARCHIVE_KEY)) || [];
+      const entry = drillArchiveEntryFromDrill(drill, new Date().toISOString());
+      await setKvJson(userId, DRILL_ARCHIVE_KEY, appendDrillArchive(history, entry));
+    }
     res.json({ ok: true, progress });
+  }),
+);
+
+r.get(
+  "/study/archive",
+  authed(async (userId, _req, res) => {
+    res.json((await getKvJson<DrillArchiveEntry[]>(userId, DRILL_ARCHIVE_KEY)) || []);
+  }),
+);
+
+r.put(
+  "/study/archive/:id",
+  authed(async (userId, req, res) => {
+    const id = String(req.params.id);
+    const patch: Partial<DrillArchiveEditableFields> = {};
+    if (typeof req.body?.q === "string") patch.q = req.body.q;
+    if (typeof req.body?.sol === "string") patch.sol = req.body.sol;
+    if (typeof req.body?.exp === "string") patch.exp = req.body.exp;
+    const history = (await getKvJson<DrillArchiveEntry[]>(userId, DRILL_ARCHIVE_KEY)) || [];
+    const updated = updateDrillArchiveEntry(history, id, patch);
+    if (!updated) throw new HttpError(404, `Unknown archive entry: "${id}"`);
+    await setKvJson(userId, DRILL_ARCHIVE_KEY, updated);
+    res.json(updated.find((e) => e.id === id));
+  }),
+);
+
+r.delete(
+  "/study/archive/:id",
+  authed(async (userId, req, res) => {
+    const id = String(req.params.id);
+    const history = (await getKvJson<DrillArchiveEntry[]>(userId, DRILL_ARCHIVE_KEY)) || [];
+    await setKvJson(userId, DRILL_ARCHIVE_KEY, removeDrillArchiveEntry(history, id));
+    res.json({ ok: true });
   }),
 );
 

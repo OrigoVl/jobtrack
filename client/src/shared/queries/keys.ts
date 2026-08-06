@@ -35,6 +35,8 @@ export const queryKeys = {
   cvReviewJob: ["cvReviewJob"] as const,
   designCurrent: ["designCurrent"] as const,
   designHistory: ["designHistory"] as const,
+  designArchive: ["designArchive"] as const,
+  drillArchive: ["drillArchive"] as const,
   billing: ["billing"] as const,
   onboardingState: ["onboardingState"] as const,
   telegramStatus: ["telegramStatus"] as const,

@@ -3,7 +3,7 @@
 // theme, only persist on an EXPLICIT user choice). The actual color tokens already exist as CSS
 // custom properties keyed off `:root[data-theme="dark"]` (see index.css/tailwind.config.js) —
 // this module is just the one place that decides which value that attribute holds.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export type Theme = "light" | "dark";
 
@@ -27,19 +27,25 @@ function initialTheme(): Theme {
 // paint already uses the right theme instead of flashing light-then-dark.
 document.documentElement.setAttribute("data-theme", initialTheme());
 
+// Most consumers are pure CSS reading the `data-theme` attribute and don't need this at all, but
+// a few (e.g. design-canvas.tsx's React Flow `colorMode`) read the theme into JS/prop state, so a
+// change from one useTheme() instance (the switcher) must be visible to every other instance —
+// hence the small pub/sub below instead of each hook call owning fully independent local state.
+const listeners = new Set<(theme: Theme) => void>();
+
 function setTheme(theme: Theme): void {
   document.documentElement.setAttribute("data-theme", theme);
   localStorage.setItem(STORAGE_KEY, theme);
+  listeners.forEach((listener) => listener(theme));
 }
 
-/** Local component state, not a shared store: only the switcher itself needs to re-render on a
- * change (every other consumer is pure CSS reading the `data-theme` attribute), same reasoning
- * as why the language switcher doesn't need anything beyond react-i18next's own hook. */
 export function useTheme(): [Theme, (theme: Theme) => void] {
   const [theme, setThemeState] = useState<Theme>(() => (document.documentElement.getAttribute("data-theme") as Theme | null) ?? "light");
-  const update = (next: Theme) => {
-    setTheme(next);
-    setThemeState(next);
-  };
-  return [theme, update];
+  useEffect(() => {
+    listeners.add(setThemeState);
+    return () => {
+      listeners.delete(setThemeState);
+    };
+  }, []);
+  return [theme, setTheme];
 }

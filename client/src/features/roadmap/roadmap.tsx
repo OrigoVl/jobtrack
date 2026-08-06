@@ -118,7 +118,7 @@ function Node({ node }: { node: RoadmapNode }) {
         {open && (
           <div className="px-3 pb-3 border-t border-surface-2 pt-3 space-y-3">
             <div>
-              <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center justify-between mb-2.5">
                 <span className="text-xs font-semibold text-ink-dim">{t("level.heading")}</span>
                 <Chip tone={node.levelManual != null ? "amber" : "slate"}>
                   {node.levelManual != null ? t("level.manual") : t("level.auto")}

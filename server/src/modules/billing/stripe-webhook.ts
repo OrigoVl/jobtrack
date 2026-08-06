@@ -39,7 +39,6 @@ export const StripeWebhookEventSchema = z.object({
   type: z.string(),
   data: z.object({ object: z.record(z.string(), z.unknown()) }),
 });
-export type StripeWebhookEvent = z.infer<typeof StripeWebhookEventSchema>;
 
 export interface SubscriptionUpdate {
   plan: PlanId;

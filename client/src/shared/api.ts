@@ -25,6 +25,7 @@ import type {
   CvReviewJobState,
   CvShare,
   CvTailorResult,
+  DesignArchiveEntry,
   DesignDefenseTurnResult,
   DesignDiagram,
   DesignExercise,
@@ -33,6 +34,7 @@ import type {
   DesignTask,
   DigestPreferences,
   Drill,
+  DrillArchiveEntry,
   FetchAllJobState,
   FocusWeek,
   JobSearchResult,
@@ -228,6 +230,10 @@ export const api = {
     req<{ ok: boolean }>("/study/grade", { method: "POST", body: JSON.stringify({ cardId, grade }) }),
   setDrillStatus: (id: string, status: "solved" | "todo") =>
     req<{ ok: boolean }>("/study/drill", { method: "PUT", body: JSON.stringify({ id, status }) }),
+  drillArchive: () => req<DrillArchiveEntry[]>("/study/archive"),
+  updateDrillArchiveEntry: (id: string, patch: Partial<Pick<DrillArchiveEntry, "q" | "sol" | "exp">>) =>
+    req<DrillArchiveEntry>(`/study/archive/${id}`, { method: "PUT", body: JSON.stringify(patch) }),
+  deleteDrillArchiveEntry: (id: string) => req<{ ok: boolean }>(`/study/archive/${id}`, { method: "DELETE" }),
   drillHint: (id: string) =>
     req<{ offline?: boolean; hints: string[] }>("/study/drill-hint", { method: "POST", body: JSON.stringify({ id }) }),
   generateDrills: (tech: string) =>
@@ -333,6 +339,10 @@ export const api = {
   designHelp: (task: DesignTask, diagram: DesignDiagram, question: string) =>
     req<{ offline?: boolean; answer: string }>("/design/help", { method: "POST", body: JSON.stringify({ task, diagram, question }) }),
   designHistory: () => req<DesignHistoryEntry[]>("/design/history"),
+  designArchive: () => req<DesignArchiveEntry[]>("/design/archive"),
+  updateDesignArchiveEntry: (id: string, patch: Partial<{ title: string; scenario: string; summary: string; tip: string }>) =>
+    req<DesignArchiveEntry>(`/design/archive/${id}`, { method: "PUT", body: JSON.stringify(patch) }),
+  deleteDesignArchiveEntry: (id: string) => req<{ ok: boolean }>(`/design/archive/${id}`, { method: "DELETE" }),
   designDefense: (task: DesignTask, diagram: DesignDiagram, transcript: { q: string; a: string }[], maxTurns: number) =>
     req<DesignDefenseTurnResult>("/design/defense", {
       method: "POST",

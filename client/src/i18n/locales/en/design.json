@@ -76,6 +76,23 @@
   "history": {
     "heading": "Past attempts"
   },
+  "archive": {
+    "heading_one": "Solved archive ({{count}} task)",
+    "heading_other": "Solved archive ({{count}} tasks)",
+    "collapse": "Collapse",
+    "scenario": "Scenario",
+    "diagram": "Diagram",
+    "score": "Score: {{score}}",
+    "titleLabel": "Title",
+    "scenarioLabel": "Scenario",
+    "summaryLabel": "Summary",
+    "tipLabel": "Tip",
+    "deleteConfirmTitle": "Delete this archived task?",
+    "toasts": {
+      "updated": "Archived task updated",
+      "deleted": "Archived task deleted"
+    }
+  },
   "level": {
     "heading": "Your System Design level: {{level}}/100",
     "sample_one": "based on {{count}} graded exercise",
