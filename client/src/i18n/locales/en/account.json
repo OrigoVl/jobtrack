@@ -39,6 +39,19 @@
     "description": "Downloads a JSON file with your profile, vacancies, companies, and study progress — everything you've created in Zorya.",
     "button": "Export my data"
   },
+  "referrals": {
+    "heading": "Invite friends",
+    "description": "Share your link — once a friend verifies their email and gets started, you earn bonus AI calls (capped per month).",
+    "linkAria": "Your referral link",
+    "copy": "Copy",
+    "copied": "Copied",
+    "qualifiedCount_one": "{{count}} friend joined",
+    "qualifiedCount_other": "{{count}} friends joined",
+    "pendingCount_one": "{{count}} pending",
+    "pendingCount_other": "{{count}} pending",
+    "bonusEarned_one": "+{{count}} bonus AI call/month",
+    "bonusEarned_other": "+{{count}} bonus AI calls/month"
+  },
   "deleteAccount": {
     "heading": "Delete your account",
     "description": "Permanently deletes your account and everything in it — vacancies, companies, CV, study progress. This cannot be undone.",

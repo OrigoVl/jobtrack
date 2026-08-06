@@ -10,6 +10,7 @@ import {
   useCreateTelegramLinkToken,
   useDigestPreferences,
   useOpenBillingPortal,
+  useReferralState,
   useSetDigestEnabled,
   useTelegramStatus,
   useUnlinkTelegram,
@@ -28,10 +29,19 @@ export function Account() {
   const { data: telegramStatus } = useTelegramStatus();
   const createTelegramLinkToken = useCreateTelegramLinkToken();
   const unlinkTelegram = useUnlinkTelegram();
+  const { data: referral } = useReferralState();
   const [notifOn, setNotifOn] = useState(() => notificationsEnabled());
   const [deleteRequested, setDeleteRequested] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [referralCopied, setReferralCopied] = useState(false);
+
+  async function onCopyReferralLink() {
+    if (!referral) return;
+    await navigator.clipboard.writeText(`${window.location.origin}/register?ref=${referral.code}`);
+    setReferralCopied(true);
+    setTimeout(() => setReferralCopied(false), 2000);
+  }
 
   const onEnableNotifications = async () => {
     const ok = await enableNotifications();
@@ -173,6 +183,32 @@ export function Account() {
                 {t("billing:manageBillingButton")}
               </Btn>
             )}
+          </div>
+        </Card>
+      )}
+
+      {/* Same gate as the plan card above — the referral bonus only ever raises the Free
+          plan's AI-call ceiling, which doesn't exist at all when billing is unconfigured. */}
+      {referral && billing?.billingEnabled && (
+        <Card>
+          <div className="text-sm font-semibold text-ink">{t("referrals.heading")}</div>
+          <p className="text-xs text-ink-dim mt-1 mb-3 max-w-2xl">{t("referrals.description")}</p>
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <input
+              readOnly
+              value={`${window.location.origin}/register?ref=${referral.code}`}
+              aria-label={t("referrals.linkAria")}
+              className="flex-1 min-w-[220px] bg-surface-2 border border-grid rounded-lg px-2 py-1 text-xs font-mono text-ink"
+              onFocus={(e) => e.currentTarget.select()}
+            />
+            <Btn size="sm" variant="ghost" onClick={onCopyReferralLink}>
+              {referralCopied ? t("referrals.copied") : t("referrals.copy")}
+            </Btn>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap text-xs text-ink-dim">
+            <Chip tone={referral.qualified > 0 ? "emerald" : "slate"}>{t("referrals.qualifiedCount", { count: referral.qualified })}</Chip>
+            {referral.pending > 0 && <span>{t("referrals.pendingCount", { count: referral.pending })}</span>}
+            {referral.bonusCallsPerMonth > 0 && <span>{t("referrals.bonusEarned", { count: referral.bonusCallsPerMonth })}</span>}
           </div>
         </Card>
       )}

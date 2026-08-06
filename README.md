@@ -145,6 +145,7 @@ For aggregating logs in production (JSON to stdout, compatible with any collecto
 ## Production readiness
 
 - **Rate limiting** (`core/rate-limit.ts`) keeps its counters in the process's own memory by default — correct for a single instance. Set `REDIS_URL` (see `server/.env.example`, and the commented-out `redis` service in `docker-compose.yml`) once you run more than one replica behind a load balancer, or each replica stops sharing counters with the others.
+- **Auth-endpoint rate limiting.** better-auth's own built-in limiter (protects `/api/auth/*` — login/register/reset — from brute force, auto-enabled in production) shares its counters via Postgres (`rateLimit.storage: "database"` in `auth/auth.ts`, backed by the `rateLimit` table in `db/schema/auth.ts`) — already correct across replicas, no Redis needed for this one.
 - **Backups.** A managed Postgres (e.g. Railway) gives you automatic backups, but a backup nobody has ever restored isn't really a backup — actually run a restore against a scratch database at least once, on whatever schedule you're comfortable with. Two complementary options that don't depend on your host's backup tooling:
   - `pg_dump $DATABASE_URL > backup.sql` for a full, off-site, host-independent copy.
   - **Per-user export** — `GET /api/account/export` (also exposed as an "Export my data" button on the Account page) returns one user's own profile/vacancies/companies/progress as JSON. Useful for a single person's data, not a substitute for a real database backup.
@@ -296,9 +297,16 @@ Already addressed, continued:
   a DB hiccup never takes AI features down. Recorded as `llm_usage.outcome = "budget_exceeded"`.
 - **A Chrome extension exists** (`extension/` — "Zorya Job Clipper", MV3) that captures a job
   posting from any page (JSON-LD `JobPosting` parsing with a text-heuristic fallback) and saves it
-  via the same session cookie the web app uses. It's dev-only as committed (`host_permissions`
-  hardcoded to `localhost:3001`, no build step, not part of the pnpm workspace) — productionizing
-  it (configurable API origin, form autofill) is tracked below.
+  via the same session cookie the web app uses. The API origin is configurable from the
+  extension's own options page (`chrome.storage.local` + `chrome.permissions.request` for the
+  matching `optional_host_permissions` entry) instead of the hardcoded `localhost:3001` it
+  shipped with — no code change needed to point it at a real deployment. Also has a
+  "Fill application" button: reads your name/email (better-auth's own session endpoint) and
+  profile (`GET /api/profile`), then fills matching fields on the current page by GENERIC label
+  keyword matching (name/email/phone/LinkedIn/GitHub), not hardcoded per-ATS selectors — it's
+  click-to-fill with a visible result, meant to be reviewed before submitting, not a blind
+  auto-submit. Deliberately kept a zero-build vanilla-JS folder, not part of the pnpm workspace —
+  no dependencies to manage for five static files.
 - **Billing/subscriptions.** Stripe integration (`modules/billing/`) — a free tier with a
   per-calendar-month AI-call quota (`BILLING_FREE_AI_CALLS_PER_MONTH`) and a paid tier with a
   fair-use monthly cost ceiling (`BILLING_PRO_MONTHLY_COST_CEILING_USD`), checkout + webhook
@@ -310,27 +318,31 @@ Already addressed, continued:
   linked from the auth/legal footer. Covers the *published-policy* half of GDPR-style compliance;
   account data export and self-service deletion (`account/` module, better-auth's `deleteUser`)
   already covered the technical portability/deletion half.
+- **`budget_exceeded`/`quota_exceeded` visibility in the admin panel.** `admin.service.ts`'s
+  `listUsersWithActivity`/`getLlmUsageSummary`/`getBillingSummary` now read `llm_usage.outcome`
+  (`blockedCallsRecent` per user, `byOutcome`, `quotaExceededCount`/`budgetExceededCount`), surfaced
+  in `admin.tsx` — an account hitting its cap is no longer invisible to an admin.
+- **In-memory rate-limit store across multiple instances** — `core/rate-limit.ts` already backs
+  both limiters with `rate-limit-redis` when `REDIS_URL` is set, falling back to in-memory
+  per-instance counters otherwise; just remember to set it before running more than one replica,
+  or the effective limit becomes N× the declared one.
 
 Still open, roughly in priority order for an actual multi-user launch:
 
-1. **`budget_exceeded`/`quota_exceeded` visibility in the admin panel.** The data is recorded in
-   `llm_usage.outcome`, but no admin query currently selects, filters, or groups by it — an
-   account hitting its cap is invisible to an admin today.
-2. **In-memory rate-limit store across multiple instances** (already flagged in "Production
-   readiness" above) — set `REDIS_URL` before running more than one replica, or the effective
-   limit becomes N× the declared one.
-3. **No cookie/consent banner** and no documented data-retention policy beyond the ToS/Privacy
-   pages themselves — worth adding once cookies/analytics beyond the app's own session cookie are
-   in play.
-4. **Abuse monitoring beyond a manual ban.** The admin panel is otherwise read-only analytics —
-   there's no automated flag for a suspicious pattern (e.g. one account spiking `llm_usage`, or
-   registering many accounts from one IP) short of an admin noticing it themselves in the Users
-   tab.
-5. **Email deliverability at scale.** `RESEND_API_KEY` (or the "log instead of send" offline
+1. **Cookie/consent banner** — not added, and deliberately: the app currently sets only its own
+   `better-auth` session cookie, no third-party trackers/analytics cookies, which is "strictly
+   necessary" and exempt from consent requirements under GDPR/ePrivacy as documented. Revisit if a
+   future change adds a tracking/analytics cookie — at that point a banner (and a documented
+   retention policy beyond the ToS/Privacy pages) becomes necessary, not before.
+2. **Abuse monitoring beyond a manual ban.** The admin Users tab already surfaces per-account
+   `llmCostRecentUsd`/`blockedCallsRecent` for a human to notice, but there's still no automated
+   flag for a suspicious pattern (e.g. one account spiking `llm_usage`, or registering many
+   accounts from one IP) — deciding the right thresholds is a product call, not a bug fix.
+3. **Email deliverability at scale.** `RESEND_API_KEY` (or the "log instead of send" offline
    fallback) is fine for a single deployment's verification/reset emails; a real multi-user
    signup flow eventually needs to think about sender reputation/bounce handling at volume, which
    a single API key + default sending domain doesn't address on its own.
-6. **Onboarding for a stranger, not just a returning solo user.** There's now a first-run welcome
+4. **Onboarding for a stranger, not just a returning solo user.** There's now a first-run welcome
    flow (`features/welcome/`), but it's never been evaluated against a cold-signup conversion
    funnel — worth a look once real external users are the goal, not before.
 

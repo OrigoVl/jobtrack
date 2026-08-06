@@ -263,6 +263,10 @@ r.post(
     const cvText = String(req.body?.cvText || (await getProfile(userId)).cvText || "").slice(0, 8000);
     if (!llmAvailable() || cvText.trim().length < 30) return res.json({ offline: !llmAvailable(), doc: current.doc });
     const doc = await parseCvDocFromText(userId, cvText, current.doc.theme);
+    // `doc === null` means the LLM call itself failed (see parseCvDocFromText's own comment) —
+    // fall back to the already-saved doc instead of persisting/returning an empty one, same as
+    // the offline branch above.
+    if (!doc) return res.json({ offline: true, doc: current.doc });
     await updateProfileDoc(userId, id, doc);
     res.json({ doc });
   }),

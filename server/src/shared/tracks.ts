@@ -3,7 +3,7 @@
 // separate from profile.domain (free text, used in LLM prompts, see shared/skill-extraction.ts):
 // a Track is never a persisted/translated display value, so it doesn't collide with CLAUDE.md's
 // "never translate a persisted wire value" rule the way a UI-facing profession label would.
-export const TRACKS = ["software", "qa", "devops", "data", "design", "product", "security", "sysadmin"] as const;
+export const TRACKS = ["software", "qa", "devops", "data", "design", "product", "security", "sysadmin", "pm", "ba"] as const;
 export type Track = (typeof TRACKS)[number];
 export const DEFAULT_TRACK: Track = "software";
 
@@ -24,13 +24,34 @@ const TRACK_SIGNALS: { track: Track; re: RegExp }[] = [
     re: /\b(data (?:scientist|analyst|engineer)|analytics engineer|machine learning|ml engineer|bi (?:analyst|developer))\b/i,
   },
   { track: "design", re: /\b(ux|ui designer|product designer|graphic designer|interaction designer)\b/i },
-  { track: "product", re: /\b(product manager|product owner|scrum master|project manager|business analyst)\b/i },
+  { track: "ba", re: /\b(business analyst|requirements analyst|functional analyst)\b/i },
+  { track: "pm", re: /\b(project manager|program manager|scrum master|pmp)\b/i },
+  { track: "product", re: /\b(product manager|product owner)\b/i },
 ];
+
+// A handful of short 2-3 letter role abbreviations are too ambiguous to safely regex-match
+// inside arbitrary text (TRACK_SIGNALS above) — "BA" collides with "BA in Psychology"/British
+// Airways, "PM" with "10:30 PM", "PO" with "purchase order". But `domain` (profile.ts's "what
+// role are you targeting?") is a short free-text answer, not a paragraph — when a user's WHOLE
+// answer is literally just one of these abbreviations, there's no surrounding text for it to
+// collide with, so an EXACT match against the trimmed field is safe where a substring scan
+// wouldn't be. "PM" resolves to the new classic "pm" (Project Manager) track, not "product",
+// per explicit product decision — "Product Manager" is still reliably caught by TRACK_SIGNALS'
+// full-phrase match above.
+const SHORT_ABBREVIATIONS: Record<string, Track> = {
+  ba: "ba",
+  pm: "pm",
+  po: "product",
+  sm: "pm",
+  da: "data",
+};
 
 /** Regex-only, offline-safe track guess from free text (profile.domain and/or CV body). Falls
  * back to DEFAULT_TRACK ("software") when nothing matches or the text is empty — preserving
  * today's behavior for every existing profile that never expressed a track. */
 export function resolveTrack(domain?: string, cvText?: string): Track {
+  const trimmedDomain = domain?.trim().toLowerCase();
+  if (trimmedDomain && trimmedDomain in SHORT_ABBREVIATIONS) return SHORT_ABBREVIATIONS[trimmedDomain]!;
   const text = `${domain ?? ""} ${cvText ?? ""}`;
   if (!text.trim()) return DEFAULT_TRACK;
   for (const { track, re } of TRACK_SIGNALS) {

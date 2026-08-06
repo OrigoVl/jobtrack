@@ -81,8 +81,8 @@ r.post(
       HintsSchema,
       { maxTokens: 400, temperature: 0.3, cache: true, feature: "study-hint", outputLocale: "app" },
     );
-    const hints: string[] = (out?.hints ?? []).slice(0, 3);
-    res.json({ hints });
+    if (!out) return res.json({ offline: true, hints: [] });
+    res.json({ hints: out.hints.slice(0, 3) });
   }),
 );
 
@@ -114,7 +114,8 @@ r.post(
       // reasoning as every other cached generation call site (cv-improve, cover-letter, knowledge).
       { maxTokens: 1200, temperature: 0.6, cache: true, tier: "smart", feature: "study-generate-drills", outputLocale: "app" },
     );
-    const items = out?.drills ?? [];
+    if (!out) return res.json({ offline: true, added: 0, drills: await allDrills(userId, track) });
+    const items = out.drills;
     const gen = await genDrills(userId);
     const existingQ = new Set((await allDrills(userId, track)).map((d) => d.q));
     let added = 0;

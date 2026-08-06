@@ -45,7 +45,14 @@
     },
     "banConfirmTitle": "Заблокувати {{name}}?",
     "banConfirmMessage": "Користувач не зможе увійти, доки блокування не знято.",
-    "showingSummary": "Показано {{count}} з {{total}}."
+    "showingSummary": "Показано {{count}} з {{total}}.",
+    "searchPlaceholder": "Пошук за ім'ям або email…",
+    "searchAriaLabel": "Пошук користувачів за ім'ям або email",
+    "noResults": "Немає користувачів за запитом «{{search}}».",
+    "pagination": {
+      "prev": "Попередня",
+      "next": "Наступна"
+    }
   },
   "llm": {
     "empty": {

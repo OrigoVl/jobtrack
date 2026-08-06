@@ -47,7 +47,10 @@
       "parsing": "Parsing…",
       "linkedin": "LinkedIn (.zip)",
       "importingLinkedin": "Importing…",
-      "fromProfileText": "From profile text (AI)",
+      "fromProfileText": "From the \"CV\" page (AI)",
+      "fromProfileEmptyTitle": "Paste your resume text on the \"CV\" page first",
+      "fromProfileHelpSummary": "Where does this text come from?",
+      "fromProfileHelpBody": "Paste or update your resume text on the <b>\"CV\"</b> page (under \"Profile\" in the sidebar) — AI will parse it into sections (Experience, Skills, Education…) here with one click.",
       "linkedinHelpSummary": "Where do I get a LinkedIn .zip?",
       "linkedinHelpBody": "LinkedIn → <b>Settings & Privacy → Data Privacy → Get a copy of your data</b> → «Want something in particular» (Profile, Positions, Skills, Education) → get the archive by email → upload the <b>.zip</b> here."
     },
@@ -153,6 +156,7 @@
   },
   "generalSection": {
     "name": "Name",
+    "namePlaceholder": "Jane Doe",
     "roleTitle": "Role / title",
     "rolePlaceholder": "Full-Stack Developer",
     "contacts": "Contacts",

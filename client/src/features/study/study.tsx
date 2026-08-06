@@ -153,6 +153,9 @@ export function Study() {
     setShow(false);
     setI(0);
   };
+  // Which grade button (if any) is the one currently in flight — lets each button show its own
+  // spinner instead of all four lighting up for whichever was actually clicked.
+  const gradingValue = gradeCardMutation.isPending ? gradeCardMutation.variables?.grade : undefined;
   const revealHint = async () => {
     if (!drill) return;
     if (hints.length === 0) {
@@ -275,19 +278,35 @@ export function Study() {
                     variant="ghost"
                     className="!bg-rose-50 !text-rose-700 !border-rose-200 dark:!bg-rose-950 dark:!text-rose-300 dark:!border-rose-800"
                     onClick={() => grade(1)}
+                    loading={gradingValue === 1}
+                    disabled={gradeCardMutation.isPending}
                   >
                     {t("srs.grade.again")}
                   </Btn>
-                  <Btn variant="ghost" className="!bg-alert/10 !text-alert !border-alert/30" onClick={() => grade(2)}>
+                  <Btn
+                    variant="ghost"
+                    className="!bg-alert/10 !text-alert !border-alert/30"
+                    onClick={() => grade(2)}
+                    loading={gradingValue === 2}
+                    disabled={gradeCardMutation.isPending}
+                  >
                     {t("srs.grade.hard")}
                   </Btn>
-                  <Btn variant="ghost" className="!bg-signal/10 !text-signal !border-signal/30" onClick={() => grade(3)}>
+                  <Btn
+                    variant="ghost"
+                    className="!bg-signal/10 !text-signal !border-signal/30"
+                    onClick={() => grade(3)}
+                    loading={gradingValue === 3}
+                    disabled={gradeCardMutation.isPending}
+                  >
                     {t("srs.grade.good")}
                   </Btn>
                   <Btn
                     variant="ghost"
                     className="!bg-sky-50 !text-sky-700 !border-sky-200 dark:!bg-sky-950 dark:!text-sky-300 dark:!border-sky-800"
                     onClick={() => grade(4)}
+                    loading={gradingValue === 4}
+                    disabled={gradeCardMutation.isPending}
                   >
                     {t("srs.grade.easy")}
                   </Btn>

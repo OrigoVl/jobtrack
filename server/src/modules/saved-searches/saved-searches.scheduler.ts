@@ -9,7 +9,7 @@ import { fetchAllSources } from "../jobs/job-sources.js";
 import { sendEmail } from "../../shared/email.js";
 import { sendTelegramMessage } from "../../shared/telegram.js";
 import { contextLogger } from "../../core/logger.js";
-import { getProfile } from "../../db/index.js";
+import { getProfile, withAdvisoryLock } from "../../db/index.js";
 import { extractTechs } from "../../shared/tech-dict.js";
 import { computeFit } from "../vacancies/vacancy-text.js";
 import type { Fit } from "../../shared/validation.js";
@@ -17,6 +17,9 @@ import { getTelegramChatId } from "../telegram/telegram.repo.js";
 import { listAllSavedSearches, recordRunResult, type SavedSearchForRun } from "./saved-searches.repo.js";
 
 export const DEFAULT_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
+// Arbitrary but must stay unique among any pg_advisory_lock keys in this codebase — the only
+// other one currently in use is digest.scheduler.ts's DIGEST_SCHEDULER_LOCK_KEY.
+const SAVED_SEARCHES_SCHEDULER_LOCK_KEY = 72_701_002;
 // Caps how many URLs one saved search remembers — jsonb, not a child table (see schema/app.ts),
 // so this keeps a single row from growing without bound over months of runs.
 const MAX_TRACKED_URLS = 500;
@@ -154,7 +157,12 @@ export async function runSavedSearchesOnce(): Promise<void> {
  * as long as the process is otherwise running. */
 export function startSavedSearchesScheduler(intervalMs = DEFAULT_INTERVAL_MS): NodeJS.Timeout {
   const timer = setInterval(() => {
-    void runSavedSearchesOnce().catch((err) => contextLogger().error({ err }, "Saved-searches scheduler run failed"));
+    // With 2+ replicas, every replica's own `setInterval` fires independently — the advisory
+    // lock ensures only one replica's tick actually runs `runSavedSearchesOnce()`, so a user
+    // never gets the same job-alert email/Telegram alert duplicated once per replica.
+    void withAdvisoryLock(SAVED_SEARCHES_SCHEDULER_LOCK_KEY, () => runSavedSearchesOnce()).catch((err) =>
+      contextLogger().error({ err }, "Saved-searches scheduler run failed"),
+    );
   }, intervalMs);
   timer.unref();
   return timer;

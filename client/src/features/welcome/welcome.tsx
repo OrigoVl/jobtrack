@@ -47,7 +47,11 @@ export function Welcome() {
         <div className="rounded-xl bg-surface border border-grid p-6">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-ink-dim">{t("stepIndicator", { step, total: 2 })}</span>
-            <button className="text-xs text-ink-dim hover:text-signal hover:underline" onClick={() => finish("/dashboard")}>
+            <button
+              className="text-xs text-ink-dim hover:text-signal hover:underline disabled:opacity-40"
+              disabled={markSeen.isPending}
+              onClick={() => finish("/dashboard")}
+            >
               {t("skip")}
             </button>
           </div>

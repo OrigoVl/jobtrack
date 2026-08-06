@@ -679,6 +679,23 @@ export interface BillingState {
 
 export type CheckoutPlan = "pro";
 
+/** Mirrors server/src/modules/vacancies/vacancies.routes.ts's GET /vacancies/apply-progress. */
+export interface ApplyProgress {
+  streak: StreakState;
+  weeklyGoal: number;
+  appliedThisWeek: number;
+}
+
+/** Mirrors server/src/modules/referrals/referrals.routes.ts's GET /referrals/me. `code` is the
+ * referrer's own userId — see referrals.service.ts's top comment for why there's no separate
+ * code concept. */
+export interface ReferralState {
+  code: string;
+  pending: number;
+  qualified: number;
+  bonusCallsPerMonth: number;
+}
+
 export type DesignNodeKind =
   "client" | "loadBalancer" | "service" | "database" | "cache" | "queue" | "cdn" | "storage" | "thirdParty" | "generic";
 

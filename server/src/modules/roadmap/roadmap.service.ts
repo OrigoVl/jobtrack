@@ -24,6 +24,8 @@ const TRACK_GROUP_ORDER: Record<Track, string[]> = {
   product: ["Core", "Discovery", "Delivery", "Analytics", "Tools", OTHER_GROUP],
   security: ["Core", "AppSec", "Network", "Tools", OTHER_GROUP],
   sysadmin: ["Core", "Networking", "Systems", "Scripting", "Monitoring", "Tools", OTHER_GROUP],
+  pm: ["Core", "Planning", "Execution", "Risk", "Tools", OTHER_GROUP],
+  ba: ["Core", "Elicitation", "Analysis", "Documentation", "Tools", OTHER_GROUP],
 };
 
 function groupOrderFor(track: Track): string[] {

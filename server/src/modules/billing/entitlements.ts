@@ -11,6 +11,7 @@ import { env } from "../../config/env.js";
 import type { UserId } from "../../db/user-id.js";
 import { countBillableAiCalls, getSubscription, type SubscriptionRow } from "./billing.repo.js";
 import { limitsForPlan, type PlanId } from "./plans.js";
+import { getReferralBonusCalls } from "../referrals/referrals.service.js";
 
 export interface Entitlements {
   plan: PlanId;
@@ -91,8 +92,12 @@ export function entitlementsFor(
  * own try/catch, matching getUserCostUsdSince's existing fail-open contract for the cost cap. */
 export async function getEntitlements(userId: UserId): Promise<Entitlements> {
   if (!env.billing.isAvailable) return freeEntitlements(false, env.billing.freeAiCallsPerMonth);
-  const row = await getSubscription(userId);
-  return entitlementsFor(row, true, env.billing.freeAiCallsPerMonth);
+  // The referral bonus only ever matters for the Free branch of limitsForPlan (Pro/Team already
+  // resolve to `null`, i.e. no ceiling to raise) — fetched unconditionally anyway rather than
+  // resolving the plan first and conditionally skipping it, same "one more read is fine" call
+  // this module's own top comment already makes for the heavier per-request aggregate.
+  const [row, bonus] = await Promise.all([getSubscription(userId), getReferralBonusCalls(userId)]);
+  return entitlementsFor(row, true, env.billing.freeAiCallsPerMonth + bonus);
 }
 
 export interface AiQuotaState {

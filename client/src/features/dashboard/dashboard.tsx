@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   useAnalytics,
+  useApplyProgress,
   useCombinedCalendar,
   useContacts,
   useCvDoc,
@@ -12,10 +13,11 @@ import {
   useLearn,
   useProfile,
   useRoadmap,
+  useSetWeeklyApplyGoal,
   useStudy,
   useVacancies,
 } from "../../shared/queries";
-import { Card, CardsSkeleton, Chip, Kicker, NumberedMark, PageHeader, ProgressBar } from "../../shared/ui";
+import { Card, CardsSkeleton, Chip, Kicker, NumberedMark, PageHeader, ProgressBar, Select } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
 import { useFireCelebration } from "../../shared/use-celebration";
 import { useCountUp } from "../../shared/use-count-up";
@@ -83,6 +85,49 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
     </Card>
   );
 }
+const WEEKLY_GOAL_OPTIONS = [3, 5, 7, 10, 15];
+
+/** A dedicated card rather than a sixth StatTile in the bento row below — that row's
+ * grid-cols-4 is already a deliberate 1-hero + 4-tile layout, and this needs its own
+ * interactive control (the weekly-goal picker) that a fixed-height stat tile has no room for. */
+function ApplyStreakCard() {
+  const { t } = useTranslation("dashboard");
+  const { data } = useApplyProgress();
+  const setGoal = useSetWeeklyApplyGoal();
+  if (!data) return null;
+  const streak = data.streak.current;
+  return (
+    <Card className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center gap-3">
+        <FlameIcon className={`w-6 h-6 shrink-0 ${streak > 0 ? "text-alert" : "text-ink-dim"}`} />
+        <div>
+          <div className="font-semibold text-ink">
+            {streak > 0 ? t("applyStreak.heading", { count: streak }) : t("applyStreak.headingEmpty")}
+          </div>
+          <div className="text-xs text-ink-dim mt-0.5">
+            {t("applyStreak.weekly", { applied: data.appliedThisWeek, goal: data.weeklyGoal })}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 flex-1 min-w-[160px] sm:max-w-[280px]">
+        <ProgressBar value={data.appliedThisWeek} max={data.weeklyGoal} />
+        <Select
+          aria-label={t("applyStreak.goalLabel")}
+          value={data.weeklyGoal}
+          onChange={(e) => setGoal.mutate(Number(e.target.value))}
+          className="shrink-0 !text-xs !py-1"
+        >
+          {WEEKLY_GOAL_OPTIONS.map((n) => (
+            <option key={n} value={n}>
+              {t("applyStreak.goalOption", { count: n })}
+            </option>
+          ))}
+        </Select>
+      </div>
+    </Card>
+  );
+}
+
 /** Renders a stat's figure — plain text as-is, but a real number counts up from 0 (see
  * shared/use-count-up.ts) rather than just appearing, so a resolved/changed stat draws the eye.
  * A tiny subcomponent (not inline in StatTile) because hooks can't be called conditionally on
@@ -341,6 +386,7 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
       )}
 
       {vacancies.length > 0 && <FocusWeekCard llm={llm} />}
+      {vacancies.length > 0 && <ApplyStreakCard />}
 
       <div>
         {/* Asymmetric bento — one hero figure (the headline number) beside a tighter 2x2/1x4

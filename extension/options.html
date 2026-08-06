@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Zorya Job Clipper — Settings</title>
+    <style>
+      /* Same hardcoded-hex approach as popup.html — see that file's own comment for why. */
+      body {
+        margin: 0;
+        max-width: 480px;
+        padding: 24px;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        background: #faf9f6;
+        color: #171416;
+      }
+      h1 {
+        font-size: 16px;
+        margin: 0 0 4px;
+      }
+      p {
+        font-size: 13px;
+        color: #6b6560;
+        line-height: 1.5;
+      }
+      label {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #6b6560;
+        margin: 16px 0 4px;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 1px solid #ece7e0;
+        border-radius: 8px;
+        font-size: 13px;
+      }
+      button {
+        margin-top: 14px;
+        padding: 9px 16px;
+        border: none;
+        border-radius: 999px;
+        background: #4338ca;
+        color: #fff;
+        font-weight: 700;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      #status {
+        margin-top: 12px;
+        font-size: 12px;
+        min-height: 16px;
+      }
+      #status.ok {
+        color: #1a7350;
+      }
+      #status.error {
+        color: #b91c1c;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Zorya Job Clipper — Settings</h1>
+    <p>
+      Point this extension at your own Zorya deployment. Local dev against
+      <code>pnpm --filter jobtrack-server start</code> (or <code>docker compose up</code>) serves the API at
+      <code>http://localhost:3001</code> directly — use that unless you're running a real deployed instance.
+    </p>
+    <label for="origin">API origin</label>
+    <input id="origin" type="url" placeholder="http://localhost:3001" />
+    <div>
+      <button id="save">Save</button>
+    </div>
+    <div id="status"></div>
+    <script src="options.js"></script>
+  </body>
+</html>

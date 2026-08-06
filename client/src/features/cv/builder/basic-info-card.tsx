@@ -89,7 +89,7 @@ export function GeneralSection({ doc, onChange, llm, busyStyle, onImproveSummary
           label={t("generalSection.name")}
           value={doc.name}
           onChange={(v) => onChange({ name: v })}
-          placeholder="Michael Voloshyn"
+          placeholder={t("generalSection.namePlaceholder")}
           maxLength={120}
         />
         <Field

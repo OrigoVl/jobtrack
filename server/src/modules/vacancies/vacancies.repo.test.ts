@@ -25,6 +25,7 @@ const NEW_VACANCY = {
 
 let repo: typeof import("./vacancies.repo.js");
 let history: typeof import("../../db/vacancy-history.js");
+let kv: typeof import("../../db/kv.js");
 
 beforeAll(async () => {
   const testDb = await createTestDb();
@@ -33,6 +34,7 @@ beforeAll(async () => {
   vi.doMock("../../db/client.js", () => ({ default: testDb }));
   repo = await import("./vacancies.repo.js");
   history = await import("../../db/vacancy-history.js");
+  kv = await import("../../db/kv.js");
 });
 
 describe("vacancies.repo (PGlite)", () => {
@@ -144,5 +146,37 @@ describe("vacancies.repo (PGlite)", () => {
       const similar = await repo.findSimilarVacancies(USER_A, VEC_A, reference, 2);
       expect(similar).toHaveLength(2);
     });
+  });
+});
+
+describe("recordStatusChange() apply-streak side effect + getAppliedCountSince() (PGlite)", () => {
+  it("transitioning a vacancy to Applied ticks the apply streak, but other statuses don't", async () => {
+    const id = await repo.createVacancy(USER_B, NEW_VACANCY);
+    await history.recordStatusChange(USER_B, id, "Want to apply");
+    expect(await kv.getApplyStreak(USER_B)).toEqual({ current: 0, longest: 0, lastActiveDate: "" });
+
+    await history.recordStatusChange(USER_B, id, "Applied");
+    expect((await kv.getApplyStreak(USER_B)).current).toBe(1);
+  });
+
+  it("counts only DISTINCT vacancies that reached Applied on/after the given instant, scoped per user", async () => {
+    const since = new Date();
+    const idA1 = await repo.createVacancy(USER_A, NEW_VACANCY);
+    const idA2 = await repo.createVacancy(USER_A, NEW_VACANCY);
+    await history.recordStatusChange(USER_A, idA1, "Applied");
+    await history.recordStatusChange(USER_A, idA1, "Screening"); // re-visiting Applied's own dedupe below
+    await history.recordStatusChange(USER_A, idA1, "Applied"); // same vacancy, second time — must not double-count
+    await history.recordStatusChange(USER_A, idA2, "Applied");
+    const idB = await repo.createVacancy(USER_B, NEW_VACANCY);
+    await history.recordStatusChange(USER_B, idB, "Applied");
+
+    expect(await history.getAppliedCountSince(USER_A, since)).toBe(2);
+  });
+
+  it("excludes Applied transitions before the given instant", async () => {
+    const id = await repo.createVacancy(USER_A, NEW_VACANCY);
+    await history.recordStatusChange(USER_A, id, "Applied");
+    const future = new Date(Date.now() + 60_000);
+    expect(await history.getAppliedCountSince(USER_A, future)).toBe(0);
   });
 });

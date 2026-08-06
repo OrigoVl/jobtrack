@@ -147,6 +147,149 @@ export const TECHS: Record<string, TechDef> = {
   "Exploratory Testing": { cat: "Manual Testing", re: /\bexploratory test(?:ing|s)?\b/i },
   "Accessibility Testing": { cat: "Manual Testing", re: /\baccessibility test(?:ing|s)?\b/i },
   "Test Data Management": { cat: "Manual Testing", re: /\btest data management\b/i },
+
+  // ---------- Product track additions ----------
+  // "RICE"/"MoSCoW"/"MVP"/"OKR(s)" deliberately NOT added — "RICE" collides with the food word,
+  // "MoSCoW" collides with the city name Moscow, and MVP/OKR are short, widely-overloaded acronyms
+  // outside a PM context (Most Valuable Player, etc.) — all four stay KB-only (see
+  // knowledge-base.ts), reachable via the multi-word KB keys below where the full phrase is unambiguous.
+  Confluence: { cat: "Tools", re: /\bconfluence\b/i },
+  Amplitude: { cat: "Tools", re: /\bamplitude\b/i },
+  Mixpanel: { cat: "Tools", re: /\bmixpanel\b/i },
+  Productboard: { cat: "Tools", re: /\bproductboard\b/i },
+  Pendo: { cat: "Tools", re: /\bpendo\b/i },
+  "Product Ops": { cat: "Core", re: /\bproduct ops\b/i },
+  "TAM/SAM/SOM": { cat: "Core", re: /\btam\/sam\/som\b/i },
+  "Business Model Canvas": { cat: "Core", re: /\bbusiness model canvas\b/i },
+  "Value Proposition Canvas": { cat: "Core", re: /\bvalue proposition canvas\b/i },
+  "Product-Market Fit": { cat: "Core", re: /\bproduct-market fit\b/i },
+  "Product-Led Growth": { cat: "Core", re: /\bproduct-led growth\b/i },
+  "Go-to-Market Strategy": { cat: "Core", re: /\bgo-to-market strategy\b/i },
+  "Jobs-to-be-Done": { cat: "Discovery", re: /\b(jobs-to-be-done|jtbd)\b/i },
+  "Customer Interviews": { cat: "Discovery", re: /\bcustomer interviews?\b/i },
+  "Competitive Analysis": { cat: "Discovery", re: /\bcompetitive analysis\b/i },
+  "Design Thinking": { cat: "Discovery", re: /\bdesign thinking\b/i },
+  "Opportunity Solution Tree": { cat: "Discovery", re: /\bopportunity solution tree\b/i },
+  "Voice of Customer": { cat: "Discovery", re: /\bvoice of (?:the )?customer\b/i },
+  "Kano Model": { cat: "Delivery", re: /\bkano model\b/i },
+  "Product Roadmapping": { cat: "Delivery", re: /\bproduct roadmapping\b/i },
+  "User Story Mapping": { cat: "Delivery", re: /\buser story mapping\b/i },
+  "Backlog Refinement": { cat: "Delivery", re: /\bbacklog refinement\b/i },
+  "North Star Metric": { cat: "Analytics", re: /\bnorth star metric\b/i },
+  "Cohort Analysis": { cat: "Analytics", re: /\bcohort analysis\b/i },
+  "Funnel Analysis": { cat: "Analytics", re: /\bfunnel analysis\b/i },
+  "Churn Analysis": { cat: "Analytics", re: /\bchurn analysis\b/i },
+
+  // ---------- SysAdmin track additions ----------
+  // "AD", "SAN", "NAS", "MFA", "EDR", "DFS" deliberately NOT added as bare acronyms — "AD" is a
+  // too-ambiguous 2-letter token (per CLAUDE.md guidance), "SAN" collides with the common place
+  // name "San" (San Francisco, San Diego, etc.), "MFA" collides with "Master of Fine Arts" (a real
+  // degree the design/product tracks' vacancies can mention), "EDR" has no widely-recognized
+  // meaning outside security so it stays reachable only via the full "Endpoint Protection" KB
+  // entry, and "DFS" collides with the "depth-first search" CS algorithm term. All stay KB-only
+  // (see knowledge-base.ts), same treatment as the Product track's RICE/MoSCoW/MVP/OKR(s).
+  "Active Directory": { cat: "Systems", re: /\bactive directory\b/i },
+  "Windows Server": { cat: "Systems", re: /\bwindows server\b/i },
+  PowerShell: { cat: "Scripting", re: /\bpowershell\b/i },
+  "Group Policy": { cat: "Systems", re: /\bgroup polic(?:y|ies)\b/i },
+  VMware: { cat: "Systems", re: /\bvmware\b/i },
+  "Hyper-V": { cat: "Systems", re: /\bhyper-v\b/i },
+  "Entra ID": { cat: "Systems", re: /\bentra id\b/i },
+  SSH: { cat: "Systems", re: /\bssh\b/i },
+  // Requires a digit (RAID 0/1/5/6/10 etc.) rather than matching the bare word "raid" — avoids
+  // tagging the common English word (e.g. "police raid") that could otherwise appear in prose.
+  RAID: { cat: "Systems", re: /\braid[\s-]?(?:0|1|5|6|10)\b/i },
+  Zabbix: { cat: "Monitoring", re: /\bzabbix\b/i },
+  Nagios: { cat: "Monitoring", re: /\bnagios\b/i },
+  ITIL: { cat: "Core", re: /\bitil\b/i },
+  "Ticketing Systems": { cat: "Core", re: /\bticketing systems?\b/i },
+  DNS: { cat: "Networking", re: /\bdns\b/i },
+  DHCP: { cat: "Networking", re: /\bdhcp\b/i },
+  VPN: { cat: "Networking", re: /\bvpns?\b/i },
+  Subnetting: { cat: "Networking", re: /\bsubnet(?:ting|s)?\b/i },
+  "TCP/IP": { cat: "Networking", re: /\btcp\/ip\b/i },
+  Firewalls: { cat: "Networking", re: /\bfirewalls?\b/i },
+  WSUS: { cat: "Tools", re: /\bwsus\b/i },
+  SCCM: { cat: "Tools", re: /\bsccm\b/i },
+  Intune: { cat: "Tools", re: /\bintune\b/i },
+
+  // ---------- Design track additions ----------
+  // "Sketch", "Maze", and "UserTesting" deliberately NOT added — "sketch" collides with the
+  // everyday verb/noun ("sketch out a plan"), "maze" collides with the everyday word ("a maze of
+  // legacy code"), and "UserTesting" is ambiguous against the generic two-word method name "user
+  // testing" it would otherwise sit right next to — all three stay KB-only (see knowledge-base.ts).
+  // "Persona" and general "Prototyping" also deliberately NOT added for the same reason: "persona"
+  // is common outside UX ("brand persona"), and bare "prototyping" is widely used in non-design
+  // engineering contexts (hardware/rapid prototyping) — both stay KB-only too.
+  Figma: { cat: "Tools", re: /\bfigma\b/i },
+  Zeplin: { cat: "Handoff", re: /\bzeplin\b/i },
+  FigJam: { cat: "Tools", re: /\bfigjam\b/i },
+  Miro: { cat: "Tools", re: /\bmiro\b/i },
+  "Adobe XD": { cat: "Tools", re: /\badobe\s?xd\b/i },
+  "Design Systems": { cat: "UI", re: /\bdesign systems?\b/i },
+  Wireframing: { cat: "Prototyping", re: /\bwireframe(?:s|ing)?\b/i },
+  "Usability Testing": { cat: "Research", re: /\busability test(?:ing|s)?\b/i },
+  "User Research": { cat: "Research", re: /\buser research\b/i },
+  "Information Architecture": { cat: "Core", re: /\binformation architecture\b/i },
+  "Accessibility (a11y)": { cat: "UI", re: /\ba11y\b/i },
+  WCAG: { cat: "UI", re: /\bwcag\b/i },
+  "User Journey Mapping": { cat: "Research", re: /\b(?:user |customer )?journey mapping\b/i },
+  "Heuristic Evaluation": { cat: "Core", re: /\bheuristic evaluation\b/i },
+  "Interaction Design": { cat: "UI", re: /\binteraction design\b/i },
+  Typography: { cat: "UI", re: /\btypography\b/i },
+  "Color Theory": { cat: "UI", re: /\bcolou?r theory\b/i },
+  "Material Design": { cat: "UI", re: /\bmaterial design\b/i },
+  "Human Interface Guidelines": { cat: "UI", re: /\bhuman interface guidelines\b/i },
+  "Card Sorting": { cat: "Research", re: /\bcard sort(?:ing)?\b/i },
+  "Design Tokens": { cat: "UI", re: /\bdesign tokens?\b/i },
+  "Atomic Design": { cat: "UI", re: /\batomic design\b/i },
+  "Design Critique": { cat: "Core", re: /\bdesign critiques?\b/i },
+  "Dark Patterns": { cat: "Core", re: /\bdark patterns?\b/i },
+  "Empathy Map": { cat: "Research", re: /\bempathy map(?:s|ping)?\b/i },
+  Microinteractions: { cat: "UI", re: /\bmicro-?interactions?\b/i },
+  "Design Handoff": { cat: "Handoff", re: /\bdesign handoffs?\b/i },
+
+  // ---------- Security track additions ----------
+  // "Cryptography Fundamentals", "Secure Coding Practices", and "DNS Security" deliberately NOT
+  // added — the first two are generic phrases too broad/unlikely to appear verbatim in vacancy
+  // text without false-positive risk, and "DNS Security" would just re-match the same bare "dns"
+  // token the existing sysadmin-track "DNS" entry above already owns, double-tagging the same
+  // signal rather than adding a distinct one. All three stay KB-only (see knowledge-base.ts).
+  "OWASP Top 10": { cat: "Core", re: /\bowasp top ?10\b/i },
+  "NIST Cybersecurity Framework": { cat: "Core", re: /\bnist csf\b|\bnist cybersecurity framework\b/i },
+  "MITRE ATT&CK": { cat: "Core", re: /\bmitre\s*att(?:&|a)ck\b/i },
+  "Zero Trust Architecture": { cat: "Core", re: /\bzero trust\b/i },
+  "Threat Modeling": { cat: "Core", re: /\bthreat model(?:l?ing|s)?\b/i },
+  "Password Hashing": { cat: "Core", re: /\bpassword hashing\b|\bbcrypt\b|\bargon2\b|\bscrypt\b/i },
+  "Penetration Testing": { cat: "Core", re: /\bpenetration test(?:ing|s|er)?\b|\bpen[- ]test(?:ing|s|ers)?\b/i },
+  SIEM: { cat: "Core", re: /\bsiem\b/i },
+  "SQL Injection": { cat: "AppSec", re: /\bsql injection\b|\bsqli\b/i },
+  "Cross-Site Scripting (XSS)": { cat: "AppSec", re: /\bcross-site scripting\b|\bxss\b/i },
+  CSRF: { cat: "AppSec", re: /\bcsrf\b/i },
+  SSRF: { cat: "AppSec", re: /\bssrf\b/i },
+  IDOR: { cat: "AppSec", re: /\bidor\b/i },
+  XXE: { cat: "AppSec", re: /\bxxe\b/i },
+  "JWT Security": { cat: "AppSec", re: /\bjwt\b/i },
+  "SAST/DAST": { cat: "AppSec", re: /\bsast\b|\bdast\b/i },
+  "TLS/SSL": { cat: "Network", re: /\btls\b|\bssl\b/i },
+  "DDoS Protection": { cat: "Network", re: /\bddos\b/i },
+  // Phrase-only (no bare "ids"/"ips") — "IPS" collides with the common hardware term "IPS panel"
+  // (in-plane switching displays) that shows up in non-security job ads, and bare "IDS" is too
+  // short/ambiguous per CLAUDE.md guidance to risk on its own.
+  "IDS/IPS": { cat: "Network", re: /\bintrusion detection\b|\bintrusion prevention\b|\bids\/ips\b/i },
+  "Network Segmentation": { cat: "Network", re: /\bnetwork segmentation\b/i },
+  "Burp Suite": { cat: "Tools", re: /\bburp\s?suite\b/i },
+  Nmap: { cat: "Tools", re: /\bnmap\b/i },
+  Wireshark: { cat: "Tools", re: /\bwireshark\b/i },
+  Metasploit: { cat: "Tools", re: /\bmetasploit\b/i },
+  // Phrase-only — bare "ZAP" collides with the common English verb ("zap the bug").
+  "OWASP ZAP": { cat: "Tools", re: /\bowasp zap\b|\bzap proxy\b/i },
+  "Vulnerability Scanning": { cat: "Tools", re: /\bvulnerability scan(?:ning|s|ner)?\b|\bnessus\b|\bqualys\b/i },
+  "Kali Linux": { cat: "Tools", re: /\bkali linux\b/i },
+  "Password Cracking": { cat: "Tools", re: /\bpassword cracking\b|\bhashcat\b|\bjohn the ripper\b/i },
+  CyberChef: { cat: "Tools", re: /\bcyberchef\b/i },
+  Shodan: { cat: "Tools", re: /\bshodan\b/i },
+  Splunk: { cat: "Tools", re: /\bsplunk\b/i },
 };
 
 export interface TechMatch {
@@ -220,6 +363,81 @@ const FUZZY_EXCLUDE = new Set([
   "Exploratory Testing",
   "Accessibility Testing",
   "Test Data Management",
+  // Product track additions — same reasoning: merging these into one alphanumeric token for
+  // Levenshtein comparison would produce useless typo matches for a multi-word/punctuated name.
+  "Product Ops",
+  "TAM/SAM/SOM",
+  "Business Model Canvas",
+  "Value Proposition Canvas",
+  "Product-Market Fit",
+  "Product-Led Growth",
+  "Go-to-Market Strategy",
+  "Jobs-to-be-Done",
+  "Customer Interviews",
+  "Competitive Analysis",
+  "Design Thinking",
+  "Opportunity Solution Tree",
+  "Voice of Customer",
+  "Kano Model",
+  "Product Roadmapping",
+  "User Story Mapping",
+  "Backlog Refinement",
+  "North Star Metric",
+  "Cohort Analysis",
+  "Funnel Analysis",
+  "Churn Analysis",
+  // SysAdmin track additions — same reasoning: merging these into one alphanumeric token for
+  // Levenshtein comparison would produce useless typo matches for a multi-word/punctuated name.
+  "Active Directory",
+  "Windows Server",
+  "Group Policy",
+  "Hyper-V",
+  "Entra ID",
+  "Ticketing Systems",
+  "TCP/IP",
+  // Design track additions — same reasoning: merging these into one alphanumeric token for
+  // Levenshtein comparison would produce useless typo matches for a multi-word/punctuated name.
+  "Adobe XD",
+  "Design Systems",
+  "Usability Testing",
+  "User Research",
+  "Information Architecture",
+  "Accessibility (a11y)",
+  "User Journey Mapping",
+  "Heuristic Evaluation",
+  "Interaction Design",
+  "Color Theory",
+  "Material Design",
+  "Human Interface Guidelines",
+  "Card Sorting",
+  "Design Tokens",
+  "Atomic Design",
+  "Design Critique",
+  "Dark Patterns",
+  "Empathy Map",
+  "Design Handoff",
+  // Security track additions — same reasoning: merging these into one alphanumeric token for
+  // Levenshtein comparison would produce useless typo matches for a multi-word/punctuated name.
+  "OWASP Top 10",
+  "NIST Cybersecurity Framework",
+  "MITRE ATT&CK",
+  "Zero Trust Architecture",
+  "Threat Modeling",
+  "Password Hashing",
+  "Penetration Testing",
+  "SQL Injection",
+  "Cross-Site Scripting (XSS)",
+  "JWT Security",
+  "SAST/DAST",
+  "TLS/SSL",
+  "DDoS Protection",
+  "IDS/IPS",
+  "Network Segmentation",
+  "Burp Suite",
+  "OWASP ZAP",
+  "Vulnerability Scanning",
+  "Kali Linux",
+  "Password Cracking",
 ]);
 const FUZZY_KEYS: { name: string; key: string }[] = Object.keys(TECHS)
   .filter((name) => !FUZZY_EXCLUDE.has(name))

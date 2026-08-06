@@ -44,7 +44,9 @@
     "design": "Дизайн",
     "product": "Продукт",
     "security": "Безпека",
-    "sysadmin": "Системне адміністрування"
+    "sysadmin": "Системне адміністрування",
+    "pm": "Управління проєктами",
+    "ba": "Бізнес-аналіз"
   },
   "roadmapGroups": {
     "core": "Основи",
@@ -56,7 +58,13 @@
     "ai": "AI",
     "tools": "Інструменти",
     "other": "Інше",
-    "skillsInDemand": "Навички в попиті"
+    "skillsInDemand": "Навички в попиті",
+    "planning": "Планування",
+    "execution": "Виконання",
+    "risk": "Ризики",
+    "elicitation": "Збір вимог",
+    "analysis": "Аналіз",
+    "documentation": "Документація"
   },
   "errors": {
     "generic": "Сталася помилка",

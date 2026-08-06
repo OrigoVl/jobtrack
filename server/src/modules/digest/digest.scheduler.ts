@@ -7,10 +7,12 @@ import { sendTelegramMessage } from "../../shared/telegram.js";
 import { env } from "../../config/env.js";
 import { contextLogger } from "../../core/logger.js";
 import { getStudyStreak } from "../../db/kv.js";
+import { withAdvisoryLock } from "../../db/index.js";
 import { listVacancyDigestRows } from "../vacancies/vacancies.repo.js";
 import { getCombinedCalendar } from "../calendar/calendar.service.js";
 import { getTelegramChatId } from "../telegram/telegram.repo.js";
 import { listDigestEnabledUsers, recordDigestSent, type DigestUserForRun } from "./digest.repo.js";
+import { qualifyPendingReferrals } from "../referrals/referrals.service.js";
 import {
   isDigestDue,
   buildStaleApplications,
@@ -22,6 +24,10 @@ import {
 } from "./digest.service.js";
 
 export const DEFAULT_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours — the per-user weekly cadence is gated by isDigestDue, not this interval
+
+// Arbitrary but must stay unique among any pg_advisory_lock keys in this codebase — the only
+// other one currently in use is saved-searches.scheduler.ts's SAVED_SEARCHES_SCHEDULER_LOCK_KEY.
+const DIGEST_SCHEDULER_LOCK_KEY = 72_701_001;
 
 async function buildDigestContent(userId: DigestUserForRun["userId"], nowMs: number): Promise<DigestContent> {
   const from = new Date(nowMs).toISOString();
@@ -71,6 +77,10 @@ async function processOneUserDigest(u: DigestUserForRun, nowMs: number): Promise
 }
 
 export async function runDigestOnce(nowMs = Date.now()): Promise<void> {
+  // Unrelated to digests, but deliberately piggybacked on this existing 12h tick rather than a
+  // third setInterval (see referrals.service.ts#qualifyPendingReferrals) — one failure here must
+  // never block the actual digest run below.
+  await qualifyPendingReferrals(nowMs).catch((err) => contextLogger().error({ err }, "Referral qualification sweep failed"));
   const users = await listDigestEnabledUsers();
   for (const u of users) {
     try {
@@ -88,7 +98,12 @@ export async function runDigestOnce(nowMs = Date.now()): Promise<void> {
  * as long as the process is otherwise running. */
 export function startDigestScheduler(intervalMs = DEFAULT_INTERVAL_MS): NodeJS.Timeout {
   const timer = setInterval(() => {
-    void runDigestOnce().catch((err) => contextLogger().error({ err }, "Digest scheduler run failed"));
+    // With 2+ replicas, every replica's own `setInterval` fires independently — the advisory
+    // lock ensures only one replica's tick actually runs `runDigestOnce()`, so a user never gets
+    // the same weekly digest email/Telegram alert duplicated once per replica.
+    void withAdvisoryLock(DIGEST_SCHEDULER_LOCK_KEY, () => runDigestOnce()).catch((err) =>
+      contextLogger().error({ err }, "Digest scheduler run failed"),
+    );
   }, intervalMs);
   timer.unref();
   return timer;

@@ -8,6 +8,8 @@
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { sql } from "drizzle-orm";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { fileURLToPath } from "url";
 import path from "path";
 import { env } from "../config/env.js";
@@ -45,6 +47,47 @@ export async function pingDb(): Promise<boolean> {
 /** Closes the connection pool — called on graceful shutdown. */
 export async function closeDb(): Promise<void> {
   await pool.end();
+}
+
+/** Runs `fn` only if this process wins a Postgres advisory lock for `lockKey` — used by
+ * schedulers (digest/saved-searches) so that with multiple server replicas each running the same
+ * `setInterval`, only one replica actually executes a given tick; the rest skip it instead of
+ * duplicating the work (duplicate emails/Telegram alerts — see digest.scheduler.ts/
+ * saved-searches.scheduler.ts). Transaction-scoped (`pg_try_advisory_xact_lock`, not the
+ * session-scoped `pg_advisory_lock`): the lock is released automatically when the transaction
+ * ends (COMMIT/ROLLBACK, or the connection dropping), so there's no separate unlock call to
+ * forget — even if the process crashes mid-run, the lock can't leak. Goes through Drizzle's
+ * `transaction()` (not a raw `pool.connect()`) so the SQL itself works unchanged against either
+ * driver this module could be backed by. Holds one pooled connection for the whole duration of
+ * `fn` (which can be several minutes for a full digest run over every user) — acceptable for a
+ * job that only runs every few hours against a pool sized in the tens of connections. Returns
+ * whether `fn` actually ran (false = another replica already holds this tick's lock).
+ *
+ * `testDb` exists ONLY for db/client.test.ts: this function is defined in the same module as the
+ * real `db`/`pool` it defaults to, and that module runs `await migrate(...)` against a real
+ * Postgres at import time — unlike every other db/*.ts and *.repo.ts module (which import `db`
+ * from here and so can swap it via `vi.doMock(".../client.js", () => ({ default: testDb }))`,
+ * see test-db.ts), this file can't mock itself that way. Injecting a PGlite-backed Drizzle
+ * instance (`createTestDb()`) directly is the only way to unit-test this function's SQL without
+ * a real reachable Postgres (see ci.yml's build-and-test job, which never runs one). Typed as the
+ * generic `PgDatabase<PgQueryResultHKT, ...>` base (not the concrete `AppDb`/`NodePgDatabase`)
+ * specifically so a `PgliteDatabase` is assignable here. Real call sites (the two schedulers)
+ * never pass this — they get the real `db`. */
+export async function withAdvisoryLock(
+  lockKey: number,
+  fn: () => Promise<void>,
+  testDb: PgDatabase<PgQueryResultHKT, typeof schema> = db,
+): Promise<boolean> {
+  return testDb.transaction(async (tx) => {
+    // `testDb`'s generic PgDatabase<PgQueryResultHKT, ...> type (needed so both the real
+    // NodePgDatabase and, in tests, a PGliteDatabase are assignable — see this parameter's own
+    // doc comment above) can't express the concrete node-postgres/PGlite `{ rows: T[] }` result
+    // shape `execute()` actually returns at runtime; cast rather than lose that generic bound.
+    const result = (await tx.execute(sql`SELECT pg_try_advisory_xact_lock(${lockKey}) AS locked`)) as { rows: { locked: boolean }[] };
+    const locked = result.rows[0]?.locked === true;
+    if (locked) await fn();
+    return locked;
+  });
 }
 
 export default db;

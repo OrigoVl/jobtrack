@@ -44,7 +44,9 @@
     "design": "Design",
     "product": "Product",
     "security": "Security",
-    "sysadmin": "System Administration"
+    "sysadmin": "System Administration",
+    "pm": "Project Management",
+    "ba": "Business Analysis"
   },
   "roadmapGroups": {
     "core": "Core",
@@ -56,7 +58,13 @@
     "ai": "AI",
     "tools": "Tools",
     "other": "Other",
-    "skillsInDemand": "Skills in demand"
+    "skillsInDemand": "Skills in demand",
+    "planning": "Planning",
+    "execution": "Execution",
+    "risk": "Risk",
+    "elicitation": "Elicitation",
+    "analysis": "Analysis",
+    "documentation": "Documentation"
   },
   "errors": {
     "generic": "An error occurred",

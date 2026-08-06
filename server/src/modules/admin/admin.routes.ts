@@ -24,7 +24,8 @@ r.get(
   "/admin/users",
   requireAdmin(async (_userId, req, res) => {
     const { limit, offset } = parsePagination(req.query);
-    res.json(await listUsersWithActivity(limit ?? 50, offset));
+    const search = typeof req.query.search === "string" ? req.query.search.trim() || undefined : undefined;
+    res.json(await listUsersWithActivity(limit ?? 50, offset, 30, search));
   }),
 );
 r.get(

@@ -34,6 +34,8 @@ const TRACK_DOMAIN_LABEL: Record<Track, string> = {
   product: "Product Manager",
   security: "Security Engineer",
   sysadmin: "System Administrator",
+  pm: "Project Manager",
+  ba: "Business Analyst",
 };
 
 /** Offline (no LLM key) best-effort domain guess from CV text: resolveTrack's keyword signals

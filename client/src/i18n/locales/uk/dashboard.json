@@ -87,5 +87,18 @@
     "daysSince_few": "{{count}} дні тому",
     "daysSince_many": "{{count}} днів тому",
     "daysSince_other": "{{count}} дня тому"
+  },
+  "applyStreak": {
+    "heading_one": "{{count}} день поспіль подаєш заявки",
+    "heading_few": "{{count}} дні поспіль подаєш заявки",
+    "heading_many": "{{count}} днів поспіль подаєш заявки",
+    "heading_other": "{{count}} дня поспіль подаєш заявки",
+    "headingEmpty": "Ще немає серії заявок",
+    "weekly": "{{applied}} з {{goal}} заявок цього тижня",
+    "goalLabel": "Тижнева ціль",
+    "goalOption_one": "{{count}} / тиждень",
+    "goalOption_few": "{{count}} / тиждень",
+    "goalOption_many": "{{count}} / тиждень",
+    "goalOption_other": "{{count}} / тиждень"
   }
 }

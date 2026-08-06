@@ -18,6 +18,12 @@ const GROUP_KEY: Record<string, string> = {
   Tools: "tools",
   Other: "other",
   "Skills in demand": "skillsInDemand",
+  Planning: "planning",
+  Execution: "execution",
+  Risk: "risk",
+  Elicitation: "elicitation",
+  Analysis: "analysis",
+  Documentation: "documentation",
 };
 
 export function roadmapGroupLabel(group: string): string {

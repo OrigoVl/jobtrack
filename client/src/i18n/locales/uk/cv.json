@@ -47,7 +47,10 @@
       "parsing": "Аналізуємо…",
       "linkedin": "LinkedIn (.zip)",
       "importingLinkedin": "Імпортуємо…",
-      "fromProfileText": "З тексту профілю (ШІ)",
+      "fromProfileText": "Зі сторінки «Резюме» (ШІ)",
+      "fromProfileEmptyTitle": "Спочатку встав текст резюме на сторінці «Резюме»",
+      "fromProfileHelpSummary": "Звідки береться цей текст?",
+      "fromProfileHelpBody": "Встав або онови текст резюме на сторінці <b>«Резюме»</b> (у розділі «Профіль» бічної панелі) — тут ШІ розбере його на розділи (Досвід, Навички, Освіта…) одним кліком.",
       "linkedinHelpSummary": "Де взяти .zip з LinkedIn?",
       "linkedinHelpBody": "LinkedIn → <b>Налаштування та конфіденційність → Конфіденційність даних → Отримати копію своїх даних</b> → «Чи потрібно щось особливе» (Профіль, Посади, Навички, Освіта) → отримай архів на пошту → завантаж <b>.zip</b> сюди."
     },
@@ -163,6 +166,7 @@
   },
   "generalSection": {
     "name": "Ім'я",
+    "namePlaceholder": "Іван Петренко",
     "roleTitle": "Посада / роль",
     "rolePlaceholder": "Full-Stack Developer",
     "contacts": "Контакти",

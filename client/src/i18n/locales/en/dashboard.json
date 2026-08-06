@@ -77,5 +77,14 @@
     "open": "Open →",
     "daysSince_one": "{{count}} day ago",
     "daysSince_other": "{{count}} days ago"
+  },
+  "applyStreak": {
+    "heading_one": "{{count}} day apply streak",
+    "heading_other": "{{count}} day apply streak",
+    "headingEmpty": "No apply streak yet",
+    "weekly": "{{applied}} of {{goal}} applications this week",
+    "goalLabel": "Weekly goal",
+    "goalOption_one": "{{count}} / week",
+    "goalOption_other": "{{count}} / week"
   }
 }

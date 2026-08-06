@@ -1148,6 +1148,1348 @@ export const KB: Record<string, KbEntry> = {
     ],
     resources: [R("ISTQB Glossary", "https://glossary.istqb.org/en/search/")],
   },
+
+  // ---------- Product track additions ----------
+  "Product Ops": {
+    cat: "Core",
+    learn: [
+      "Owns tooling/process standardization and feedback synthesis across PM teams, freeing PMs for strategy work",
+      "Common outputs: a single feedback taxonomy, roadmap tooling upkeep, recurring metrics/reporting",
+    ],
+    resources: [
+      R("Product School — What Is Product Operations?", "https://productschool.com/blog/product-fundamentals/product-operations"),
+      R("Mind the Product — Product Ops", "https://www.mindtheproduct.com/tag/product-ops/"),
+    ],
+  },
+  "TAM/SAM/SOM": {
+    cat: "Core",
+    learn: [
+      "TAM (total market) → SAM (realistically serviceable) → SOM (realistically obtainable, given competition/GTM capacity)",
+      "Use it to sanity-check whether an initiative is worth building, not just whether it's technically excellent",
+    ],
+    resources: [R("Product School — TAM SAM SOM", "https://productschool.com/blog/product-fundamentals/tam-sam-som")],
+  },
+  "Business Model Canvas": {
+    cat: "Core",
+    learn: [
+      "9 blocks: segments, value props, channels, relationships, revenue, resources, activities, partnerships, costs",
+      "Checks that a product solves a real problem AND sits inside a viable business, not just a good idea",
+    ],
+    resources: [R("Strategyzer — Business Model Canvas", "https://www.strategyzer.com/canvas/business-model-canvas")],
+  },
+  "Value Proposition Canvas": {
+    cat: "Core",
+    learn: [
+      "Maps customer jobs/pains/gains against the product's pain relievers/gain creators",
+      "Used early in discovery to sanity-check fit before investing in build",
+    ],
+    resources: [R("Strategyzer — Value Proposition Canvas", "https://www.strategyzer.com/canvas/value-proposition-canvas")],
+  },
+  "Product-Market Fit": {
+    cat: "Core",
+    learn: [
+      "Signals: strong organic growth, high retention, shortening sales cycles, inbound demand outpacing spend",
+      "Not binary or permanent — can erode as the market or competitive landscape shifts",
+    ],
+    resources: [
+      R("a16z — The Only Thing That Matters", "https://a16z.com/2007/06/25/the-only-thing-that-matters/"),
+      R("First Round Review — 12 Things About Product-Market Fit", "https://review.firstround.com/12-things-about-product-market-fit"),
+    ],
+  },
+  "Product-Led Growth": {
+    cat: "Core",
+    learn: [
+      "The product itself drives acquisition/conversion/expansion — free trials, in-product upsell, virality",
+      "Often blended with sales-led motion for larger/enterprise accounts ('product-led sales')",
+    ],
+    resources: [R("ProductLed — What Is Product-Led Growth?", "https://productled.com/blog/product-led-growth-definition")],
+  },
+  "Go-to-Market Strategy": {
+    cat: "Core",
+    learn: [
+      "Covers positioning, target segment, channel, pricing, and launch/sales-enablement plan for a release",
+      "A PM's roadmap work and a PMM's GTM plan should be built together, not handed off at the last minute",
+    ],
+    resources: [R("Product School — Go-To-Market Strategy", "https://productschool.com/blog/product-strategy/go-to-market-strategy")],
+  },
+  "Jobs-to-be-Done": {
+    cat: "Discovery",
+    learn: [
+      "Frames research around the 'progress' a customer is trying to make, not the product or demographics",
+      "Surfaces competitors you wouldn't otherwise consider — anything competing for the same underlying job",
+    ],
+    resources: [
+      R("JTBD.info", "https://jtbd.info/"),
+      R("HBR — Know Your Customers' 'Jobs to Be Done'", "https://hbr.org/2016/09/know-your-customers-jobs-to-be-done"),
+    ],
+  },
+  "Customer Interviews": {
+    cat: "Discovery",
+    learn: [
+      "Ask about specific past behavior/facts, not hypothetical opinions or predictions (see The Mom Test)",
+      "Weekly touchpoints (continuous discovery) beat occasional large research 'sprints'",
+    ],
+    resources: [
+      R("The Mom Test", "http://momtestbook.com/"),
+      R("Y Combinator — How to Talk to Users", "https://www.ycombinator.com/library/6f-how-to-talk-to-users"),
+    ],
+  },
+  "Competitive Analysis": {
+    cat: "Discovery",
+    learn: [
+      "Positioning maps and win/loss interviews reveal more than a feature-checkbox matrix",
+      "Use a JTBD lens — competitors for the same underlying job, not just literal feature-for-feature rivals",
+    ],
+    resources: [R("Product School — Competitive Analysis", "https://productschool.com/blog/product-strategy/competitive-analysis")],
+  },
+  "Product Vision & Strategy": {
+    cat: "Discovery",
+    learn: [
+      "Vision: long-term aspirational picture. Strategy: concrete plan (segments/bets) over a shorter horizon",
+      "A vision doc should be concrete enough to rule things out, abstract enough to survive many roadmap cycles",
+    ],
+    resources: [R("SVPG — Marty Cagan's articles", "https://www.svpg.com/articles/")],
+  },
+  "Design Thinking": {
+    cat: "Discovery",
+    learn: [
+      "Empathize → Define → Ideate → Prototype → Test, with PMs typically leading the first/last stages",
+      "Skipping a stage (e.g. Empathize straight to Prototype) risks solving a poorly-defined problem",
+    ],
+    resources: [
+      R("IDEO — Design Thinking", "https://designthinking.ideo.com/"),
+      R("Interaction Design Foundation — Design Thinking", "https://www.interaction-design.org/literature/topics/design-thinking"),
+    ],
+  },
+  MVP: {
+    cat: "Discovery",
+    learn: [
+      "The smallest thing that tests the riskiest assumption or delivers core value to a narrow segment",
+      "'Cut scope until it fits the deadline' isn't an MVP if what remains no longer tests anything meaningful",
+    ],
+    resources: [R("Lean Startup — Principles", "http://theleanstartup.com/principles")],
+  },
+  "Opportunity Solution Tree": {
+    cat: "Discovery",
+    learn: [
+      "Outcome → opportunities (needs/pains) → candidate solutions → experiments, all explicitly linked",
+      "Prevents jumping from a metric straight to a favorite solution without mapping the space in between",
+    ],
+    resources: [R("Product Talk — Opportunity Solution Trees", "https://www.producttalk.org/opportunity-solution-tree/")],
+  },
+  "Voice of Customer": {
+    cat: "Discovery",
+    learn: [
+      "Systematic capture/tagging/synthesis of feedback across channels into themes the team can act on",
+      "Needs a consistent taxonomy plus a visible loop back to whoever raised the feedback",
+    ],
+    resources: [R("ProductPlan — Voice of the Customer", "https://www.productplan.com/glossary/voice-of-the-customer/")],
+  },
+  "RICE Prioritization": {
+    cat: "Delivery",
+    learn: [
+      "Score = (Reach x Impact x Confidence) / Effort — best for comparing many disparate ideas",
+      "Only as good as the honesty of the 4 estimates that feed it — Confidence should genuinely discount guesses",
+    ],
+    resources: [
+      R(
+        "Intercom — RICE: Simple Prioritization for Product Managers",
+        "https://www.intercom.com/blog/rice-simple-prioritization-for-product-managers/",
+      ),
+      R("ProductPlan — RICE Scoring Model", "https://www.productplan.com/glossary/rice-scoring-model/"),
+    ],
+  },
+  "MoSCoW Prioritization": {
+    cat: "Delivery",
+    learn: [
+      "Must / Should / Could / Won't have — fast, shared language for scoping one release under time pressure",
+      "Breaks down once 'Must Have' loses scarcity — cap the count or ask 'does the release fail without it?'",
+    ],
+    resources: [R("ProductPlan — MoSCoW Prioritization", "https://www.productplan.com/glossary/moscow-prioritization/")],
+  },
+  "Kano Model": {
+    cat: "Delivery",
+    learn: [
+      "Basic/must-be, Performance, and Delighter features have different satisfaction curves",
+      "Warns against over-investing in basics past 'good enough' while starving delighters, and vice versa",
+    ],
+    resources: [R("ProductPlan — Kano Model", "https://www.productplan.com/glossary/kano-model/")],
+  },
+  "Product Roadmapping": {
+    cat: "Delivery",
+    learn: [
+      "Now/Next/Later or theme-based formats communicate confidence honestly vs a rigidly dated roadmap",
+      "Tailor framing (not the underlying plan) to execs vs sales vs engineering audiences",
+    ],
+    resources: [R("Aha! — Guide to Product Roadmaps", "https://www.aha.io/roadmapping/guide")],
+  },
+  "User Story Mapping": {
+    cat: "Delivery",
+    learn: [
+      "Arrange stories along the user's actual workflow (backbone) to spot MVP slices and gaps visually",
+      "Vertical slicing (thin, end-to-end value) beats splitting by technical layer for incremental delivery",
+    ],
+    resources: [R("Jeff Patton & Associates — Story Mapping", "https://www.jpattonassociates.com/story-mapping/")],
+  },
+  "Backlog Refinement": {
+    cat: "Delivery",
+    learn: [
+      "Recurring session to clarify requirements, split large stories, estimate, and re-order before planning",
+      "A story should meet Definition of Ready here — not be discovered too-big-to-fit at sprint planning",
+    ],
+    resources: [R("Scrum.org — What is Backlog Refinement?", "https://www.scrum.org/resources/what-is-backlog-refinement")],
+  },
+  OKRs: {
+    cat: "Analytics",
+    learn: [
+      "Objectives (qualitative, ambitious) + Key Results (measurable outcomes, not tasks), 2-4 per objective",
+      "Tying attainment directly to performance reviews pushes teams to sandbag safe targets — decouple the two",
+    ],
+    resources: [
+      R("Google re:Work — Set Goals with OKRs", "https://rework.withgoogle.com/guides/set-goals-with-okrs/steps/introduction/"),
+      R("What Matters — OKRs", "https://www.whatmatters.com/"),
+    ],
+  },
+  "North Star Metric": {
+    cat: "Analytics",
+    learn: [
+      "One metric that best captures delivered value and correlates with long-term business success",
+      "Should be a leading, team-influenceable indicator — not a lagging outcome like raw revenue",
+    ],
+    resources: [R("Amplitude — North Star Playbook", "https://amplitude.com/north-star")],
+  },
+  "Cohort Analysis": {
+    cat: "Analytics",
+    learn: [
+      "Group users by shared start date, track retention/revenue per cohort separately over time",
+      "Reveals trend direction an aggregate metric can mask (flat MAU hiding worsening per-cohort retention)",
+    ],
+    resources: [R("Amplitude Docs — Cohort Analysis", "https://amplitude.com/docs")],
+  },
+  "Funnel Analysis": {
+    cat: "Analytics",
+    learn: [
+      "Measure conversion between each consecutive step toward a goal to find the steepest relative drop-off",
+      "Pair the quantitative WHERE with qualitative research (interviews, session recordings) for WHY",
+    ],
+    resources: [R("Mixpanel Docs — Funnels", "https://docs.mixpanel.com/")],
+  },
+  "AARRR / Pirate Metrics": {
+    cat: "Analytics",
+    learn: [
+      "Acquisition, Activation, Retention, Referral, Revenue — localizes which funnel stage a problem lives in",
+      "Organizes growth experiments by funnel stage rather than testing changes randomly",
+    ],
+    resources: [R("ProductPlan — Pirate Metrics (AARRR)", "https://www.productplan.com/glossary/pirate-metrics/")],
+  },
+  "Churn Analysis": {
+    cat: "Analytics",
+    learn: [
+      "Logo churn (customer count) vs revenue churn (dollars) can diverge sharply — track both",
+      "Segment churned customers by plan/cohort/onboarding to find real patterns, not just a topline rate",
+    ],
+    resources: [R("Baremetrics Academy — Churn Rate", "https://baremetrics.com/academy/churn-rate")],
+  },
+  Confluence: {
+    cat: "Tools",
+    learn: [
+      "Central, linkable home for PRDs, vision/strategy docs, and decision logs — not scattered Docs/Slack",
+      "Value comes from a consistent template per doc type plus a searchable, browsable space structure",
+    ],
+    resources: [R("Atlassian — Confluence Guides", "https://www.atlassian.com/software/confluence/guides")],
+  },
+  Amplitude: {
+    cat: "Tools",
+    learn: [
+      "User-level, event-based product analytics — cohorts, retention, funnels, behavioral segmentation",
+      "Best for 'what did this group of users do inside the product over time', not traffic-source questions",
+    ],
+    resources: [R("Amplitude Docs", "https://amplitude.com/docs")],
+  },
+  Mixpanel: {
+    cat: "Tools",
+    learn: [
+      "Event-based product analytics with substantial overlap with Amplitude (funnels, retention, cohorts)",
+      "Analysis quality is bounded by the tracking plan feeding it, not by which tool is chosen",
+    ],
+    resources: [R("Mixpanel Docs", "https://docs.mixpanel.com/")],
+  },
+  Productboard: {
+    cat: "Tools",
+    learn: [
+      "Aggregates/tags customer feedback against a structured backlog of insights and features",
+      "Generates stakeholder-facing roadmap views decoupled from JIRA's execution-level detail",
+    ],
+    resources: [R("Productboard — Product Resources", "https://www.productboard.com/")],
+  },
+  Pendo: {
+    cat: "Tools",
+    learn: [
+      "In-app adoption platform: feature usage analytics plus in-app guides/tooltips/NPS without an engineering release",
+      "Lets a PM iterate on onboarding/adoption nudges independent of the engineering release cycle",
+    ],
+    resources: [R("Pendo — Resources", "https://www.pendo.io/resources/")],
+  },
+  "Aha!": {
+    cat: "Tools",
+    learn: [
+      "Structured hierarchy: strategic goals → initiatives → features → linked JIRA/Azure DevOps tickets",
+      "Generates audience-specific roadmap views (public vs internal) from one underlying dataset",
+    ],
+    resources: [R("Aha! — Guide to Product Roadmaps", "https://www.aha.io/roadmapping/guide")],
+  },
+
+  // ---------- SysAdmin track additions ----------
+  ITIL: {
+    cat: "Core",
+    learn: [
+      "Incident vs problem vs change vs service request management",
+      "SLAs, priority (impact x urgency), tiered support (L1/L2/L3)",
+      "Change Advisory Board (CAB), Requests for Change (RFC), standard vs emergency changes",
+    ],
+    resources: [
+      R("ITIL Foundation overview — AXELOS", "https://www.axelos.com/certifications/itil-service-management"),
+      R("ITIL 4 key concepts — Atlassian", "https://www.atlassian.com/itsm/itil"),
+    ],
+  },
+  MFA: {
+    cat: "Core",
+    learn: [
+      "Factor types: knowledge, possession, inherence; push vs number-matching vs FIDO2/hardware keys",
+      "MFA fatigue attacks and why number-matching/hardware keys resist phishing better than plain push",
+      "NIST SP 800-63B password guidance: length over forced rotation, paired with MFA",
+    ],
+    resources: [
+      R("NIST SP 800-63B — Digital Identity Guidelines", "https://pages.nist.gov/800-63-3/sp800-63b.html"),
+      R(
+        "Microsoft — How it works: Azure AD Multi-Factor Authentication",
+        "https://learn.microsoft.com/en-us/entra/identity/authentication/concept-mfa-howitworks",
+      ),
+    ],
+  },
+  "Endpoint Protection": {
+    cat: "Core",
+    learn: [
+      "Signature-based AV vs EDR: behavioral monitoring, telemetry, isolate/kill/rollback response",
+      "Patch cadence (Patch Tuesday), staged rollout rings, emergency out-of-band patching",
+      "Common enterprise EDR: Microsoft Defender for Endpoint, CrowdStrike Falcon, SentinelOne",
+    ],
+    resources: [
+      R("Microsoft Defender for Endpoint docs", "https://learn.microsoft.com/en-us/defender-endpoint/"),
+      R(
+        "CrowdStrike — What is EDR?",
+        "https://www.crowdstrike.com/en-us/cybersecurity-101/endpoint-security/endpoint-detection-and-response-edr/",
+      ),
+    ],
+  },
+  "Ticketing Systems": {
+    cat: "Core",
+    learn: [
+      "Incident/request lifecycle, SLA tracking, categorization, escalation paths",
+      "ServiceNow (enterprise ITSM) vs Zendesk (customer support) vs Freshservice/Jira Service Management (mid-market ITSM)",
+      "Writing a reproducible ticket: symptom, steps taken, environment, evidence",
+    ],
+    resources: [
+      R("ServiceNow — ITSM overview", "https://www.servicenow.com/products/itsm.html"),
+      R("Atlassian — Jira Service Management docs", "https://support.atlassian.com/jira-service-management-cloud/"),
+    ],
+  },
+  "IT Asset Management": {
+    cat: "Core",
+    learn: [
+      "CMDB: tracking hardware, software licenses, and their relationships/dependencies",
+      "Onboarding/offboarding checklists tied to asset assignment and license reclamation",
+      "Automated network discovery vs manual spreadsheet tracking",
+    ],
+    resources: [R("ServiceNow — What is a CMDB?", "https://www.servicenow.com/products/configuration-management-database.html")],
+  },
+  DNS: {
+    cat: "Networking",
+    learn: [
+      "Record types: A/AAAA/CNAME/MX/TXT/NS/PTR, and the resolution chain (recursive → root → TLD → authoritative)",
+      "TTL and caching at every hop — why propagation isn't instant",
+      "AD-integrated DNS zones and SRV records (_ldap._tcp, _kerberos._tcp)",
+    ],
+    resources: [
+      R("Cloudflare — What is DNS?", "https://www.cloudflare.com/learning/dns/what-is-dns/"),
+      R(
+        "Microsoft Learn — DNS for Active Directory",
+        "https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/creating-a-forest-plan",
+      ),
+    ],
+  },
+  DHCP: {
+    cat: "Networking",
+    learn: [
+      "DORA process (Discover/Offer/Request/Acknowledge), lease time and renewal",
+      "APIPA (169.254.x.x) as a diagnostic signal for a fully unreachable DHCP server",
+      "Reservations for printers/servers; DHCP snooping to block rogue DHCP servers",
+    ],
+    resources: [
+      R("Microsoft Learn — DHCP overview", "https://learn.microsoft.com/en-us/windows-server/networking/technologies/dhcp/dhcp-top"),
+    ],
+  },
+  VPN: {
+    cat: "Networking",
+    learn: [
+      "Site-to-site vs remote access VPN; IPsec, OpenVPN, WireGuard, SSL/TLS VPN",
+      "Zero-trust/SASE as an alternative to broad network-level VPN access",
+      "Common failure modes: NAT-T passthrough issues, IKE Phase 1/2 mismatches, idle timeouts",
+    ],
+    resources: [
+      R("Cloudflare — What is a VPN?", "https://www.cloudflare.com/learning/access-management/what-is-a-vpn/"),
+      R("WireGuard — official site", "https://www.wireguard.com/"),
+    ],
+  },
+  Subnetting: {
+    cat: "Networking",
+    learn: [
+      "CIDR notation, subnet masks, network/broadcast address reservation",
+      "Sizing a subnet from a host-count requirement (rounding up to the next power of 2 minus 2)",
+      "VLANs as the layer-2 complement to IP subnetting for traffic isolation",
+    ],
+    resources: [R("Cloudflare — What is a subnet?", "https://www.cloudflare.com/learning/network-layer/what-is-a-subnet/")],
+  },
+  "TCP/IP": {
+    cat: "Networking",
+    learn: [
+      "OSI model's 7 layers vs the 4-layer TCP/IP model",
+      "TCP (connection-oriented, reliable) vs UDP (connectionless, low-overhead) and when to use each",
+      "Well-known ports (22/25/53/80/443/3389/etc.) and reading a 'connection refused' error",
+    ],
+    resources: [
+      R("Cloudflare — What is the OSI Model?", "https://www.cloudflare.com/learning/ddos/glossary/open-systems-interconnection-model-osi/"),
+    ],
+  },
+  Firewalls: {
+    cat: "Networking",
+    learn: [
+      "Stateful vs stateless filtering; default-deny posture with narrow explicit allows",
+      "DMZ design: restricting a compromised public-facing server's path to internal assets",
+      "Network segmentation to limit lateral movement after a breach",
+    ],
+    resources: [R("Cloudflare — What is a firewall?", "https://www.cloudflare.com/learning/security/what-is-a-firewall/")],
+  },
+  SNMP: {
+    cat: "Networking",
+    learn: [
+      "MIB tree, OIDs, SNMP GET vs traps for agentless device monitoring",
+      "SNMPv2c's plaintext community string weakness vs SNMPv3's authentication/encryption",
+      "When to use SNMP (network appliances) vs an installed monitoring agent (servers you control)",
+    ],
+    resources: [R("Cisco — What is SNMP?", "https://www.cisco.com/c/en/us/products/switches/what-is-snmp.html")],
+  },
+  "Active Directory": {
+    cat: "Systems",
+    learn: [
+      "Forest/tree/domain/OU hierarchy; LDAP and Kerberos underpinnings",
+      "Group types/scopes (security vs distribution, domain local/global/universal) and the AGDLP pattern",
+      "FSMO roles, trust relationships, and replication (repadmin, DNS dependency)",
+      "Delegation of Control for least-privilege administration",
+    ],
+    resources: [
+      R(
+        "Microsoft Learn — Active Directory Domain Services overview",
+        "https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/get-started/virtual-dc/active-directory-domain-services-overview",
+      ),
+      R(
+        "Microsoft Learn — AD DS design and planning",
+        "https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-design-and-planning",
+      ),
+    ],
+  },
+  "Windows Server": {
+    cat: "Systems",
+    learn: [
+      "Core roles: AD DS, DNS, DHCP, File and Storage Services, IIS, RDS, Hyper-V, Certificate Services",
+      "GPO precedence (LSDOU), Enforced/Block Inheritance",
+      "NTFS vs share permissions; patch management (WSUS/SCCM/Intune)",
+    ],
+    resources: [
+      R("Microsoft Learn — Windows Server documentation", "https://learn.microsoft.com/en-us/windows-server/"),
+      R(
+        "Microsoft Learn — Server roles overview",
+        "https://learn.microsoft.com/en-us/windows-server/get-started/getting-started-with-server-manager",
+      ),
+    ],
+  },
+  "Group Policy": {
+    cat: "Systems",
+    learn: [
+      "GPO precedence: Local → Site → Domain → OU (LSDOU), Enforced vs Block Inheritance",
+      "Common use cases: security settings, software deployment, drive mappings, screen lock enforcement",
+      "gpupdate /force and gpresult for troubleshooting policy application",
+    ],
+    resources: [
+      R(
+        "Microsoft Learn — Group Policy overview",
+        "https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/group-policy/group-policy-overview",
+      ),
+    ],
+  },
+  VMware: {
+    cat: "Systems",
+    learn: [
+      "ESXi (bare-metal hypervisor) vs vCenter Server (centralized management plane)",
+      "vMotion (live migration), DRS (load balancing), HA (automatic VM restart on host failure)",
+      "Snapshots vs real backups — why a snapshot isn't a DR strategy",
+    ],
+    resources: [R("VMware — vSphere documentation", "https://docs.vmware.com/en/VMware-vSphere/index.html")],
+  },
+  "Hyper-V": {
+    cat: "Systems",
+    learn: [
+      "Type 1 hypervisor shipped as a Windows Server role; Live Migration as the vMotion equivalent",
+      "Management via Hyper-V Manager, PowerShell, Failover Cluster Manager/System Center VMM",
+      "Checkpoints (differencing disks) and why long-lived chains degrade VM performance",
+    ],
+    resources: [
+      R(
+        "Microsoft Learn — Hyper-V technology overview",
+        "https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/hyper-v-technology-overview",
+      ),
+    ],
+  },
+  RAID: {
+    cat: "Systems",
+    learn: [
+      "RAID 0/1/5/6/10 tradeoffs: performance, redundancy, capacity efficiency, rebuild risk",
+      "Why RAID 10 is preferred for write-heavy database workloads over RAID 5/6's parity write penalty",
+      "RAID is not a backup — it protects against disk failure, not deletion/corruption/site loss",
+    ],
+    resources: [
+      R("Synology — RAID types explained", "https://www.synology.com/en-us/knowledgebase/DSM/help/DSM/StorageManager/raid_choose_type"),
+    ],
+  },
+  "NAS and SAN": {
+    cat: "Systems",
+    learn: [
+      "NAS: file-level storage over the network (SMB/NFS) — simple, general file sharing",
+      "SAN: block-level storage over Fibre Channel/iSCSI — higher performance for databases/virtualization",
+      "Choosing based on whether the consuming workload needs raw block access or just a shared folder",
+    ],
+    resources: [R("NetApp — NAS vs SAN", "https://www.netapp.com/data-storage/nas/nas-vs-san/")],
+  },
+  "NTFS Permissions": {
+    cat: "Systems",
+    learn: [
+      "NTFS permissions (granular, always apply) vs share permissions (network-only, coarser)",
+      "Effective permission on network access is the more restrictive of the two",
+      "Best practice: open share permission, do real access control entirely through NTFS",
+    ],
+    resources: [
+      R(
+        "Microsoft Learn — File and folder permissions",
+        "https://learn.microsoft.com/en-us/windows-server/storage/file-server/ntfs-overview",
+      ),
+    ],
+  },
+  SSH: {
+    cat: "Systems",
+    learn: [
+      "Key-based authentication (ssh-keygen, authorized_keys) vs password auth",
+      "Disabling password auth (PasswordAuthentication no) as a standard hardening step",
+      "PowerShell remoting (WinRM) as the Windows-native equivalent for remote administration",
+    ],
+    resources: [R("OpenSSH — key-based authentication", "https://www.ssh.com/academy/ssh/public-key-authentication")],
+  },
+  "Entra ID": {
+    cat: "Systems",
+    learn: [
+      "Cloud identity for SaaS/M365 via SSO, distinct from on-prem AD managing the internal network",
+      "Azure AD Connect sync (password hash sync vs pass-through auth), hybrid join",
+      "Conditional Access and Intune policies layered on top of on-prem GPOs during migration",
+    ],
+    resources: [R("Microsoft Learn — What is Microsoft Entra ID?", "https://learn.microsoft.com/en-us/entra/fundamentals/whatis")],
+  },
+  DFS: {
+    cat: "Systems",
+    learn: [
+      "DFS Namespaces: unified logical path across multiple servers' file shares",
+      "DFS Replication: keeping data in sync across servers/sites for redundancy and branch-office speed",
+      "Migrating shares transparently when users already map to the DFS path, not a direct UNC path",
+    ],
+    resources: [
+      R(
+        "Microsoft Learn — DFS Namespaces and DFS Replication overview",
+        "https://learn.microsoft.com/en-us/windows-server/storage/dfs-namespaces/dfs-overview",
+      ),
+    ],
+  },
+  WSUS: {
+    cat: "Systems",
+    learn: [
+      "Approving/distributing Microsoft updates internally instead of every machine pulling from the internet",
+      "Limited scope/reporting compared to SCCM/Intune — Microsoft-only updates",
+      "Fits smaller, fully on-prem environments without a full endpoint management suite",
+    ],
+    resources: [
+      R(
+        "Microsoft Learn — WSUS overview",
+        "https://learn.microsoft.com/en-us/windows-server/administration/windows-server-update-services/get-started/windows-server-update-services-wsus",
+      ),
+    ],
+  },
+  PowerShell: {
+    cat: "Scripting",
+    learn: [
+      "Verb-Noun cmdlet naming convention; object pipeline (vs Bash's plain-text pipes)",
+      "Remoting (WinRM): Invoke-Command vs Enter-PSSession",
+      "Error handling (try/catch/finally, $ErrorActionPreference), the ActiveDirectory module",
+    ],
+    resources: [
+      R("Microsoft Learn — PowerShell documentation", "https://learn.microsoft.com/en-us/powershell/"),
+      R("Microsoft Learn — Active Directory module cmdlets", "https://learn.microsoft.com/en-us/powershell/module/activedirectory/"),
+    ],
+  },
+  Zabbix: {
+    cat: "Monitoring",
+    learn: [
+      "Agent-based vs agentless (SNMP/WMI) monitoring tradeoffs",
+      "Triggers, thresholds, and tuning to avoid alert fatigue",
+      "Dashboards for at-a-glance fleet visibility beyond raw alerts",
+    ],
+    resources: [R("Zabbix — official documentation", "https://www.zabbix.com/documentation/current/en/manual")],
+  },
+  Nagios: {
+    cat: "Monitoring",
+    learn: [
+      "Plugin model: independent check scripts returning a standardized exit code (0/1/2/3) plus a status line",
+      "Writing a custom check without touching Nagios's core",
+      "Alert routing by severity to avoid paging for informational-only conditions",
+    ],
+    resources: [R("Nagios — Plugin development guidelines", "https://nagios-plugins.org/doc/guidelines.html")],
+  },
+  "Windows Event Viewer": {
+    cat: "Monitoring",
+    learn: [
+      "Log categories: Application, System, Security, Setup — and which to check for what",
+      "Key Event IDs worth memorizing (4625 failed logon, 6008 unexpected shutdown)",
+      "Centralized log aggregation (Windows Event Forwarding, syslog) vs per-server manual checks",
+    ],
+    resources: [
+      R(
+        "Microsoft Learn — Event Viewer overview",
+        "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/eventvwr",
+      ),
+    ],
+  },
+  "Backup and Disaster Recovery": {
+    cat: "Tools",
+    learn: [
+      "Full/incremental/differential backups; RTO and RPO as business-driven design inputs",
+      "3-2-1 (and 3-2-1-1-0) backup rule — why an air-gapped copy defeats ransomware targeting backups",
+      "Hot/warm/cold DR sites; testing a DR plan (tabletop and live failover tests) rather than trusting it untested",
+    ],
+    resources: [
+      R("Veeam — 3-2-1 backup rule explained", "https://www.veeam.com/blog/321-backup-rule.html"),
+      R(
+        "AWS — Disaster recovery objectives (RTO/RPO)",
+        "https://docs.aws.amazon.com/whitepapers/latest/disaster-recovery-workloads-on-aws/disaster-recovery-options-in-the-cloud.html",
+      ),
+    ],
+  },
+  SCCM: {
+    cat: "Tools",
+    learn: [
+      "Full on-prem endpoint management suite: patching, software deployment, OS imaging, inventory",
+      "Richer targeting/reporting than WSUS, but requires real infrastructure and expertise",
+      "Deployment rings (pilot → broad → critical) to catch bad updates before fleet-wide rollout",
+    ],
+    resources: [R("Microsoft Learn — Configuration Manager documentation", "https://learn.microsoft.com/en-us/mem/configmgr/")],
+  },
+  Intune: {
+    cat: "Tools",
+    learn: [
+      "Cloud-native MDM: patching, app deployment, Conditional Access enforcement without a corporate-network requirement",
+      "Fits hybrid/remote workforces where devices never touch the internal LAN",
+      "Works alongside Entra ID hybrid join during an on-prem-to-cloud migration",
+    ],
+    resources: [R("Microsoft Learn — Microsoft Intune documentation", "https://learn.microsoft.com/en-us/mem/intune/")],
+  },
+
+  // ---------- Design track additions ----------
+  Figma: {
+    cat: "Tools",
+    learn: [
+      "Real-time multiplayer editing, comments, and shareable prototype links replace manual file-passing",
+      "Components/variants + Auto Layout for consistent, resizable UI pieces",
+      "Dev Mode generates measurements/tokens/code snippets directly for handoff",
+    ],
+    resources: [R("Figma Help Center", "https://help.figma.com/"), R("Figma — Best Practices", "https://www.figma.com/best-practices/")],
+  },
+  Sketch: {
+    cat: "Tools",
+    learn: [
+      "macOS-only vector UI design tool, built around a large plugin ecosystem",
+      "Predates Figma's dominance — still used by teams invested in its plugins or local-file workflows",
+    ],
+    resources: [R("Sketch — Docs", "https://www.sketch.com/docs/")],
+  },
+  "Adobe XD": {
+    cat: "Tools",
+    learn: [
+      "Adobe's UI/UX design and prototyping tool, integrated with Creative Cloud (Illustrator/Photoshop assets)",
+      "Adobe has stopped actively developing new XD features — Figma is now the default for new teams",
+    ],
+    resources: [R("Adobe XD", "https://www.adobe.com/products/xd.html")],
+  },
+  FigJam: {
+    cat: "Tools",
+    learn: [
+      "Digital whiteboard for brainstorming, affinity mapping, and journey mapping — not pixel-precise UI",
+      "Tightly integrated with Figma, but a deliberately separate, looser collaboration space",
+    ],
+    resources: [R("FigJam", "https://www.figma.com/figjam/")],
+  },
+  Miro: {
+    cat: "Tools",
+    learn: [
+      "General-purpose online whiteboard for workshops, retros, and research synthesis with distributed teams",
+      "Overlaps with FigJam — teams typically standardize on one rather than running both",
+    ],
+    resources: [R("Miro — Guides", "https://miro.com/guides/")],
+  },
+  Zeplin: {
+    cat: "Handoff",
+    learn: [
+      "Dedicated design-to-developer handoff tool: specs, style guides, and exportable assets from imported designs",
+      "Figma's native Dev Mode now covers much of this for Figma-only teams — Zeplin remains relevant across multiple design tools",
+    ],
+    resources: [R("Zeplin", "https://zeplin.io/"), R("Zeplin — Blog", "https://blog.zeplin.io/")],
+  },
+  Maze: {
+    cat: "Research",
+    learn: [
+      "Unmoderated testing of interactive Figma prototypes at scale — heatmaps, click paths, task success/time",
+      "No live moderator, so it can't probe unexpected behavior the way a moderated session can",
+    ],
+    resources: [R("Maze — Guides", "https://maze.co/guides/")],
+  },
+  UserTesting: {
+    cat: "Research",
+    learn: [
+      "Recruits from a large panel of real users; records video/audio of them thinking aloud on tasks",
+      "Faster and broader reach than scheduling your own moderated sessions, at the cost of live follow-up questions",
+    ],
+    resources: [R("UserTesting — Resources", "https://www.usertesting.com/resources")],
+  },
+  "Design Systems": {
+    cat: "UI",
+    learn: [
+      "Component library + design tokens + usage guidelines + governance, not just 'a Figma file with reusable pieces'",
+      "The library is an artifact the system produces — consistency comes from the principles and process behind it",
+    ],
+    resources: [
+      R("Nielsen Norman Group — Design Systems 101", "https://www.nngroup.com/articles/design-systems-101/"),
+      R("Design Systems Repo", "https://designsystemsrepo.com/"),
+    ],
+  },
+  Wireframing: {
+    cat: "Prototyping",
+    learn: [
+      "Low-fidelity, largely grayscale structural blueprint — layout/hierarchy, deliberately stripped of visual styling",
+      "Lets structure/flow decisions get evaluated without color/typography biasing the feedback",
+    ],
+    resources: [
+      R("Nielsen Norman Group — Wireframing", "https://www.nngroup.com/articles/wireframing/"),
+      R("Usability.gov — Wireframing", "https://www.usability.gov/how-to-and-tools/methods/wireframing.html"),
+    ],
+  },
+  "Usability Testing": {
+    cat: "Research",
+    learn: [
+      "Moderated (researcher present, can probe) vs unmoderated (faster, scales, no real-time clarification)",
+      "~5 participants per segment catches most common issues — fix and retest beats one large round",
+    ],
+    resources: [
+      R("Nielsen Norman Group — Usability Testing 101", "https://www.nngroup.com/articles/usability-testing-101/"),
+      R("Usability.gov — Usability Testing", "https://www.usability.gov/how-to-and-tools/methods/usability-testing.html"),
+    ],
+  },
+  "User Research": {
+    cat: "Research",
+    learn: [
+      "Quant (how many/how much) finds where to look; qual (why) explains what's actually happening",
+      "Match method to question type — surveys, interviews, usability tests, card sorting, diary studies",
+    ],
+    resources: [
+      R("Nielsen Norman Group — UX Research Cheat Sheet", "https://www.nngroup.com/articles/ux-research-cheat-sheet/"),
+      R("Usability.gov — User Research Basics", "https://www.usability.gov/what-and-why/user-research.html"),
+    ],
+  },
+  "Information Architecture": {
+    cat: "Core",
+    learn: [
+      "How content/navigation is structured and labeled based on users' actual mental models, not an org chart",
+      "Card sorting (generative) then tree testing (evaluative) is the standard validation sequence",
+    ],
+    resources: [
+      R("Nielsen Norman Group — Information Architecture 101", "https://www.nngroup.com/articles/information-architecture-101/"),
+      R("Information Architecture Institute", "https://www.iainstitute.org/"),
+    ],
+  },
+  "Accessibility (a11y)": {
+    cat: "UI",
+    learn: [
+      "Never rely on color alone; verify contrast, focus order, and keyboard-only navigation",
+      "ARIA roles/labels for any custom (non-native) interactive component",
+    ],
+    resources: [R("W3C — Web Accessibility Initiative", "https://www.w3.org/WAI/"), R("The A11Y Project", "https://www.a11yproject.com/")],
+  },
+  WCAG: {
+    cat: "UI",
+    learn: [
+      "4.5:1 contrast for normal text at AA (3:1 for large text); AAA is stricter (7:1) and rarely a blanket target",
+      "AA is the practical baseline most legal accessibility requirements reference",
+    ],
+    resources: [
+      R("WCAG 2.2 — Quick Reference", "https://www.w3.org/WAI/WCAG22/quickref/"),
+      R("WebAIM — Contrast Checker", "https://webaim.org/resources/contrastchecker/"),
+    ],
+  },
+  Persona: {
+    cat: "Research",
+    learn: [
+      "Useful personas are built from real research patterns, not demographic filler nobody consults",
+      "Teams reference a good persona when making trade-offs, not just as a poster on the wall",
+    ],
+    resources: [
+      R("Nielsen Norman Group — Personas", "https://www.nngroup.com/articles/persona/"),
+      R("Usability.gov — Personas", "https://www.usability.gov/how-to-and-tools/methods/personas.html"),
+    ],
+  },
+  "User Journey Mapping": {
+    cat: "Research",
+    learn: [
+      "Stages, actions, thoughts/emotions, pain points, and opportunities across the full end-to-end experience",
+      "Spots friction a single-feature view misses, e.g. a support interaction no UI redesign alone would fix",
+    ],
+    resources: [
+      R("Nielsen Norman Group — Journey Mapping 101", "https://www.nngroup.com/articles/journey-mapping-101/"),
+      R("Usability.gov — Journey Mapping", "https://www.usability.gov/how-to-and-tools/methods/journey-mapping.html"),
+    ],
+  },
+  "Heuristic Evaluation": {
+    cat: "Core",
+    learn: [
+      "3-5 evaluators independently review a UI against Nielsen's 10 usability heuristics, then aggregate findings",
+      "Prioritize fixes by severity x frequency x impact, not as a single pass-through checklist",
+    ],
+    resources: [
+      R("Nielsen Norman Group — 10 Usability Heuristics", "https://www.nngroup.com/articles/ten-usability-heuristics/"),
+      R(
+        "Nielsen Norman Group — How to Conduct a Heuristic Evaluation",
+        "https://www.nngroup.com/articles/how-to-conduct-a-heuristic-evaluation/",
+      ),
+    ],
+  },
+  Prototyping: {
+    cat: "Prototyping",
+    learn: [
+      "Match fidelity to what you're trying to learn — low-fi for structure/flow, hi-fi for visuals/copy/micro-interactions",
+      "Interactive prototypes reveal flow-level usability problems a static mockup can't",
+    ],
+    resources: [R("Nielsen Norman Group — UX Prototypes: Hi-Fi vs Lo-Fi", "https://www.nngroup.com/articles/ux-prototype-hi-lo-fidelity/")],
+  },
+  "Interaction Design": {
+    cat: "UI",
+    learn: [
+      "Interaction patterns, feedback, and behavior — not just the visual layer",
+      "Grounded in predictive models (Fitts's Law, Hick's Law) and established conventions (Jakob's Law)",
+    ],
+    resources: [R("Interaction Design Foundation", "https://www.interaction-design.org/"), R("Laws of UX", "https://lawsofux.com/")],
+  },
+  Typography: {
+    cat: "UI",
+    learn: [
+      "Limited, deliberate type scale (H1-H3/body/caption) applied consistently to the same semantic role",
+      "Line-height ~1.4-1.6x font size for readable body text",
+    ],
+    resources: [
+      R("Material Design — Typography", "https://m3.material.io/styles/typography/overview"),
+      R("Practical Typography", "https://practicaltypography.com/"),
+    ],
+  },
+  "Color Theory": {
+    cat: "UI",
+    learn: [
+      "Complementary (opposite on the wheel) for contrast/accents; analogous (adjacent) for cohesive, low-contrast palettes",
+      "Never rely on hue alone for meaning — pair with an icon/label/pattern for accessibility",
+    ],
+    resources: [
+      R("Material Design — Color", "https://m3.material.io/styles/color/system/overview"),
+      R("Adobe Color — Color Wheel", "https://color.adobe.com/create/color-wheel"),
+    ],
+  },
+  "Material Design": {
+    cat: "UI",
+    learn: [
+      "Google's design system: components, tokens, and guidelines spanning Android and the web",
+      "Widely used as a reference baseline even outside Android-specific products",
+    ],
+    resources: [
+      R("Material Design (M3)", "https://m3.material.io/"),
+      R("Material Design — Foundations", "https://m3.material.io/foundations"),
+    ],
+  },
+  "Human Interface Guidelines": {
+    cat: "UI",
+    learn: [
+      "Apple's platform conventions (iOS/iPadOS/macOS) for navigation, touch targets, and native component behavior",
+      "The source for 44x44pt minimum touch target guidance widely cited across mobile design",
+    ],
+    resources: [
+      R("Apple — Human Interface Guidelines", "https://developer.apple.com/design/human-interface-guidelines"),
+      R("Apple — Design Resources", "https://developer.apple.com/design/resources/"),
+    ],
+  },
+  "Card Sorting": {
+    cat: "Research",
+    learn: [
+      "Open (participants create own groups) vs closed (sort into predefined categories) — generative vs evaluative",
+      "Used to design/validate information architecture based on users' actual mental models",
+    ],
+    resources: [
+      R("Nielsen Norman Group — Card Sorting", "https://www.nngroup.com/articles/card-sorting-definition/"),
+      R("Usability.gov — Card Sorting", "https://www.usability.gov/how-to-and-tools/methods/card-sorting.html"),
+    ],
+  },
+  "Design Tokens": {
+    cat: "UI",
+    learn: [
+      "Named, platform-agnostic variables (color.primary.500) as a single source of truth for design + code",
+      "Enables rebranding/theming and systematic contrast fixes across a large product without a manual hunt-and-replace",
+    ],
+    resources: [R("W3C — Design Tokens Community Group", "https://www.w3.org/community/design-tokens/")],
+  },
+  "Atomic Design": {
+    cat: "UI",
+    learn: [
+      "Atoms -> molecules -> organisms -> templates -> pages — a shared vocabulary for component complexity",
+      "Clarifies where duplication actually lives (usually the atom level) when consolidating inconsistent components",
+    ],
+    resources: [R("Atomic Design by Brad Frost", "https://atomicdesign.bradfrost.com/")],
+  },
+  "Design Critique": {
+    cat: "Core",
+    learn: [
+      "Framed around the goal/user problem, not personal taste — 'I like / I wish / What if' keeps feedback actionable",
+      "Distinct from a design review (a gate for sign-off) — critique generates options while work is in progress",
+    ],
+    resources: [R("Nielsen Norman Group — Design Critiques", "https://www.nngroup.com/articles/design-critiques/")],
+  },
+  "Dark Patterns": {
+    cat: "Core",
+    learn: [
+      "UI/UX patterns that manipulate users into decisions benefiting the business at their expense",
+      "Confirmshaming, roach motel, and sneak-into-basket are common named patterns — increasingly drawing regulatory scrutiny",
+    ],
+    resources: [
+      R("Deceptive Design (deceptive.design)", "https://www.deceptive.design/"),
+      R("FTC — Bringing Dark Patterns to Light", "https://www.ftc.gov/reports/bringing-dark-patterns-light"),
+    ],
+  },
+  "Empathy Map": {
+    cat: "Research",
+    learn: [
+      "Quick synthesis of what a user says/thinks/does/feels in a specific context, built from raw research notes",
+      "A working artifact for shared team understanding — personas are the more polished, reusable distillation",
+    ],
+    resources: [R("Nielsen Norman Group — Empathy Mapping", "https://www.nngroup.com/articles/empathy-mapping/")],
+  },
+  Microinteractions: {
+    cat: "UI",
+    learn: [
+      "Four parts: trigger, rules, feedback, and loops/modes (Dan Saffer's framework)",
+      "Designing all four deliberately — not just visual feedback — separates a good microinteraction from mere decoration",
+    ],
+    resources: [
+      R("Interaction Design Foundation", "https://www.interaction-design.org/"),
+      R("Material Design — Motion", "https://m3.material.io/styles/motion/overview"),
+    ],
+  },
+  "Design Handoff": {
+    cat: "Handoff",
+    learn: [
+      "Prototype (behavior/flow) + spec (exact values/states) — handoff usually needs both, not one or the other",
+      "Design tokens beat static image exports: an update propagates to every implementation referencing the token",
+    ],
+    resources: [R("Figma — Dev Mode", "https://www.figma.com/dev-mode/"), R("Zeplin", "https://zeplin.io/")],
+  },
+
+  // ---------- Security track additions ----------
+  "OWASP Top 10": {
+    cat: "Core",
+    learn: [
+      "The current list's risk categories (Broken Access Control, Cryptographic Failures, Injection, Insecure Design, Security Misconfiguration, Vulnerable and Outdated Components, and more)",
+      "It's a prioritization/awareness document based on real-world data, not a complete checklist",
+    ],
+    resources: [
+      R("OWASP Top 10", "https://owasp.org/www-project-top-ten/"),
+      R("OWASP Top 10 — GitHub source", "https://github.com/OWASP/Top10"),
+    ],
+  },
+  "NIST Cybersecurity Framework": {
+    cat: "Core",
+    learn: [
+      "Five functions: Identify, Protect, Detect, Respond, Recover",
+      "A common-language maturity assessment, not a prescriptive checklist of specific controls",
+    ],
+    resources: [
+      R("NIST Cybersecurity Framework", "https://www.nist.gov/cyberframework"),
+      R("NIST CSF 2.0 Quick Start Guide", "https://www.nist.gov/cyberframework/getting-started"),
+    ],
+  },
+  "MITRE ATT&CK": {
+    cat: "Core",
+    learn: [
+      "Tactics, techniques, and procedures (TTPs) organized by attack lifecycle stage",
+      "Mapping your own detection coverage against specific technique IDs, not just abstract categories",
+    ],
+    resources: [
+      R("MITRE ATT&CK", "https://attack.mitre.org/"),
+      R("MITRE ATT&CK — Enterprise Matrix", "https://attack.mitre.org/matrices/enterprise/"),
+    ],
+  },
+  "Zero Trust Architecture": {
+    cat: "Core",
+    learn: [
+      "Never trust by network location alone — authenticate/authorize every request based on identity, device posture, and context",
+      "Micro-segmentation and continuous verification vs the older perimeter/VPN model",
+    ],
+    resources: [
+      R("NIST SP 800-207 — Zero Trust Architecture", "https://csrc.nist.gov/pubs/sp/800/207/final"),
+      R("CISA — Zero Trust Maturity Model", "https://www.cisa.gov/zero-trust-maturity-model"),
+    ],
+  },
+  "Threat Modeling": {
+    cat: "Core",
+    learn: [
+      "STRIDE (Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege)",
+      "Data flow diagrams and trust boundaries as the starting artifact",
+    ],
+    resources: [
+      R("OWASP Threat Modeling", "https://owasp.org/www-community/Threat_Modeling"),
+      R("Microsoft — Threat Modeling", "https://learn.microsoft.com/en-us/azure/security/develop/threat-modeling-tool"),
+    ],
+  },
+  "Password Hashing": {
+    cat: "Core",
+    learn: [
+      "bcrypt/scrypt/Argon2 (slow, adaptive, salted) vs fast general-purpose hashes (MD5/SHA-256) for password storage",
+      "Salting defeats rainbow tables; the work factor should be tuned for a real login-time budget",
+    ],
+    resources: [
+      R("OWASP Password Storage Cheat Sheet", "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html"),
+      R("Argon2 — RFC 9106", "https://www.rfc-editor.org/rfc/rfc9106.html"),
+    ],
+  },
+  "Cryptography Fundamentals": {
+    cat: "Core",
+    learn: [
+      "Symmetric (AES) vs asymmetric (RSA/ECC) — speed vs key-distribution trade-offs",
+      "Hashing vs encryption; digital signatures for integrity and non-repudiation",
+    ],
+    resources: [
+      R("Crypto101 (free book)", "https://www.crypto101.io/"),
+      R("NIST — Cryptographic Standards and Guidelines", "https://csrc.nist.gov/projects/cryptographic-standards-and-guidelines"),
+    ],
+  },
+  "Penetration Testing": {
+    cat: "Core",
+    learn: [
+      "Scoping and rules of engagement before any testing starts — explicit written authorization is mandatory",
+      "Recon → scanning → exploitation → post-exploitation → reporting with remediation guidance",
+    ],
+    resources: [
+      R("PortSwigger Web Security Academy", "https://portswigger.net/web-security"),
+      R("OWASP Testing Guide", "https://owasp.org/www-project-web-security-testing-guide/"),
+    ],
+  },
+  SIEM: {
+    cat: "Core",
+    learn: [
+      "Aggregating logs across an org and correlating events to catch patterns a single log source wouldn't reveal",
+      "Tuning correlation rules to cut noise without missing real signals",
+    ],
+    resources: [
+      R("Splunk — What is SIEM?", "https://www.splunk.com/en_us/blog/learn/siem-security-information-event-management.html"),
+      R("Elastic Security", "https://www.elastic.co/security"),
+    ],
+  },
+  "SQL Injection": {
+    cat: "AppSec",
+    learn: [
+      "String concatenation into a query vs parameterized queries/prepared statements",
+      "Blind, error-based, and UNION-based injection — different techniques for the same root cause",
+    ],
+    resources: [
+      R("OWASP SQL Injection", "https://owasp.org/www-community/attacks/SQL_Injection"),
+      R("PortSwigger — SQL Injection", "https://portswigger.net/web-security/sql-injection"),
+    ],
+  },
+  "Cross-Site Scripting (XSS)": {
+    cat: "AppSec",
+    learn: [
+      "Reflected vs stored vs DOM-based XSS",
+      "Output encoding by context as the primary defense; Content-Security-Policy as a second layer",
+    ],
+    resources: [
+      R("OWASP Cross Site Scripting", "https://owasp.org/www-community/attacks/xss/"),
+      R("PortSwigger — Cross-site scripting", "https://portswigger.net/web-security/cross-site-scripting"),
+    ],
+  },
+  CSRF: {
+    cat: "AppSec",
+    learn: [
+      "Anti-CSRF tokens, the SameSite cookie attribute, and Origin/Referer checks",
+      "Why a GET request should never trigger a state change",
+    ],
+    resources: [
+      R("OWASP CSRF", "https://owasp.org/www-community/attacks/csrf"),
+      R("PortSwigger — CSRF", "https://portswigger.net/web-security/csrf"),
+    ],
+  },
+  SSRF: {
+    cat: "AppSec",
+    learn: [
+      "Server-side fetches abused to reach internal-only services (cloud metadata endpoints, internal admin panels)",
+      "Defense: allowlist destinations, block private/link-local IP ranges, validate the resolved IP, not just the URL string",
+    ],
+    resources: [
+      R(
+        "OWASP SSRF Prevention Cheat Sheet",
+        "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html",
+      ),
+      R("PortSwigger — SSRF", "https://portswigger.net/web-security/ssrf"),
+    ],
+  },
+  IDOR: {
+    cat: "AppSec",
+    learn: [
+      "Object-level authorization checked per request, not just authentication",
+      "Why it's found simply by changing an ID — always re-verify ownership server-side",
+    ],
+    resources: [
+      R("PortSwigger — Access control vulnerabilities", "https://portswigger.net/web-security/access-control"),
+      R(
+        "OWASP — Insecure Direct Object References",
+        "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/04-Testing_for_Insecure_Direct_Object_References",
+      ),
+    ],
+  },
+  XXE: {
+    cat: "AppSec",
+    learn: [
+      "XML parsers resolving external entities by default — reading local files or triggering SSRF",
+      "Fix: explicitly disable DTD processing and external entity resolution in the parser configuration",
+    ],
+    resources: [
+      R(
+        "OWASP XXE Prevention Cheat Sheet",
+        "https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html",
+      ),
+      R("PortSwigger — XXE injection", "https://portswigger.net/web-security/xxe"),
+    ],
+  },
+  "JWT Security": {
+    cat: "AppSec",
+    learn: [
+      "decode vs verify — never trust claims from a token whose signature wasn't checked",
+      "Hardcode the expected algorithm server-side; never accept alg: none or trust the token's own header",
+    ],
+    resources: [
+      R("jwt.io — Introduction to JSON Web Tokens", "https://jwt.io/introduction"),
+      R("OWASP JWT Cheat Sheet", "https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html"),
+    ],
+  },
+  "SAST/DAST": {
+    cat: "AppSec",
+    learn: [
+      "SAST scans source without running it; DAST tests a running app from the outside like an attacker would",
+      "Layering both plus dependency scanning covers meaningfully more than either alone",
+    ],
+    resources: [
+      R("OWASP — Static Application Security Testing", "https://owasp.org/www-community/Source_Code_Analysis_Tools"),
+      R("OWASP ZAP", "https://www.zaproxy.org/"),
+    ],
+  },
+  "Secure Coding Practices": {
+    cat: "AppSec",
+    learn: [
+      "Input validation, output encoding, parameterized queries, least-privilege service accounts",
+      "Secrets management and dependency/supply-chain scanning as part of the standard dev workflow, not an afterthought",
+    ],
+    resources: [
+      R("OWASP Cheat Sheet Series", "https://cheatsheetseries.owasp.org/"),
+      R(
+        "OWASP Secure Coding Practices Quick Reference Guide",
+        "https://owasp.org/www-project-secure-coding-practices-quick-reference-guide/",
+      ),
+    ],
+  },
+  "TLS/SSL": {
+    cat: "Network",
+    learn: [
+      "The handshake: cipher suite negotiation, certificate presentation, symmetric session key derivation",
+      "Certificate chain of trust and validation (CN/SAN match, validity dates, revocation via CRL/OCSP)",
+    ],
+    resources: [
+      R("Cloudflare — What happens in a TLS handshake?", "https://www.cloudflare.com/learning/ssl/what-happens-in-a-tls-handshake/"),
+      R("Mozilla SSL Configuration Generator", "https://ssl-config.mozilla.org/"),
+    ],
+  },
+  "DNS Security": {
+    cat: "Network",
+    learn: [
+      "DNS cache poisoning/spoofing and how DNSSEC cryptographically signs records to defend against it",
+      "DNS over HTTPS/TLS for protecting the query itself from eavesdropping",
+    ],
+    resources: [
+      R("Cloudflare — DNSSEC", "https://www.cloudflare.com/dns/dnssec/how-dnssec-works/"),
+      R(
+        "ICANN — DNSSEC: What Is It and Why Is It Important?",
+        "https://www.icann.org/resources/pages/dnssec-what-is-it-why-important-2019-03-05-en",
+      ),
+    ],
+  },
+  "DDoS Protection": {
+    cat: "Network",
+    learn: [
+      "Volumetric attacks (bandwidth) vs application-layer attacks (expensive requests) need different mitigations",
+      "CDN/scrubbing services vs rate limiting and request-cost-aware defenses at the application tier",
+    ],
+    resources: [
+      R("Cloudflare — What is a DDoS attack?", "https://www.cloudflare.com/learning/ddos/what-is-a-ddos-attack/"),
+      R(
+        "CISA — Understanding DDoS Attacks",
+        "https://www.cisa.gov/news-events/news/understanding-and-responding-distributed-denial-service-attacks",
+      ),
+    ],
+  },
+  "IDS/IPS": {
+    cat: "Network",
+    learn: [
+      "Detection (alert only) vs prevention (actively blocks) — and why new rules should prove out in detect-only mode first",
+      "Signature-based vs anomaly-based detection",
+    ],
+    resources: [R("Suricata Documentation", "https://docs.suricata.io/"), R("Snort", "https://www.snort.org/")],
+  },
+  "Network Segmentation": {
+    cat: "Network",
+    learn: [
+      "VLANs/subnets/firewall rules isolating zones so a compromise can't directly reach a high-value asset",
+      "Limiting lateral movement — a key stage in most real breaches — even when perimeter defenses fail",
+    ],
+    resources: [
+      R("NIST SP 800-125B — Secure Virtual Network Configuration", "https://csrc.nist.gov/pubs/sp/800/125/b/final"),
+      R("Cisco — What Is Network Segmentation?", "https://www.cisco.com/c/en/us/products/security/what-is-network-segmentation.html"),
+    ],
+  },
+  "Burp Suite": {
+    cat: "Tools",
+    learn: [
+      "Intercepting proxy workflow: Proxy → Repeater for manual replay/tampering",
+      "Automated crawling/scanning (Spider/Scanner) vs manual, targeted testing",
+    ],
+    resources: [
+      R("PortSwigger — Getting started with Burp Suite", "https://portswigger.net/burp/documentation/desktop/getting-started"),
+      R("PortSwigger Web Security Academy", "https://portswigger.net/web-security"),
+    ],
+  },
+  Nmap: {
+    cat: "Tools",
+    learn: [
+      "Host discovery, port scanning, service/version detection (-sV), and NSE scripts",
+      "Running scans against your own infrastructure to catch unintentionally exposed services",
+    ],
+    resources: [R("Nmap Reference Guide", "https://nmap.org/book/man.html"), R("Nmap Official Site", "https://nmap.org/")],
+  },
+  Wireshark: {
+    cat: "Tools",
+    learn: [
+      "Packet capture and protocol-level inspection with display filters",
+      "Verifying traffic is actually encrypted as expected; forensic analysis of captured incident traffic",
+    ],
+    resources: [
+      R("Wireshark User's Guide", "https://www.wireshark.org/docs/wsug_html_chunked/"),
+      R("Wireshark Official Site", "https://www.wireshark.org/"),
+    ],
+  },
+  Metasploit: {
+    cat: "Tools",
+    learn: [
+      "Exploit/payload/post-exploitation modules — used only with explicit written authorization",
+      "Verifying a known vulnerability is actually exploitable in a specific environment, not just theoretically present",
+    ],
+    resources: [R("Metasploit Documentation", "https://docs.metasploit.com/"), R("Rapid7 — Metasploit", "https://www.metasploit.com/")],
+  },
+  "OWASP ZAP": {
+    cat: "Tools",
+    learn: [
+      "Free, open-source intercepting proxy with an automated scanner",
+      "Baseline scan mode for CI-friendly DAST vs the full active scan",
+    ],
+    resources: [R("OWASP ZAP", "https://www.zaproxy.org/"), R("ZAP — Getting Started Guide", "https://www.zaproxy.org/getting-started/")],
+  },
+  "Vulnerability Scanning": {
+    cat: "Tools",
+    learn: [
+      "Automated scanners (Nessus, Qualys, OpenVAS) checking targets against a database of known vulnerabilities/misconfigurations",
+      "Triage by severity + exploitability + exposure, then dedupe by root cause rather than treating every finding independently",
+    ],
+    resources: [
+      R("Tenable Nessus", "https://www.tenable.com/products/nessus"),
+      R("OpenVAS / Greenbone Community Edition", "https://www.greenbone.net/en/testnow/"),
+    ],
+  },
+  "Kali Linux": {
+    cat: "Tools",
+    learn: [
+      "A pre-loaded Linux distribution for penetration testing — a standardized environment, not a tool by itself",
+      "Only for use in explicitly authorized testing contexts",
+    ],
+    resources: [R("Kali Linux Documentation", "https://www.kali.org/docs/"), R("Kali Linux Official Site", "https://www.kali.org/")],
+  },
+  "Password Cracking": {
+    cat: "Tools",
+    learn: [
+      "Dictionary attacks, brute force, and rule-based wordlist mutations (John the Ripper, Hashcat)",
+      "Used defensively to audit whether an org's real password hashes would survive a real attacker's cracking attempt",
+    ],
+    resources: [R("Hashcat Documentation", "https://hashcat.net/wiki/"), R("John the Ripper", "https://www.openwall.com/john/")],
+  },
+  CyberChef: {
+    cat: "Tools",
+    learn: [
+      "A chainable pipeline of encode/decode/encrypt/transform operations for a browser",
+      "Deobfuscating malware payloads or CTF data without writing custom scripts",
+    ],
+    resources: [R("CyberChef (GCHQ)", "https://gchq.github.io/CyberChef/"), R("CyberChef — GitHub", "https://github.com/gchq/CyberChef")],
+  },
+  Shodan: {
+    cat: "Tools",
+    learn: [
+      "A search engine indexing internet-connected devices/services by scanning the internet",
+      "Finding your own unintentionally exposed devices before an attacker's search does",
+    ],
+    resources: [
+      R("Shodan", "https://www.shodan.io/"),
+      R("Shodan — Getting Started Guide", "https://help.shodan.io/the-basics/what-is-shodan"),
+    ],
+  },
+  Splunk: {
+    cat: "Tools",
+    learn: [
+      "Log ingestion, SPL query language for search/correlation, alerting rules and dashboards",
+      "Writing a query to correlate a specific pattern (e.g. failed logins followed by a success) across ingested logs",
+    ],
+    resources: [
+      R("Splunk Documentation", "https://docs.splunk.com/Documentation"),
+      R("Splunk — What is SIEM?", "https://www.splunk.com/en_us/blog/learn/siem-security-information-event-management.html"),
+    ],
+  },
 };
 
 // Fallback for any tech OUTSIDE the ~35 curated entries above — vacancies name a much longer

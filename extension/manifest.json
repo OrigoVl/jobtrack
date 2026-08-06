@@ -1,12 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Zorya Job Clipper",
-  "version": "0.1.0",
-  "description": "Detects the job posting on the page you're viewing and saves it to your Zorya tracker in one click.",
+  "version": "0.2.0",
+  "description": "Detects the job posting on the page you're viewing, saves it to your Zorya tracker in one click, and can fill your profile's basics into an application form.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "Save this job to Zorya"
   },
-  "permissions": ["activeTab", "scripting"],
-  "host_permissions": ["http://localhost:3001/*"]
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["http://localhost:3001/*"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"]
 }

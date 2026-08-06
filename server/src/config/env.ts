@@ -102,6 +102,13 @@ const RawEnvSchema = z
     // username (no leading @) is needed client-side to build the t.me deep link.
     TELEGRAM_BOT_TOKEN: z.string().trim().min(1).optional(),
     TELEGRAM_BOT_USERNAME: z.string().trim().min(1).optional(),
+    // Optional shared secret passed to Telegram's setWebhook (server/scripts/set-telegram-
+    // webhook.mjs) as `secret_token`, echoed back on every real webhook call as the
+    // `X-Telegram-Bot-Api-Secret-Token` header (telegram.routes.ts checks it) — without this, the
+    // webhook URL itself is the only thing standing between the internet and resolveLinkToken().
+    // Optional (not enforced below) for backward compatibility with a deployment that registered
+    // its webhook before this existed; set it and re-run the script to close that gap.
+    TELEGRAM_WEBHOOK_SECRET: z.string().trim().min(1).optional(),
 
     // better-auth: signs/encrypts session cookies and tokens — required in production
     // (enforced below), with an obviously-insecure dev-only fallback so a fresh local checkout
@@ -205,6 +212,7 @@ export const env = {
   telegram: {
     botToken: raw.TELEGRAM_BOT_TOKEN,
     botUsername: raw.TELEGRAM_BOT_USERNAME,
+    webhookSecret: raw.TELEGRAM_WEBHOOK_SECRET ?? null,
     get isAvailable(): boolean {
       return !!env.telegram.botToken && !!env.telegram.botUsername;
     },

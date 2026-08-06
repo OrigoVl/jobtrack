@@ -162,6 +162,13 @@ export function VacancyDetailModal({
               )}
             </div>
           </div>
+          {/* One shared updateMutation backs every field below (header/metadata/stack/notes) — a
+              single indicator here covers all of them rather than repeating it per field. */}
+          {updateMutation.isPending && (
+            <div className="shrink-0 flex items-center gap-1 text-[11px] text-signal">
+              <Spinner className="h-3 w-3" /> {t("common:state.saving")}
+            </div>
+          )}
           <button
             type="button"
             onClick={onClose}

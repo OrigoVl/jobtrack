@@ -3,5 +3,6 @@
 export * from "./app.js";
 export * from "./auth.js";
 export * from "./billing.js";
+export * from "./referrals.js";
 export * from "./telegram.js";
 export * from "./telemetry.js";

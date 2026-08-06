@@ -4,7 +4,14 @@ import { queryKeys } from "./keys";
 // Analytics/roadmap/learn/plan21 and even the profile are computed on the backend from the
 // same vacancies+CV, so any change to the vacancy stack or profile must invalidate all of
 // them together (previously this was done by reloadDerived() inside store.tsx).
-const DERIVED_KEYS = [queryKeys.analytics, queryKeys.learn, queryKeys.roadmap, queryKeys.profile, queryKeys.plan21];
+const DERIVED_KEYS = [
+  queryKeys.analytics,
+  queryKeys.learn,
+  queryKeys.roadmap,
+  queryKeys.profile,
+  queryKeys.plan21,
+  queryKeys.applyProgress,
+];
 const ALL_KEYS = [queryKeys.vacancies, ...DERIVED_KEYS, queryKeys.study, queryKeys.companies, queryKeys.projects];
 
 export function useInvalidateDerived(): () => Promise<void[]> {

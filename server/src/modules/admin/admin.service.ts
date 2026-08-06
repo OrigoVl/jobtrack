@@ -7,7 +7,7 @@
 // PII note: nothing here ever selects a user's CV text or the raw text of another user's
 // individual search query — only counts and aggregates (see getProductEventsSummary's
 // topSearchQueries, which groups/counts search terms, never attributes one to a specific user).
-import { and, count, desc, eq, gte, inArray, sql, sum } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, inArray, or, sql, sum } from "drizzle-orm";
 import db from "../../db/client.js";
 import { llmUsage, productEvents, subscriptions, user, vacancies } from "../../db/schema/index.js";
 import { env } from "../../config/env.js";
@@ -78,8 +78,13 @@ export interface AdminUsersResult {
  * to `limit`, not to the total number of users/vacancies/llm_usage rows as those grow. The
  * plan/status columns come from a LEFT JOIN on the main paged query (subscriptions.userId is a
  * 1:1 PK, so this adds no fan-out) rather than a third ids-scoped batch query.
+ *
+ * `search` (optional) case-insensitively matches name OR email as a substring — beyond the first
+ * page/`limit`, an admin otherwise has no way to find a specific account. `total` reflects the
+ * SAME filter, so pagination controls stay correct while searching.
  */
-export async function listUsersWithActivity(limit = 50, offset = 0, recentDays = 30): Promise<AdminUsersResult> {
+export async function listUsersWithActivity(limit = 50, offset = 0, recentDays = 30, search?: string): Promise<AdminUsersResult> {
+  const where = search ? or(ilike(user.name, `%${search}%`), ilike(user.email, `%${search}%`)) : undefined;
   const [users, [totalRow]] = await Promise.all([
     db
       .select({
@@ -94,10 +99,11 @@ export async function listUsersWithActivity(limit = 50, offset = 0, recentDays =
       })
       .from(user)
       .leftJoin(subscriptions, eq(subscriptions.userId, user.id))
+      .where(where)
       .orderBy(desc(user.createdAt))
       .limit(limit)
       .offset(offset),
-    db.select({ c: count() }).from(user),
+    db.select({ c: count() }).from(user).where(where),
   ]);
   const ids = users.map((u) => u.id);
   const [vacancyCounts, llmCounts] = ids.length

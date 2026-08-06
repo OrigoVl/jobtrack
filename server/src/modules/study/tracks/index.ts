@@ -19,6 +19,10 @@ import { SECURITY_CARDS, SECURITY_DRILLS } from "./security.js";
 import { SECURITY_CARDS_UK, SECURITY_DRILLS_UK } from "./security.uk.js";
 import { SYSADMIN_CARDS, SYSADMIN_DRILLS } from "./sysadmin.js";
 import { SYSADMIN_CARDS_UK, SYSADMIN_DRILLS_UK } from "./sysadmin.uk.js";
+import { PM_CARDS, PM_DRILLS } from "./pm.js";
+import { PM_CARDS_UK, PM_DRILLS_UK } from "./pm.uk.js";
+import { BA_CARDS, BA_DRILLS } from "./ba.js";
+import { BA_CARDS_UK, BA_DRILLS_UK } from "./ba.uk.js";
 
 interface TrackPool {
   cards: Card[];
@@ -37,6 +41,8 @@ const REGISTRY: Record<Exclude<Track, "software">, TrackPool> = {
   product: { cards: PRODUCT_CARDS, cardsUk: PRODUCT_CARDS_UK, drills: PRODUCT_DRILLS, drillsUk: PRODUCT_DRILLS_UK },
   security: { cards: SECURITY_CARDS, cardsUk: SECURITY_CARDS_UK, drills: SECURITY_DRILLS, drillsUk: SECURITY_DRILLS_UK },
   sysadmin: { cards: SYSADMIN_CARDS, cardsUk: SYSADMIN_CARDS_UK, drills: SYSADMIN_DRILLS, drillsUk: SYSADMIN_DRILLS_UK },
+  pm: { cards: PM_CARDS, cardsUk: PM_CARDS_UK, drills: PM_DRILLS, drillsUk: PM_DRILLS_UK },
+  ba: { cards: BA_CARDS, cardsUk: BA_CARDS_UK, drills: BA_DRILLS, drillsUk: BA_DRILLS_UK },
 };
 
 export function getCards(locale: AppLocale, track: Track): Card[] {

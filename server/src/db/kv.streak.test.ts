@@ -65,3 +65,34 @@ describe("study streak (PGlite)", () => {
     expect(await kv.getStudyStreak(USER_B)).toEqual({ current: 0, longest: 0, lastActiveDate: "" });
   });
 });
+
+// Same day/gap/no-op semantics as study streak above, verified independently since apply streak
+// is stored under its own key ("applyStreak") — a shared implementation with a per-key bug would
+// otherwise slip through if only one of the two were tested.
+describe("apply streak (PGlite)", () => {
+  it("starts a fresh streak at 1 for a user with no prior activity", async () => {
+    const state = await kv.recordApplyActivity(USER_A);
+    expect(state).toEqual({ current: 1, longest: 1, lastActiveDate: expect.any(String) });
+  });
+
+  it("is a no-op when called again the same day", async () => {
+    const first = await kv.recordApplyActivity(USER_A);
+    const second = await kv.recordApplyActivity(USER_A);
+    expect(second).toEqual(first);
+  });
+
+  it("getApplyStreak() returns a zeroed state for a user who never applied", async () => {
+    expect(await kv.getApplyStreak(USER_B)).toEqual({ current: 0, longest: 0, lastActiveDate: "" });
+  });
+});
+
+describe("weekly apply goal (PGlite)", () => {
+  it("defaults to 5 for a user who never set a goal", async () => {
+    expect(await kv.getWeeklyApplyGoal(USER_B)).toBe(5);
+  });
+
+  it("persists a custom goal and round-trips the exact number (not a stringified/JSON-number bug)", async () => {
+    await kv.setWeeklyApplyGoal(USER_A, 10);
+    expect(await kv.getWeeklyApplyGoal(USER_A)).toBe(10);
+  });
+});

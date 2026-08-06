@@ -39,6 +39,25 @@
     "description": "Завантажує JSON-файл із твоїм профілем, вакансіями, компаніями та прогресом навчання — усе, що ти створив(ла) у Zorya.",
     "button": "Експортувати мої дані"
   },
+  "referrals": {
+    "heading": "Запроси друзів",
+    "description": "Поділись своїм посиланням — коли друг підтвердить email і почне користуватись, ти отримаєш бонусні AI-виклики (обмежені щомісяця).",
+    "linkAria": "Твоє реферальне посилання",
+    "copy": "Копіювати",
+    "copied": "Скопійовано",
+    "qualifiedCount_one": "{{count}} друг приєднався",
+    "qualifiedCount_few": "{{count}} друга приєдналися",
+    "qualifiedCount_many": "{{count}} друзів приєдналися",
+    "qualifiedCount_other": "{{count}} друга приєдналися",
+    "pendingCount_one": "{{count}} в очікуванні",
+    "pendingCount_few": "{{count}} в очікуванні",
+    "pendingCount_many": "{{count}} в очікуванні",
+    "pendingCount_other": "{{count}} в очікуванні",
+    "bonusEarned_one": "+{{count}} бонусний AI-виклик/міс",
+    "bonusEarned_few": "+{{count}} бонусні AI-виклики/міс",
+    "bonusEarned_many": "+{{count}} бонусних AI-викликів/міс",
+    "bonusEarned_other": "+{{count}} бонусного AI-виклику/міс"
+  },
   "deleteAccount": {
     "heading": "Видалити акаунт",
     "description": "Назавжди видаляє твій акаунт і все, що в ньому: вакансії, компанії, резюме, прогрес навчання. Це неможливо скасувати.",

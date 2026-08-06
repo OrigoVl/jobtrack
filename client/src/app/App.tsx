@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { ToastProvider } from "../shared/toast";
 import { useToast } from "../shared/use-toast";
 import { ConfirmDialogProvider } from "../shared/confirm";
-import { useHealth, useRoadmap, useBilling, useOnboardingState } from "../shared/queries";
+import { useHealth, useRoadmap, useBilling, useOnboardingState, useClaimReferral } from "../shared/queries";
 import { CardsSkeleton, ProgressBar, Btn, Wordmark } from "../shared/ui";
 import { useUi } from "../shared/ui-state";
 import { CelebrationOverlay } from "../shared/celebration";
@@ -17,6 +17,7 @@ import { LanguageSwitcher } from "../shared/language-switcher";
 import { ThemeSwitcher } from "../shared/theme-switcher";
 import { ErrorBoundary } from "../shared/error-boundary";
 import { useSession, signOut } from "../shared/auth-client";
+import { takeStoredReferralCode } from "../shared/referral-storage";
 import { CommandPalette } from "./command-palette";
 import { NotFound } from "./not-found";
 import {
@@ -256,6 +257,24 @@ function WelcomeRedirect() {
   return null;
 }
 
+/** Fires the pending referral claim (if any — see shared/referral-storage.ts) exactly once per
+ * mount, on a real authenticated session. Mounted in Shell rather than gated behind onboarding
+ * so it also fires for an existing user who happens to have a stale code sitting in storage from
+ * before they last signed in — claimReferral() on the server is a cheap no-op for them either
+ * way (already-has-a-referral-row, or self-referral). Renders nothing. */
+function ReferralClaimer() {
+  const claim = useClaimReferral();
+  useEffect(() => {
+    const code = takeStoredReferralCode();
+    if (code) claim.mutate(code);
+    // Intentionally runs once per mount, not on every `claim` identity change (mutate is stable
+    // enough in practice, but re-running this on re-render would re-read storage that
+    // takeStoredReferralCode() already cleared on the first call anyway).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
+
 /** Wraps /welcome — needs a real session (so a signed-out visitor can't reach it) but deliberately
  * NOT nested inside AuthGate/Shell: it's a focused, chrome-free moment, not a page in the main app. */
 function WelcomeGate() {
@@ -476,6 +495,7 @@ function Shell() {
       <CvReviewJobNotifier />
       <AiQuotaNotifier />
       <WelcomeRedirect />
+      <ReferralClaimer />
       <CalendarReminderNotifier />
       <CommandPalette
         items={allItems}

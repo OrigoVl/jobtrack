@@ -67,8 +67,14 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
   { className = "", children, ...rest },
   ref,
 ) {
+  // `w-full` on the <select> alone can't stretch this wrapper div — inside an inline-block box
+  // with no explicit width, a 100%-width child resolves against a shrink-to-fit ancestor, which
+  // collapses back to the child's own auto width (CSS2.1 10.3.3). Mirror the caller's intent onto
+  // the wrapper too, or a full-width select sits shrink-to-fit next to its label instead of
+  // wrapping to its own line.
+  const isFullWidth = className.includes("w-full");
   return (
-    <div className="relative inline-block">
+    <div className={`relative ${isFullWidth ? "block w-full" : "inline-block"}`}>
       <select
         ref={ref}
         {...rest}

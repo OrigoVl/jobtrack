@@ -8,13 +8,31 @@
 // has a real composite FK to vacancies (user_id, vacancy_id) with ON DELETE CASCADE (see
 // db/schema/app.ts), so deleting a vacancy row (vacancies.repo.ts#deleteVacancy) already removes
 // its history rows — the old SQLite version had to do this by hand because it never had FKs enabled.
-import { asc, countDistinct, eq } from "drizzle-orm";
+import { and, asc, countDistinct, eq, gte } from "drizzle-orm";
 import db from "./client.js";
 import { vacancyStatusHistory } from "./schema/index.js";
 import type { UserId } from "./user-id.js";
+import { recordApplyActivity } from "./kv.js";
 
 export async function recordStatusChange(userId: UserId, vacancyId: number, status: string): Promise<void> {
   await db.insert(vacancyStatusHistory).values({ userId, vacancyId, status });
+  // Every route that moves a vacancy to "Applied" funnels through here, so this is the one
+  // place an apply-streak tick needs to live — no route handler needs to know the streak exists.
+  if (status === "Applied") await recordApplyActivity(userId);
+}
+
+/** Count of DISTINCT vacancies that reached "Applied" on or after `since` — the weekly-goal
+ * progress number. Distinct, not raw row count: re-applying to the same vacancy within the
+ * window (a rare "reopened, applied again" edge case) shouldn't inflate a goal about how many
+ * different jobs were applied to. */
+export async function getAppliedCountSince(userId: UserId, since: Date): Promise<number> {
+  const [row] = await db
+    .select({ c: countDistinct(vacancyStatusHistory.vacancyId) })
+    .from(vacancyStatusHistory)
+    .where(
+      and(eq(vacancyStatusHistory.userId, userId), eq(vacancyStatusHistory.status, "Applied"), gte(vacancyStatusHistory.changedAt, since)),
+    );
+  return Number(row?.c ?? 0);
 }
 
 /** Count of UNIQUE vacancies that ever had each status (regardless of their current one). */

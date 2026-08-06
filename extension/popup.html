@@ -71,11 +71,25 @@
         opacity: 0.5;
         cursor: not-allowed;
       }
+      button.secondary {
+        background: #ece7e0;
+        color: #171416;
+        margin-top: 8px;
+      }
       #status {
         margin-top: 10px;
         font-size: 12px;
         color: #6b6560;
         min-height: 16px;
+      }
+      #originHint {
+        margin-top: 10px;
+        font-size: 11px;
+        color: #b45309;
+      }
+      #originHint a {
+        color: inherit;
+        text-decoration: underline;
       }
     </style>
   </head>
@@ -98,7 +112,9 @@
         <div id="url"></div>
       </div>
       <button id="save" disabled>Save to Zorya</button>
+      <button id="fill" class="secondary" disabled>Fill application</button>
       <div id="status"></div>
+      <div id="originHint" hidden></div>
     </main>
     <script src="popup.js"></script>
   </body>

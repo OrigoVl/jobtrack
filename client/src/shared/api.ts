@@ -6,6 +6,7 @@ import type {
   AdminUsersResult,
   Analytics,
   AnalyzeResult,
+  ApplyProgress,
   BillingState,
   CalendarEvent,
   CalendarEventInput,
@@ -45,6 +46,7 @@ import type {
   Plan21Data,
   Profile,
   ProjectsData,
+  ReferralState,
   ResourcesData,
   RoadmapData,
   RoadmapStatus,
@@ -140,6 +142,9 @@ export const api = {
     req<JsonVacancyImportResult>("/vacancies/import-json", { method: "POST", body: JSON.stringify(items) }),
   exportVacancies: () => req<Record<string, string>[]>("/vacancies/export"),
   similarVacancies: (id: number) => req<{ similar: SimilarVacancy[] }>(`/vacancies/${id}/similar`),
+  applyProgress: () => req<ApplyProgress>("/vacancies/apply-progress"),
+  setWeeklyApplyGoal: (weekly: number) =>
+    req<{ weeklyGoal: number }>("/vacancies/apply-goal", { method: "PUT", body: JSON.stringify({ weekly }) }),
 
   profile: () => req<Profile>("/profile"),
   saveProfile: (p: Profile) => req<Profile>("/profile", { method: "PUT", body: JSON.stringify(p) }),
@@ -274,7 +279,8 @@ export const api = {
   },
 
   adminOverview: (days = 30) => req<AdminOverview>(`/admin/overview?days=${days}`),
-  adminUsers: (limit = 50, offset = 0) => req<AdminUsersResult>(`/admin/users?limit=${limit}&offset=${offset}`),
+  adminUsers: (limit = 50, offset = 0, search = "") =>
+    req<AdminUsersResult>(`/admin/users?limit=${limit}&offset=${offset}${search ? `&search=${encodeURIComponent(search)}` : ""}`),
   adminLlmUsage: (days = 30) => req<AdminLlmUsageSummary>(`/admin/llm-usage?days=${days}`),
   adminProductEvents: (days = 30) => req<AdminProductEventsSummary>(`/admin/product-events?days=${days}`),
   adminBilling: (days = 30) => req<AdminBillingSummary>(`/admin/billing?days=${days}`),
@@ -337,6 +343,9 @@ export const api = {
   telegramStatus: () => req<{ linked: boolean }>("/telegram/status"),
   createTelegramLinkToken: () => req<{ deepLink: string }>("/telegram/link-token", { method: "POST", body: "{}" }),
   unlinkTelegram: () => req<{ linked: boolean }>("/telegram/unlink", { method: "POST", body: "{}" }),
+
+  referralState: () => req<ReferralState>("/referrals/me"),
+  claimReferral: (code: string) => req<{ claimed: boolean }>("/referrals/claim", { method: "POST", body: JSON.stringify({ code }) }),
 
   onboardingState: () => req<{ welcomeSeen: boolean }>("/onboarding/state"),
   markWelcomeSeen: () => req<{ welcomeSeen: boolean }>("/onboarding/welcome-seen", { method: "POST", body: "{}" }),

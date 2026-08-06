@@ -364,6 +364,71 @@ describe("chat() Sonnet 5 effort (output_config)", () => {
     const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body));
     expect(body.output_config).toBeUndefined();
   });
+
+  // Regression test: ANTHROPIC_MODEL_SMART is user-configurable and can point at a snapshot older
+  // than the one that introduced `effort` support — every "smart" call used to 400 permanently for
+  // that account (a config mismatch masquerading as "the LLM is down"), because a 400 isn't in
+  // RETRYABLE_STATUSES and the outer retry loop resends the identical (still-400ing) request
+  // anyway. callProviderOnce now recognizes this specific error and resends once without the field.
+  it("retries once without output_config when the model rejects the effort parameter, and succeeds", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({ error: { message: "This model does not support the effort parameter." } }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ content: [{ text: "ok" }], stop_reason: "end_turn" }),
+      } as Response);
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user", { tier: "smart" });
+    expect(result).toBe("ok");
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body)).output_config).toEqual({ effort: "medium" });
+    expect(JSON.parse(String(fetchSpy.mock.calls[1]![1]?.body)).output_config).toBeUndefined();
+  });
+
+  // Same class of bug as the effort one above, discovered while picking a replacement model:
+  // Claude Sonnet 5 accepts `effort` but rejects `temperature` outright ("`temperature` is
+  // deprecated for this model") — so the two capability checks must be independent, not an
+  // either/or, or a model missing ONE of them would still permanently 400 after "recovering".
+  it("retries once without temperature when the model rejects it, keeping effort", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({ error: { message: "`temperature` is deprecated for this model." } }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ content: [{ text: "ok" }], stop_reason: "end_turn" }),
+      } as Response);
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user", { tier: "smart" });
+    expect(result).toBe("ok");
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body)).temperature).toBe(0.4);
+    const retryBody = JSON.parse(String(fetchSpy.mock.calls[1]![1]?.body));
+    expect(retryBody.temperature).toBeUndefined();
+    expect(retryBody.output_config).toEqual({ effort: "medium" });
+  });
+
+  it("does not retry-without-effort for an unrelated 400 (fails fast, one call)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () => JSON.stringify({ error: { message: "max_tokens is too large for this model." } }),
+    } as Response);
+    const { chat } = await import("./client.js");
+    const result = await chat(BOOTSTRAP_USER_ID, "system", "user", { tier: "smart" });
+    expect(result).toBeNull();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
 });
 
 // Cost visibility: normalizes the provider's usage fields (prompt_tokens/completion_tokens

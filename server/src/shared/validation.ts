@@ -202,6 +202,15 @@ export function parseSkillLevelInput(body: unknown): SkillLevelInput {
   return { tech, level: n };
 }
 
+// 1..50: below 1 the "goal" concept is meaningless, above 50/week is almost certainly a typo (a
+// real power-user job search rarely exceeds a handful of applications a day).
+export function parseWeeklyApplyGoalInput(body: unknown): number {
+  const b = (body || {}) as Record<string, unknown>;
+  const n = Number(b.weekly);
+  if (!Number.isInteger(n) || n < 1 || n > 50) throw new HttpError(400, 'Field "weekly" must be an integer between 1 and 50');
+  return n;
+}
+
 // Shared by parseInterviewTurnInput and parseDesignTaskInput — both accept an optional vacancy to
 // scope generation to (0/null/absent means "general").
 function parseOptionalVacancyId(value: unknown): number | null {

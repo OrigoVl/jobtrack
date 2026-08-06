@@ -44,8 +44,37 @@ describe("resolveTrack", () => {
     expect(resolveTrack(undefined, "5 years running penetration tests and appsec reviews")).toBe("security");
   });
 
+  it("distinguishes project manager (pm) and product manager (product)", () => {
+    expect(resolveTrack("Senior Project Manager")).toBe("pm");
+    expect(resolveTrack("Program Manager")).toBe("pm");
+    expect(resolveTrack("Certified Scrum Master, PMP")).toBe("pm");
+    expect(resolveTrack("Product Manager")).toBe("product");
+    expect(resolveTrack("Product Owner")).toBe("product");
+  });
+
+  it("resolves business analyst (ba) distinctly from product/pm", () => {
+    expect(resolveTrack("Business Analyst")).toBe("ba");
+    expect(resolveTrack("Requirements Analyst")).toBe("ba");
+  });
+
   it("does not false-positive on substrings without a word boundary", () => {
     expect(resolveTrack("Qatar regional sales lead")).toBe("software");
+  });
+
+  it("resolves a bare short abbreviation when the domain field is exactly that (and nothing else)", () => {
+    expect(resolveTrack("BA")).toBe("ba");
+    expect(resolveTrack("ba")).toBe("ba");
+    expect(resolveTrack("  PM  ")).toBe("pm");
+    expect(resolveTrack("PO")).toBe("product");
+    expect(resolveTrack("SM")).toBe("pm");
+    expect(resolveTrack("DA")).toBe("data");
+  });
+
+  it("does not treat a short abbreviation as a signal once it's part of a longer domain string", () => {
+    // "BA" here is plausibly "Bachelor of Arts", not Business Analyst — only an EXACT match on
+    // the whole (trimmed) domain field is safe; a substring match inside free text is not.
+    expect(resolveTrack("BA in Psychology, now in software sales")).toBe("software");
+    expect(resolveTrack("Meeting at 10:30 PM daily standup notes")).toBe("software");
   });
 });
 

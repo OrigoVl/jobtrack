@@ -121,6 +121,42 @@ export async function recordStudyActivity(userId: UserId): Promise<StreakState> 
   return next;
 }
 
+export async function getApplyStreak(userId: UserId): Promise<StreakState> {
+  return (await getKvJson<StreakState>(userId, "applyStreak")) || EMPTY_STREAK;
+}
+
+/** Same day/gap/no-op semantics as recordStudyActivity() above, but for a vacancy reaching
+ * "Applied" — called from vacancy-history.ts#recordStatusChange, the single write point every
+ * status-change route already goes through, so no route needs to know this streak exists. */
+export async function recordApplyActivity(userId: UserId): Promise<StreakState> {
+  const today = new Date().toISOString().slice(0, 10);
+  const state = await getApplyStreak(userId);
+  if (state.lastActiveDate === today) return state;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const current = state.lastActiveDate === yesterday ? state.current + 1 : 1;
+  const next: StreakState = { current, longest: Math.max(state.longest, current), lastActiveDate: today };
+  await setKvJson(userId, "applyStreak", next);
+  return next;
+}
+
+const DEFAULT_WEEKLY_APPLY_GOAL = 5;
+// Wrapped in an object rather than a bare number — this driver's jsonb encoding only round-trips
+// primitives correctly when they're nested inside an object (see telegram.repo.ts's ChatIdValue
+// for the same fix applied to a bare string).
+interface WeeklyApplyGoalValue {
+  weekly: number;
+}
+
+export async function getWeeklyApplyGoal(userId: UserId): Promise<number> {
+  const v = await getKvJson<WeeklyApplyGoalValue>(userId, "applyGoalWeekly");
+  return v?.weekly ?? DEFAULT_WEEKLY_APPLY_GOAL;
+}
+
+export async function setWeeklyApplyGoal(userId: UserId, weekly: number): Promise<number> {
+  await setKvJson(userId, "applyGoalWeekly", { weekly });
+  return weekly;
+}
+
 // Map of cardId -> SRS row (interval/due/reps/FSRS state), for computing "due today" and stats.
 export async function getSrsStateByCard(userId: UserId): Promise<Record<string, SrsRow>> {
   const rows = await db.select().from(srs).where(eq(srs.userId, userId));

@@ -10,7 +10,7 @@
 //
 // `role`/`banned`/`banReason`/`banExpires` on `user` and `impersonatedBy` on `session` are the
 // fields the `admin` plugin (server/src/auth/auth.ts) adds — see better-auth's admin plugin docs.
-import { pgTable, text, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, integer, bigint } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text().primaryKey(),
@@ -69,4 +69,13 @@ export const verification = pgTable("verification", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Backs better-auth's own built-in rate limiter once `rateLimit.storage: "database"` is set in
+// auth/auth.ts — see that file for why (shared counters across replicas without needing Redis).
+export const rateLimit = pgTable("rateLimit", {
+  id: text().primaryKey(),
+  key: text().notNull().unique(),
+  count: integer().notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
 });

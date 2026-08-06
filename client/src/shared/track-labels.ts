@@ -14,6 +14,8 @@ const TRACK_KEY: Record<Track, `tracks.${Track}`> = {
   product: "tracks.product",
   security: "tracks.security",
   sysadmin: "tracks.sysadmin",
+  pm: "tracks.pm",
+  ba: "tracks.ba",
 };
 
 /** Calls the i18next singleton directly (not a `t` from the caller's own useTranslation()) since

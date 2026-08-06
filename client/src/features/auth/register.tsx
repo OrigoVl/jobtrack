@@ -1,20 +1,30 @@
-import { useState } from "react";
-import { Link } from "react-router";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Btn } from "../../shared/ui";
 import { AuthLayout, AuthError, authInputClass } from "./auth-layout";
 import { PasswordInput } from "./password-input";
 import { GoogleButton } from "./google-button";
 import { signUp } from "../../shared/auth-client";
+import { storeReferralCode } from "../../shared/referral-storage";
 
 export function Register() {
   const { t } = useTranslation("auth");
+  const [searchParams] = useSearchParams();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registered, setRegistered] = useState(false);
+
+  // Stashed immediately on landing, well before any account exists — email+password signup
+  // needs email verification (no session yet) and Google OAuth redirects away and back, so this
+  // can't wait for a session to exist (see shared/referral-storage.ts's own comment).
+  useEffect(() => {
+    const ref = searchParams.get("ref");
+    if (ref) storeReferralCode(ref);
+  }, [searchParams]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

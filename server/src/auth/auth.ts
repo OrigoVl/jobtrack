@@ -74,6 +74,15 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
   secret: env.auth.secret,
   baseURL: env.auth.baseUrl,
+  // Without this, better-auth's own built-in rate limiter (auto-enabled in production, protects
+  // /api/auth/* — login/register/reset — from brute force) keeps its counters in this process's
+  // own memory; with 2+ replicas behind a load balancer the effective limit silently multiplies
+  // by replica count. "database" reuses the SAME Postgres connection already configured just
+  // above (`database: drizzleAdapter(...)`) so counters are correctly shared — no Redis needed
+  // for this one, unlike core/rate-limit.ts's own limiters.
+  rateLimit: {
+    storage: "database",
+  },
   // better-auth rejects any request whose Origin header isn't baseURL or in this list. In dev,
   // the browser's real origin is Vite's dev server (client/vite.config.ts, port 5173) — Vite
   // proxies /api to this server (making requests same-origin from the client's point of view),
@@ -154,7 +163,8 @@ export const auth = betterAuth({
   },
 
   // Auth-endpoint rate limiting (brute-force protection on login/register/reset, keyed by IP)
-  // uses better-auth's own built-in limiter — enabled automatically in production, no extra
-  // config needed; this app's own express-rate-limit (core/rate-limit.ts) covers everything
-  // else (domain API endpoints, keyed by userId once a session exists).
+  // uses better-auth's own built-in limiter — enabled automatically in production (see the
+  // `rateLimit` option above for the shared-storage config); this app's own express-rate-limit
+  // (core/rate-limit.ts) covers everything else (domain API endpoints, keyed by userId once a
+  // session exists).
 });

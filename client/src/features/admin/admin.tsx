@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useTranslation } from "react-i18next";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Segmented } from "../../shared/ui";
@@ -59,17 +60,48 @@ function OverviewTab({ days }: { days: number }) {
   );
 }
 
+const ADMIN_USERS_PAGE_SIZE = 50;
+
 function UsersTab() {
   const { t, i18n } = useTranslation(["admin", "common"]);
   const confirm = useConfirm();
   const { data: session } = useSession();
-  const { data, isLoading } = useAdminUsers(50, 0);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [offset, setOffset] = useState(0);
+  // Debounced so typing doesn't fire a request per keystroke; resets to page 1 once the actual
+  // (debounced) search term changes, not on every keystroke of searchInput.
+  useEffect(() => {
+    const id = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(id);
+  }, [searchInput]);
+  useEffect(() => setOffset(0), [search]);
+  const { data, isLoading } = useAdminUsers(ADMIN_USERS_PAGE_SIZE, offset, search);
   const banMutation = useBanUser();
   const unbanMutation = useUnbanUser();
+
+  const searchBox = (
+    <input
+      value={searchInput}
+      onChange={(e) => setSearchInput(e.target.value)}
+      placeholder={t("users.searchPlaceholder")}
+      aria-label={t("users.searchAriaLabel")}
+      className="w-full max-w-xs mb-3 bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+    />
+  );
+
   if (isLoading) return <CardsSkeleton count={1} />;
-  if (!data || data.users.length === 0) return <EmptyState title={t("users.empty.title")} />;
+  if (!data || data.users.length === 0) {
+    return (
+      <Card>
+        {searchBox}
+        <EmptyState title={search ? t("users.noResults", { search }) : t("users.empty.title")} />
+      </Card>
+    );
+  }
   return (
     <Card className="overflow-x-auto">
+      {searchBox}
       <table className="w-full text-sm" role="table">
         <thead>
           <tr className="text-left text-xs font-semibold text-ink-dim border-b border-grid">
@@ -143,7 +175,22 @@ function UsersTab() {
           })}
         </tbody>
       </table>
-      <div className="text-xs text-ink-dim mt-2">{t("users.showingSummary", { count: data.users.length, total: data.total })}</div>
+      <div className="flex items-center justify-between mt-2">
+        <div className="text-xs text-ink-dim">{t("users.showingSummary", { count: data.users.length, total: data.total })}</div>
+        <div className="flex gap-1">
+          <Btn size="sm" variant="ghost" disabled={offset === 0} onClick={() => setOffset((o) => Math.max(0, o - ADMIN_USERS_PAGE_SIZE))}>
+            {t("users.pagination.prev")}
+          </Btn>
+          <Btn
+            size="sm"
+            variant="ghost"
+            disabled={offset + ADMIN_USERS_PAGE_SIZE >= data.total}
+            onClick={() => setOffset((o) => o + ADMIN_USERS_PAGE_SIZE)}
+          >
+            {t("users.pagination.next")}
+          </Btn>
+        </div>
+      </div>
     </Card>
   );
 }

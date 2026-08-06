@@ -31,14 +31,19 @@ r.post(
 );
 
 // Telegram calls this directly (registered once via server/scripts/set-telegram-webhook.mjs) —
-// no session, protected only by the URL itself (Telegram's webhook mechanism doesn't support an
-// arbitrary custom header for a shared secret without extra per-request setup). Low blast
-// radius: the only thing a forged POST here can do is attempt resolveLinkToken() with a guessed
-// token, which requires having observed (or brute-forced, from a 15-minute-lived, 128-bit random
-// space) an unexpired token belonging to someone else's link attempt.
+// no session. If TELEGRAM_WEBHOOK_SECRET is set, every real call from Telegram carries it back as
+// the X-Telegram-Bot-Api-Secret-Token header (Telegram's `secret_token` setWebhook param, Bot API
+// 6.1+), checked below; a deployment that hasn't set one yet falls back to the URL alone being
+// the only protection (same "optional, degrades gracefully" convention as the rest of this app's
+// optional config), so upgrading to the secret is a config change, not a code change. This route
+// still goes through the global apiLimiter (app.ts mounts it on all of "/api", no per-route
+// skip), which bounds how many attempts a single IP can make in a window.
 r.post(
   "/telegram/webhook",
   asyncHandler(async (req, res) => {
+    if (env.telegram.webhookSecret && req.header("X-Telegram-Bot-Api-Secret-Token") !== env.telegram.webhookSecret) {
+      throw new HttpError(401, "Invalid webhook secret");
+    }
     const update = req.body as TelegramUpdate;
     const text = update.message?.text?.trim() ?? "";
     const chatId = update.message?.chat?.id;

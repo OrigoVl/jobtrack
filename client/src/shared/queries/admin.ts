@@ -9,8 +9,8 @@ import { useMutationErrorToast } from "../use-error-toast";
 export function useAdminOverview(days: number) {
   return useQuery({ queryKey: [...queryKeys.adminOverview, days], queryFn: () => api.adminOverview(days) });
 }
-export function useAdminUsers(limit = 50, offset = 0) {
-  return useQuery({ queryKey: [...queryKeys.adminUsers, limit, offset], queryFn: () => api.adminUsers(limit, offset) });
+export function useAdminUsers(limit = 50, offset = 0, search = "") {
+  return useQuery({ queryKey: [...queryKeys.adminUsers, limit, offset, search], queryFn: () => api.adminUsers(limit, offset, search) });
 }
 export function useAdminLlmUsage(days: number) {
   return useQuery({ queryKey: [...queryKeys.adminLlmUsage, days], queryFn: () => api.adminLlmUsage(days) });

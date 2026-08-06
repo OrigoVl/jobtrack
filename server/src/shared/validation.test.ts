@@ -4,6 +4,7 @@ import {
   parseJsonVacancyItem,
   parseProfileInput,
   parseSkillLevelInput,
+  parseWeeklyApplyGoalInput,
   parseInterviewTurnInput,
   parseCompanyInput,
   parseContactInput,
@@ -166,6 +167,25 @@ describe("parseSkillLevelInput", () => {
   it("trims and truncates tech at 80 chars", () => {
     const long = "x".repeat(100);
     expect(parseSkillLevelInput({ tech: long, level: 1 }).tech).toBe("x".repeat(80));
+  });
+});
+
+describe("parseWeeklyApplyGoalInput", () => {
+  it("parses a valid weekly goal", () => {
+    expect(parseWeeklyApplyGoalInput({ weekly: 5 })).toBe(5);
+  });
+
+  it("accepts the boundaries 1 and 50", () => {
+    expect(parseWeeklyApplyGoalInput({ weekly: 1 })).toBe(1);
+    expect(parseWeeklyApplyGoalInput({ weekly: 50 })).toBe(50);
+  });
+
+  it("rejects out-of-range, non-integer, or non-numeric values", () => {
+    expect(() => parseWeeklyApplyGoalInput({ weekly: 0 })).toThrow(HttpError);
+    expect(() => parseWeeklyApplyGoalInput({ weekly: 51 })).toThrow(HttpError);
+    expect(() => parseWeeklyApplyGoalInput({ weekly: 2.5 })).toThrow(HttpError);
+    expect(() => parseWeeklyApplyGoalInput({ weekly: "abc" })).toThrow(HttpError);
+    expect(() => parseWeeklyApplyGoalInput({})).toThrow(HttpError);
   });
 });
 

@@ -487,6 +487,9 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           onRename={(id, name) => renameProfileMutation.mutate({ id, name })}
           onDelete={(id) => deleteProfileMutation.mutate(id)}
           creating={createProfileMutation.isPending}
+          renamingProfileId={renameProfileMutation.isPending ? renameProfileMutation.variables?.id : undefined}
+          duplicatingProfileId={duplicateProfileMutation.isPending ? duplicateProfileMutation.variables : undefined}
+          deletingProfileId={deleteProfileMutation.isPending ? deleteProfileMutation.variables : undefined}
           atLimit={cvProfiles.length >= MAX_CV_PROFILES}
           maxProfiles={MAX_CV_PROFILES}
         />
@@ -531,11 +534,24 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           <button
             type="button"
             onClick={fromText}
-            disabled={!llm || busy === "gen"}
+            // 30-char floor matches the server's own gate (cv.routes.ts's doc/generate route) —
+            // below it the server can't call the LLM at all and just echoes back the current doc
+            // unchanged, so keeping the button enabled down to "any character" only set up a
+            // confusing no-op click.
+            disabled={!llm || busy === "gen" || (profile?.cvText?.trim().length ?? 0) < 30}
+            title={(profile?.cvText?.trim().length ?? 0) < 30 ? t("builder.importMenu.fromProfileEmptyTitle") : undefined}
             className="w-full flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-left hover:bg-surface-2 disabled:opacity-40"
           >
             {busy === "gen" && <Spinner className="h-3.5 w-3.5" />} {t("builder.importMenu.fromProfileText")}
           </button>
+          <details className="text-xs text-ink-dim px-2 pt-1" data-keep-open>
+            <summary className="cursor-pointer select-none hover:text-ink font-medium">
+              {t("builder.importMenu.fromProfileHelpSummary")}
+            </summary>
+            <div className="mt-1.5 text-ink-dim">
+              <Trans i18nKey="builder.importMenu.fromProfileHelpBody" ns="cv" components={{ b: <b /> }} />
+            </div>
+          </details>
           <details className="text-xs text-ink-dim px-2 pt-1" data-keep-open>
             <summary className="cursor-pointer select-none hover:text-ink font-medium">
               {t("builder.importMenu.linkedinHelpSummary")}

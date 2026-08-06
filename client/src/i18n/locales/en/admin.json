@@ -45,7 +45,14 @@
     },
     "banConfirmTitle": "Ban {{name}}?",
     "banConfirmMessage": "They won't be able to sign in until unbanned.",
-    "showingSummary": "Showing {{count}} of {{total}}."
+    "showingSummary": "Showing {{count}} of {{total}}.",
+    "searchPlaceholder": "Search by name or email…",
+    "searchAriaLabel": "Search users by name or email",
+    "noResults": "No users match \"{{search}}\".",
+    "pagination": {
+      "prev": "Previous",
+      "next": "Next"
+    }
   },
   "llm": {
     "empty": {

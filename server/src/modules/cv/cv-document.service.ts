@@ -29,7 +29,12 @@ export async function emptyCvDoc(userId: UserId): Promise<CvDoc> {
 // template/accent/section order). Passed in by the caller rather than read from storage here:
 // now that a doc lives in a specific `cv_profiles` row (not a single per-user KV key), the caller
 // already has that row in hand and is the only one who knows which profile is being parsed into.
-export async function parseCvDocFromText(userId: UserId, cvText: string, previousTheme?: CvTheme): Promise<CvDoc> {
+// Returns `null` (never an empty-but-valid CvDoc) when `chatJson` itself failed — no API key,
+// quota/cost cap, provider error, or twice-failed JSON validation — so the caller can fall back to
+// the previously-saved doc instead of mistaking "the LLM call failed" for "the resume parsed as
+// empty" and overwriting real content with a blank document. Same failure-signaling shape as
+// `reviewCv`'s own `if (!out)` guard in cv-analysis.service.ts.
+export async function parseCvDocFromText(userId: UserId, cvText: string, previousTheme?: CvTheme): Promise<CvDoc | null> {
   const out = await chatJson(
     userId,
     "You parse a resume into a structure. Respond with ONLY valid JSON. Keep the original language.",
@@ -46,7 +51,8 @@ export async function parseCvDocFromText(userId: UserId, cvText: string, previou
     // reviewCv/matchCv), and generation was silently cut off by maxTokens before the JSON closed.
     { maxTokens: 2600, temperature: 0.3, cache: true, tier: "smart", feature: "cv-doc-parse" },
   );
-  const doc = CvDocSchema.parse(out || {});
+  if (!out) return null;
+  const doc = CvDocSchema.parse(out);
   if (previousTheme) doc.theme = CvThemeSchema.parse(previousTheme);
   return doc;
 }

@@ -42,6 +42,14 @@ vi.mock("./stripe-api.js", () => ({
   cancelStripeSubscription: vi.fn(),
 }));
 
+// entitlements.ts (imported by billing.service.ts) folds a referral bonus into the free-tier
+// quota — mocked here for the same reason billing.repo.js/stripe-api.js are: this file's real
+// dependency is billing.repo.js's mocked getSubscription(), not the referral program, and
+// referrals.service.js's own real implementation transitively imports db/client.js.
+vi.mock("../referrals/referrals.service.js", () => ({
+  getReferralBonusCalls: vi.fn(() => 0),
+}));
+
 function signedHeader(body: Buffer, secret: string, tSec: number = Math.floor(Date.now() / 1000)): string {
   const hmac = createHmac("sha256", secret)
     .update(Buffer.concat([Buffer.from(`${tSec}.`), body]))

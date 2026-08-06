@@ -15,6 +15,12 @@ interface ProfileTabsProps {
   onRename: (id: number, name: string) => void;
   onDelete: (id: number) => void;
   creating: boolean;
+  /** Profile id currently being renamed/duplicated/deleted (the mutation's own `variables`), or
+   * `undefined` when none is in flight — lets the menu disable/dim only while ITS profile's own
+   * mutation is pending, not just while any one of them anywhere is. */
+  renamingProfileId: number | undefined;
+  duplicatingProfileId: number | undefined;
+  deletingProfileId: number | undefined;
   atLimit: boolean;
   maxProfiles: number;
 }
@@ -25,13 +31,25 @@ interface ProfileMenuProps {
   onDuplicate: () => void;
   onDelete: () => void;
   duplicateDisabled: boolean;
+  renamePending: boolean;
+  duplicatePending: boolean;
+  deletePending: boolean;
 }
 
 /** The active tab's "⋮" menu (rename/duplicate/delete) — a bare, borderless trigger (no Btn
  * chrome of its own) so it sits flush INSIDE the active tab's own pill instead of looking like a
  * second button bolted on next to it. Built directly on usePopover/PopoverPanel rather than the
  * shared Dropdown component, which always wraps its trigger in a bordered ghost Btn. */
-function ProfileMenu({ canDelete, onRename, onDuplicate, onDelete, duplicateDisabled }: ProfileMenuProps) {
+function ProfileMenu({
+  canDelete,
+  onRename,
+  onDuplicate,
+  onDelete,
+  duplicateDisabled,
+  renamePending,
+  duplicatePending,
+  deletePending,
+}: ProfileMenuProps) {
   const { t } = useTranslation(["cv", "common"]);
   const width = 170;
   const { open, setOpen, anchorRef, panelRef, coords } = usePopover((rect) => ({
@@ -50,19 +68,29 @@ function ProfileMenu({ canDelete, onRename, onDuplicate, onDelete, duplicateDisa
         ⋮
       </button>
       <PopoverPanel open={open} panelRef={panelRef} coords={coords} onClose={() => setOpen(false)} className="p-1" style={{ width }}>
-        <button type="button" onClick={onRename} className="w-full text-left rounded-lg px-2 py-1.5 text-sm hover:bg-surface-2">
+        <button
+          type="button"
+          onClick={onRename}
+          disabled={renamePending}
+          className="w-full text-left rounded-lg px-2 py-1.5 text-sm hover:bg-surface-2 disabled:opacity-40"
+        >
           {t("builder.profiles.rename")}
         </button>
         <button
           type="button"
           onClick={onDuplicate}
-          disabled={duplicateDisabled}
+          disabled={duplicateDisabled || duplicatePending}
           className="w-full text-left rounded-lg px-2 py-1.5 text-sm hover:bg-surface-2 disabled:opacity-40"
         >
           {t("builder.profiles.duplicate")}
         </button>
         {canDelete && (
-          <button type="button" onClick={onDelete} className="w-full text-left rounded-lg px-2 py-1.5 text-sm text-alert hover:bg-alert/10">
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deletePending}
+            className="w-full text-left rounded-lg px-2 py-1.5 text-sm text-alert hover:bg-alert/10 disabled:opacity-40"
+          >
             {t("builder.profiles.delete")}
           </button>
         )}
@@ -86,6 +114,9 @@ export function ProfileTabs({
   onRename,
   onDelete,
   creating,
+  renamingProfileId,
+  duplicatingProfileId,
+  deletingProfileId,
   atLimit,
   maxProfiles,
 }: ProfileTabsProps) {
@@ -168,6 +199,9 @@ export function ProfileTabs({
               onDuplicate={() => onDuplicate(p.id)}
               onDelete={() => confirmDelete(p)}
               duplicateDisabled={atLimit}
+              renamePending={renamingProfileId === p.id}
+              duplicatePending={duplicatingProfileId === p.id}
+              deletePending={deletingProfileId === p.id}
             />
           </div>
         );

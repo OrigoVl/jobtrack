@@ -2,6 +2,7 @@
 // Kept separate from index.ts so app can be imported in tests without app.listen().
 import express from "express";
 import cors from "cors";
+import compression from "compression";
 import helmet from "helmet";
 import fs from "fs";
 import type { IncomingMessage } from "http";
@@ -23,6 +24,10 @@ export const app = express();
 // Disabled by default (env.trustProxy === false) — trusting the proxy must be an explicit
 // opt-in via TRUST_PROXY, otherwise express-rate-limit and req.ip would see a shared/foreign IP.
 app.set("trust proxy", env.trustProxy);
+
+// Gzip/brotli-negotiated compression for every response (API JSON + the static bundle below) —
+// cheap win under real traffic, costs nothing when disabled/unsupported by the client.
+app.use(compression());
 
 // CSP: the app serves its own SPA from the same origin (Vite builds external
 // <script type="module"> tags, there are no inline scripts), so we can keep a strict policy.
@@ -137,7 +142,12 @@ app.use("/api", (_q, res) => res.status(404).json({ error: "Endpoint not found" 
 
 // serve the built frontend if it exists
 if (fs.existsSync(env.clientDistPath)) {
-  app.use(express.static(env.clientDistPath));
+  // Vite's hashed assets/ files are safe to cache forever (`immutable`); `index: false` stops
+  // static from serving "/" itself (its default directory-index behavior) so it falls through
+  // to the explicit SPA-fallback route below, which serves index.html with Express's normal
+  // (never long-cached) headers — the entry point must always be revalidated, since it's what
+  // points the browser at the current build's asset hashes.
+  app.use(express.static(env.clientDistPath, { maxAge: "1y", immutable: true, index: false }));
   // Express 5 (path-to-regexp v8): a bare "*" no longer works as a catch-all — a named
   // splat parameter is required ("/*name"). SPA fallback: anything that's not /api and not
   // a static file gets index.html (routing happens on the client, via React Router).
