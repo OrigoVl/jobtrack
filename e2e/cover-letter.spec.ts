@@ -1,13 +1,13 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * End-to-end test of a key flow: generating a cover letter on the CV page in offline mode
+ * End-to-end test of a key flow: generating a cover letter on the Cover letter page (/cover-letter, a tab of the CV section) in offline mode
  * (E2E is forced without API keys, see playwright.config.ts) — the server must return a
  * deterministic template response (server/src/modules/writing/writing.routes.ts),
  * not crash or hang without an LLM.
  */
-test("generates an offline cover letter on the CV page", async ({ page }) => {
-  await page.goto("/cv");
+test("generates an offline cover letter on the cover-letter page", async ({ page }) => {
+  await page.goto("/cover-letter");
 
   await page
     .getByPlaceholder("…or paste the vacancy text manually")
@@ -15,8 +15,5 @@ test("generates an offline cover letter on the CV page", async ({ page }) => {
   await page.getByRole("button", { name: "Generate letter" }).click();
 
   await expect(page.getByText(/Hello!/)).toBeVisible({ timeout: 15_000 });
-  // exact: true — the page also has a "CV to PDF" button elsewhere, which now that emoji no
-  // longer separate their accessible names, a substring match would also resolve to (strict-mode
-  // violation, two elements for one locator).
   await expect(page.getByRole("button", { name: "PDF", exact: true })).toBeVisible();
 });

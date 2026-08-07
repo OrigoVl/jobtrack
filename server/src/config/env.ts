@@ -95,6 +95,13 @@ const RawEnvSchema = z
     // replica behind a load balancer, or each replica's counters stop being shared (the
     // effective limit becomes N times higher than declared).
     REDIS_URL: z.string().trim().min(1).optional(),
+    // Ceiling for the GLOBAL per-IP API limiter (core/rate-limit.ts's apiLimiter, 15-minute
+    // window) — a coarse anti-runaway-loop backstop, not the AI-cost limiter (that one is
+    // per-account and plan-derived). Configurable because the default is sized for one human
+    // using the UI, which is exactly wrong for a whole browser-automation suite hammering the
+    // API from a single address: the e2e run (playwright.config.ts) raises it so a long suite
+    // isn't silently throttled into failures halfway through.
+    API_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(600),
 
     // Telegram (optional, both or neither) — not set → account linking is hidden in the UI and
     // the digest/saved-searches schedulers only ever notify by email, same graceful-offline-
@@ -117,6 +124,12 @@ const RawEnvSchema = z
     // The origin the auth handler considers itself to run at (used to build email verification/
     // reset links and OAuth callback URLs) — defaults to http://localhost:PORT in dev.
     BETTER_AUTH_URL: z.string().trim().min(1).optional(),
+    // better-auth's own per-IP rate limit (requests per its default 10-second window), separate
+    // from API_RATE_LIMIT_MAX above because better-auth handles /api/auth/* itself. Its default
+    // (100) is off in development and on in production — which is what the e2e run builds as, so
+    // the whole suite's sign-ups and session checks share one bucket from one address and start
+    // getting 429s late in the run. Raised there (playwright.config.ts), untouched anywhere else.
+    AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
     // Resend (optional) — not set → verification/reset-password emails are logged instead of
     // sent (the same graceful-offline-fallback pattern as the LLM keys), so local dev/e2e need
     // no email provider at all. EMAIL_FROM defaults to Resend's shared sandbox sender, which
@@ -244,6 +257,7 @@ export const env = {
 
   logsDashboardUrl: raw.LOGS_DASHBOARD_URL ?? null,
   redisUrl: raw.REDIS_URL,
+  apiRateLimitMax: raw.API_RATE_LIMIT_MAX,
 
   telegram: {
     botToken: raw.TELEGRAM_BOT_TOKEN,
@@ -259,6 +273,7 @@ export const env = {
     // there, enforced above). Fixed rather than randomly generated per boot so sessions survive
     // a local server restart during development.
     secret: raw.BETTER_AUTH_SECRET || "dev-only-insecure-secret-do-not-use-in-production",
+    rateLimitMax: raw.AUTH_RATE_LIMIT_MAX,
     baseUrl: raw.BETTER_AUTH_URL || `http://localhost:${raw.PORT}`,
     google:
       raw.GOOGLE_CLIENT_ID && raw.GOOGLE_CLIENT_SECRET

@@ -88,5 +88,8 @@
     "goalLabel": "Weekly goal",
     "goalOption_one": "{{count}} / week",
     "goalOption_other": "{{count}} / week"
+  },
+  "details": {
+    "heading": "Details"
   }
 }

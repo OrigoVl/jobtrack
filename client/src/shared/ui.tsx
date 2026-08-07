@@ -325,7 +325,9 @@ export function Section({
   children,
 }: {
   title: string;
-  icon?: string;
+  /** ReactNode, not a string: this used to take an emoji, and the one call site that did read as
+   * a full-color sticker next to otherwise text-only headers. Pass an icon from shared/icons.tsx. */
+  icon?: ReactNode;
   defaultOpen?: boolean;
   /** Controlled open state (e.g. for an exclusive accordion group) — omit to let the section
    * manage its own open/closed state internally (the original, independent-toggle behavior). */
@@ -348,7 +350,11 @@ export function Section({
         aria-expanded={open}
         className={`w-full flex items-center gap-2 text-sm font-semibold text-ink hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${bare ? "py-2" : "px-3.5 py-2.5"}`}
       >
-        {icon && <span aria-hidden>{icon}</span>}
+        {icon && (
+          <span className="shrink-0 text-ink-dim" aria-hidden>
+            {icon}
+          </span>
+        )}
         <span>{title}</span>
         {hint && <span className="text-xs font-normal text-ink-dim truncate">· {hint}</span>}
         <span className={`ml-auto text-ink-dim transition-transform duration-200 ${open ? "rotate-90" : ""}`} aria-hidden>

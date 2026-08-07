@@ -15,6 +15,22 @@ import { test, expect } from "@playwright/test";
  * least that long, with no need to artificially delay any request via page.route().
  */
 test("AI-analysis button shows a real animated spinner while the review job is running", async ({ page }) => {
+  // The button bails with a toast (no request at all) when the CV doc has under 30 characters of
+  // text — cv-builder.tsx's doReview — and a freshly registered account's doc is empty
+  // (seed-vacancies.ts's EMPTY_PROFILE). Seeded through the real API rather than by typing in the
+  // builder, which is another spec's subject.
+  const profilesRes = await page.request.get("/api/cv/profiles");
+  expect(profilesRes.ok()).toBeTruthy();
+  const [profile] = (await profilesRes.json()) as { id: number }[];
+  const seedRes = await page.request.put(`/api/cv/profiles/${profile!.id}/doc`, {
+    data: {
+      name: "E2E Review Person",
+      title: "Frontend Developer",
+      summary: "Frontend developer with 5 years of experience building React and TypeScript applications.",
+    },
+  });
+  expect(seedRes.ok()).toBeTruthy();
+
   await page.goto("/cvbuilder");
   // "Tips" is the AI review result's tab label — it only exists once a report is already on
   // screen. The action that *triggers* the review from a clean page is the header's "AI

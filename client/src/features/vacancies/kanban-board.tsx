@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useUpdateVacancy, useVacancies } from "../../shared/queries";
 import { Chip, Dropdown, Spinner } from "../../shared/ui";
-import { StarIcon } from "../../shared/icons";
+import { CalendarIcon, StarIcon } from "../../shared/icons";
 import { STATUSES, type Vacancy } from "../../shared/types";
 import { fitTone, fitLabel } from "../../shared/fit-tone";
 import { statusLabel } from "../../shared/status-labels";
@@ -171,7 +171,12 @@ export function VacancyBoard({ onOpenDetail }: { onOpenDetail: (id: number) => v
                       </span>
                     </div>
                     {v.salary && <div className="text-[11px] text-signal mt-1">{v.salary}</div>}
-                    {v.next && <div className="text-[11px] text-alert mt-1">⏭ {v.next}</div>}
+                    {v.next && (
+                      <div className="text-[11px] text-alert mt-1 flex items-center gap-1">
+                        <CalendarIcon className="h-3 w-3 shrink-0" />
+                        {v.next}
+                      </div>
+                    )}
                   </div>
                 );
               })}

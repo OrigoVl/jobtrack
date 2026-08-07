@@ -8,17 +8,29 @@ import { test, expect } from "@playwright/test";
 test("generates a public CV link, viewable without any session, and disables cleanly", async ({ page, context }) => {
   // Seeds distinctive content directly via the real API (not the focus of this test, which is
   // the share-link flow, not the CV Builder's own field-editing UI — already covered by other
-  // cv-builder-*.spec.ts files).
-  const seedRes = await page.request.put("/api/cv/doc", {
+  // cv-builder-*.spec.ts files). The doc hangs off a CV PROFILE now (multiple CVs per account),
+  // so it's addressed as /cv/profiles/:id/doc; GET /cv/profiles creates the default one if the
+  // account somehow has none yet (ensureProfiles), and that first one is what the builder opens.
+  const profilesRes = await page.request.get("/api/cv/profiles");
+  expect(profilesRes.ok()).toBeTruthy();
+  const [profile] = (await profilesRes.json()) as { id: number }[];
+  const seedRes = await page.request.put(`/api/cv/profiles/${profile!.id}/doc`, {
     data: { name: "E2E Public CV Person", title: "E2E Test Engineer" },
   });
   expect(seedRes.ok()).toBeTruthy();
 
   await page.goto("/cvbuilder");
 
+  // Share links hang off a CV profile too (/cv/profiles/:id/share), so both the endpoint and the
+  // button depend on this profile's current state: "Create public link" only exists while it has
+  // none. Re-running this spec against a local DB that wasn't reset finds the link from last time
+  // instead — "↻ Regenerate" is the same POST, and it also re-enables a link this test disabled
+  // at the end of its previous run (generateShare sets enabled: true).
+  const shareButton = page.getByRole("button", { name: "Create public link" }).or(page.getByRole("button", { name: "↻ Regenerate" }));
+  await expect(shareButton).toBeVisible();
   const [genRes] = await Promise.all([
-    page.waitForResponse((r) => r.url().includes("/api/cv/share") && r.request().method() === "POST"),
-    page.getByRole("button", { name: "Create public link" }).click(),
+    page.waitForResponse((r) => /\/api\/cv\/profiles\/\d+\/share$/.test(r.url()) && r.request().method() === "POST"),
+    shareButton.click(),
   ]);
   expect(genRes.ok()).toBeTruthy();
   const share = (await genRes.json()) as { slug: string; enabled: boolean };
@@ -41,7 +53,7 @@ test("generates a public CV link, viewable without any session, and disables cle
 
   // Disabling it takes effect immediately, even though the slug itself is unchanged.
   const [disableRes] = await Promise.all([
-    page.waitForResponse((r) => r.url().includes("/api/cv/share") && r.request().method() === "PUT"),
+    page.waitForResponse((r) => /\/api\/cv\/profiles\/\d+\/share$/.test(r.url()) && r.request().method() === "PUT"),
     page.getByRole("button", { name: "Disable" }).click(),
   ]);
   expect(disableRes.ok()).toBeTruthy();

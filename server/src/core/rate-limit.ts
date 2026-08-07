@@ -80,7 +80,7 @@ function logAndReject(name: string, resolveKey: (req: Request) => string | Promi
 // human using the UI, but it stops infinite loops/scripts. Health isn't counted.
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 600,
+  limit: env.apiRateLimitMax,
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => req.path === "/health",

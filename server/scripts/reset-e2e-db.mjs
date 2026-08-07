@@ -43,6 +43,25 @@ const TABLES = [
   "user",
 ];
 
+// An e2e server that's ALREADY listening is fatal, not something to work around: Playwright
+// reuses it (webServer.reuseExistingServer, playwright.config.ts) instead of starting a fresh
+// one, and only a fresh start re-applies the migrations this script is about to drop. Reusing a
+// running server means the whole suite runs against an empty database — every spec fails on a
+// missing relation, which reads like twenty unrelated app bugs rather than one stale process.
+// Checked BEFORE dropping anything, so the recovery is just "stop that server and re-run".
+const E2E_PORT = process.env.PORT || 4173;
+const alreadyRunning = await fetch(`http://127.0.0.1:${E2E_PORT}/api/health`)
+  .then(() => true)
+  .catch(() => false);
+if (alreadyRunning) {
+  console.error(
+    `❌ Something is already serving http://127.0.0.1:${E2E_PORT} — stop it and re-run.\n` +
+      `   Playwright would reuse that process instead of starting a fresh one, and it would never\n` +
+      `   re-apply the migrations this reset drops, so every spec would run against an empty DB.`,
+  );
+  process.exit(1);
+}
+
 try {
   await client.connect();
   await client.query(`DROP TABLE IF EXISTS ${TABLES.map((t) => `"${t}"`).join(", ")} CASCADE`);

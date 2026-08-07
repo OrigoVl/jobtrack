@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { addVacancy } from "./helpers";
 
 /**
  * End-to-end test of the key flow: adding a vacancy + moving its card via keyboard
@@ -7,15 +8,9 @@ import { test, expect } from "@playwright/test";
 test("adds a vacancy and moves its card via keyboard in Kanban view", async ({ page }) => {
   await page.goto("/vacancies");
 
-  await page.getByRole("button", { name: "+ Add vacancy" }).click();
-  // "+ Add vacancy" now opens the detail modal for filling it in right away — close it to reach
-  // the Kanban toggle underneath (see vacancy-detail-modal.tsx). Waiting for it to actually be
-  // visible first matters: it opens from the add-mutation's success callback, a render cycle
-  // after the click itself resolves, so it isn't necessarily on-screen the instant the click does.
-  const addDialog = page.getByRole("dialog");
-  await expect(addDialog).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(addDialog).not.toBeVisible();
+  // Saving in the create modal opens the new row's detail modal — addVacancy() closes it again,
+  // so the Kanban toggle underneath is reachable.
+  await addVacancy(page, { company: "New company", position: "Position" });
 
   // Switch to Kanban view, where keyboard navigation lives.
   await page.getByRole("button", { name: "Kanban" }).click();

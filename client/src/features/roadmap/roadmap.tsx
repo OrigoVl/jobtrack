@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, ProgressBar, Segmented } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
+import { AlertTriangleIcon, KeyboardIcon } from "../../shared/icons";
 import { useUi } from "../../shared/ui-state";
 import { useHealth, useRoadmap, useSetRoadmapStatus, useSetSkillLevel } from "../../shared/queries";
 import { SkillRadar } from "./skill-radar";
@@ -109,7 +110,10 @@ function Node({ node }: { node: RoadmapNode }) {
           <Chip tone={node.levelManual != null ? "amber" : "slate"}>{t("radar.tooltip.level", { level: node.level })}</Chip>
           {node.drillsTotal > 0 && (
             <Chip tone={node.drillsSolved === node.drillsTotal ? "emerald" : "slate"}>
-              ⌨ {node.drillsSolved}/{node.drillsTotal}
+              <span className="inline-flex items-center gap-1">
+                <KeyboardIcon className="h-3 w-3" />
+                {node.drillsSolved}/{node.drillsTotal}
+              </span>
             </Chip>
           )}
           <span className={`ml-auto text-xs font-medium ${meta.text}`}>{statusLabel}</span>
@@ -165,7 +169,10 @@ function Node({ node }: { node: RoadmapNode }) {
                 })}
               </div>
               {node.practiceShared && (
-                <div className="text-xs text-alert mt-1">⚠ {t("level.sharedTrack", { cat: node.practiceCat, tech: node.tech })}</div>
+                <div className="text-xs text-alert mt-1 flex items-start gap-1">
+                  <AlertTriangleIcon className="h-3.5 w-3.5 shrink-0 mt-px" />
+                  {t("level.sharedTrack", { cat: node.practiceCat, tech: node.tech })}
+                </div>
               )}
             </div>
             {loadingDyn && <div className="text-xs text-ink-dim">{t("personalizing")}</div>}

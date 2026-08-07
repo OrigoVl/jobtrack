@@ -58,9 +58,26 @@ export interface Resource {
   ai?: boolean;
 }
 
+/** GET /onboarding/state. The two `has*` flags exist for the sidebar's "this section has nothing
+ * in it yet" dimming (App.tsx) — they ride on this endpoint because the shell already fetches it
+ * on every route, so the dimming costs no extra request and can't disagree with itself between
+ * pages the way a per-page list query would. */
+export interface OnboardingState {
+  welcomeSeen: boolean;
+  hasVacancies: boolean;
+  hasNetwork: boolean;
+}
+
+/** Mirrors FOCUS_ACTION_KINDS in server/src/modules/analytics/analytics.service.ts — a closed set
+ * of app areas, deliberately not URLs (the server doesn't know the client's routes). Mapped to an
+ * actual destination by features/dashboard/focus-destination.ts. */
+export type FocusActionKind = "vacancies" | "interviews" | "skills" | "cards" | "contacts" | "cv";
+
 export interface FocusAction {
   title: string;
   why: string;
+  /** Absent when the model couldn't classify the action — it then renders as plain text. */
+  kind?: FocusActionKind;
 }
 
 export interface FocusWeek {

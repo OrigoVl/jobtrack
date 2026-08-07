@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
 import {
   useAnalytics,
   useApplyProgress,
@@ -17,7 +18,7 @@ import {
   useStudy,
   useVacancies,
 } from "../../shared/queries";
-import { Card, CardsSkeleton, Chip, Kicker, NumberedMark, PageHeader, ProgressBar, Select } from "../../shared/ui";
+import { Card, CardsSkeleton, Chip, Kicker, NumberedMark, PageHeader, ProgressBar, Section, Select } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
 import { useFireCelebration } from "../../shared/use-celebration";
 import { useCountUp } from "../../shared/use-count-up";
@@ -29,6 +30,7 @@ import { buildRadarSeries, RADAR_AXES_COMPACT, RADAR_MIN_AXES } from "../roadmap
 import { ResumeCompleteness } from "../cv/builder/resume-completeness";
 import { maybeNotifyFollowUps } from "../../shared/notifications";
 import { findUpcomingDesignInterview } from "../../shared/design-reminders";
+import { focusDestination } from "./focus-destination";
 
 // How far ahead the "upcoming events" mini-list looks — matches the Analyzer/Calendar's own
 // week-ish planning horizon; long enough to be useful, short enough to stay "what's actually
@@ -37,6 +39,13 @@ const CALENDAR_LOOKAHEAD_DAYS = 14;
 // Longer lookahead than CalendarReminderNotifier's 15-minute "it's starting now" window — this is
 // "go prepare," not "join the call," so it needs days of notice, not minutes.
 const DESIGN_REMINDER_LOOKAHEAD_DAYS = 3;
+// Tailwind's `lg` breakpoint — the same width at which the desktop sidebar appears (App.tsx),
+// so "has room for the detail cards" and "is on the desktop layout" mean the same thing. Read
+// once at mount rather than tracked live: this only picks the Section's INITIAL open state, and
+// re-opening a section the user just closed because they rotated their phone would be worse than
+// keeping whatever they chose.
+const DESKTOP_MIN_WIDTH = 1024;
+
 // A contact not touched in this many days surfaces as "reach out again" — long enough that a
 // perfectly normal in-progress conversation (a week of back-and-forth) never gets flagged, short
 // enough to actually catch a recruiter thread that's gone quiet.
@@ -48,14 +57,22 @@ const STALE_CONTACT_DAYS = 14;
  * "night sky" world — this landing has no dark section anywhere to mirror. */
 function FocusWeekCard({ llm }: { llm: boolean }) {
   const { t } = useTranslation("dashboard");
+  const navigate = useNavigate();
+  // Same "study.mode" useUi key study.tsx itself reads, so landing on Practice opens the mode the
+  // action was actually about (see focus-destination.ts).
+  const [, setStudyMode] = useUi<"srs" | "drill" | "mock" | "design">("study.mode", "srs");
   // A query error (network/auth) is treated the same as "no actions" below, same as the old
   // manual .catch(() => setData({ actions: [] })) — it's not the same thing as the server's own
   // `offline: true` (LLM unavailable, heuristic fallback still returned actions successfully).
   const { data, isLoading: loading } = useFocusWeek();
+  // Deliberately the loudest thing on this page: bigger type, more padding, a heavier accent
+  // ring. It answers the only question a dashboard is really for — "what should I do next?" —
+  // and it used to sit at exactly the same visual weight as the "cards learned" stat tile, so
+  // nothing on the screen told a returning user where to start.
   return (
-    <Card className="!border-signal/30 shadow-[0_20px_40px_-24px_rgb(var(--star)/0.35)]">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="font-display text-lg font-bold text-ink">{t("focusWeek.heading")}</span>
+    <Card className="!border-signal/40 !p-6 shadow-[0_24px_48px_-24px_rgb(var(--star)/0.45)]">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="font-display text-2xl font-bold tracking-tight text-ink">{t("focusWeek.heading")}</span>
         {data && !data.offline && llm && (
           <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-signal/30 bg-signal/10 text-signal">
             AI
@@ -64,24 +81,48 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
       </div>
       {loading && <div className="text-sm text-ink-dim">{t("focusWeek.analyzing")}</div>}
       {!loading && data && data.actions.length > 0 && (
-        <ol className="space-y-2">
-          {data.actions.map((a, i) => (
-            <li key={`${a.title}-${i}`} className="flex gap-2.5 text-sm">
-              <span className="shrink-0 w-5 h-5 rounded-full bg-star text-on-signal text-xs font-bold flex items-center justify-center">
-                {i + 1}
-              </span>
-              <span>
-                <b className="text-ink">{a.title}.</b>{" "}
-                <span className="text-ink-dim">
-                  <Markdown text={a.why} inline />
+        <ol className="space-y-1">
+          {data.actions.map((a, i) => {
+            const dest = focusDestination(a.kind);
+            const body = (
+              <>
+                <span className="shrink-0 w-6 h-6 rounded-full bg-star text-on-signal text-xs font-bold flex items-center justify-center">
+                  {i + 1}
                 </span>
-              </span>
-            </li>
-          ))}
+                <span>
+                  <b className="text-ink">{a.title}.</b>{" "}
+                  <span className="text-ink-dim">
+                    <Markdown text={a.why} inline />
+                  </span>
+                </span>
+              </>
+            );
+            // An action the server could classify becomes a real click target straight to the
+            // screen where you'd act on it — the card told you what to do next but left you to
+            // find the page yourself. An unclassified one renders exactly as before: telling the
+            // user "click me" and going nowhere would be worse than plain text.
+            return (
+              <li key={`${a.title}-${i}`}>
+                {dest ? (
+                  <button
+                    onClick={() => {
+                      if (dest.studyMode) setStudyMode(dest.studyMode);
+                      navigate(dest.path);
+                    }}
+                    className="w-full flex gap-3 text-left text-[15px] rounded-lg -mx-2 px-2 py-1.5 hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 transition-colors"
+                  >
+                    {body}
+                  </button>
+                ) : (
+                  <div className="flex gap-3 text-[15px] px-2 py-1.5">{body}</div>
+                )}
+              </li>
+            );
+          })}
         </ol>
       )}
       {!loading && (!data || data.actions.length === 0) && <div className="text-sm text-ink-dim">{t("focusWeek.empty")}</div>}
-      {data?.offline && <div className="text-xs text-ink-dim mt-2">{t("focusWeek.offline")}</div>}
+      {data?.offline && <div className="text-xs text-ink-dim mt-3">{t("focusWeek.offline")}</div>}
     </Card>
   );
 }
@@ -336,6 +377,7 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
     : [];
   const skillRadarRenders = skillRadarAxes.length >= RADAR_MIN_AXES;
   const streakCurrent = study?.streak.current ?? 0;
+  const detailsDefaultOpen = typeof window !== "undefined" && window.innerWidth >= DESKTOP_MIN_WIDTH;
   return (
     <div className="space-y-5">
       <PageHeader
@@ -395,177 +437,170 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
       {vacancies.length > 0 && <FocusWeekCard llm={llm} />}
       {vacancies.length > 0 && <ApplyStreakCard />}
 
-      <div>
-        {/* Asymmetric bento — one hero figure (the headline number) beside a tighter 2x2/1x4
-            cluster of supporting stats, echoing the landing page's own asymmetric pillar grid
-            rather than five identical tiles in a row. */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="sm:w-[260px] shrink-0">
-            <StatTile
-              size="lg"
-              icon={<BriefcaseIcon className="w-4 h-4" />}
-              value={vacancies.length}
-              label={t("stats.totalVacancies")}
-              delayMs={0}
-            />
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
-            <StatTile
-              icon={<PlayCircleIcon className="w-4 h-4" />}
-              value={active}
-              label={t("stats.active")}
-              colorClass="text-ink"
-              tintClass="bg-signal/5"
-              delayMs={60}
-            />
-            <StatTile
-              icon={<CalendarCheckIcon className="w-4 h-4" />}
-              value={iv}
-              label={t("stats.inInterviews")}
-              colorClass="text-alert"
-              tintClass="bg-alert/5"
-              delayMs={120}
-            />
-            <StatTile
-              icon={<CardsStackIcon className="w-4 h-4" />}
-              value={`${study?.learned ?? 0}/${study?.total ?? 0}`}
-              label={t("stats.cardsLearned")}
-              colorClass="text-ink"
-              tintClass="bg-signal/5"
-              extra={(study?.due.length ?? 0) > 0 ? t("stats.dueToday", { count: study?.due.length ?? 0 }) : undefined}
-              delayMs={180}
-            />
-            <StatTile
-              icon={<FlameIcon className="w-4 h-4" />}
-              value={streakCurrent}
-              label={t("stats.streak")}
-              colorClass={streakCurrent > 0 ? "text-alert" : "text-ink"}
-              tintClass={streakCurrent > 0 ? "bg-alert/5" : "bg-surface-2/60"}
-              extra={(study?.streak.longest ?? 0) > 0 ? t("stats.streakRecord", { count: study?.streak.longest ?? 0 }) : undefined}
-              delayMs={240}
-            />
-          </div>
-        </div>
-        {bottleneck && (
-          <Kicker className="mt-4">
-            {t("bottleneck.text", { status: statusLabel(bottleneck.status), days: Math.round(bottleneck.avgDays) })}
-          </Kicker>
-        )}
+      {/* Five equal tiles, no hero. There used to be an oversized "total vacancies" tile here,
+          which competed head-on with Focus of the week above for "the thing you look at first" —
+          and lost the argument, since a raw count isn't an instruction. Stats are context; they
+          read better as one calm, uniform row. */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <StatTile icon={<BriefcaseIcon className="w-4 h-4" />} value={vacancies.length} label={t("stats.totalVacancies")} delayMs={0} />
+        <StatTile
+          icon={<PlayCircleIcon className="w-4 h-4" />}
+          value={active}
+          label={t("stats.active")}
+          colorClass="text-ink"
+          tintClass="bg-signal/5"
+          delayMs={60}
+        />
+        <StatTile
+          icon={<CalendarCheckIcon className="w-4 h-4" />}
+          value={iv}
+          label={t("stats.inInterviews")}
+          colorClass="text-alert"
+          tintClass="bg-alert/5"
+          delayMs={120}
+        />
+        <StatTile
+          icon={<CardsStackIcon className="w-4 h-4" />}
+          value={`${study?.learned ?? 0}/${study?.total ?? 0}`}
+          label={t("stats.cardsLearned")}
+          colorClass="text-ink"
+          tintClass="bg-signal/5"
+          extra={(study?.due.length ?? 0) > 0 ? t("stats.dueToday", { count: study?.due.length ?? 0 }) : undefined}
+          delayMs={180}
+        />
+        <StatTile
+          icon={<FlameIcon className="w-4 h-4" />}
+          value={streakCurrent}
+          label={t("stats.streak")}
+          colorClass={streakCurrent > 0 ? "text-alert" : "text-ink"}
+          tintClass={streakCurrent > 0 ? "bg-alert/5" : "bg-surface-2/60"}
+          extra={(study?.streak.longest ?? 0) > 0 ? t("stats.streakRecord", { count: study?.streak.longest ?? 0 }) : undefined}
+          delayMs={240}
+        />
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4 items-start">
-        {roadmap && skillRadarRenders && <SkillRadarCard nodes={roadmap.groups.flatMap((g) => g.nodes)} onOpen={() => go("roadmap")} />}
-        <Card className={skillRadarRenders ? "md:col-span-2" : "md:col-span-3"}>
-          <div className="font-semibold mb-2 text-ink">{t("progressNext.heading")}</div>
-          <div className="grid sm:grid-cols-2 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-grid">
-            <div className="sm:pr-4">
-              {roadmap && (
-                <>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm font-semibold text-ink">{t("roadmapProgress.heading")}</div>
-                    <button onClick={() => go("roadmap")} className="text-sm text-ink-dim hover:text-signal hover:underline">
-                      {t("roadmapProgress.open")}
+      {/* Everything below is supporting detail, not a call to action — collapsed into one section
+          so the page ends after the stat row instead of scrolling through five more cards. Open
+          by default on desktop (there's room) and closed on mobile, where those same five cards
+          were most of the page's height. */}
+      <Section title={t("details.heading")} defaultOpen={detailsDefaultOpen}>
+        {bottleneck && (
+          <Kicker>{t("bottleneck.text", { status: statusLabel(bottleneck.status), days: Math.round(bottleneck.avgDays) })}</Kicker>
+        )}
+        <div className="grid md:grid-cols-3 gap-4 items-start">
+          {roadmap && skillRadarRenders && <SkillRadarCard nodes={roadmap.groups.flatMap((g) => g.nodes)} onOpen={() => go("roadmap")} />}
+          <Card className={skillRadarRenders ? "md:col-span-2" : "md:col-span-3"}>
+            <div className="font-semibold mb-2 text-ink">{t("progressNext.heading")}</div>
+            <div className="grid sm:grid-cols-2 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-grid">
+              <div className="sm:pr-4">
+                {roadmap && (
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm font-semibold text-ink">{t("roadmapProgress.heading")}</div>
+                      <button onClick={() => go("roadmap")} className="text-sm text-ink-dim hover:text-signal hover:underline">
+                        {t("roadmapProgress.open")}
+                      </button>
+                    </div>
+                    <ProgressBar value={roadmap.progress.done} max={roadmap.progress.total} tone="emerald" />
+                    <div className="text-xs text-ink-dim mt-2">
+                      {t("roadmapProgress.skillsKnown", { done: roadmap.progress.done, total: roadmap.progress.total })}
+                      {/* Deliberately not "mastered" — this reflects the roadmap's manual "know it" toggle,
+                        not skills actually reinforced through Practice (see the separate "Cards learned" stat). */}
+                      {roadmap.progress.learning > 0 && (
+                        <>
+                          {" · "}
+                          {t("roadmapProgress.learning", { count: roadmap.progress.learning })}
+                        </>
+                      )}
+                      {learn && learn.gaps.length > 0 && (
+                        <>
+                          {" · "}
+                          {t("roadmapProgress.topGap", { tech: learn.gaps[0].tech })}
+                        </>
+                      )}
+                    </div>
+                    {topStrengths.length > 0 && (
+                      <div className="text-xs text-ink-dim mt-1">
+                        {t("roadmapProgress.strengths", { techs: topStrengths.map((s) => s.tech).join(", ") })}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="sm:pl-4 pt-4 sm:pt-0">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-semibold text-ink">{t("upcomingSteps.heading")}</div>
+                </div>
+                {upcoming.length === 0 ? (
+                  <div>
+                    <div className="text-ink-dim text-sm">{t("upcomingSteps.empty")}</div>
+                    <button onClick={() => go("vacancies")} className="mt-1 text-sm text-ink-dim hover:text-signal hover:underline">
+                      {t("upcomingSteps.emptyCta")}
                     </button>
                   </div>
-                  <ProgressBar value={roadmap.progress.done} max={roadmap.progress.total} tone="emerald" />
-                  <div className="text-xs text-ink-dim mt-2">
-                    {t("roadmapProgress.skillsKnown", { done: roadmap.progress.done, total: roadmap.progress.total })}
-                    {/* Deliberately not "mastered" — this reflects the roadmap's manual "know it" toggle,
-                        not skills actually reinforced through Practice (see the separate "Cards learned" stat). */}
-                    {roadmap.progress.learning > 0 && (
-                      <>
-                        {" · "}
-                        {t("roadmapProgress.learning", { count: roadmap.progress.learning })}
-                      </>
-                    )}
-                    {learn && learn.gaps.length > 0 && (
-                      <>
-                        {" · "}
-                        {t("roadmapProgress.topGap", { tech: learn.gaps[0].tech })}
-                      </>
-                    )}
-                  </div>
-                  {topStrengths.length > 0 && (
-                    <div className="text-xs text-ink-dim mt-1">
-                      {t("roadmapProgress.strengths", { techs: topStrengths.map((s) => s.tech).join(", ") })}
+                ) : (
+                  upcoming.map((u) => (
+                    <div key={u.id} className="flex justify-between text-sm py-1.5 border-b border-surface-2 last:border-0">
+                      <span>
+                        {u.company} — <span className="text-ink-dim">{statusLabel(u.status)}</span>
+                      </span>
+                      <span className="text-alert font-medium">{u.next}</span>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
-            <div className="sm:pl-4 pt-4 sm:pt-0">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-sm font-semibold text-ink">{t("upcomingSteps.heading")}</div>
+                  ))
+                )}
+                {upcomingEvents.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-surface-2 space-y-1">
+                    <div className="text-[11px] font-semibold text-ink-dim uppercase tracking-wide">{t("upcomingSteps.eventsHeading")}</div>
+                    {upcomingEvents.map((e) => (
+                      <div key={e.id} className="flex justify-between text-xs py-0.5">
+                        <span className="truncate">{e.title}</span>
+                        <span className="text-ink-dim shrink-0 ml-2">{eventDateLabel.format(new Date(e.startAt))}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              {upcoming.length === 0 ? (
-                <div>
-                  <div className="text-ink-dim text-sm">{t("upcomingSteps.empty")}</div>
-                  <button onClick={() => go("vacancies")} className="mt-1 text-sm text-ink-dim hover:text-signal hover:underline">
-                    {t("upcomingSteps.emptyCta")}
+            </div>
+          </Card>
+        </div>
+
+        {(cvDoc || staleContacts.length > 0) && (
+          <div className="grid md:grid-cols-2 gap-4 items-start">
+            {cvDoc && (
+              <Card className={staleContacts.length === 0 ? "md:col-span-2" : undefined}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-semibold text-ink">{t("cvCompleteness.heading")}</div>
+                  <button onClick={() => go("cv")} className="text-sm text-ink-dim hover:text-signal hover:underline">
+                    {t("cvCompleteness.open")}
                   </button>
                 </div>
-              ) : (
-                upcoming.map((u) => (
-                  <div key={u.id} className="flex justify-between text-sm py-1.5 border-b border-surface-2 last:border-0">
-                    <span>
-                      {u.company} — <span className="text-ink-dim">{statusLabel(u.status)}</span>
-                    </span>
-                    <span className="text-alert font-medium">{u.next}</span>
-                  </div>
-                ))
-              )}
-              {upcomingEvents.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-surface-2 space-y-1">
-                  <div className="text-[11px] font-semibold text-ink-dim uppercase tracking-wide">{t("upcomingSteps.eventsHeading")}</div>
-                  {upcomingEvents.map((e) => (
-                    <div key={e.id} className="flex justify-between text-xs py-0.5">
-                      <span className="truncate">{e.title}</span>
-                      <span className="text-ink-dim shrink-0 ml-2">{eventDateLabel.format(new Date(e.startAt))}</span>
+                <ResumeCompleteness doc={cvDoc} bare />
+              </Card>
+            )}
+            {staleContacts.length > 0 && (
+              <Card className={!cvDoc ? "md:col-span-2" : undefined}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-semibold text-ink">{t("staleContacts.heading")}</div>
+                  <button onClick={() => go("contacts")} className="text-sm text-ink-dim hover:text-signal hover:underline">
+                    {t("staleContacts.open")}
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  {staleContacts.map((c) => (
+                    <div key={c.id} className="flex justify-between text-sm py-1 border-b border-surface-2 last:border-0">
+                      <span>
+                        {c.name}
+                        {c.role && <span className="text-ink-dim"> — {c.role}</span>}
+                      </span>
+                      <span className="text-ink-dim text-xs shrink-0 ml-2">{t("staleContacts.daysSince", { count: c.daysSince })}</span>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+              </Card>
+            )}
           </div>
-        </Card>
-      </div>
-
-      {(cvDoc || staleContacts.length > 0) && (
-        <div className="grid md:grid-cols-2 gap-4 items-start">
-          {cvDoc && (
-            <Card className={staleContacts.length === 0 ? "md:col-span-2" : undefined}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-semibold text-ink">{t("cvCompleteness.heading")}</div>
-                <button onClick={() => go("cv")} className="text-sm text-ink-dim hover:text-signal hover:underline">
-                  {t("cvCompleteness.open")}
-                </button>
-              </div>
-              <ResumeCompleteness doc={cvDoc} bare />
-            </Card>
-          )}
-          {staleContacts.length > 0 && (
-            <Card className={!cvDoc ? "md:col-span-2" : undefined}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-semibold text-ink">{t("staleContacts.heading")}</div>
-                <button onClick={() => go("contacts")} className="text-sm text-ink-dim hover:text-signal hover:underline">
-                  {t("staleContacts.open")}
-                </button>
-              </div>
-              <div className="space-y-1">
-                {staleContacts.map((c) => (
-                  <div key={c.id} className="flex justify-between text-sm py-1 border-b border-surface-2 last:border-0">
-                    <span>
-                      {c.name}
-                      {c.role && <span className="text-ink-dim"> — {c.role}</span>}
-                    </span>
-                    <span className="text-ink-dim text-xs shrink-0 ml-2">{t("staleContacts.daysSince", { count: c.daysSince })}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-        </div>
-      )}
+        )}
+      </Section>
     </div>
   );
 }

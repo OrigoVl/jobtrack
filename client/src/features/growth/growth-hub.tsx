@@ -9,7 +9,7 @@ import { BookOpenIcon, CardsStackIcon, ListChecksIcon, MapIcon, type IconCompone
 // listing order.
 const GROWTH_STAGE_PATHS = ["/roadmap", "/plan21", "/learn", "/study"] as const;
 
-/** Overview page for the four Growth pages (Roadmap, Intensive plan, Learning plan, Practice) —
+/** Overview page for the Growth pages (Roadmap, Intensive plan, Learning plan, Practice) —
  * each is its own independent page with its own content (not a sequence to complete in order), so
  * this deliberately does NOT number or rank them. It exists because each page's sidebar entry
  * alone doesn't show live progress at a glance — this collects all four with a progress readout

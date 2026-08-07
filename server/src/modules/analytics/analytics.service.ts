@@ -78,9 +78,25 @@ export interface FocusSummary {
   staleApplications: number;
 }
 
+/**
+ * What area of the app an action is about — the ONLY routing hint that crosses the wire. A closed
+ * enum, never a URL: the server has no business knowing the client's route table, and an LLM
+ * asked to emit a path would happily invent one that 404s. The client maps kind → destination
+ * (client/src/features/dashboard/focus-destination.ts).
+ *
+ * Kept as a Zod-validated field on the LLM's own response (see FocusActionsSchema in
+ * analytics.routes.ts) rather than guessed from the action's wording, so a value outside this
+ * list is a schema mismatch that `chatJson` self-repairs, not a silently-broken link.
+ */
+export const FOCUS_ACTION_KINDS = ["vacancies", "interviews", "skills", "cards", "contacts", "cv"] as const;
+export type FocusActionKind = (typeof FOCUS_ACTION_KINDS)[number];
+
 export interface FocusAction {
   title: string;
   why: string;
+  /** Optional — an action the model couldn't classify simply renders as plain text, exactly as
+   * every action did before this field existed. */
+  kind?: FocusActionKind;
 }
 
 export interface BuildFocusSummaryInput {
@@ -122,28 +138,37 @@ export function heuristicFocus(s: FocusSummary): FocusAction[] {
     actions.push({
       title: `Update ${s.overdue} overdue steps`,
       why: 'There are vacancies with a "next step" date in the past — don\'t lose the contact.',
+      kind: "vacancies",
     });
   if (s.interviews > 0)
     actions.push({
       title: "Prepare for interviews",
       why: `${s.interviews} vacancies at the interview stage — do a "Mock interview" and review your cards.`,
+      kind: "interviews",
     });
   if (s.gaps.length > 0)
     actions.push({
       title: `Close the "${s.gaps[0]}" gap`,
       why: "Missing from your profile, and the single skill that would newly qualify you for the most tracked vacancies.",
+      kind: "skills",
     });
   if (s.totalVac < 3)
-    actions.push({ title: "Add more vacancies", why: "A small sample — import vacancies so the analytics and roadmap are more accurate." });
+    actions.push({
+      title: "Add more vacancies",
+      why: "A small sample — import vacancies so the analytics and roadmap are more accurate.",
+      kind: "vacancies",
+    });
   if (s.dueCards > 0)
     actions.push({
       title: `Review ${s.dueCards} cards`,
       why: "There are cards due for review today — keep your knowledge fresh with the SRS algorithm.",
+      kind: "cards",
     });
   if (s.staleApplications > 0)
     actions.push({
       title: `Nudge ${s.staleApplications} vacancies with no response`,
       why: `More than ${STALE_APPLICATION_DAYS} days of silence after applying — send the recruiter a follow-up or mark it "Rejected" if it's no longer relevant.`,
+      kind: "contacts",
     });
   return actions.slice(0, 3);
 }

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { addVacancy } from "./helpers";
 
 // The roadmap's node set is profile.skills ∪ demand-from-tracked-vacancies (see
 // server/src/modules/roadmap/roadmap.service.ts#buildRoadmap) — the shared e2e user's profile
@@ -31,8 +32,11 @@ test("toggles a roadmap node status and persists it across reload", async ({ pag
   const techName = (await nodeCard.locator("span.font-semibold").first().textContent())?.trim() ?? "";
   expect(techName).not.toBe("");
 
+  // The status circle renders an icon, not text — "not started" and "learning" are both textually
+  // empty (ICON in roadmap.tsx: only "done" has a glyph), so a text assertion silently compares
+  // "" to "" for two of the three transitions. Its aria-label carries the actual status label.
   const statusButton = nodeCard.locator('button[title^="Click to change status"]');
-  const before = await statusButton.textContent();
+  const before = await statusButton.getAttribute("aria-label");
   // The mutation is optimistic (the UI updates instantly, before the server responds) — we
   // wait for the actual network response to PUT /api/roadmap/progress, otherwise the reload()
   // below could interrupt a request that hasn't finished yet, and the server would never save
@@ -42,13 +46,13 @@ test("toggles a roadmap node status and persists it across reload", async ({ pag
     statusButton.click(),
   ]);
   expect(response.ok()).toBeTruthy();
-  await expect(statusButton).not.toHaveText(before ?? "");
-  const after = await statusButton.textContent();
+  await expect(statusButton).not.toHaveAttribute("aria-label", before ?? "");
+  const after = await statusButton.getAttribute("aria-label");
 
   await page.reload();
 
   const nodeCardAfterReload = page.locator("div.relative.pl-8").filter({ has: page.getByText(techName, { exact: true }) });
-  await expect(nodeCardAfterReload.locator('button[title^="Click to change status"]')).toHaveText(after ?? "");
+  await expect(nodeCardAfterReload.locator('button[title^="Click to change status"]')).toHaveAttribute("aria-label", after ?? "");
 });
 
 /**
@@ -94,15 +98,7 @@ test("the Radar view renders a chart once at least a few in-demand skills exist"
   // instead of a chart. Seeding the stack via a direct API PUT (rather than driving the tech-stack
   // chip-input widget through the UI) keeps this test about the radar, not about that widget.
   await page.goto("/vacancies");
-  const [addResponse] = await Promise.all([
-    page.waitForResponse((r) => /\/api\/vacancies$/.test(r.url()) && r.request().method() === "POST"),
-    page.getByRole("button", { name: "+ Add vacancy" }).click(),
-  ]);
-  const created: { id: number } = await addResponse.json();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(dialog).not.toBeVisible();
+  const created = await addVacancy(page, { company: "Radar Corp", position: "Frontend Developer" });
 
   const putResponse = await page.request.put(`/api/vacancies/${created.id}`, {
     data: { stack: ["React", "TypeScript", "Docker"] },

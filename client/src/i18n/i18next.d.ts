@@ -29,6 +29,7 @@ import projects from "./locales/en/projects.json";
 import resources from "./locales/en/resources.json";
 import study from "./locales/en/study.json";
 import growth from "./locales/en/growth.json";
+import sections from "./locales/en/sections.json";
 
 declare module "i18next" {
   interface CustomTypeOptions {
@@ -60,6 +61,7 @@ declare module "i18next" {
       resources: typeof resources;
       study: typeof study;
       growth: typeof growth;
+      sections: typeof sections;
     };
   }
 }

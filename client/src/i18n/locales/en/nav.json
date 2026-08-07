@@ -1,28 +1,25 @@
 {
-  "sections": {
-    "jobSearch": "Job Search",
-    "growth": "Growth",
-    "profile": "Profile",
-    "admin": "Admin"
-  },
   "items": {
     "dashboard": "Dashboard",
     "vacancies": "Vacancies",
-    "jobSearch": "Job Search",
-    "vacancyAnalysis": "Vacancy Analysis",
+    "jobSearch": "Find jobs",
+    "vacancyAnalysis": "Analyze vacancy",
+    "network": "Network",
     "companies": "Companies",
     "contacts": "Contacts",
     "analytics": "Analytics",
     "calendar": "Calendar",
-    "growthHub": "Growth",
-    "roadmap": "Roadmap",
+    "growth": "Growth",
+    "roadmap": "Skill roadmap",
     "intensivePlan": "Intensive plan",
-    "learningPlan": "Learning Plan",
+    "learningPlan": "Learning materials",
     "practice": "Practice",
-    "petProjects": "Pet Projects",
+    "petProjects": "Pet projects",
     "resources": "Resources",
     "cv": "CV",
-    "cvBuilder": "CV Builder",
+    "cvBuilder": "CV builder",
+    "cvReview": "CV text",
+    "coverLetter": "Cover letter",
     "account": "Account",
     "admin": "Admin"
   },
@@ -37,6 +34,16 @@
   "roadmapProgress": "Roadmap: {{done}}/{{total}}",
   "connectionError": "Could not connect to the server",
   "openCommandPalette": "Open command palette",
+  "mobile": {
+    "more": "More",
+    "moreAriaLabel": "More sections",
+    "closeMore": "Close",
+    "primaryAriaLabel": "Main navigation"
+  },
+  "locked": {
+    "needsVacancy": "Add your first vacancy to fill this in",
+    "needsNetwork": "Add a contact or a company to fill this in"
+  },
   "footer": {
     "privacy": "Privacy",
     "terms": "Terms"

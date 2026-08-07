@@ -47,7 +47,7 @@ test("CV preview shows a page-count badge and opens/closes a real fullscreen ove
  * Layout regression: the preview used to be in the same sticky column AFTER the
  * Appearance/Presets panels ("preview at the bottom right" — a user complaint), so we check
  * that it's always first and visible immediately, regardless of which accordion section
- * ("General"/"Design") is open on the left.
+ * ("Content"/"Appearance") is open on the left.
  *
  * The second part is a CSS Grid "blowout" regression: the preview iframe renders at a fixed
  * "page" width of 880px (PAGE_WIDTH in cv-preview-panel.tsx) and is only visually scaled via a
@@ -69,13 +69,14 @@ test("preview column stays visible-first across tabs and never causes horizontal
   };
   await noHorizontalOverflow();
 
-  // Only one accordion section is open at a time now (see cv-builder.tsx) — "Design" replaces
-  // the old "Design" tab, and opening it reveals a nested "Template · …" sub-section.
-  await page.getByRole("button", { name: /^Design/ }).click();
+  // The editor's top-level Content/Appearance split (cv-builder.tsx's `editorMode` Segmented).
+  // The second mode is labelled "Appearance", not "Design" — switching to it swaps the section
+  // accordion for the appearance panels, including a nested "Template · …" sub-section.
+  await page.getByRole("button", { name: /^Appearance/ }).click();
   await expect(page.getByRole("button", { name: /^Template ·/ })).toBeVisible();
   await noHorizontalOverflow();
 
-  await page.getByRole("button", { name: /^General/ }).click();
+  await page.getByRole("button", { name: /^Content/ }).click();
   await expect(page.getByText("Summary", { exact: true })).toBeVisible();
   await noHorizontalOverflow();
 });

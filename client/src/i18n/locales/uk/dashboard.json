@@ -104,5 +104,8 @@
     "goalOption_few": "{{count}} / тиждень",
     "goalOption_many": "{{count}} / тиждень",
     "goalOption_other": "{{count}} / тиждень"
+  },
+  "details": {
+    "heading": "Деталі"
   }
 }

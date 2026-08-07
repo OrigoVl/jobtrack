@@ -76,7 +76,22 @@ export function Welcome() {
             <div className="mt-3">
               <h1 className="text-lg font-bold text-ink">{t("step2.title")}</h1>
               <p className="text-sm text-ink-dim mt-1">{t("step2.subtitle")}</p>
-              <div className="mt-4 space-y-2">
+              {/* A one-glance map of the four places everything lives, matching the sidebar the
+                  user is about to see (App.tsx's NAV_DEF). Cheaper than a guided tour and it
+                  answers the question a newcomer actually has — "where is anything?" — before
+                  they've had a chance to get lost looking for it. */}
+              <ul className="mt-4 space-y-2">
+                {(["vacancies", "network", "growth", "cv"] as const).map((key) => (
+                  <li key={key} className="flex gap-2.5 text-sm">
+                    <span className="mt-1.5 w-1.5 h-1.5 shrink-0 rounded-full bg-star" aria-hidden />
+                    <span>
+                      <b className="text-ink">{t(`step2.map.${key}.title`)}</b>{" "}
+                      <span className="text-ink-dim">{t(`step2.map.${key}.desc`)}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-5 space-y-2">
                 <Btn className="w-full" loading={markSeen.isPending} onClick={() => finish("/vacancies")}>
                   {t("step2.addVacancy")}
                 </Btn>

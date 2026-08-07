@@ -18,5 +18,8 @@ test("a matching upcoming calendar event surfaces a dashboard card that deep-lin
 
   await page.getByRole("button", { name: "Practice now" }).click();
   await expect(page).toHaveURL(/\/study$/);
-  await expect(page.getByRole("button", { name: "Architecture", exact: true })).toHaveClass(/bg-star/);
+  // The Practice mode switcher is the shared `Segmented` control (shared/ui.tsx), whose selected
+  // option is marked `bg-surface text-signal` — not the `bg-star` of the hand-rolled Btn row it
+  // replaced.
+  await expect(page.getByRole("button", { name: "Architecture", exact: true })).toHaveClass(/text-signal/);
 });

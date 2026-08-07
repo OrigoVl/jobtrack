@@ -14,7 +14,7 @@ import {
 } from "../../shared/queries";
 import { runJs } from "./runner";
 import { DrillArchivePanel } from "./drill-archive-panel";
-import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Select } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Segmented, Select } from "../../shared/ui";
 import { MockInterview } from "../mock/mock";
 import type { Drill } from "../../shared/types";
 
@@ -198,36 +198,25 @@ export function Study() {
         title={t("title")}
         subtitle={t("subtitle")}
         actions={
-          <div className="flex gap-1">
-            <Btn
-              variant={mode === "srs" ? "primary" : "ghost"}
-              size="sm"
-              onClick={() => {
-                setMode("srs");
+          // Shared `Segmented` (shared/ui.tsx) instead of four hand-rolled Btns — same control,
+          // same look as every other mode/view switcher in the app. The card-index reset only
+          // matters for the two card-driven modes; mock/design have no card cursor to rewind.
+          <Segmented
+            value={mode}
+            onChange={(next) => {
+              setMode(next);
+              if (next === "srs" || next === "drill") {
                 setI(0);
                 setShow(false);
-              }}
-            >
-              {t("tabs.flashcards")}
-            </Btn>
-            <Btn
-              variant={mode === "drill" ? "primary" : "ghost"}
-              size="sm"
-              onClick={() => {
-                setMode("drill");
-                setI(0);
-                setShow(false);
-              }}
-            >
-              {t("tabs.drill")}
-            </Btn>
-            <Btn variant={mode === "mock" ? "primary" : "ghost"} size="sm" onClick={() => setMode("mock")}>
-              {t("tabs.mock")}
-            </Btn>
-            <Btn variant={mode === "design" ? "primary" : "ghost"} size="sm" onClick={() => setMode("design")}>
-              {t("tabs.design")}
-            </Btn>
-          </div>
+              }
+            }}
+            options={[
+              { value: "srs", label: t("tabs.flashcards") },
+              { value: "drill", label: t("tabs.drill") },
+              { value: "mock", label: t("tabs.mock") },
+              { value: "design", label: t("tabs.design") },
+            ]}
+          />
         }
       />
       {mode !== "mock" && mode !== "design" && (

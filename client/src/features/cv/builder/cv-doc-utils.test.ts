@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CvDoc, CvTheme } from "../../../shared/types";
-import { buildCvHtml } from "./cv-doc-utils";
+import { DEFAULT_ORDER, DEFAULT_THEME, buildCvHtml, cvDocToText, themeOf } from "./cv-doc-utils";
 
 const BASE_DOC: CvDoc = {
   name: "Michael Voloshyn",
@@ -110,5 +110,98 @@ describe("buildCvHtml", () => {
     expect(html).toContain("<h2>Навички</h2>");
     expect(html).toContain("<h2>Нагороди</h2>");
     expect(html).toContain('<html lang="uk">');
+  });
+});
+
+describe("themeOf", () => {
+  it("fills every unset theme field from DEFAULT_THEME", () => {
+    expect(themeOf(BASE_DOC)).toEqual(DEFAULT_THEME);
+  });
+
+  it("lets a partially-set theme override only the fields it actually specifies", () => {
+    const theme = themeOf({ ...BASE_DOC, theme: { template: "sidebar", accent: "#0f766e" } as CvTheme });
+    expect(theme.template).toBe("sidebar");
+    expect(theme.accent).toBe("#0f766e");
+    // Untouched fields still come from the defaults rather than becoming undefined — the whole
+    // point of this helper, since every consumer (buildCvHtml, AppearancePanel) reads them
+    // unconditionally and a stored doc predating a new field simply won't have it.
+    expect(theme.font).toBe(DEFAULT_THEME.font);
+    expect(theme.scale).toBe(DEFAULT_THEME.scale);
+    expect(theme.order).toEqual(DEFAULT_ORDER);
+  });
+});
+
+/**
+ * `cvDocToText` is what every AI feature on this page is actually given — the review job, the
+ * vacancy match and the tailor call all send its output, never the CvDoc itself. Anything it
+ * silently drops is invisible to the LLM no matter how carefully the user filled it in.
+ */
+describe("cvDocToText", () => {
+  it("includes every filled section, so nothing the user typed is hidden from the AI", () => {
+    const text = cvDocToText({
+      ...BASE_DOC,
+      links: [{ label: "GitHub", url: "gh.com/m" }],
+      skills: ["TypeScript", "Go"],
+      experience: [{ role: "Dev", company: "Acme", period: "2020—now", bullets: ["Shipped a thing", ""] }],
+      projects: [{ title: "Zorya", description: "Job tracker", tech: ["React"], link: "zorya.app" }],
+      education: [{ school: "KPI", degree: "MSc", period: "2016—2020" }],
+      certifications: [{ name: "AWS SAA", issuer: "Amazon", date: "2023" }],
+      languages: [{ name: "English", level: "B2" }],
+      awards: [{ title: "Best Intern", issuer: "Acme", date: "2019" }],
+      publications: [{ title: "On Types", publisher: "ACM", date: "2022", url: "acm.org/x" }],
+      volunteer: [{ role: "Mentor", organization: "CodeClub", period: "2021", description: "Taught JS" }],
+      references: [{ name: "Ada", relation: "Manager", contact: "ada@acme.com" }],
+    });
+    for (const fragment of [
+      "Michael Voloshyn",
+      "GitHub: gh.com/m",
+      "Skills: TypeScript, Go",
+      "Dev — Acme (2020—now)",
+      "- Shipped a thing",
+      "Zorya — Job tracker — React — zorya.app",
+      "MSc, KPI, 2016—2020",
+      "AWS SAA, Amazon, 2023",
+      "Languages: English (B2)",
+      "Best Intern, Acme, 2019",
+      "On Types, ACM, 2022, acm.org/x",
+      "Mentor — CodeClub (2021)",
+      "Ada, Manager, ada@acme.com",
+    ]) {
+      expect(text).toContain(fragment);
+    }
+  });
+
+  it("omits empty sections entirely instead of emitting bare headings", () => {
+    const text = cvDocToText({ ...BASE_DOC, skills: [], summary: "" });
+    // A heading with nothing under it is noise in the prompt, and "Skills:" followed by nothing
+    // reads to an LLM as "this candidate listed no skills" rather than "this wasn't filled in".
+    expect(text).not.toContain("Skills:");
+    expect(text).not.toContain("Profile:");
+    expect(text).not.toContain("Experience:");
+    expect(text).toContain("Michael Voloshyn");
+  });
+
+  it("drops entries that are blank across all their fields, and blank bullets within a kept entry", () => {
+    const text = cvDocToText({
+      ...BASE_DOC,
+      experience: [{ role: "Dev", company: "Acme", period: "2024", bullets: ["Real bullet", "", "   "] }],
+      projects: [{ title: "  ", description: "", tech: [], link: "" }],
+      education: [{ school: "", degree: "", period: "" }],
+      references: [{ name: "", relation: "", contact: "" }],
+    });
+    expect(text).toContain("- Real bullet");
+    expect(text.match(/^- /gm)?.length).toBe(1);
+    expect(text).not.toContain("Projects:");
+    expect(text).not.toContain("Education:");
+    expect(text).not.toContain("References:");
+  });
+
+  it("survives a doc missing every optional array (an older saved doc predating those sections)", () => {
+    // The optional sections are `?:` on CvDoc and older persisted docs simply don't have the
+    // keys — reading `.filter` off undefined here would break the AI actions for exactly the
+    // long-standing accounts most likely to use them.
+    const legacy = { ...BASE_DOC } as CvDoc;
+    expect(() => cvDocToText(legacy)).not.toThrow();
+    expect(cvDocToText(legacy)).toContain("Full-Stack Developer");
   });
 });

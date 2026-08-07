@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useUi } from "../../shared/ui-state";
 import { useResources } from "../../shared/queries";
-import { Btn, Card, Chip, PageHeader } from "../../shared/ui";
+import { Card, Chip, PageHeader, Segmented } from "../../shared/ui";
 import { TargetIcon } from "../../shared/icons";
 import type { ResourcesData } from "../../shared/types";
 
@@ -25,11 +25,6 @@ export function Resources() {
   };
   if (!d) return null;
   const checkN = Object.values(done).filter(Boolean).length;
-  const T = (id: typeof sub, label: string) => (
-    <Btn variant={sub === id ? "primary" : "ghost"} size="sm" onClick={() => setSub(id)}>
-      {label}
-    </Btn>
-  );
   return (
     <div className="space-y-4">
       <PageHeader eyebrow={t("eyebrow")} title={t("title")} subtitle={t("subtitle")} />
@@ -40,12 +35,18 @@ export function Resources() {
         </div>
       </Card>
 
-      <div className="flex gap-2 flex-wrap">
-        {T("bp", t("tabs.bestPractices"))}
-        {T("plat", t("tabs.platforms"))}
-        {T("cheat", t("tabs.cheatSheet"))}
-        {T("check", t("tabs.checklist", { done: checkN, total: d.checklist.length }))}
-      </div>
+      {/* Shared `Segmented` (shared/ui.tsx) — this page used to hand-roll its own `T()` tab
+          helper out of Btns, a third distinct look for the same "pick one view" control. */}
+      <Segmented
+        value={sub}
+        onChange={setSub}
+        options={[
+          { value: "bp" as const, label: t("tabs.bestPractices") },
+          { value: "plat" as const, label: t("tabs.platforms") },
+          { value: "cheat" as const, label: t("tabs.cheatSheet") },
+          { value: "check" as const, label: t("tabs.checklist", { done: checkN, total: d.checklist.length }) },
+        ]}
+      />
 
       {sub === "bp" && (
         <div className="grid md:grid-cols-2 gap-4">

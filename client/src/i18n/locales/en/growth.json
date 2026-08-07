@@ -26,5 +26,5 @@
       "stat": "{{learned}}/{{total}} cards learned"
     }
   },
-  "footerHint": "Each page still stands on its own — bookmark or search for it directly (⌘K) any time. This hub just collects them in one place, with your progress on each."
+  "footerHint": "Each of these is also its own tab above, and its own page — open one directly any time. This overview just collects all of them with your current progress on each."
 }

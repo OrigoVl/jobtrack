@@ -103,6 +103,7 @@ export const auth = betterAuth({
   // for this one, unlike core/rate-limit.ts's own limiters.
   rateLimit: {
     storage: "database",
+    max: env.auth.rateLimitMax,
   },
   // better-auth rejects any request whose Origin header isn't baseURL or in this list. In dev,
   // the browser's real origin is Vite's dev server (client/vite.config.ts, port 5173) — Vite
