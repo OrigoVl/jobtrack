@@ -88,7 +88,11 @@ function LearnGapDetails({ gap, llm, defaultOpen }: { gap: LearnGap; llm: boolea
     </details>
   );
 }
-export function LearnPlan({ llm }: { llm: boolean }) {
+/** `embedded` skips this page's own PageHeader — used when rendered as the Roadmap's "Materials"
+ * view (features/roadmap/roadmap.tsx), the same pattern MockInterview/DesignTrainer already use
+ * inside Practice. The "personal plan" button that normally hangs off the header's `actions` slot
+ * moves into the body instead of being dropped. */
+export function LearnPlan({ llm, embedded = false }: { llm: boolean; embedded?: boolean }) {
   const { t } = useTranslation(["learn", "common"]);
   const { data: learn, isLoading } = useLearn();
   const [plan, setPlan] = useUi("learn.plan", "");
@@ -106,16 +110,25 @@ export function LearnPlan({ llm }: { llm: boolean }) {
   if (!learn) return null;
   return (
     <div className="space-y-4">
-      <PageHeader
-        eyebrow={t("eyebrow")}
-        title={t("title")}
-        subtitle={t("subtitle", { count: learn.totalVacancies })}
-        actions={
+      {embedded ? (
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm text-ink-dim">{t("subtitle", { count: learn.totalVacancies })}</span>
           <Btn onClick={genPlan} loading={busy} disabled={!llm}>
             {t("personalPlanButton")}
           </Btn>
-        }
-      />
+        </div>
+      ) : (
+        <PageHeader
+          eyebrow={t("eyebrow")}
+          title={t("title")}
+          subtitle={t("subtitle", { count: learn.totalVacancies })}
+          actions={
+            <Btn onClick={genPlan} loading={busy} disabled={!llm}>
+              {t("personalPlanButton")}
+            </Btn>
+          }
+        />
+      )}
       {learn.strengths.length > 0 && (
         <Card>
           <div className="text-xs text-ink-dim mb-1">{t("strengths")}</div>

@@ -22,20 +22,21 @@ import { CommandPalette } from "./command-palette";
 import { SectionTabs } from "./section-tabs";
 import { MobileNav } from "./mobile-nav";
 import { NotFound } from "./not-found";
+import { storeRoadmapView, type RoadmapView } from "../features/roadmap/roadmap-view";
 import {
   BarChartIcon,
-  BookOpenIcon,
   BriefcaseIcon,
   BuildingIcon,
   CalendarIcon,
+  BookOpenIcon,
   CardsStackIcon,
   ChevronsLeftIcon,
   FileSearchIcon,
   FileTextIcon,
   HomeIcon,
   LayersIcon,
-  LibraryIcon,
   ListChecksIcon,
+  LibraryIcon,
   LogOutIcon,
   MapIcon,
   SearchIcon,
@@ -61,12 +62,9 @@ const CVView = lazy(() => import("../features/cv/cv").then((m) => ({ default: m.
 const CvBuilder = lazy(() => import("../features/cv/cv-builder").then((m) => ({ default: m.CvBuilder })));
 const Companies = lazy(() => import("../features/companies/companies").then((m) => ({ default: m.Companies })));
 const Jobs = lazy(() => import("../features/jobs/jobs").then((m) => ({ default: m.Jobs })));
-const LearnPlan = lazy(() => import("../features/knowledge/learn").then((m) => ({ default: m.LearnPlan })));
 const Resources = lazy(() => import("../features/resources/resources").then((m) => ({ default: m.Resources })));
 const Projects = lazy(() => import("../features/projects/projects").then((m) => ({ default: m.Projects })));
-const Plan21 = lazy(() => import("../features/plan21/plan21").then((m) => ({ default: m.Plan21 })));
 const Roadmap = lazy(() => import("../features/roadmap/roadmap").then((m) => ({ default: m.Roadmap })));
-const GrowthHub = lazy(() => import("../features/growth/growth-hub").then((m) => ({ default: m.GrowthHub })));
 const Analytics = lazy(() => import("../features/analytics/charts").then((m) => ({ default: m.Analytics })));
 const Admin = lazy(() => import("../features/admin/admin").then((m) => ({ default: m.Admin })));
 const Account = lazy(() => import("../features/account/account").then((m) => ({ default: m.Account })));
@@ -120,13 +118,15 @@ const NAV_DEF: NavItemDef[] = [
   { path: "/analytics", icon: BarChartIcon, labelKey: "items.analytics", needs: "vacancies" },
   { path: "/calendar", icon: CalendarIcon, labelKey: "items.calendar", needs: "vacancies" },
   {
-    // /growth (growth-hub.tsx) is finally a real destination rather than a page you could only
-    // reach by knowing ⌘K existed: it's the overview of the six Growth screens, each of which is
-    // now a tab beside it instead of its own sidebar row.
-    path: "/growth",
+    // Lands on the Roadmap — the group's natural starting point. There used to be a separate
+    // /growth "overview" page here listing the other Growth screens as cards; once those screens
+    // became tabs it was showing the same names, in the same order, directly under the tab strip
+    // that already offered them (and had silently gone stale, listing four of six). A hub whose
+    // whole job is a menu is dead weight next to a real menu, so it's gone — /growth redirects.
+    path: "/roadmap",
     icon: MapIcon,
     labelKey: "items.growth",
-    alsoMatches: ["/roadmap", "/plan21", "/learn", "/study", "/projects", "/resources"],
+    alsoMatches: ["/growth", "/plan21", "/learn", "/study", "/projects", "/resources"],
   },
   { path: "/cvbuilder", icon: FileTextIcon, labelKey: "items.cv", alsoMatches: ["/cv", "/cover-letter"] },
   { path: "/account", icon: SettingsIcon, labelKey: "items.account" },
@@ -145,8 +145,11 @@ const PALETTE_DEF: NavItemDef[] = [
   { path: "/companies", icon: BuildingIcon, labelKey: "items.companies" },
   { path: "/analytics", icon: BarChartIcon, labelKey: "items.analytics" },
   { path: "/calendar", icon: CalendarIcon, labelKey: "items.calendar" },
-  { path: "/growth", icon: MapIcon, labelKey: "items.growth" },
   { path: "/roadmap", icon: MapIcon, labelKey: "items.roadmap" },
+  // These three resolve through RoadmapViewRedirect, which opens the matching view of /roadmap —
+  // so ⌘K still reaches every screen by the name the user knows it by, even though they stopped
+  // being routes of their own.
+  { path: "/radar", icon: MapIcon, labelKey: "items.radar" },
   { path: "/plan21", icon: ListChecksIcon, labelKey: "items.intensivePlan" },
   { path: "/learn", icon: BookOpenIcon, labelKey: "items.learningPlan" },
   { path: "/study", icon: CardsStackIcon, labelKey: "items.practice" },
@@ -271,10 +274,7 @@ function GrowthLayout() {
     <SectionTabs
       ariaLabel={t("growth.ariaLabel")}
       tabs={[
-        { path: "/growth", label: t("growth.tabs.overview") },
         { path: "/roadmap", label: t("growth.tabs.roadmap") },
-        { path: "/plan21", label: t("growth.tabs.plan21") },
-        { path: "/learn", label: t("growth.tabs.learn") },
         { path: "/study", label: t("growth.tabs.study") },
         { path: "/projects", label: t("growth.tabs.projects") },
         { path: "/resources", label: t("growth.tabs.resources") },
@@ -294,6 +294,23 @@ function CvLayout() {
       ]}
     />
   );
+}
+
+/** Redirects to the Roadmap AND opens one of its views. The Radar / Materials / Intensive screens
+ * used to be routes of their own; they're now views of `/roadmap` (see roadmap.tsx for why). A
+ * plain `<Navigate>` would honour the old bookmark but dump the visitor on the default skill list
+ * — technically "not a 404", practically the wrong page. This sets the same `"roadmap.view"`
+ * useUi key roadmap.tsx reads before handing over, so /plan21 still lands on the Intensive plan,
+ * and ⌘K's entries for those screens keep meaning what they say. */
+function RoadmapViewRedirect({ view }: { view: RoadmapView }) {
+  const [, setView] = useUi<RoadmapView>("roadmap.view", "list");
+  useEffect(() => {
+    setView(view);
+    // Also persisted, so a reload on the redirected-to /roadmap stays on this view instead of
+    // snapping back to the skill list (see roadmap.tsx for why the view is stored at all).
+    storeRoadmapView(view);
+  }, [setView, view]);
+  return <Navigate to="/roadmap" replace />;
 }
 
 /** Whether `item` is the sidebar entry for the page currently on screen — its own path, or any
@@ -459,7 +476,7 @@ function Shell() {
   }));
   // Mobile: the four destinations worth a permanent thumb-reachable slot, everything else behind
   // "More". Split by path so the choice is explicit rather than "whatever the first four are".
-  const MOBILE_PRIMARY_PATHS = ["/dashboard", "/vacancies", "/growth", "/cvbuilder"];
+  const MOBILE_PRIMARY_PATHS = ["/dashboard", "/vacancies", "/roadmap", "/cvbuilder"];
   const mobilePrimary = sidebarItems.filter((it) => MOBILE_PRIMARY_PATHS.includes(it.path));
   const mobileMore = sidebarItems.filter((it) => !MOBILE_PRIMARY_PATHS.includes(it.path));
 
@@ -583,10 +600,7 @@ function Shell() {
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route element={<GrowthLayout />}>
-                  <Route path="/growth" element={<GrowthHub />} />
                   <Route path="/roadmap" element={<Roadmap />} />
-                  <Route path="/plan21" element={<Plan21 />} />
-                  <Route path="/learn" element={<LearnPlanWrapper />} />
                   <Route path="/study" element={<Study />} />
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/resources" element={<Resources />} />
@@ -594,7 +608,16 @@ function Shell() {
                 {/* Mock Interview and Skill Radar are tabs inside Practice/Roadmap respectively
                     — old links/bookmarks still resolve. */}
                 <Route path="/mock" element={<Navigate to="/study" replace />} />
-                <Route path="/radar" element={<Navigate to="/roadmap" replace />} />
+                {/* The Growth overview page is gone (see NAV_DEF) — its bookmarks land on the
+                    group's first tab instead of 404ing. */}
+                <Route path="/growth" element={<Navigate to="/roadmap" replace />} />
+                <Route path="/radar" element={<RoadmapViewRedirect view="radar" />} />
+                {/* "Learning plan" was a separate page whose name read as a synonym of "Roadmap";
+                    it's now that page's "Materials" view, built from the same gap data. */}
+                <Route path="/learn" element={<RoadmapViewRedirect view="materials" />} />
+                {/* Same story as /learn: "Intensive plan" was a third destination whose name read
+                    as a synonym of the other two. It's now the Roadmap's "Intensive" view. */}
+                <Route path="/plan21" element={<RoadmapViewRedirect view="plan" />} />
                 <Route element={<CvLayout />}>
                   <Route path="/cvbuilder" element={<CvBuilderWrapper />} />
                   <Route path="/cv" element={<CVWrapper />} />
@@ -639,10 +662,6 @@ function Shell() {
   );
 }
 
-function LearnPlanWrapper() {
-  const { data } = useHealth();
-  return <LearnPlan llm={data?.llm ?? false} />;
-}
 function CVWrapper() {
   const { data } = useHealth();
   return <CVView llm={data?.llm ?? false} />;

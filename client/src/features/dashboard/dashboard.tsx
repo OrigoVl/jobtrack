@@ -84,15 +84,22 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
         <ol className="space-y-1">
           {data.actions.map((a, i) => {
             const dest = focusDestination(a.kind);
+            // The offline heuristic sends a rule id + numbers instead of prose (a.code), because
+            // its own title/why are hardcoded English on the server — translating here is what
+            // keeps this card in the user's language with no LLM key, and hands uk's one/few/many
+            // plural forms to i18next rather than hand-rolling them server-side. LLM-authored
+            // actions have no `code` and are already localized, so they fall through unchanged.
+            const title = a.code ? t(`focusWeek.heuristic.${a.code}.title`, { ...a.params, defaultValue: a.title }) : a.title;
+            const why = a.code ? t(`focusWeek.heuristic.${a.code}.why`, { ...a.params, defaultValue: a.why }) : a.why;
             const body = (
               <>
                 <span className="shrink-0 w-6 h-6 rounded-full bg-star text-on-signal text-xs font-bold flex items-center justify-center">
                   {i + 1}
                 </span>
                 <span>
-                  <b className="text-ink">{a.title}.</b>{" "}
+                  <b className="text-ink">{title}.</b>{" "}
                   <span className="text-ink-dim">
-                    <Markdown text={a.why} inline />
+                    <Markdown text={why} inline />
                   </span>
                 </span>
               </>
@@ -102,7 +109,7 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
             // find the page yourself. An unclassified one renders exactly as before: telling the
             // user "click me" and going nowhere would be worse than plain text.
             return (
-              <li key={`${a.title}-${i}`}>
+              <li key={`${a.code ?? a.title}-${i}`}>
                 {dest ? (
                   <button
                     onClick={() => {
@@ -293,6 +300,15 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
     go("study");
   };
   const eventDateLabel = useMemo(() => new Intl.DateTimeFormat(i18n.language, { month: "short", day: "numeric" }), [i18n.language]);
+  // The same formatter for the vacancies' own "next step" dates, which used to print the raw
+  // "2026-08-07" the API returns — right next to calendar events already rendered as "Aug 9", so
+  // one card showed two date formats. Parsed field-by-field, NOT via `new Date("YYYY-MM-DD")`:
+  // that form is spec'd as UTC midnight and renders as the previous day west of Greenwich.
+  const formatDay = (ymd: string) => {
+    const [y, m, d] = ymd.split("-").map(Number);
+    if (!y || !m || !d) return ymd;
+    return eventDateLabel.format(new Date(y, m - 1, d));
+  };
   const upcomingEvents = (calendar?.events ?? []).filter((e) => e.startAt.slice(0, 10) >= today).slice(0, 3);
   // Longest-stuck stage first (server-side, analytics.service.ts), already filtered to stages
   // with at least 2 vacancies (a single sample isn't a real average) — same data the full /analytics
@@ -387,55 +403,26 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
         actions={profile?.domain ? <Chip tone="indigo">{profile.domain}</Chip> : undefined}
       />
 
-      {onboardingRemaining > 0 && (
-        <Card className="!border-signal/30">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="font-semibold text-ink">{t("onboarding.heading")}</div>
-            <div className="text-xs text-ink-dim">{t("onboarding.progress", { done: onboardingDone, total: onboardingSteps.length })}</div>
-          </div>
-          <div className="space-y-1.5">
-            {onboardingSteps.map((s, i) =>
-              s.done ? (
-                <div key={s.labelKey} className="flex items-center gap-2.5 text-sm">
-                  <span className="w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold shrink-0 bg-star text-on-signal">
-                    ✓
-                  </span>
-                  <span className="text-ink-dim line-through">{t(s.labelKey)}</span>
-                </div>
-              ) : (
-                <div key={s.labelKey} className="flex items-center gap-2.5 text-sm">
-                  <NumberedMark n={i + 1} />
-                  <span className="text-ink">{t(s.labelKey)}</span>
-                  <button
-                    onClick={() => go(s.path)}
-                    className="ml-auto text-xs font-medium text-ink-dim hover:text-signal hover:underline shrink-0"
-                  >
-                    {t(s.ctaKey)}
-                  </button>
-                </div>
-              ),
-            )}
-          </div>
-        </Card>
-      )}
-
+      {/* One thin, time-sensitive strip — not a full card. It used to be one of FOUR stacked
+          attention blocks above the fold (onboarding card, this, Focus of the week, apply
+          streak), all competing at similar weight, so "what do I do next" had four candidate
+          answers. Now there is exactly one loud thing on this page (Focus of the week, below);
+          this is a one-liner because it's a deadline, not a plan. */}
       {designInterviewSoon && (
-        <Card className="!border-alert/30 flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <div className="font-semibold text-ink">{t("designReminder.heading")}</div>
-            <div className="text-sm text-ink-dim mt-0.5">{t("designReminder.message", { count: designReminderDays })}</div>
-          </div>
-          <button
-            onClick={goPracticeDesign}
-            className="text-sm font-medium text-signal hover:underline shrink-0 border border-signal/30 bg-signal/10 rounded-lg px-3 py-1.5"
-          >
-            {t("designReminder.cta")}
-          </button>
-        </Card>
+        <button
+          onClick={goPracticeDesign}
+          className="w-full flex items-center gap-3 text-left rounded-xl border border-alert/30 bg-alert/5 px-4 py-2.5 hover:bg-alert/10 transition-colors"
+        >
+          <CalendarCheckIcon className="w-4 h-4 shrink-0 text-alert" />
+          <span className="text-sm text-ink">
+            <b>{t("designReminder.heading")}</b>{" "}
+            <span className="text-ink-dim">{t("designReminder.message", { count: designReminderDays })}</span>
+          </span>
+          <span className="ml-auto text-sm font-medium text-signal shrink-0">{t("designReminder.cta")} →</span>
+        </button>
       )}
 
       {vacancies.length > 0 && <FocusWeekCard llm={llm} />}
-      {vacancies.length > 0 && <ApplyStreakCard />}
 
       {/* Five equal tiles, no hero. There used to be an oversized "total vacancies" tile here,
           which competed head-on with Focus of the week above for "the thing you look at first" —
@@ -478,6 +465,48 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
           delayMs={240}
         />
       </div>
+
+      {/* Below the stats, not above them: a streak is a measurement of what you've done, not an
+          instruction about what to do — it was competing with Focus of the week purely because it
+          happened to sit next to it. */}
+      {vacancies.length > 0 && <ApplyStreakCard />}
+
+      {/* The setup checklist stays first-class only while it's genuinely the user's main job:
+          expanded on a brand-new account (nothing else on this page has anything to show yet),
+          collapsed to a one-line "2/4" the moment they've started — at which point it's a
+          progress reminder, and a full four-row card above everything else is out of proportion
+          to that. Disappears entirely once complete. */}
+      {onboardingRemaining > 0 && (
+        <Section
+          title={t("onboarding.heading")}
+          hint={t("onboarding.progress", { done: onboardingDone, total: onboardingSteps.length })}
+          defaultOpen={onboardingDone === 0}
+        >
+          <div className="space-y-1.5">
+            {onboardingSteps.map((s, i) =>
+              s.done ? (
+                <div key={s.labelKey} className="flex items-center gap-2.5 text-sm">
+                  <span className="w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold shrink-0 bg-star text-on-signal">
+                    ✓
+                  </span>
+                  <span className="text-ink-dim line-through">{t(s.labelKey)}</span>
+                </div>
+              ) : (
+                <div key={s.labelKey} className="flex items-center gap-2.5 text-sm">
+                  <NumberedMark n={i + 1} />
+                  <span className="text-ink">{t(s.labelKey)}</span>
+                  <button
+                    onClick={() => go(s.path)}
+                    className="ml-auto text-xs font-medium text-ink-dim hover:text-signal hover:underline shrink-0"
+                  >
+                    {t(s.ctaKey)}
+                  </button>
+                </div>
+              ),
+            )}
+          </div>
+        </Section>
+      )}
 
       {/* Everything below is supporting detail, not a call to action — collapsed into one section
           so the page ends after the stat row instead of scrolling through five more cards. Open
@@ -544,7 +573,7 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
                       <span>
                         {u.company} — <span className="text-ink-dim">{statusLabel(u.status)}</span>
                       </span>
-                      <span className="text-alert font-medium">{u.next}</span>
+                      <span className="text-alert font-medium whitespace-nowrap">{formatDay(u.next)}</span>
                     </div>
                   ))
                 )}

@@ -43,7 +43,37 @@
     "heading": "Focus of the week",
     "analyzing": "Analyzing your search status…",
     "empty": "Add a few vacancies — and personalized priorities for the week will show up here.",
-    "offline": "Basic tips (AI offline). Set a key in server/.env for personalized analysis."
+    "offline": "Basic tips (AI offline). Set a key in server/.env for personalized analysis.",
+    "heuristic": {
+      "overdue": {
+        "title_one": "Update {{count}} overdue step",
+        "title_other": "Update {{count}} overdue steps",
+        "why": "There are vacancies with a \"next step\" date in the past — don't lose the contact."
+      },
+      "interviews": {
+        "title": "Prepare for interviews",
+        "why_one": "{{count}} vacancy at the interview stage — do a mock interview and review your cards.",
+        "why_other": "{{count}} vacancies at the interview stage — do a mock interview and review your cards."
+      },
+      "gap": {
+        "title": "Close the \"{{gap}}\" gap",
+        "why": "Missing from your profile, and the single skill that would newly qualify you for the most tracked vacancies."
+      },
+      "moreVacancies": {
+        "title": "Add more vacancies",
+        "why": "A small sample — import vacancies so the analytics and roadmap are more accurate."
+      },
+      "dueCards": {
+        "title_one": "Review {{count}} card",
+        "title_other": "Review {{count}} cards",
+        "why": "There are cards due for review today — keep your knowledge fresh with the SRS algorithm."
+      },
+      "stale": {
+        "title_one": "Nudge {{count}} vacancy with no response",
+        "title_other": "Nudge {{count}} vacancies with no response",
+        "why": "More than {{days}} days of silence after applying — send the recruiter a follow-up, or mark it \"Rejected\" if it's no longer relevant."
+      }
+    }
   },
   "roadmapProgress": {
     "heading": "Roadmap progress",

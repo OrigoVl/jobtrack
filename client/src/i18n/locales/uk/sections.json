@@ -17,10 +17,7 @@
   "growth": {
     "ariaLabel": "Розділи розвитку",
     "tabs": {
-      "overview": "Огляд",
       "roadmap": "Дорожня карта",
-      "plan21": "Інтенсив",
-      "learn": "Матеріали",
       "study": "Практика",
       "projects": "Пет-проєкти",
       "resources": "Ресурси"

@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { NavLink, Outlet } from "react-router";
 
 export interface SectionTab {
@@ -30,6 +32,49 @@ export interface SectionTab {
  * header's `actions` slot (the vacancy table/board switch, Companies' add-company input, the
  * Practice mode switcher…).
  */
+// Shown once, ever, the first time anyone lands on a grouped section. `localStorage` rather than
+// `useUi` (shared/ui-state.ts) on purpose: useUi's store is in-memory and resets on every reload,
+// so a "you've seen this" flag kept there would re-nag forever. Matches the `jobtrack.*` key
+// convention in shared/theme.ts / shared/notifications.ts.
+const HINT_KEY = "jobtrack.sectionTabsHintSeen";
+
+/** A single, dismissible line pointing at ⌘K. It exists because collapsing seventeen sidebar rows
+ * into eight made the command palette the ONLY one-step route to a screen that's now a tab — and
+ * nothing in the running app ever mentioned it except a small label in the sidebar's search box.
+ * Deliberately anchored here, on the first grouped section the user opens, rather than as a
+ * dashboard banner: this is the exact moment the concept "there are more screens than menu rows"
+ * becomes visible, so it's when the tip actually means something. */
+function ShortcutHint() {
+  const { t } = useTranslation("chrome");
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(HINT_KEY) === "1";
+    } catch {
+      // Private-mode/blocked storage — better to skip the tip entirely than to crash the shell.
+      return true;
+    }
+  });
+  if (dismissed) return null;
+  const dismiss = () => {
+    try {
+      localStorage.setItem(HINT_KEY, "1");
+    } catch {
+      /* ignore — the tip just reappears next session, which is harmless */
+    }
+    setDismissed(true);
+  };
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-grid bg-surface-2 px-3 py-1.5 text-xs text-ink-dim">
+      <span>
+        {t("sectionHint.text")} <kbd className="font-mono text-ink bg-surface border border-grid rounded px-1.5 py-0.5">⌘K</kbd>
+      </span>
+      <button onClick={dismiss} className="ml-auto shrink-0 font-medium hover:text-ink" aria-label={t("sectionHint.dismiss")}>
+        {t("sectionHint.dismiss")}
+      </button>
+    </div>
+  );
+}
+
 export function SectionTabs({ tabs, ariaLabel }: { tabs: SectionTab[]; ariaLabel: string }) {
   return (
     <div className="space-y-4">
@@ -52,6 +97,7 @@ export function SectionTabs({ tabs, ariaLabel }: { tabs: SectionTab[]; ariaLabel
           ))}
         </div>
       </nav>
+      <ShortcutHint />
       <Outlet />
     </div>
   );

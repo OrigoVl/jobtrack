@@ -51,8 +51,12 @@ export function ResumeCompleteness({
         : { text: "text-rose-600", bar: "bg-rose-500" };
   const content = (
     <>
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-semibold text-ink">{t("completeness.title")}</span>
+      {/* `bare` omits the title, not just the card chrome: its only caller (the Dashboard) renders
+          its own heading plus an "Open →" link right above this, so printing "Resume completeness"
+          again here put the same words on two consecutive lines. The percentage stays either way —
+          that's the number, not a label. */}
+      <div className={`flex items-center text-sm ${bare ? "justify-end" : "justify-between"}`}>
+        {!bare && <span className="font-semibold text-ink">{t("completeness.title")}</span>}
         <span className={`font-bold ${tone.text}`}>{pct}%</span>
       </div>
       <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">

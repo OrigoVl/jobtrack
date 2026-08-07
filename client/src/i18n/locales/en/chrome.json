@@ -22,5 +22,9 @@
     "title": "Page not found",
     "hint": "There's no page at this address — it may have moved, or the link might be out of date.",
     "backToDashboard": "Back to Dashboard"
+  },
+  "sectionHint": {
+    "text": "Every screen is one keystroke away —",
+    "dismiss": "Got it"
   }
 }

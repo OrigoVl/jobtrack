@@ -9,7 +9,7 @@
   },
   "step2": {
     "title": "You're set up",
-    "subtitle": "Track your first vacancy now, or explore the dashboard — you can always do this later.",
+    "subtitle": "Here's how the app is laid out — four places for the work, plus Dashboard, Analytics, Calendar and Account.",
     "addVacancy": "Add my first vacancy",
     "goToDashboard": "Go to dashboard",
     "map": {
@@ -23,12 +23,13 @@
       },
       "growth": {
         "title": "Growth —",
-        "desc": "your skill roadmap, study plans and interview practice."
+        "desc": "your skill roadmap, study materials and interview practice."
       },
       "cv": {
         "title": "CV —",
         "desc": "build it, have AI review it, and generate cover letters."
       }
-    }
+    },
+    "shortcutHint": "Press <b>⌘K</b> any time to jump straight to any screen by name."
   }
 }

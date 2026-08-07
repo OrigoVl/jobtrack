@@ -1,5 +1,5 @@
 {
-  "eyebrow": "Resources",
+  "eyebrow": "Growth",
   "title": "Resources & references",
   "subtitle": "The best guides, practice platforms, cheat sheets, and a prep checklist — all in one place.",
   "tabs": {
@@ -9,7 +9,13 @@
     "checklist": "Checklist ({{done}}/{{total}})"
   },
   "focus": {
-    "heading": "Your focus:"
+    "heading": "Your focus:",
+    "customBadge": "custom",
+    "editAriaLabel": "Your focus",
+    "placeholder": "What do you want to focus on this week?",
+    "suggestions": "Suggestions:",
+    "suggestionText": "This week — focus on {{tech}}.",
+    "resetAuto": "Back to auto"
   },
   "relevantChip": "relevant to you"
 }

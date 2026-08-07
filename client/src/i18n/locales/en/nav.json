@@ -11,8 +11,6 @@
     "calendar": "Calendar",
     "growth": "Growth",
     "roadmap": "Skill roadmap",
-    "intensivePlan": "Intensive plan",
-    "learningPlan": "Learning materials",
     "practice": "Practice",
     "petProjects": "Pet projects",
     "resources": "Resources",
@@ -21,7 +19,10 @@
     "cvReview": "CV text",
     "coverLetter": "Cover letter",
     "account": "Account",
-    "admin": "Admin"
+    "admin": "Admin",
+    "intensivePlan": "Intensive plan",
+    "learningPlan": "Learning materials",
+    "radar": "Skill radar"
   },
   "ai": {
     "on": "AI: on",

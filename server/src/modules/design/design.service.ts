@@ -31,6 +31,9 @@ export interface DesignEdge {
 interface DesignAnnotationBase {
   id: string;
   color: string;
+  /** Clockwise degrees about the annotation's own bounding-box center (client-side geometry — see
+   * the client's design-annotations.ts); absent means unrotated. */
+  rotation?: number;
 }
 export interface DesignFreehandAnnotation extends DesignAnnotationBase {
   kind: "freehand";
@@ -56,6 +59,11 @@ export interface DesignArrowAnnotation extends DesignAnnotationBase {
   y1: number;
   x2: number;
   y2: number;
+  /** Optional "sticks to this node" bindings — the client re-anchors the endpoint whenever the
+   * bound node moves. Purely a drawing aid: a bound arrow is still an annotation, NOT a structural
+   * DesignEdge, and is just as invisible to the grading prompt as the rest of this layer. */
+  startNodeId?: string;
+  endNodeId?: string;
 }
 export interface DesignTextAnnotation extends DesignAnnotationBase {
   kind: "text";

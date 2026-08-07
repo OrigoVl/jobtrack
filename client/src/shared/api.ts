@@ -216,6 +216,9 @@ export const api = {
   knowledge: (tech: string) => req<KnowledgeData>(`/knowledge/${encodeURIComponent(tech)}`),
 
   resources: () => req<ResourcesData>("/resources"),
+  /** An empty `text` clears the override and puts the focus back on auto. */
+  setResourcesFocus: (text: string) =>
+    req<{ ok: boolean; focus: string; focusCustom: boolean }>("/resources/focus", { method: "PUT", body: JSON.stringify({ text }) }),
 
   study: async (): Promise<StudyState> => {
     const [due, content] = await Promise.all([

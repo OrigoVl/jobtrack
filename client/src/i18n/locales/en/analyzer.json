@@ -1,5 +1,5 @@
 {
-  "eyebrow": "Decode",
+  "eyebrow": "Vacancies",
   "title": "Vacancy analysis",
   "subtitle": "Paste a vacancy's text — I'll detect the stack, level, and gaps against your profile. Added/parsed skills immediately flow into the radar, roadmap, and analytics.",
   "autoParse": {

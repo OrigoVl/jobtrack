@@ -34,6 +34,13 @@ export interface DynamicResourcesData {
   cheat: RankedCheatSection[];
   checklist: ChecklistItem[];
   focus: string;
+  /** true when `focus` is the user's own text (setFocusOverride), not a generated one — the UI
+   * shows a "back to auto" affordance only in that case. */
+  focusCustom: boolean;
+  /** Top gap techs offered as one-click suggestions when editing the focus. A superset of the 3
+   * that drive the personalized sections — the user picks from a slightly wider list than the
+   * page itself acts on, and can always ignore it and type their own. */
+  focusSuggestions: string[];
 }
 
 // Reuses the SAME tech dictionary (with its aliases: "k8s"→Kubernetes, "js"→JavaScript, ...)
@@ -196,6 +203,26 @@ async function getFocusNote(userId: UserId, skills: string[], domain: string | u
   return out.focus;
 }
 
+/** A `user_kv` blob rather than its own table: one short string per user, never queried across
+ * users and never referenced by another row — the default per CLAUDE.md's "table vs user_kv" call.
+ * Stored as `{ text }` (not a bare string) so clearing it back to auto is a normal write of
+ * `{ text: "" }`, with no "row missing vs. row holding JSON null" ambiguity in getKvJson(). */
+const FOCUS_OVERRIDE_KEY = "resources-focus-override";
+export const FOCUS_OVERRIDE_MAX_LEN = 300;
+
+/** The user's own focus text, or "" when they haven't set one (i.e. focus stays automatic). */
+export async function getFocusOverride(userId: UserId): Promise<string> {
+  const row = await getKvJson<{ text?: string }>(userId, FOCUS_OVERRIDE_KEY);
+  return (row?.text || "").trim();
+}
+
+/** Writes the override; an empty/blank `text` means "back to auto". Returns what was stored. */
+export async function setFocusOverride(userId: UserId, text: string): Promise<string> {
+  const clean = text.trim().slice(0, FOCUS_OVERRIDE_MAX_LEN);
+  await setKvJson(userId, FOCUS_OVERRIDE_KEY, { text: clean });
+  return clean;
+}
+
 const ActionsSchema = z.object({ actions: z.array(z.string().min(1)) });
 
 /** One short, concrete action per top gap tech (same order as `gaps`) — "build/practice this
@@ -237,13 +264,17 @@ export async function getDynamicResources(userId: UserId, isUk: boolean): Promis
   const skills = profile.skills || [];
   const [demand, gapPriority] = await Promise.all([demandMap(userId), gapPriorityMap(userId, skills)]);
   const skillSet = new Set(skills.map((s) => s.toLowerCase()));
-  const gaps = topGaps(gapPriority, skillSet);
+  const focusSuggestions = topGaps(gapPriority, skillSet, 5);
+  const gaps = focusSuggestions.slice(0, 3);
 
   const bestPractices = rankBestPractices(isUk ? BEST_PRACTICES_UK : BEST_PRACTICES, demand, skillSet);
   const platforms = rankPlatforms(isUk ? PLATFORMS_UK : PLATFORMS, demand, skillSet);
   const cheat = rankCheat(isUk ? CHEAT_UK : CHEAT, demand, skillSet);
   const checklist = rankChecklist(isUk ? CHECKLIST_UK : CHECKLIST, demand, skillSet);
-  const focus = await getFocusNote(userId, skills, profile.domain, gaps, isUk);
+  // A user-set focus wins outright and short-circuits getFocusNote() — no point spending an LLM
+  // call (or even the static fallback) on a sentence nobody will see.
+  const override = await getFocusOverride(userId);
+  const focus = override || (await getFocusNote(userId, skills, profile.domain, gaps, isUk));
   const actions = await getPersonalizedActions(userId, skills, profile.domain, gaps, isUk, track);
 
   const personalizedGroup = personalizedBestPracticeGroup(gaps, isUk, track);
@@ -256,5 +287,7 @@ export async function getDynamicResources(userId: UserId, isUk: boolean): Promis
     cheat: personalizedCheat ? [personalizedCheat, ...cheat] : cheat,
     checklist: [...personalizedChecklist, ...checklist],
     focus,
+    focusCustom: override.length > 0,
+    focusSuggestions,
   };
 }

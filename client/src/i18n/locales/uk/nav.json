@@ -11,8 +11,6 @@
     "calendar": "Календар",
     "growth": "Розвиток",
     "roadmap": "Дорожня карта",
-    "intensivePlan": "Інтенсив-план",
-    "learningPlan": "Матеріали для навчання",
     "practice": "Практика",
     "petProjects": "Пет-проєкти",
     "resources": "Ресурси",
@@ -21,7 +19,10 @@
     "cvReview": "Резюме текстом",
     "coverLetter": "Супровідний лист",
     "account": "Акаунт",
-    "admin": "Адмін"
+    "admin": "Адмін",
+    "intensivePlan": "Інтенсив-план",
+    "learningPlan": "Матеріали для навчання",
+    "radar": "Радар навичок"
   },
   "ai": {
     "on": "ШІ: увімкнено",

@@ -17,10 +17,7 @@
   "growth": {
     "ariaLabel": "Growth sections",
     "tabs": {
-      "overview": "Overview",
       "roadmap": "Roadmap",
-      "plan21": "Intensive",
-      "learn": "Materials",
       "study": "Practice",
       "projects": "Pet projects",
       "resources": "Resources"
