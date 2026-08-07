@@ -12,6 +12,7 @@ import {
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Select, Spinner } from "../../shared/ui";
 import { useConfirm } from "../../shared/use-confirm";
 import type { Contact, ContactInput, OutreachResult } from "../../shared/types";
+import { ContactEnrichmentPanel } from "./contact-enrichment";
 
 /** Draft an AI outreach/follow-up message for a contact (POST /contacts/:id/outreach) and let the
  * user copy it — mirrors LinkedInOptimizerCard's generate+copy shape, scoped to one contact card
@@ -262,6 +263,8 @@ export function Contacts() {
         subtitle={t("subtitle")}
         actions={<Btn onClick={openNew}>{t("addContact")}</Btn>}
       />
+
+      <ContactEnrichmentPanel />
 
       {!contacts || contacts.length === 0 ? (
         <Card>

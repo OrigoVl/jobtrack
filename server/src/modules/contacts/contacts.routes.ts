@@ -2,11 +2,13 @@ import express from "express";
 import { HttpError, authed } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
 import { getProfile } from "../../db/index.js";
-import { parseContactInput } from "../../shared/validation.js";
+import { parseContactInput, parseEnrichmentQuery } from "../../shared/validation.js";
 import { getCompanyById } from "../companies/companies.repo.js";
 import { getVacancy } from "../vacancies/vacancies.repo.js";
 import { listContacts, getContact, createContact, updateContact, deleteContact } from "./contacts.repo.js";
 import { draftOutreachMessage, type OutreachKind } from "./contacts-outreach.service.js";
+import { enrichContacts } from "./enrichment/enrichment.service.js";
+import { ENRICHMENT_PROVIDERS } from "./enrichment/enrichment-providers.js";
 import type { UserId } from "../../db/user-id.js";
 
 const r = express.Router();
@@ -96,6 +98,40 @@ r.post(
       vacancyPosition: vacancy?.position,
     });
     res.json(result);
+  }),
+);
+
+// ---------- contact enrichment (Hunter.io/Apollo.io/Snov.io + keyless pattern-guess fallback) ----------
+r.post(
+  "/contacts/enrich",
+  aiLimiter,
+  authed(async (userId, req, res) => {
+    const q = parseEnrichmentQuery(req.body);
+    // A companyId was given but no explicit domain — resolve one from that company's own
+    // `website`, and default companyName from it too, so the client doesn't have to duplicate a
+    // company's name/website into every enrichment request by hand.
+    const companyIdRaw = (req.body as Record<string, unknown> | null)?.companyId;
+    if (!q.domain && companyIdRaw != null && companyIdRaw !== "") {
+      const companyId = Number(companyIdRaw);
+      if (Number.isInteger(companyId) && companyId > 0) {
+        const company = await getCompanyById(userId, companyId);
+        if (company?.website) q.domain = company.website;
+        if (company?.name && !q.companyName) q.companyName = company.name;
+      }
+    }
+    res.json(await enrichContacts(userId, q));
+  }),
+);
+
+r.post(
+  "/contacts/enrich/reveal",
+  aiLimiter,
+  authed(async (_userId, req, res) => {
+    const providerName = (req.body as Record<string, unknown> | null)?.provider;
+    const provider = ENRICHMENT_PROVIDERS.find((p) => p.name === providerName);
+    if (!provider?.reveal) throw new HttpError(400, "Unknown or non-revealing provider");
+    const revealId = String((req.body as Record<string, unknown> | null)?.revealId ?? "");
+    res.json(await provider.reveal(revealId));
   }),
 );
 

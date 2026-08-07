@@ -601,3 +601,13 @@ export function ShapesIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** Favorite toggle — star. Outline by default (`strokeProps`); pass `fill="currentColor"` at the
+ * call site once favorited, same filled/outline convention as FlameIcon/CursorIcon above. */
+export function StarIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <path d="M9 1.8l2.19 4.44 4.9.71-3.55 3.46.84 4.88L9 12.9l-4.38 2.3.84-4.88-3.55-3.46 4.9-.71L9 1.8Z" />
+    </svg>
+  );
+}

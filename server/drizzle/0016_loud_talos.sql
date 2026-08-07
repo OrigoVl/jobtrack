@@ -1,0 +1,1 @@
+ALTER TABLE "vacancies" ADD COLUMN "favorite" boolean DEFAULT false NOT NULL;

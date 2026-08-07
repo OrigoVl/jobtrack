@@ -8,6 +8,7 @@ import {
   parseInterviewTurnInput,
   parseCompanyInput,
   parseContactInput,
+  parseEnrichmentQuery,
   parsePagination,
   parseDesignGenerateTaskInput,
   parseDesignGradeInput,
@@ -250,7 +251,52 @@ describe("parseCompanyInput", () => {
 
   it("accepts a valid company payload", () => {
     const out = parseCompanyInput({ name: "Acme", notes: "n", questions: ["Q1"] });
-    expect(out).toEqual({ name: "Acme", notes: "n", questions: ["Q1"] });
+    expect(out).toEqual({ name: "Acme", notes: "n", questions: ["Q1"], website: "" });
+  });
+
+  it("normalizes a full URL website down to a bare domain", () => {
+    const out = parseCompanyInput({ name: "Acme", notes: "", questions: [], website: "https://www.acme.com/careers" });
+    expect(out.website).toBe("acme.com");
+  });
+
+  it("normalizes an already-bare domain website (no change)", () => {
+    const out = parseCompanyInput({ name: "Acme", notes: "", questions: [], website: "acme.com" });
+    expect(out.website).toBe("acme.com");
+  });
+
+  it("never throws for an unparseable website — falls back to ''", () => {
+    const out = parseCompanyInput({ name: "Acme", notes: "", questions: [], website: "not a domain" });
+    expect(out.website).toBe("");
+  });
+});
+
+describe("parseEnrichmentQuery", () => {
+  it("defaults titles to the recruiter/HR set when none are passed", () => {
+    const out = parseEnrichmentQuery({ companyName: "Acme" });
+    expect(out.titles).toEqual(["recruiter", "talent acquisition", "technical recruiter", "hr"]);
+  });
+
+  it("uses the caller's titles (capped at 5) when passed", () => {
+    const out = parseEnrichmentQuery({ companyName: "Acme", titles: ["a", "b", "c", "d", "e", "f"] });
+    expect(out.titles).toEqual(["a", "b", "c", "d", "e"]);
+  });
+
+  it("normalizes domain via toDomain()", () => {
+    const out = parseEnrichmentQuery({ domain: "https://www.acme.com/careers" });
+    expect(out.domain).toBe("acme.com");
+  });
+
+  it("defaults limit to 10 and clamps to 1..25", () => {
+    expect(parseEnrichmentQuery({}).limit).toBe(10);
+    expect(parseEnrichmentQuery({ limit: 0 }).limit).toBe(1);
+    expect(parseEnrichmentQuery({ limit: 999 }).limit).toBe(25);
+    expect(parseEnrichmentQuery({ limit: 5 }).limit).toBe(5);
+  });
+
+  it("trims and caps companyName/personName", () => {
+    const out = parseEnrichmentQuery({ companyName: "  Acme  ", personName: "  Jane Doe  " });
+    expect(out.companyName).toBe("Acme");
+    expect(out.personName).toBe("Jane Doe");
   });
 });
 

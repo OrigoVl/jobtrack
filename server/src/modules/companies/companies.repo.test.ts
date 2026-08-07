@@ -11,6 +11,7 @@ const USER_B = "user-b" as UserId;
 
 let listCompanies: typeof import("./companies.repo.js").listCompanies;
 let upsertCompany: typeof import("./companies.repo.js").upsertCompany;
+let upsertCompanyEnrichment: typeof import("./companies.repo.js").upsertCompanyEnrichment;
 let findCompanyByName: typeof import("./companies.repo.js").findCompanyByName;
 let updateCompany: typeof import("./companies.repo.js").updateCompany;
 let deleteCompany: typeof import("./companies.repo.js").deleteCompany;
@@ -23,6 +24,7 @@ beforeAll(async () => {
   const repo = await import("./companies.repo.js");
   listCompanies = repo.listCompanies;
   upsertCompany = repo.upsertCompany;
+  upsertCompanyEnrichment = repo.upsertCompanyEnrichment;
   findCompanyByName = repo.findCompanyByName;
   updateCompany = repo.updateCompany;
   deleteCompany = repo.deleteCompany;
@@ -32,7 +34,19 @@ describe("companies.repo (PGlite)", () => {
   it("upsertCompany() creates a new row, listCompanies() returns it scoped to that user", async () => {
     await upsertCompany(USER_A, { name: "Acme", notes: "great culture", questions: ["Why us?"] });
     const rows = await listCompanies(USER_A);
-    expect(rows).toEqual([expect.objectContaining({ name: "Acme", notes: "great culture", questions: ["Why us?"] })]);
+    expect(rows).toEqual([expect.objectContaining({ name: "Acme", notes: "great culture", questions: ["Why us?"], website: "" })]);
+  });
+
+  it("upsertCompany() persists a website, findCompanyByName() round-trips it", async () => {
+    await upsertCompany(USER_A, { name: "WebsiteCo", notes: "", questions: [], website: "websiteco.com" });
+    const row = await findCompanyByName(USER_A, "WebsiteCo");
+    expect(row?.website).toBe("websiteco.com");
+  });
+
+  it("upsertCompany() without a website leaves it as '' (nullable column normalized at the API boundary)", async () => {
+    await upsertCompany(USER_A, { name: "NoWebsiteCo", notes: "", questions: [] });
+    const row = await findCompanyByName(USER_A, "NoWebsiteCo");
+    expect(row?.website).toBe("");
   });
 
   it("upsertCompany() updates notes/questions on a second call with the same name (same user)", async () => {
@@ -65,6 +79,13 @@ describe("updateCompany() (PGlite)", () => {
     expect(await findCompanyByName(USER_A, "Initech")).toBeUndefined();
   });
 
+  it("updates a company's website by id", async () => {
+    await upsertCompany(USER_A, { name: "WebUpdateCo", notes: "", questions: [] });
+    const row = await findCompanyByName(USER_A, "WebUpdateCo");
+    const updated = await updateCompany(USER_A, row!.id, { name: "WebUpdateCo", notes: "", questions: [], website: "webupdateco.com" });
+    expect(updated?.website).toBe("webupdateco.com");
+  });
+
   it("does not let one user update another user's company (returns undefined, row untouched)", async () => {
     const initech = await findCompanyByName(USER_A, "Initech Renamed");
     const updated = await updateCompany(USER_B, initech!.id, { name: "Hijacked", notes: "", questions: [] });
@@ -79,6 +100,65 @@ describe("updateCompany() (PGlite)", () => {
     // responsible for calling findCompanyByName first and turning this into a clean 409 before
     // ever reaching here (see updateCompany's own comment).
     await expect(updateCompany(USER_A, initech!.id, { name: "Umbrella", notes: "", questions: [] })).rejects.toThrow();
+  });
+});
+
+describe("upsertCompanyEnrichment() (PGlite)", () => {
+  it("creates the row and returns it, so the caller can link a vacancy to its id", async () => {
+    const row = await upsertCompanyEnrichment(USER_A, {
+      name: "King Group",
+      notes: "iGaming product company.",
+      questions: ["How is the frontend team structured?"],
+      website: "kinggroup.com",
+    });
+    expect(row).toEqual(
+      expect.objectContaining({
+        name: "King Group",
+        notes: "iGaming product company.",
+        questions: ["How is the frontend team structured?"],
+        website: "kinggroup.com",
+      }),
+    );
+    expect(row.id).toBeGreaterThan(0);
+  });
+
+  it("never overwrites notes/questions/website the user already filled in", async () => {
+    await upsertCompany(USER_A, { name: "Handwritten", notes: "my own notes", questions: ["mine?"], website: "mine.com" });
+    const row = await upsertCompanyEnrichment(USER_A, {
+      name: "Handwritten",
+      notes: "generated notes",
+      questions: ["generated?"],
+      website: "generated.com",
+    });
+    expect(row).toEqual(expect.objectContaining({ notes: "my own notes", questions: ["mine?"], website: "mine.com" }));
+  });
+
+  it("fills only the fields that are still empty on an existing row", async () => {
+    await upsertCompany(USER_A, { name: "PartlyFilled", notes: "notes I wrote", questions: [] });
+    const row = await upsertCompanyEnrichment(USER_A, {
+      name: "PartlyFilled",
+      notes: "generated notes",
+      questions: ["generated?"],
+      website: "partly.com",
+    });
+    expect(row.notes).toBe("notes I wrote");
+    expect(row.questions).toEqual(["generated?"]);
+    expect(row.website).toBe("partly.com");
+  });
+
+  it("is idempotent — importing a second vacancy from the same employer creates no duplicate row", async () => {
+    const first = await upsertCompanyEnrichment(USER_A, { name: "Repeated", notes: "n", questions: [] });
+    const second = await upsertCompanyEnrichment(USER_A, { name: "Repeated", notes: "n", questions: [] });
+    expect(second.id).toBe(first.id);
+    expect((await listCompanies(USER_A)).filter((c) => c.name === "Repeated")).toHaveLength(1);
+  });
+
+  it("scopes by user — the same employer name in two accounts stays two separate rows", async () => {
+    const a = await upsertCompanyEnrichment(USER_A, { name: "SharedName", notes: "a's notes", questions: [] });
+    const b = await upsertCompanyEnrichment(USER_B, { name: "SharedName", notes: "b's notes", questions: [] });
+    expect(b.id).not.toBe(a.id);
+    expect((await findCompanyByName(USER_A, "SharedName"))?.notes).toBe("a's notes");
+    expect((await findCompanyByName(USER_B, "SharedName"))?.notes).toBe("b's notes");
   });
 });
 

@@ -43,5 +43,31 @@
     "messageLabel": "Повідомлення",
     "copy": "Копіювати",
     "copied": "Скопійовано"
+  },
+  "enrich": {
+    "toggleLabel": "Знайти контакти",
+    "companyLabel": "Компанія",
+    "freeformOption": "— довільно —",
+    "companyNamePlaceholder": "Назва компанії",
+    "domainLabel": "Домен (необов'язково)",
+    "domainPlaceholder": "напр. acme.com",
+    "personNameLabel": "Шукаєш конкретну людину? (необов'язково)",
+    "personNamePlaceholder": "напр. Jane Doe",
+    "search": "Пошук",
+    "searching": "Пошук…",
+    "noResults": "Контактів не знайдено",
+    "offlineNotice": "Лише здогадки за шаблоном — провайдер збагачення не налаштований або нічого не повернув",
+    "budgetExhaustedNotice": "Досягнуто денного ліміту пошуків — деякі провайдери сьогодні пропущено",
+    "saveAsContact": "Зберегти як контакт",
+    "saved": "Збережено",
+    "revealEmail": "Показати email",
+    "revealing": "Показуємо…",
+    "privacyNote": "Дані ділових контактів від сторонніх провайдерів — лише для професійного нетворкінгу.",
+    "emailStatus": {
+      "verified": "Перевірено",
+      "unverified": "Не перевірено",
+      "guessed": "Здогадка",
+      "locked": "Заблоковано"
+    }
   }
 }

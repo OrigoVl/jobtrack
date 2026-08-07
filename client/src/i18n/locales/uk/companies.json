@@ -9,6 +9,8 @@
     "title": "Компаній ще немає",
     "hint": "Додай компанію, щоб вести нотатки та банк питань зі співбесід."
   },
+  "websiteLabel": "Сайт",
+  "websitePlaceholder": "напр. acme.com",
   "notesAriaLabel": "Нотатки про {{name}}",
   "notesPlaceholder": "Нотатки (стек, люди, зарплата, враження)…",
   "questionsAriaLabel": "Питання, які ставили в {{name}}",
@@ -17,6 +19,20 @@
   "editAriaLabel": "Редагувати {{name}}",
   "deleteAriaLabel": "Видалити {{name}}",
   "deleteConfirmTitle": "Видалити {{name}}?",
+  "rollup": {
+    "vacanciesCount_one": "{{count}} вакансія",
+    "vacanciesCount_few": "{{count}} вакансії",
+    "vacanciesCount_many": "{{count}} вакансій",
+    "vacanciesCount_other": "{{count}} вакансії",
+    "contactsCount_one": "{{count}} контакт",
+    "contactsCount_few": "{{count}} контакти",
+    "contactsCount_many": "{{count}} контактів",
+    "contactsCount_other": "{{count}} контакти",
+    "vacanciesHeading": "Пов'язані вакансії",
+    "contactsHeading": "Пов'язані контакти",
+    "noVacancies": "Немає пов'язаних вакансій",
+    "noContacts": "Немає пов'язаних контактів"
+  },
   "toasts": {
     "saved": "Збережено",
     "deleted": "Видалено"

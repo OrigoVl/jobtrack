@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useUpdateVacancy, useVacancies } from "../../shared/queries";
 import { Chip, Dropdown, Spinner } from "../../shared/ui";
+import { StarIcon } from "../../shared/icons";
 import { STATUSES, type Vacancy } from "../../shared/types";
 import { fitTone, fitLabel } from "../../shared/fit-tone";
 import { statusLabel } from "../../shared/status-labels";
@@ -114,9 +115,23 @@ export function VacancyBoard({ onOpenDetail }: { onOpenDetail: (id: number) => v
                     className={`relative bg-surface border border-grid border-l-4 ${STATUS_BORDER_L_CLASS[status] ?? DEFAULT_STATUS_BORDER_L_CLASS} rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-card focus:outline-none focus:ring-2 focus:ring-signal/50 transition-opacity ${isSaving ? "opacity-60" : ""}`}
                   >
                     <div className="flex items-start justify-between gap-1">
-                      <div className="min-w-0">
-                        <div className="font-semibold text-sm text-ink truncate">{v.company}</div>
-                        <div className="text-xs text-ink-dim truncate">{v.position}</div>
+                      <div className="min-w-0 flex items-start gap-1">
+                        <button
+                          type="button"
+                          onClick={() => updateVacancyMutation.mutate({ id: v.id, patch: { favorite: !v.favorite } })}
+                          title={v.favorite ? t("favorite.removeTitle") : t("favorite.addTitle")}
+                          aria-label={t(v.favorite ? "favorite.removeAriaLabel" : "favorite.addAriaLabel", { company: v.company })}
+                          aria-pressed={v.favorite}
+                          className={`shrink-0 mt-0.5 rounded p-0.5 -m-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${
+                            v.favorite ? "text-amber-400 hover:text-amber-500" : "text-ink-dim hover:text-amber-400"
+                          }`}
+                        >
+                          <StarIcon className="h-3 w-3" fill={v.favorite ? "currentColor" : "none"} />
+                        </button>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-sm text-ink truncate">{v.company}</div>
+                          <div className="text-xs text-ink-dim truncate">{v.position}</div>
+                        </div>
                       </div>
                       <div className="shrink-0">
                         {isSaving ? (

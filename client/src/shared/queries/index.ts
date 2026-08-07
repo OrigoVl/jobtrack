@@ -13,6 +13,7 @@ export * from "./admin";
 export * from "./calendar";
 export * from "./saved-searches";
 export * from "./contacts";
+export * from "./enrichment";
 export * from "./cv-share";
 export * from "./linkedin";
 export * from "./resources";

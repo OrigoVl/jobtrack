@@ -12,9 +12,17 @@ r.post(
   "/llm/cover-letter",
   aiLimiter,
   authed(async (userId, req, res) => {
-    const { vacancyText, company } = req.body || {};
+    const { vacancyText, company, details } = req.body || {};
     const profile = await getProfile(userId);
     const vt = String(vacancyText || "");
+    // Optional freeform guidance from the caller ("mention my 5 years leading X", "keep it under
+    // 150 words") — only vacancy-detail-modal.tsx's cover tab passes this (persisted as the
+    // vacancy's own coverLetterDetails); cv.tsx's call site omits it. Unlike vacancyText/company
+    // (untrusted, scraped from an external posting), this is the account owner's own instruction
+    // about their own letter — meant to be followed, not defensively quoted as adversarial data.
+    const extraDetails = String(details || "")
+      .slice(0, 1000)
+      .trim();
     const techs = extractTechs(vt).map((t) => t.name);
     const matched = techs.filter((t) => profile.skills.includes(t));
     if (!llmAvailable()) {
@@ -29,7 +37,10 @@ r.post(
           ? `I bring a background in ${profile.domain}.`
           : `I'd welcome the opportunity to bring my background to this role.`;
       return res.json({
-        text: `Hello!\n\nI'm interested in your ${role} vacancy${company ? ` at ${company}` : ""}. ${background} I'd be glad to discuss in more detail how I can help.\n\nBest regards`,
+        text:
+          `Hello!\n\nI'm interested in your ${role} vacancy${company ? ` at ${company}` : ""}. ${background} I'd be glad to discuss in more detail how I can help.` +
+          (extraDetails ? `\n\n${extraDetails}` : "") +
+          `\n\nBest regards`,
         offline: true,
       });
     }
@@ -46,6 +57,7 @@ r.post(
       `${quoteUntrustedText("CANDIDATE'S RESUME", profile.cvText.slice(0, 8000))}\n\n` +
         `${quoteUntrustedText(`VACANCY${company ? ` (${company})` : ""}`, vt.slice(0, 3000))}\n\n` +
         `Vacancy technologies the candidate already has: ${matched.join(", ") || "—"}.\n` +
+        (extraDetails ? `Additional guidance from the candidate — follow this: ${extraDetails}\n` : "") +
         `Write a cover letter (4-6 sentences): a hooking intro → 2-3 relevant experience matches against the requirements → a short closing offering to discuss further.`,
       // No cache: unlike cv-review/cv-match/linkedin-optimize (where a stable, repeatable
       // result is the point), "Generate Letter" doubles as this feature's only regenerate

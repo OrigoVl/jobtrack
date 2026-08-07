@@ -14,8 +14,26 @@
   },
   "addVacancy": "+ Add vacancy",
   "addFirst": "+ Add the first one",
+  "favorite": {
+    "addTitle": "Add to favorites",
+    "removeTitle": "Remove from favorites",
+    "addAriaLabel": "Add {{company}} to favorites",
+    "removeAriaLabel": "Remove {{company}} from favorites"
+  },
   "importMenu": {
     "label": "Import"
+  },
+  "create": {
+    "heading": "Add vacancy",
+    "companyPlaceholder": "e.g. Google",
+    "positionPlaceholder": "e.g. Senior Frontend Developer",
+    "urlLabel": "Vacancy link",
+    "autofillButton": "Autofill",
+    "autofillEmpty": "Couldn't detect any details from that link — try filling them in by hand.",
+    "levelPlaceholder": "e.g. Middle",
+    "stackPlaceholderWithUrl": "Leave empty to auto-detect from the link once saved…",
+    "createCompanyNote": "The company \"{{company}}\" will be created and linked automatically",
+    "createCompanyHint": "Its notes, website and interview questions come from this posting"
   },
   "detail": {
     "untitled": "Untitled position",
@@ -24,8 +42,12 @@
     "openOriginal": "Open original",
     "positionAriaLabel": "Position",
     "companyAriaLabel": "Company",
+    "companyLinkAriaLabel": "Linked company",
+    "companyLinkNone": "No linked company",
+    "createCompanyFromField": "+ Create company",
     "levelPlaceholder": "Level",
     "levelAriaLabel": "Level",
+    "createdLabel": "Added {{date}}",
     "stackLabel": "Tech stack",
     "stackPlaceholder": "Add a technology…",
     "tabs": {
@@ -36,17 +58,35 @@
     "notesLabel": "Notes",
     "notesPlaceholder": "Anything worth remembering about this vacancy…",
     "linkedContactsLabel": "Linked contacts",
-    "noLinkedContacts": "No contacts linked yet — link one from the Contacts page.",
+    "noLinkedContacts": "No contacts linked yet — link an existing one or add a new one below.",
+    "linkContactAriaLabel": "Link a contact",
+    "linkContactNone": "Link an existing contact…",
+    "noUnlinkedContacts": "No unlinked contacts",
+    "newContactPlaceholder": "New contact name…",
+    "addContact": "+ Add",
     "regenerate": "Regenerate",
+    "coverDetailsLabel": "Details to include (optional)",
+    "coverDetailsPlaceholder": "e.g. mention my 5 years leading the payments team, keep it under 150 words…",
+    "coverPlaceholder": "The generated letter will appear here — edit it freely, your changes are saved automatically.",
+    "unsavedChanges": "Unsaved changes",
+    "discardConfirmTitle": "Discard changes?",
+    "discardConfirmMessage": "The edits you made to this vacancy haven't been saved yet and will be lost.",
+    "discardConfirmAction": "Discard",
+    "deleteCoverConfirmTitle": "Delete this cover letter?",
+    "deleteCoverConfirmMessage": "This clears the saved letter for this vacancy. You can always generate a new one.",
     "coverEmptyHint": "Generate a cover letter for this vacancy, using your saved CV and the vacancy's own tracked details (level, stack, notes).",
     "generateFit": "Analyze fit",
     "fitEmptyHint": "See how well your CV matches this vacancy's requirements — covered skills, gaps, and concrete suggestions.",
-    "noCvHint": "Add your CV text on the CV page first to analyze fit."
+    "noCvHint": "Add your CV text on the CV page first to analyze fit.",
+    "refreshFromUrl": "Refresh from link",
+    "refreshFromUrlHint": "Re-read the posting and fill in whatever is still empty — nothing you have typed is overwritten",
+    "refreshNothingNew": "Nothing new found — everything is already filled in",
+    "refreshFailed": "Could not read the posting behind this link"
   },
   "import": {
-    "heading": "Import from a DOU export",
-    "ariaLabel": "HTML or text to import from DOU",
-    "placeholder": "Paste the HTML or text of a saved DOU vacancies table — we'll extract every link…",
+    "heading": "Import from pasted links",
+    "ariaLabel": "HTML or text containing vacancy links to import",
+    "placeholder": "Paste HTML or text with vacancy links — a saved DOU export, a Djinni/LinkedIn/robota.ua search page, or just a list of links — we'll extract every one…",
     "importing": "Importing and analyzing…",
     "importLinks": "Import links"
   },
@@ -62,13 +102,14 @@
   },
   "empty": {
     "title": "No vacancies yet",
-    "hint": "Add your first vacancy by hand or import a list from DOU — the app will build the analytics and roadmap from there."
+    "hint": "Add your first vacancy by hand or import a list of links (from DOU, Djinni, LinkedIn, robota.ua, etc.) — the app will build the analytics and roadmap from there."
   },
   "filters": {
     "searchPlaceholder": "Search company, position, stack, notes…",
     "searchAriaLabel": "Search vacancies",
     "allStatuses": "All statuses",
     "allFits": "All fit levels",
+    "favoritesOnly": "Favorites only",
     "columns": "Columns",
     "reset": "Reset filters",
     "noMatches": {
@@ -87,6 +128,7 @@
     "status": "Status",
     "applied": "Applied",
     "nextStep": "Next step",
+    "created": "Added",
     "vacancyLinkPlaceholder": "Vacancy link (from any site) → the stack fills in itself…",
     "vacancyLinkAriaLabel": "Vacancy link — {{company}}",
     "openVacancy": "Open the vacancy",

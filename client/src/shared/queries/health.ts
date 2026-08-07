@@ -12,7 +12,7 @@ export function useHealth() {
   });
 }
 
-/** Whether Google OAuth is configured — gates the "Continue with Google" button on the login/register pages. */
+/** Which social OAuth providers are configured — gates the "Continue with …" buttons on the login/register pages. */
 export function useAuthConfig() {
   return useQuery({
     queryKey: queryKeys.authConfig,

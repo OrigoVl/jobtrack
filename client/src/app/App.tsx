@@ -148,8 +148,8 @@ function ToastHost() {
     info: "bg-ink text-bg",
   };
   return (
-    // z-[80] — above every modal/popover overlay in the app (confirm dialog z-[70], the vacancy
-    // detail modal z-[65], popovers z-[60]): a toast is a glanceable, transient confirmation and
+    // z-[80] — above every modal/popover overlay in the app (popovers z-[75], confirm dialog
+    // z-[70], the vacancy detail modal z-[65]): a toast is a glanceable, transient confirmation and
     // must never end up dimmed under another overlay's backdrop just because the two happened to
     // be triggered by the same action (e.g. adding a vacancy now both toasts AND opens its detail
     // modal at once — before this fix the modal's backdrop visibly washed the toast out).

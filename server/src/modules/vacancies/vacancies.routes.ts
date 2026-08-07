@@ -18,12 +18,22 @@ import {
   parseText,
   parsePagination,
   parseWeeklyApplyGoalInput,
+  assertSafeVacancyUrl,
   type JsonVacancyItem,
 } from "../../shared/validation.js";
-import { fetchVacancyText, quickAnalyze, tryAutoEnrichStack } from "./vacancy-analysis.service.js";
+import {
+  fetchVacancyText,
+  quickAnalyze,
+  tryAutoEnrichStack,
+  safeFetchVacancyText,
+  extractTitleCompany,
+  companyFromDouUrl,
+  fetchVacancyDetails,
+} from "./vacancy-analysis.service.js";
 import { getFetchAllJob, startFetchAllJob } from "./fetch-all-job.js";
 import { vacancyEmbeddingText } from "./vacancy-text.js";
 import { findSimhashDuplicate } from "../jobs/job-dedupe.js";
+import { getCompanyById } from "../companies/companies.repo.js";
 import {
   listVacancies,
   getVacancy,
@@ -36,6 +46,7 @@ import {
   updateVacancy,
   updateVacancyFromJson,
   updateVacancyEnrichment,
+  updateVacancyImportedTitle,
   updateVacancyEmbedding,
   findSimilarVacancies,
   deleteVacancy,
@@ -75,6 +86,15 @@ function embedVacancyInBackground(
   });
 }
 
+/** Same pattern as contacts.routes.ts' own assertOwnCompanyOrNull (deliberately duplicated per
+ * module, not shared) — a clean 400 instead of an opaque FK-violation 500, and vacancies.companyId
+ * is a plain (non-composite) FK, so this app-level check is what actually stops a cross-tenant
+ * link, not just a friendlier error on top of a DB guarantee. */
+async function assertOwnCompanyOrNull(userId: UserId, companyId: number | null | undefined): Promise<void> {
+  if (companyId == null) return;
+  if (!(await getCompanyById(userId, companyId))) throw new HttpError(400, `Unknown company: ${companyId}`);
+}
+
 const r = express.Router();
 
 // ---------- vacancies ----------
@@ -92,6 +112,7 @@ r.post(
   "/vacancies",
   authed(async (userId, req, res) => {
     const b = parseVacancyInput(req.body, { partial: false });
+    await assertOwnCompanyOrNull(userId, b.companyId);
     // Checked against the list BEFORE inserting (so the new row never matches itself) — advisory
     // only (see job-dedupe.ts#findSimhashDuplicate), never blocks the save: two postings that
     // read as "similar" (the same company re-hiring for the same role) can be genuinely distinct.
@@ -119,6 +140,10 @@ r.post(
       next: b.next!,
       notes: b.notes!,
       stack: b.stack!,
+      companyId: b.companyId ?? null,
+      favorite: b.favorite ?? false,
+      coverLetter: b.coverLetter ?? "",
+      coverLetterDetails: b.coverLetterDetails ?? "",
     });
     await recordStatusChange(userId, id, b.status!);
     // Auto-enrichment: if a vacancy is added right away with a URL and no explicit stack — try
@@ -163,6 +188,7 @@ r.put(
     const cur = await getVacancy(userId, id);
     if (!cur) throw new HttpError(404, "Vacancy not found");
     const patch = parseVacancyInput(req.body, { partial: true });
+    if (Object.prototype.hasOwnProperty.call(patch, "companyId")) await assertOwnCompanyOrNull(userId, patch.companyId);
     const m = {
       company: patch.company ?? cur.company,
       position: patch.position ?? cur.position,
@@ -175,6 +201,10 @@ r.put(
       next: patch.next ?? cur.next,
       notes: patch.notes ?? cur.notes,
       stack: patch.stack ?? cur.stack,
+      companyId: patch.companyId !== undefined ? patch.companyId : cur.companyId,
+      favorite: patch.favorite ?? cur.favorite,
+      coverLetter: patch.coverLetter ?? cur.coverLetter,
+      coverLetterDetails: patch.coverLetterDetails ?? cur.coverLetterDetails,
     };
     // Auto-enrichment: the URL just appeared/changed and this same request didn't manually
     // edit the stack — pull a fresh stack/level/fit from the link (best-effort, any public
@@ -330,17 +360,44 @@ r.post(
   }),
 );
 
-// Import vacancies from a DOU export (HTML/text) — extract links and immediately auto-enrich
-// the stack of each new vacancy from its page (best-effort, with a polite pause between requests —
-// as in /vacancies/fetch-all), so a separate manual "Analyze all" click after import isn't needed.
+// Best-effort company/position/stack/level/fit for ONE vacancy link — powers the "+ Add vacancy"
+// modal's "autofill from link" action (see vacancy-analysis.service.ts's fetchVacancyDetails).
+// Doesn't create anything: the caller decides whether/what to keep before saving.
+r.post(
+  "/vacancies/fetch-details",
+  aiLimiter,
+  authed(async (userId, req, res) => {
+    const url = parseText(req.body, "url", { min: 1, max: 2000 });
+    res.json(await fetchVacancyDetails(userId, url));
+  }),
+);
+
+// Import vacancies from pasted HTML/text — extract every vacancy link (from a DOU export, or any
+// other page: a Djinni/LinkedIn/robota.ua search results page, a list kept in a note, etc.) and
+// immediately auto-enrich each new vacancy from its own page (best-effort, with a polite pause
+// between requests — as in /vacancies/fetch-all), so a separate manual "Analyze all" click after
+// import isn't needed.
 r.post(
   "/vacancies/import",
   aiLimiter,
   authed(async (userId, req, res) => {
     const html = parseText(req.body, "html", { min: 1, max: 500000 });
-    const re = /https:\/\/jobs\.dou\.ua\/companies\/([^/"'\s]+)\/vacancies\/(\d+)/g;
+    // Declared fresh per request (not module-level): both loops below `await` between `.exec()`
+    // calls, and a `g`-flagged RegExp carries its scan position in mutable `lastIndex` state on
+    // the object itself — sharing one module-level instance across concurrent imports (two users,
+    // or the same user submitting twice back-to-back) would corrupt that position mid-scan.
+    const DOU_VACANCY_RE = /https:\/\/jobs\.dou\.ua\/companies\/([^/"'\s]+)\/vacancies\/(\d+)/g;
+    // Any other https:// link. Trailing punctuation (a sentence's closing period, a markdown link's
+    // closing paren/bracket) picked up by the greedy match is stripped since it's never actually part
+    // of the URL.
+    const GENERIC_VACANCY_URL_RE = /https:\/\/[^\s"'<>]+/g;
     const seen = new Set<string>();
-    const newIds: { id: number; url: string }[] = [];
+    // `hasCompany: true` for DOU links — the company already came from the URL's own path
+    // structure. The *position* is never encoded in either link shape, so extractTitleCompany
+    // always runs during enrichment below regardless of this flag — it only gates whether that
+    // guess is allowed to also overwrite `company` (never for DOU: the slug-derived name is
+    // reliable and shouldn't be clobbered by a possibly-wrong LLM guess).
+    const newIds: { id: number; url: string; hasCompany: boolean }[] = [];
     const added: { company: string; url: string }[] = [];
     // Snapshot once, before any inserts below — advisory only (see the SimHash comment on
     // POST /vacancies above). A newly-imported item's `position` is still the "(imported)"
@@ -350,18 +407,19 @@ r.post(
     // for you automatically when a company has multiple roles open at once).
     const existingSnapshot = await listVacancies(userId, { limit: DEDUPE_CHECK_LIMIT, offset: 0 });
     const possibleDuplicates: { company: string; url: string; of: { id: number; company: string; position: string } }[] = [];
-    let match: RegExpExecArray | null;
-    while ((match = re.exec(html))) {
-      const dupId = match[2] ?? "";
-      if (!dupId || seen.has(dupId)) continue;
-      seen.add(dupId);
-      const url = (match[0] ?? "") + "/";
-      const company = (match[1] ?? "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+    let douMatch: RegExpExecArray | null;
+    while ((douMatch = DOU_VACANCY_RE.exec(html))) {
+      const dupId = douMatch[2] ?? "";
+      const url = (douMatch[0] ?? "") + "/";
+      if (!dupId || seen.has(url)) continue;
+      seen.add(url);
+      const company = companyFromDouUrl(url) ?? "";
       if (await findVacancyByUrl(userId, url)) continue;
       const existingAtCompany = existingSnapshot.find((v) => v.company.toLowerCase() === company.toLowerCase());
       const id = await createVacancyMinimal(userId, { company, position: "(imported)", url, status: "Want to apply" });
       await recordStatusChange(userId, id, "Want to apply");
-      newIds.push({ id, url });
+      newIds.push({ id, url, hasCompany: true });
       added.push({ company, url });
       if (existingAtCompany) {
         possibleDuplicates.push({
@@ -371,10 +429,45 @@ r.post(
         });
       }
     }
-    for (const { id, url } of newIds) {
-      const enrichment = await tryAutoEnrichStack(userId, url);
-      if (enrichment) {
-        await updateVacancyEnrichment(userId, id, { stack: enrichment.techs, level: enrichment.level || "", fit: enrichment.fit });
+
+    // Any https:// link not already captured as a DOU one above. Unlike DOU's URL structure,
+    // these don't encode a company name anywhere we can parse for free, so they start blank —
+    // extractTitleCompany (called during enrichment below) fills them in on a best-effort basis.
+    let genericMatch: RegExpExecArray | null;
+    while ((genericMatch = GENERIC_VACANCY_URL_RE.exec(html))) {
+      const raw = (genericMatch[0] ?? "").replace(/[)\].,;:!?]+$/, "");
+      if (!raw || seen.has(raw)) continue;
+      seen.add(raw);
+      let url: string;
+      try {
+        url = assertSafeVacancyUrl(raw);
+      } catch {
+        continue; // not a usable https vacancy link (bad host, private/internal address, etc.)
+      }
+      if (await findVacancyByUrl(userId, url)) continue;
+      const id = await createVacancyMinimal(userId, { company: "", position: "(imported)", url, status: "Want to apply" });
+      await recordStatusChange(userId, id, "Want to apply");
+      newIds.push({ id, url, hasCompany: false });
+      added.push({ company: "", url });
+    }
+
+    for (const { id, url, hasCompany } of newIds) {
+      const text = await safeFetchVacancyText(url);
+      if (text) {
+        const analysis = await quickAnalyze(userId, text);
+        await updateVacancyEnrichment(userId, id, { stack: analysis.techs, level: analysis.level || "", fit: analysis.fit });
+        // Position is never encoded in the URL either way, so this always runs; only `company`
+        // is gated (see `hasCompany`'s own comment above). Each field is only copied over when
+        // the guess actually produced something — extractTitleCompany guarantees at least ONE of
+        // company/position is non-empty when it returns non-null, not both, and an empty guess
+        // for the other must never overwrite the "(imported)" placeholder with blank.
+        const guess = await extractTitleCompany(userId, text);
+        if (guess) {
+          const title: { company?: string; position?: string } = {};
+          if (guess.position) title.position = guess.position;
+          if (!hasCompany && guess.company) title.company = guess.company;
+          if (title.company || title.position) await updateVacancyImportedTitle(userId, id, title);
+        }
       }
       await new Promise((resolve) => setTimeout(resolve, 400)); // polite pause
     }

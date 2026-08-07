@@ -29,6 +29,14 @@ export const vacancies = pgTable(
     id: integer().primaryKey().generatedByDefaultAsIdentity(),
     userId: userIdCol(),
     company: text().notNull().default(""),
+    // Optional structural link to a tracked `companies` row — `company` (text) above stays as the
+    // freeform display value entered on the vacancy itself. Deliberately a plain single-column FK
+    // to companies.id with ON DELETE SET NULL, NOT the composite (userId, companyId) + CASCADE
+    // shape contacts.companyId uses below: a vacancy is high-value tracked-application data that
+    // must survive its linked company being deleted, it should just lose the link, the same
+    // "detach, don't cascade" call contacts.vacancyId already makes for the reverse direction.
+    // Nullable — most existing rows have no link yet; a one-off script backfills by name later.
+    companyId: integer("company_id").references(() => companies.id, { onDelete: "set null" }),
     position: text().notNull().default(""),
     level: text().notNull().default(""),
     // Freeform, like `level` above — not structured min/max/currency columns: candidates paste
@@ -39,6 +47,10 @@ export const vacancies = pgTable(
     url: text().notNull().default(""),
     status: text().notNull().default("Want to apply"),
     fit: text().notNull().default("med"),
+    // A user-set flag for quickly finding a vacancy again (a table/kanban toggle, a "favorites
+    // only" filter) — no ordering/priority semantics beyond "starred or not", so a plain boolean
+    // rather than e.g. a numeric rank.
+    favorite: boolean().notNull().default(false),
     // Deliberately `text`, not `date`: these are tri-state today ("" means "not set", see
     // shared/validation.ts#toDateOrEmpty) and compared as strings elsewhere (e.g.
     // analytics.routes.ts, client/dashboard.tsx do `v.next < today`). Converting to a real
@@ -48,6 +60,16 @@ export const vacancies = pgTable(
     next: text().notNull().default(""),
     notes: text().notNull().default(""),
     stack: jsonb().$type<string[]>().notNull().default([]),
+    // The saved/editable result of the "cover" tab's Generate button (writing.routes.ts's
+    // POST /llm/cover-letter) — previously held only in the modal's own component state, so it
+    // was lost every time the modal closed. "" means "never generated/cleared", same tri-state
+    // convention as notes/level above.
+    coverLetter: text("cover_letter").notNull().default(""),
+    // Freeform guidance ("mention my 5 years leading X", "keep it under 150 words") fed into the
+    // cover-letter prompt alongside the vacancy/CV text — saved separately from coverLetter itself
+    // so regenerating doesn't require retyping it, and so it's still there if the letter is
+    // cleared/edited by hand.
+    coverLetterDetails: text("cover_letter_details").notNull().default(""),
     // `date('now')` in SQLite already produced 'YYYY-MM-DD' — mode:"string" keeps the wire
     // format byte-identical, since recencyWeight() and analytics chart bucketing parse/compare
     // this value directly as a string.
@@ -83,6 +105,12 @@ export const companies = pgTable(
     name: text().notNull(),
     notes: text().notNull().default(""),
     questions: jsonb().$type<string[]>().notNull().default([]),
+    // Bare host like "acme.com" (normalized by a toDomain() helper elsewhere, not a full URL) —
+    // used as the contact-enrichment provider/cache key. Nullable: no DEFAULT and this table
+    // already has production rows, so a bare `NOT NULL` ADD COLUMN would fail; existing rows are
+    // left NULL (nothing to backfill from) and the app layer treats unset as "" (contacts.repo.ts's
+    // toContact() already does this for its own nullable email/linkedinUrl columns).
+    website: text(),
   },
   (t) => [
     // companies.repo.ts#upsertCompany's ON CONFLICT target is [userId, name] (not just name),
@@ -187,6 +215,26 @@ export const llmCache = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("llm_cache_created_at_idx").on(t.createdAt)],
+);
+
+// Contact-enrichment cache — deliberately a SEPARATE table from `llm_cache` above, not a reuse of
+// it, even though the shape is identical: this cache holds third-party PERSONAL data (recruiter
+// names/emails/titles) fetched from paid enrichment APIs (Hunter.io/Apollo.io), which (1) needs a
+// much shorter TTL than llm_cache's 90 days — 7 days, since recruiters change jobs and GDPR
+// storage-limitation principles argue against holding third-party personal data indefinitely —
+// and (2) needs to be independently purgeable for a data-subject erasure request without touching
+// the unrelated LLM response cache. Deliberately GLOBAL (no user_id), same reasoning as
+// `llm_cache`: the key is a hash of the full, non-secret search input (domain + titles + provider
+// name), so identical input always yields the identical externally-public result — cross-tenant
+// sharing of a cache hit is safe by construction.
+export const enrichmentCache = pgTable(
+  "enrichment_cache",
+  {
+    k: text().primaryKey(),
+    v: jsonb().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("enrichment_cache_created_at_idx").on(t.createdAt)],
 );
 
 export const vacancyStatusHistory = pgTable(

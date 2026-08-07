@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { extractTechs } from "./tech-dict.js";
+import { extractTechs, sanitizeSkills } from "./tech-dict.js";
 import { chatJson, llmAvailable } from "../llm/index.js";
 import { getLlmCache, setLlmCache } from "../db/llm-cache.js";
 import type { UserId } from "../db/user-id.js";
@@ -54,18 +54,16 @@ function offlineDomainGuess(cvText: string): string {
   return TRACK_DOMAIN_LABEL.software;
 }
 
-function dedupe(values: string[]): string[] {
-  const seen = new Map<string, string>();
-  for (const value of values) {
-    const key = value.toLowerCase();
-    if (!seen.has(key)) seen.set(key, value);
-  }
-  return [...seen.values()];
-}
-
 /** Extracts key skills/tools from vacancy or CV text. */
 export async function extractSkills(userId: UserId, text: string): Promise<string[]> {
-  const regex = extractTechs(text).map((t) => t.name);
+  // Sanitized even though these came from the text itself: extractTechs()'s fuzzy fallback matches
+  // on edit distance, so a posting that genuinely says "SSR" also yields the dictionary's "SSRF"
+  // (distance 1). sanitizeSkills() requires a dictionary technology's own regex to actually match,
+  // which drops exactly those near-miss matches while leaving every real one intact.
+  const regex = sanitizeSkills(
+    extractTechs(text).map((t) => t.name),
+    text,
+  );
   if (!llmAvailable() || !text || text.trim().length < 30) return regex;
   const cacheKey = `skx:${hashString(text)}`;
   const cached = await getLlmCache<{ skills: string[] }>(cacheKey);
@@ -74,13 +72,19 @@ export async function extractSkills(userId: UserId, text: string): Promise<strin
     userId,
     "You are a recruiting assistant. You extract key professional skills, tools, and technologies from text in any industry. Respond ONLY with valid JSON.",
     `Text (vacancy or CV):\n${text.slice(0, 4000)}\n\n` +
-      `Return JSON: {"skills":["8-15 normalized short names of skills/tools/technologies"]}`,
+      `Return JSON: {"skills":["8-15 normalized short names of skills/tools/technologies"]}\n\n` +
+      // Without these constraints the model pads the list with technologies that merely "go with"
+      // the ones it saw, which on a Vue/Nuxt posting means React and Angular. sanitizeSkills()
+      // below is the second line of defence for exactly that; this is the first.
+      `Rules: include ONLY skills the text itself explicitly mentions or requires — never infer ` +
+      `related, adjacent or "commonly paired" technologies, and never expand an abbreviation into ` +
+      `a different one. Prefer the spelling the text uses.`,
     SkillsSchema,
     { maxTokens: 400, temperature: 0.2, feature: "skill-extraction" },
   );
   const ai: string[] = (out?.skills ?? []).map((s) => s.trim()).filter(Boolean);
   if (!ai.length) return regex;
-  const skills = dedupe([...regex, ...ai]).slice(0, 25);
+  const skills = sanitizeSkills([...regex, ...ai], text).slice(0, 20);
   await setLlmCache(cacheKey, { skills });
   return skills;
 }

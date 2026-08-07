@@ -2,9 +2,20 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
-import { useContacts, useProfile, useUpdateVacancy } from "../../shared/queries";
-import { Btn, Segmented, Spinner } from "../../shared/ui";
-import { Markdown } from "../../shared/markdown";
+import {
+  useAddContact,
+  useCompanies,
+  useContacts,
+  useEnrichCompany,
+  useProfile,
+  useSaveCompany,
+  useUpdateContact,
+  useUpdateVacancy,
+} from "../../shared/queries";
+import { useToast } from "../../shared/use-toast";
+import { Btn, Segmented, Select, Spinner } from "../../shared/ui";
+import { StarIcon } from "../../shared/icons";
+import { useConfirm } from "../../shared/use-confirm";
 import { SkillsInput } from "../../shared/view-kit";
 import { STATUSES, type CvMatch, type Fit, type Vacancy, type VacancyStatus } from "../../shared/types";
 import { fitLabel, fitText } from "../../shared/fit-tone";
@@ -37,6 +48,56 @@ function vacancyJobText(v: Vacancy): string {
 export type Tab = "overview" | "cover" | "fit";
 
 /**
+ * The fields this modal edits as a LOCAL draft, committed only when the user presses Save.
+ *
+ * What stays outside it — status, fit, the two dates, the star, and the contact controls — are
+ * one-gesture state changes with no half-finished form to lose, and the status/date ones are the
+ * same controls the table row commits on the spot; an explicit Save there would only add a step.
+ * Everything a user builds up piece by piece is in the draft: free text (the old per-field onBlur
+ * autosave fired on any focus change and felt like it saved on every click — the same complaint
+ * that moved the Companies page to an explicit draft, commit b415fab), the tech stack, and the
+ * linked-company select. The last two are "picks" but still belong here: adding four skills or
+ * re-pointing the company and then hitting Cancel has to actually undo all of it.
+ */
+type VacancyDraft = Pick<
+  Vacancy,
+  "position" | "url" | "level" | "salary" | "notes" | "coverLetterDetails" | "coverLetter" | "company" | "companyId" | "stack"
+>;
+
+const DRAFT_FIELDS = [
+  "position",
+  "url",
+  "level",
+  "salary",
+  "notes",
+  "coverLetterDetails",
+  "coverLetter",
+  "company",
+  "companyId",
+  "stack",
+] as const;
+
+const draftOf = (v: Vacancy): VacancyDraft => ({
+  position: v.position,
+  url: v.url,
+  level: v.level,
+  salary: v.salary,
+  notes: v.notes,
+  coverLetterDetails: v.coverLetterDetails,
+  coverLetter: v.coverLetter,
+  // The company pair travels together: picking one in the select sets both, so the vacancy's own
+  // `company` string can never name a different row than `companyId` points at.
+  company: v.company,
+  companyId: v.companyId,
+  stack: v.stack,
+});
+
+/** Field-wise equality for the dirty check. `stack` is an array, so a plain !== would call the
+ * draft dirty the moment any refetch handed us a new (equal) array instance. */
+const sameFieldValue = (a: unknown, b: unknown) =>
+  Array.isArray(a) && Array.isArray(b) ? a.length === b.length && a.every((v, i) => v === b[i]) : a === b;
+
+/**
  * The "Jira issue"-style hub for one vacancy: click any vacancy (table row's index button, or a
  * Kanban card) to open this instead of hunting for the same functionality scattered across the
  * CV and CV Builder pages — cover-letter generation and skills-fit analysis, both scoped to THIS
@@ -55,48 +116,174 @@ export function VacancyDetailModal({
    * existing call site omits this and keeps the original default. */
   initialTab?: Tab;
 }) {
-  const { t } = useTranslation(["vacancies", "cv", "common"]);
+  const { t, i18n } = useTranslation(["vacancies", "cv", "common"]);
+  const { toast } = useToast();
   const { data: profile } = useProfile();
   const { data: contacts = [] } = useContacts();
+  const { data: companies = [] } = useCompanies();
   const updateMutation = useUpdateVacancy();
+  const saveCompanyMutation = useSaveCompany();
+  const enrichCompanyMutation = useEnrichCompany();
+  const linkContactMutation = useUpdateContact();
+  const addContactMutation = useAddContact();
+  const confirm = useConfirm();
   const [tab, setTab] = useState<Tab>(initialTab);
 
-  const [coverText, setCoverText] = useState("");
+  // Seeded once, on mount: this modal is remounted per vacancy (the table/Kanban render it only
+  // for the open row), so there's no "the prop changed under us" case to re-sync from — and not
+  // re-seeding is what keeps a Save-pending edit from being wiped by an unrelated refetch.
+  const [draft, setDraft] = useState<VacancyDraft>(() => draftOf(vacancy));
+  const [saving, setSaving] = useState(false);
+  const dirty = DRAFT_FIELDS.some((f) => !sameFieldValue(draft[f], vacancy[f]));
+  const patchDraft = (patch: Partial<VacancyDraft>) => setDraft((d) => ({ ...d, ...patch }));
+
   const [coverBusy, setCoverBusy] = useState(false);
   const [coverError, setCoverError] = useState(false);
+  const [coverCopied, setCoverCopied] = useState(false);
   const [match, setMatch] = useState<CvMatch | null>(null);
   const [matchBusy, setMatchBusy] = useState(false);
+  const [newContactName, setNewContactName] = useState("");
+  const [refreshBusy, setRefreshBusy] = useState(false);
+  // POST /companies upserts by name rather than returning the created/existing row's id (see
+  // useSaveCompany), so the "create company from this vacancy" quick-create can't get the new id
+  // straight out of the mutation result — it flags this instead, and the effect below picks the
+  // now-invalidated+refetched `companies` list back up once the matching name appears in it.
+  const [pendingCompanyLink, setPendingCompanyLink] = useState(false);
+
+  useEffect(() => {
+    if (!pendingCompanyLink) return;
+    const created = companies.find((c) => c.name === draft.company);
+    if (created) {
+      setPendingCompanyLink(false);
+      // The company row itself is created for real; only the vacancy's link to it is a draft edit.
+      patchDraft({ companyId: created.id });
+    }
+  }, [pendingCompanyLink, companies, draft.company]);
+
+  const save = () => {
+    if (!dirty) {
+      onClose();
+      return;
+    }
+    setSaving(true);
+    updateMutation.mutate({ id: vacancy.id, patch: draft }, { onSuccess: () => onClose(), onError: () => setSaving(false) });
+  };
+
+  /** Closing with a pending draft asks first — every other route out of this modal (Escape, the ✕,
+   * the backdrop, Cancel) goes through here, so there's no way to lose typed text by accident. */
+  const requestClose = async () => {
+    const confirmed =
+      !dirty ||
+      (await confirm({
+        title: t("detail.discardConfirmTitle"),
+        message: t("detail.discardConfirmMessage"),
+        confirmLabel: t("detail.discardConfirmAction"),
+      }));
+    if (!confirmed) return;
+    onClose();
+  };
 
   // Escape closes, same convention as the confirm dialog / every other overlay in this app.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") void requestClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onClose, dirty]);
 
-  const jobText = vacancyJobText(vacancy);
+  // Built from the draft, not the saved row: the LLM prompts below must describe the vacancy the
+  // user is looking at, including edits not yet committed.
+  const jobText = vacancyJobText({ ...vacancy, ...draft });
   const linkedContacts = contacts.filter((c) => c.vacancyId === vacancy.id);
+  const unlinkedContacts = contacts.filter((c) => c.vacancyId == null);
   const hasCvText = !!profile?.cvText?.trim();
 
+  // Generating/clearing the letter writes into the draft like any other edit to that textarea —
+  // the LLM call itself runs immediately, but Save is still what persists its result, so Cancel
+  // undoes a generation the user didn't want.
   const genCover = async () => {
     setCoverBusy(true);
     setCoverError(false);
     try {
-      setCoverText((await api.coverLetter(jobText, vacancy.company)).text);
+      const { text } = await api.coverLetter(jobText, draft.company, draft.coverLetterDetails);
+      patchDraft({ coverLetter: text });
     } catch {
       setCoverError(true);
     } finally {
       setCoverBusy(false);
     }
   };
+  const clearCover = async () => {
+    if (!(await confirm({ title: t("detail.deleteCoverConfirmTitle"), message: t("detail.deleteCoverConfirmMessage") }))) return;
+    patchDraft({ coverLetter: "" });
+  };
   const genMatch = async () => {
     setMatchBusy(true);
     try {
-      setMatch(await api.matchVacancy(profile?.cvText ?? "", vacancy.position, jobText));
+      setMatch(await api.matchVacancy(profile?.cvText ?? "", draft.position, jobText));
     } finally {
       setMatchBusy(false);
+    }
+  };
+
+  /**
+   * Re-reads the posting behind this vacancy's link and fills in what's still missing — the
+   * single-vacancy counterpart of the Analyzer's "re-parse everything" job, which was previously
+   * the only way to refresh an already-saved row from its source.
+   *
+   * Strictly additive: an empty field gets the parsed value, a field the user already filled is
+   * left exactly as it is, and the stack is merged rather than replaced. A refresh must never be
+   * able to destroy something typed by hand — that's also why the linked company is enriched
+   * through api.enrichCompany (which only fills blanks) instead of the overwriting POST /companies.
+   * "Already filled" is judged against the DRAFT, not the saved row, so a value the user has just
+   * typed but not yet saved is protected too.
+   */
+  const refreshFromUrl = async () => {
+    if (!draft.url) return;
+    setRefreshBusy(true);
+    try {
+      const details = await api.fetchVacancyDetails(draft.url);
+      // Everything parsed lands in the draft — a refresh proposes changes, Save is still what
+      // commits them, exactly as if they'd been typed or picked by hand.
+      const draftPatch: Partial<VacancyDraft> = {};
+      if (!draft.position.trim() && details.position) draftPatch.position = details.position;
+      if (!draft.level.trim() && details.level) draftPatch.level = details.level;
+      if (!draft.salary.trim() && details.salary) draftPatch.salary = details.salary;
+      if (!draft.notes.trim() && details.notes) draftPatch.notes = details.notes;
+      if (!draft.company.trim() && details.company) draftPatch.company = details.company;
+
+      const known = new Set(draft.stack.map((s) => s.toLowerCase()));
+      const newSkills = details.stack.filter((s) => !known.has(s.toLowerCase()));
+      if (newSkills.length) draftPatch.stack = [...draft.stack, ...newSkills];
+
+      // The company ROW is created/enriched for real here (that's the point of the refresh) —
+      // only the vacancy's link to it waits for Save, like the select does.
+      const companyName = (draftPatch.company ?? draft.company).trim();
+      if (!draft.companyId && companyName) {
+        try {
+          const row = await enrichCompanyMutation.mutateAsync({
+            name: companyName,
+            notes: details.companyNotes,
+            website: details.companyWebsite,
+            questions: details.companyQuestions,
+          });
+          if (row.id) draftPatch.companyId = row.id;
+        } catch {
+          /* the mutation's own error toast already fired — the rest of the refresh still applies */
+        }
+      }
+
+      if (Object.keys(draftPatch).length === 0) {
+        toast(t("detail.refreshNothingNew"), "info");
+        return;
+      }
+      patchDraft(draftPatch);
+    } catch {
+      toast(t("detail.refreshFailed"), "error");
+    } finally {
+      setRefreshBusy(false);
     }
   };
 
@@ -108,7 +295,7 @@ export function VacancyDetailModal({
 
   return createPortal(
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
-    <div className="fixed inset-0 z-[65] flex items-center justify-center bg-ink/50 p-3 md:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-[65] flex items-center justify-center bg-ink/50 p-3 md:p-6" onClick={() => void requestClose()}>
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
       <div
         role="dialog"
@@ -117,61 +304,125 @@ export function VacancyDetailModal({
         onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-xl bg-surface border border-grid shadow-lg flex flex-col"
       >
-        {/* Header — every field here is the same onBlur/onChange-commits-immediately convention
-            as the table row (see updateMutation.mutate calls below): editing here is exactly as
-            authoritative as editing there, same mutation, same cache. */}
+        {/* Header — the text fields are draft state (see VacancyDraft), committed by the footer's
+            Save; the star and the linked-company select commit on the spot. */}
         <div className="flex items-start gap-3 px-5 pt-5 pb-3 border-b border-surface-2">
           <div className="min-w-0 flex-1 space-y-1">
             <input
-              key={`position-${vacancy.id}`}
-              defaultValue={vacancy.position}
-              onBlur={(e) => updateMutation.mutate({ id: vacancy.id, patch: { position: e.target.value } })}
+              value={draft.position}
+              onChange={(e) => patchDraft({ position: e.target.value })}
               placeholder={t("detail.untitled")}
               aria-label={t("detail.positionAriaLabel")}
               className="w-full font-display text-lg font-bold text-ink bg-transparent outline-none focus:ring-1 focus:ring-signal/40 rounded px-1 -mx-1"
             />
-            <input
-              key={`company-${vacancy.id}`}
-              defaultValue={vacancy.company}
-              onBlur={(e) => updateMutation.mutate({ id: vacancy.id, patch: { company: e.target.value } })}
-              placeholder={t("detail.companyAriaLabel")}
-              aria-label={t("detail.companyAriaLabel")}
-              className="w-full text-sm text-ink-dim bg-transparent outline-none focus:ring-1 focus:ring-signal/40 rounded px-1 -mx-1"
-            />
+            {/* The select IS the company field — no separate name line above it, which only
+                repeated whatever it already shows. Free-text editing is gone for good: it used to
+                let a vacancy carry a name matching no company (and silently diverge from the
+                linked one after a rename). Companies are created up front in VacancyCreateModal,
+                and renaming one is the Companies page's job. */}
+            <div className="flex items-center gap-1.5 pt-0.5">
+              <div className="min-w-0 max-w-[65%]">
+                <Select
+                  value={draft.companyId ?? ""}
+                  onChange={(e) => {
+                    const companyId = e.target.value ? Number(e.target.value) : null;
+                    // Linking also adopts that company's name, so `company` (used by the
+                    // cover-letter prompt, the table and every aria-label) can't drift from the
+                    // row it points at. Unlinking leaves the name alone — it's the only thing
+                    // left identifying the employer.
+                    const picked = companyId == null ? undefined : companies.find((c) => c.id === companyId);
+                    patchDraft({ companyId, ...(picked ? { company: picked.name } : {}) });
+                  }}
+                  aria-label={t("detail.companyLinkAriaLabel")}
+                  className="w-full !bg-surface-2 !pl-1.5 !py-1 !text-xs !text-ink-dim"
+                >
+                  <option value="">{t("detail.companyLinkNone")}</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              {!draft.companyId && draft.company.trim() && (
+                <Btn
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  loading={saveCompanyMutation.isPending || pendingCompanyLink}
+                  onClick={() => {
+                    const name = draft.company.trim();
+                    if (!name) return;
+                    saveCompanyMutation.mutate({ name, notes: "", questions: [] }, { onSuccess: () => setPendingCompanyLink(true) });
+                  }}
+                  className="shrink-0 !px-2 !py-1 !text-[11px]"
+                >
+                  {t("detail.createCompanyFromField")}
+                </Btn>
+              )}
+            </div>
             <div className="flex items-center gap-1.5 pt-0.5">
               <input
-                key={`url-${vacancy.id}`}
                 type="url"
-                defaultValue={vacancy.url}
-                onBlur={(e) => updateMutation.mutate({ id: vacancy.id, patch: { url: e.target.value } })}
+                value={draft.url}
+                onChange={(e) => patchDraft({ url: e.target.value })}
                 placeholder={t("table.vacancyLinkPlaceholder")}
                 aria-label={t("table.vacancyLinkAriaLabel", { company: vacancy.company })}
                 className="flex-1 min-w-0 text-xs text-signal bg-transparent outline-none focus:ring-1 focus:ring-signal/40 rounded px-1 -mx-1"
               />
-              {vacancy.url && (
-                <a
-                  href={vacancy.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  title={t("detail.openOriginal")}
-                  aria-label={t("detail.openOriginal")}
-                  className="shrink-0 text-signal text-xs hover:opacity-80"
-                >
-                  ↗
-                </a>
+              {draft.url && (
+                <>
+                  <Btn
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    loading={refreshBusy}
+                    onClick={refreshFromUrl}
+                    title={t("detail.refreshFromUrlHint")}
+                    className="shrink-0 !px-2 !py-1 !text-[11px]"
+                  >
+                    {t("detail.refreshFromUrl")}
+                  </Btn>
+                  <a
+                    href={draft.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={t("detail.openOriginal")}
+                    aria-label={t("detail.openOriginal")}
+                    className="shrink-0 text-signal text-xs hover:opacity-80"
+                  >
+                    ↗
+                  </a>
+                </>
               )}
             </div>
+            {vacancy.created && (
+              <div className="text-[11px] text-ink-dim">
+                {t("detail.createdLabel", { date: new Date(vacancy.created).toLocaleDateString(i18n.language) })}
+              </div>
+            )}
           </div>
-          {/* One shared updateMutation backs every field below (header/metadata/stack/notes) — a
-              single indicator here covers all of them rather than repeating it per field. */}
-          {updateMutation.isPending && (
+          {/* One shared updateMutation backs every immediate field here (status/fit/dates/star) —
+              a single indicator covers all of them rather than repeating it per field. The draft's
+              own Save has its own spinner, in the footer button. */}
+          {updateMutation.isPending && !saving && (
             <div className="shrink-0 flex items-center gap-1 text-[11px] text-signal">
               <Spinner className="h-3 w-3" /> {t("common:state.saving")}
             </div>
           )}
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => updateMutation.mutate({ id: vacancy.id, patch: { favorite: !vacancy.favorite } })}
+            title={vacancy.favorite ? t("favorite.removeTitle") : t("favorite.addTitle")}
+            aria-label={t(vacancy.favorite ? "favorite.removeAriaLabel" : "favorite.addAriaLabel", { company: vacancy.company })}
+            aria-pressed={vacancy.favorite}
+            className={`shrink-0 rounded-lg p-1 -m-1 hover:bg-surface-2 ${vacancy.favorite ? "text-amber-400 hover:text-amber-500" : "text-ink-dim hover:text-amber-400"}`}
+          >
+            <StarIcon className="h-4 w-4" fill={vacancy.favorite ? "currentColor" : "none"} />
+          </button>
+          <button
+            type="button"
+            onClick={() => void requestClose()}
             aria-label={t("common:actions.close")}
             className="shrink-0 text-ink-dim hover:text-ink text-lg leading-none p-1 -m-1 rounded-lg hover:bg-surface-2"
           >
@@ -205,16 +456,15 @@ export function VacancyDetailModal({
             <option value="low">{fitLabel("low")}</option>
           </select>
           <input
-            key={`level-${vacancy.id}`}
-            defaultValue={vacancy.level}
-            onBlur={(e) => updateMutation.mutate({ id: vacancy.id, patch: { level: e.target.value } })}
+            value={draft.level}
+            onChange={(e) => patchDraft({ level: e.target.value })}
             placeholder={t("detail.levelPlaceholder")}
             aria-label={t("detail.levelAriaLabel")}
             className="bg-surface border border-grid rounded px-2 py-1 text-xs w-20 outline-none focus:ring-1 focus:ring-signal/40"
           />
           <input
-            defaultValue={vacancy.salary}
-            onBlur={(e) => updateMutation.mutate({ id: vacancy.id, patch: { salary: e.target.value } })}
+            value={draft.salary}
+            onChange={(e) => patchDraft({ salary: e.target.value })}
             placeholder={t("table.salaryPlaceholder")}
             aria-label={t("table.salaryAriaLabel", { company: vacancy.company })}
             className="bg-surface border border-grid rounded px-2 py-1 text-xs w-24 outline-none focus:ring-1 focus:ring-signal/40"
@@ -243,8 +493,8 @@ export function VacancyDetailModal({
         <div className="px-5 py-3 border-b border-surface-2">
           <SkillsInput
             label={t("detail.stackLabel")}
-            skills={vacancy.stack}
-            onChange={(stack) => updateMutation.mutate({ id: vacancy.id, patch: { stack } })}
+            skills={draft.stack}
+            onChange={(stack) => patchDraft({ stack })}
             placeholder={t("detail.stackPlaceholder")}
           />
         </div>
@@ -260,8 +510,8 @@ export function VacancyDetailModal({
               <div>
                 <div className="text-xs font-semibold text-ink-dim mb-1">{t("detail.notesLabel")}</div>
                 <textarea
-                  defaultValue={vacancy.notes}
-                  onBlur={(e) => updateMutation.mutate({ id: vacancy.id, patch: { notes: e.target.value } })}
+                  value={draft.notes}
+                  onChange={(e) => patchDraft({ notes: e.target.value })}
                   placeholder={t("detail.notesPlaceholder")}
                   className="w-full h-24 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
                 />
@@ -283,24 +533,106 @@ export function VacancyDetailModal({
                     ))}
                   </div>
                 )}
+                <div className="flex items-center gap-1.5 mt-2">
+                  <div className="min-w-0 flex-1">
+                    <Select
+                      value=""
+                      onChange={(e) =>
+                        e.target.value && linkContactMutation.mutate({ id: Number(e.target.value), patch: { vacancyId: vacancy.id } })
+                      }
+                      disabled={unlinkedContacts.length === 0}
+                      aria-label={t("detail.linkContactAriaLabel")}
+                      className="w-full !bg-surface-2 !pl-1.5 !py-1 !text-[11px] !text-ink-dim"
+                    >
+                      <option value="">
+                        {unlinkedContacts.length === 0 ? t("detail.noUnlinkedContacts") : t("detail.linkContactNone")}
+                      </option>
+                      {unlinkedContacts.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <input
+                    value={newContactName}
+                    onChange={(e) => setNewContactName(e.target.value)}
+                    placeholder={t("detail.newContactPlaceholder")}
+                    aria-label={t("detail.newContactPlaceholder")}
+                    className="min-w-0 flex-1 bg-surface-2 border border-grid rounded px-1.5 py-1 text-[11px] outline-none focus:ring-1 focus:ring-signal/40"
+                  />
+                  <Btn
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    loading={addContactMutation.isPending}
+                    disabled={!newContactName.trim()}
+                    onClick={() => {
+                      const name = newContactName.trim();
+                      if (!name) return;
+                      addContactMutation.mutate({ name, vacancyId: vacancy.id }, { onSuccess: () => setNewContactName("") });
+                    }}
+                    className="shrink-0 !px-2 !py-1 !text-[11px]"
+                  >
+                    {t("detail.addContact")}
+                  </Btn>
+                </div>
               </div>
             </div>
           )}
 
           {tab === "cover" && (
             <div className="space-y-3">
-              <Btn size="sm" loading={coverBusy} onClick={genCover}>
-                {coverText ? t("detail.regenerate") : t("cv:cvPage.generateLetter")}
-              </Btn>
+              <div>
+                <div className="text-xs font-semibold text-ink-dim mb-1">{t("detail.coverDetailsLabel")}</div>
+                <textarea
+                  value={draft.coverLetterDetails}
+                  onChange={(e) => patchDraft({ coverLetterDetails: e.target.value })}
+                  placeholder={t("detail.coverDetailsPlaceholder")}
+                  className="w-full h-16 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+                />
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Btn size="sm" loading={coverBusy} onClick={genCover}>
+                  {draft.coverLetter ? t("detail.regenerate") : t("cv:cvPage.generateLetter")}
+                </Btn>
+                {draft.coverLetter && (
+                  <>
+                    <Btn
+                      size="sm"
+                      variant="ghost"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(draft.coverLetter);
+                        setCoverCopied(true);
+                        setTimeout(() => setCoverCopied(false), 2000);
+                      }}
+                    >
+                      {coverCopied ? t("cv:shared.copied") : t("cv:shared.copy")}
+                    </Btn>
+                    <Btn size="sm" variant="ghost" onClick={clearCover}>
+                      {t("common:actions.delete")}
+                    </Btn>
+                  </>
+                )}
+              </div>
               {coverError && <div className="text-xs text-rose-600">{t("common:errors.generic")}</div>}
-              {!coverText && !coverBusy && !coverError && <div className="text-sm text-ink-dim">{t("detail.coverEmptyHint")}</div>}
-              {coverText && <Markdown text={coverText} className="text-sm text-ink space-y-2 bg-surface-2 rounded-lg p-3" />}
+              {!draft.coverLetter && !coverBusy && !coverError && <div className="text-sm text-ink-dim">{t("detail.coverEmptyHint")}</div>}
+              {(draft.coverLetter || coverBusy) && (
+                <textarea
+                  value={draft.coverLetter}
+                  onChange={(e) => patchDraft({ coverLetter: e.target.value })}
+                  placeholder={t("detail.coverPlaceholder")}
+                  className="w-full h-40 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-signal/50"
+                />
+              )}
             </div>
           )}
 
           {tab === "fit" && (
             <div className="space-y-3">
-              <Btn size="sm" loading={matchBusy} onClick={genMatch} disabled={!hasCvText}>
+              {/* No `loading` on the button: the analysis already has its own spinner row below,
+                  and two spinners for one request read as two things happening. */}
+              <Btn size="sm" onClick={genMatch} disabled={!hasCvText || matchBusy}>
                 {match ? t("detail.regenerate") : t("detail.generateFit")}
               </Btn>
               {!hasCvText && <div className="text-xs text-ink-dim">{t("detail.noCvHint")}</div>}
@@ -313,6 +645,19 @@ export function VacancyDetailModal({
               {match && <CvMatchPanel match={match} />}
             </div>
           )}
+        </div>
+
+        {/* Sticky footer: the draft fields (see VacancyDraft) only reach the server from here.
+            It stays visible while the body scrolls, so a long notes/cover-letter edit never
+            leaves Save off-screen. */}
+        <div className="sticky bottom-0 flex items-center justify-end gap-2 px-5 py-3 border-t border-surface-2 bg-surface">
+          {dirty && <div className="mr-auto text-[11px] text-ink-dim">{t("detail.unsavedChanges")}</div>}
+          <Btn variant="ghost" onClick={() => void requestClose()} disabled={saving}>
+            {t("common:actions.cancel")}
+          </Btn>
+          <Btn onClick={save} loading={saving}>
+            {t("common:actions.save")}
+          </Btn>
         </div>
       </div>
     </div>,

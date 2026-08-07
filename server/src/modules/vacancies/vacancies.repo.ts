@@ -27,6 +27,10 @@ const VACANCY_COLUMNS = {
   notes: vacancies.notes,
   stack: vacancies.stack,
   created: vacancies.created,
+  companyId: vacancies.companyId,
+  favorite: vacancies.favorite,
+  coverLetter: vacancies.coverLetter,
+  coverLetterDetails: vacancies.coverLetterDetails,
 };
 
 export async function listVacancies(userId: UserId, page?: { limit: number; offset: number }): Promise<VacancyRow[]> {
@@ -90,6 +94,16 @@ export interface NewVacancy {
   next: string;
   notes: string;
   stack: string[];
+  /** Optional — omitted defaults to NULL (the column has no other default). Optional here (unlike
+   * VacancyRow's required field) so existing call sites/tests that predate the company link don't
+   * all need updating just to pass `null` explicitly. */
+  companyId?: number | null;
+  /** Optional — omitted defaults to the column's own DEFAULT false (same reasoning as companyId
+   * above: existing call sites/tests that predate favorites don't all need updating). */
+  favorite?: boolean;
+  /** Optional — omitted defaults to the column's own DEFAULT '' (same reasoning as favorite above). */
+  coverLetter?: string;
+  coverLetterDetails?: string;
 }
 
 export async function createVacancy(userId: UserId, b: NewVacancy): Promise<number> {
@@ -145,6 +159,11 @@ export interface VacancyUpdate {
   next: string;
   notes: string;
   stack: string[];
+  /** Optional — see NewVacancy's own comment on why this isn't required like VacancyRow's field. */
+  companyId?: number | null;
+  favorite?: boolean;
+  coverLetter?: string;
+  coverLetterDetails?: string;
 }
 
 export async function updateVacancy(userId: UserId, id: number | string, m: VacancyUpdate): Promise<void> {
@@ -174,6 +193,22 @@ export async function updateVacancyEnrichment(
     .update(vacancies)
     .set(e)
     .where(and(eq(vacancies.userId, userId), eq(vacancies.id, numId)));
+}
+
+/** Fills in company/position guessed after the fact for a generic-link bulk import (see
+ * vacancies.routes.ts's POST /vacancies/import and vacancy-analysis.service.ts's
+ * extractTitleCompany) — unlike a DOU export, those links don't encode either field, so the row
+ * is first created with placeholders and only patched here if the best-effort guess succeeded. */
+export async function updateVacancyImportedTitle(
+  userId: UserId,
+  id: number,
+  title: { company?: string; position?: string },
+): Promise<void> {
+  if (!title.company && !title.position) return;
+  await db
+    .update(vacancies)
+    .set(title)
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, id)));
 }
 
 export async function deleteVacancy(userId: UserId, id: number | string): Promise<number> {

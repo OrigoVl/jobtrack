@@ -23,7 +23,7 @@ A full-featured, lightweight full-stack app: **analyzes job postings and CVs, su
 - **📄 CV** — analysis against market demand, a Skills generator, cover letters (manual text / picked from the tracker / auto-fetched from a link), a CV Builder with a live preview, PDF export, and **multiple named CV profiles** (up to 5, tab strip) — each with its own layout/theme presets and its own public share link.
 - **🔗 Public CV link** — a shareable, no-login resume page per CV profile (enable/disable, regenerate the slug any time).
 - **🏢 Companies** — notes, a bank of "what they asked here" questions, and an AI-assisted org-chart diagram.
-- **🧑‍🤝‍🧑 Contacts** — a lightweight networking tracker (recruiters/interviewers), optionally linked to a company/vacancy, with AI-drafted outreach/follow-up messages.
+- **🧑‍🤝‍🧑 Contacts** — a lightweight networking tracker (recruiters/interviewers), optionally linked to a company/vacancy, with AI-drafted outreach/follow-up messages. **Contact enrichment**: search Hunter.io/Apollo.io/Snov.io (when configured) for recruiter contacts at a company by domain, with a keyless email-pattern-guess + LinkedIn-search-link fallback when no provider is configured — save any result as a Contact with one click.
 - **📅 Calendar** — a unified view of interviews/deadlines/reminders (manual entries + vacancy next-steps + SRS due-cards), with optional browser notifications.
 - **📬 Job alerts** — saved searches (query + region) re-run on a schedule, emailing you newly-appeared postings.
 - **📧 Weekly digest** — an opt-in email summary (stale applications, study streak, upcoming interviews).
@@ -169,7 +169,9 @@ Dependabot (`.github/dependabot.yml`) proposes npm/Docker/Actions updates weekly
 - The JS sandbox for drill practice (`study/runner.ts`) runs in an isolated Web Worker with a hard timeout — not on the main thread.
 - The Docker image runs the process as an unprivileged user.
 
-**Authentication (better-auth).** Email+password (with required email verification) and Google OAuth. Every table is scoped by `user_id` (a real FK to the `user` table, `ON DELETE CASCADE`) — see "Multi-tenancy migration" below for what's still open. Without `RESEND_API_KEY` configured, verification/reset-password emails are logged instead of sent (see `server/.env.example`), so local dev needs no email provider to exercise the full flow.
+**Authentication (better-auth).** Email+password (with required email verification), Google OAuth, and LinkedIn OAuth (Sign In with LinkedIn using OpenID Connect — name/email/avatar only; LinkedIn's OIDC scopes don't expose headline/experience/skills, so this is sign-in only, not a profile importer). Every table is scoped by `user_id` (a real FK to the `user` table, `ON DELETE CASCADE`) — see "Multi-tenancy migration" below for what's still open. Without `RESEND_API_KEY` configured, verification/reset-password emails are logged instead of sent (see `server/.env.example`), so local dev needs no email provider to exercise the full flow.
+
+**Contact enrichment.** `POST /api/contacts/enrich` fans out to Hunter.io/Apollo.io/Snov.io (each an optional, operator-held API key — `server/.env.example`) plus an always-on keyless fallback (deterministic email-pattern guessing + a plain LinkedIn people-search link, no scraping). Results are cached server-side for 7 days (`enrichment_cache`, deliberately separate from the 90-day `llm_cache` — see its schema comment) and a per-account daily cap (`CONTACT_ENRICH_DAILY_LOOKUPS`) limits paid-provider spend; the same `aiLimiter` used by AI endpoints also gates it. Apollo's locked/placeholder emails are revealed via a second paid call, `POST /api/contacts/enrich/reveal`. **Note:** these providers license contact data to the API key holder — jobtrack uses a single operator-held key per provider rather than per-user keys, which is a known ToS/redistribution consideration (see the comment atop `server/src/modules/contacts/enrichment/enrichment-providers.ts`).
 
 ## Architecture
 
@@ -187,7 +189,7 @@ jobtrack/
 │       ├── routes.ts        # aggregates all modules/*/*.routes.ts into a single Router
 │       ├── config/env.ts    # single typed access point for process.env
 │       ├── core/            # http (HttpError/asyncHandler, authed()/requireAdmin()), logger, error-handler
-│       ├── auth/             # better-auth instance (email+password, Google OAuth, admin plugin), email sending
+│       ├── auth/             # better-auth instance (email+password, Google/LinkedIn OAuth, admin plugin), email sending
 │       ├── db/               # Postgres client (migrate-on-boot), schema/ (Drizzle), kv, bootstrap, llm-cache
 │       ├── llm/              # OpenAI/Anthropic client with graceful fallback + response cache + cost estimation (pricing.ts)
 │       ├── telemetry/        # fire-and-forget llm_usage/product_events inserts (see admin module)

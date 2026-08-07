@@ -260,6 +260,7 @@ export function CVView({ llm }: { llm: boolean }) {
   const [coverVacId, setCoverVacId] = useUi<number>("cv.coverVacId", 0);
   const [coverUrl, setCoverUrl] = useUi("cv.coverUrl", "");
   const [busy, setBusy] = useState("");
+  const [coverCopied, setCoverCopied] = useState(false);
   // Analysis/review get their own busy flags (not the shared `busy` string above) so their
   // buttons' loading spinners can't be stolen/cleared by an unrelated concurrent action — and a
   // single `activeReport` tab so running the second AI check never visually "buries"/closes the
@@ -535,6 +536,19 @@ export function CVView({ llm }: { llm: boolean }) {
             <Btn size="sm" variant="ghost" onClick={genCover} loading={busy === "cover"} disabled={!vacText.trim()}>
               {t("cvPage.generateLetter")}
             </Btn>
+            {cover && (
+              <Btn
+                size="sm"
+                variant="ghost"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(cover);
+                  setCoverCopied(true);
+                  setTimeout(() => setCoverCopied(false), 2000);
+                }}
+              >
+                {coverCopied ? t("shared.copied") : t("shared.copy")}
+              </Btn>
+            )}
             {cover && (
               <Btn size="sm" variant="ghost" onClick={() => exportPdf(t("cvPage.coverLetterPdfTitle"), cover)}>
                 {t("shared.pdfButton")}

@@ -25,6 +25,26 @@ export function useSaveCompany() {
   });
 }
 
+/**
+ * Creates (or fills in the blanks of) the company auto-derived from a vacancy link, resolving to
+ * the row itself so the caller can immediately link the vacancy to it via its id.
+ *
+ * No success toast, unlike useSaveCompany: this only ever runs as one step of a larger action the
+ * user took ("autofill from link", "refresh from link"), which reports its own result — a second
+ * "Saved" toast for an intermediate step would just be noise.
+ */
+export function useEnrichCompany() {
+  const qc = useQueryClient();
+  const onError = useMutationErrorToast();
+  return useMutation({
+    mutationFn: (c: Partial<Company>) => api.enrichCompany(c),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: queryKeys.companies });
+    },
+    onError,
+  });
+}
+
 // Used to save edits to an EXISTING company (notes/questions, and the name itself) — unlike
 // useSaveCompany's POST (which upserts by name and would silently create a duplicate row instead
 // of renaming), this PUTs by id so a name change actually renames the row.

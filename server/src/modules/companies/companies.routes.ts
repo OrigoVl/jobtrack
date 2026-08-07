@@ -1,7 +1,14 @@
 import express from "express";
 import { authed, HttpError } from "../../core/http.js";
 import { parseCompanyInput } from "../../shared/validation.js";
-import { deleteCompany, findCompanyByName, listCompanies, updateCompany, upsertCompany } from "./companies.repo.js";
+import {
+  deleteCompany,
+  findCompanyByName,
+  listCompanies,
+  updateCompany,
+  upsertCompany,
+  upsertCompanyEnrichment,
+} from "./companies.repo.js";
 
 const r = express.Router();
 
@@ -18,6 +25,18 @@ r.post(
     const b = parseCompanyInput(req.body);
     await upsertCompany(userId, b);
     res.json({ ok: true });
+  }),
+);
+
+// Auto-created-from-a-vacancy-link sibling of POST /companies above — same body, but it never
+// overwrites notes/questions/website a user already filled in, and it returns the row so the
+// caller can link the vacancy to it (POST /companies deliberately keeps its `{ok:true}` shape).
+// Declared before "/companies/:id" is irrelevant here (that one is PUT/DELETE only), but it stays
+// above them anyway so a future POST /companies/:id can't quietly shadow this path.
+r.post(
+  "/companies/enrich",
+  authed(async (userId, req, res) => {
+    res.json(await upsertCompanyEnrichment(userId, parseCompanyInput(req.body)));
   }),
 );
 

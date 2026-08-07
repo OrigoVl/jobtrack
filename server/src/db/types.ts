@@ -26,6 +26,10 @@ export interface VacancyRow {
   notes: string;
   stack: string[];
   created: string;
+  companyId: number | null;
+  favorite: boolean;
+  coverLetter: string;
+  coverLetterDetails: string;
 }
 
 export interface SrsRow {

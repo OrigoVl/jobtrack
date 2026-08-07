@@ -35,6 +35,8 @@ import type {
   DigestPreferences,
   Drill,
   DrillArchiveEntry,
+  EnrichmentQueryInput,
+  EnrichmentResult,
   FetchAllJobState,
   FocusWeek,
   JobSearchResult,
@@ -57,6 +59,7 @@ import type {
   SimilarVacancy,
   StudyState,
   Vacancy,
+  VacancyDetails,
 } from "./types";
 import i18n from "../i18n";
 
@@ -117,7 +120,7 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
 
 export const api = {
   health: () => req<{ ok: boolean; db: boolean; llm: boolean }>("/health"),
-  authConfig: () => req<{ googleEnabled: boolean }>("/auth-config"),
+  authConfig: () => req<{ googleEnabled: boolean; linkedinEnabled: boolean }>("/auth-config"),
 
   vacancies: () => req<Vacancy[]>("/vacancies"),
   addVacancy: (v: Partial<Vacancy>) =>
@@ -128,6 +131,7 @@ export const api = {
   updateVacancy: (id: number, v: Partial<Vacancy>) => req<Vacancy>(`/vacancies/${id}`, { method: "PUT", body: JSON.stringify(v) }),
   deleteVacancy: (id: number) => req<{ ok: boolean }>(`/vacancies/${id}`, { method: "DELETE" }),
   analyzeVacancy: (text: string) => req<AnalyzeResult>("/vacancies/analyze", { method: "POST", body: JSON.stringify({ text }) }),
+  fetchVacancyDetails: (url: string) => req<VacancyDetails>("/vacancies/fetch-details", { method: "POST", body: JSON.stringify({ url }) }),
   importVacancies: (html: string) =>
     req<{
       added: number;
@@ -251,13 +255,17 @@ export const api = {
 
   companies: () => req<Company[]>("/companies"),
   saveCompany: (c: Partial<Company>) => req<{ ok: boolean }>("/companies", { method: "POST", body: JSON.stringify(c) }),
+  /** Upserts a company auto-derived from a vacancy link, returning the row so the caller can link
+   * the vacancy to it. Unlike saveCompany, it never overwrites notes/questions/website the user
+   * already filled in — see upsertCompanyEnrichment on the server. */
+  enrichCompany: (c: Partial<Company>) => req<Company>("/companies/enrich", { method: "POST", body: JSON.stringify(c) }),
   updateCompany: (id: number, c: Partial<Company>) => req<Company>(`/companies/${id}`, { method: "PUT", body: JSON.stringify(c) }),
   deleteCompany: (id: number) => req<{ ok: boolean; deleted: number }>(`/companies/${id}`, { method: "DELETE" }),
 
-  coverLetter: (vacancyText: string, company: string) =>
+  coverLetter: (vacancyText: string, company: string, details?: string) =>
     req<{ text: string; offline?: boolean }>("/llm/cover-letter", {
       method: "POST",
-      body: JSON.stringify({ vacancyText, company }),
+      body: JSON.stringify({ vacancyText, company, details }),
     }),
 
   evaluateMock: (question: string, answer: string, reference: string) =>
@@ -316,6 +324,12 @@ export const api = {
   deleteContact: (id: number) => req<{ ok: boolean; deleted: number }>(`/contacts/${id}`, { method: "DELETE" }),
   contactOutreach: (id: number, kind: "intro" | "followup") =>
     req<OutreachResult>(`/contacts/${id}/outreach`, { method: "POST", body: JSON.stringify({ kind }) }),
+  enrichContacts: (q: EnrichmentQueryInput) => req<EnrichmentResult>("/contacts/enrich", { method: "POST", body: JSON.stringify(q) }),
+  revealContactEmail: (provider: string, revealId: string) =>
+    req<{ email: string; emailStatus: "verified" | "locked" }>("/contacts/enrich/reveal", {
+      method: "POST",
+      body: JSON.stringify({ provider, revealId }),
+    }),
 
   cvShare: (profileId: number) => req<CvShare | null>(`/cv/profiles/${profileId}/share`),
   generateCvShare: (profileId: number) => req<CvShare>(`/cv/profiles/${profileId}/share`, { method: "POST" }),

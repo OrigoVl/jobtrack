@@ -20,6 +20,9 @@ export type VacancyStatus = (typeof STATUSES)[number];
 export interface Vacancy {
   id: number;
   company: string;
+  /** Linked company record (see shared/queries/companies.ts), or null — a plain free-text
+   * `company` name with no first-class Company row behind it. */
+  companyId: number | null;
   position: string;
   level: string;
   salary: string;
@@ -31,6 +34,9 @@ export interface Vacancy {
   notes: string;
   stack: string[];
   created?: string;
+  favorite: boolean;
+  coverLetter: string;
+  coverLetterDetails: string;
 }
 
 /** GET /vacancies/:id/similar — see server/src/modules/vacancies/vacancies.repo.ts#findSimilarVacancies. */
@@ -293,6 +299,9 @@ export interface Company {
   name: string;
   notes: string;
   questions: string[];
+  /** Bare host (e.g. "acme.com"), or "" if unset — server-side `parseCompanyInput` normalizes a
+   * bare domain or full URL, so the client sends whatever the user typed as-is. */
+  website: string;
 }
 
 // `relevance`/`matchedTechs`/`gapTechs` are computed server-side (resources.service.ts) against
@@ -354,6 +363,24 @@ export interface AnalyzeResult {
   fit: Fit;
   /** Cosine similarity of CV↔vacancy embeddings, [0,1]. null — embeddings unavailable (non-OpenAI/no CV). */
   semanticFit: number | null;
+}
+
+/** POST /vacancies/fetch-details — best-effort everything-we-can-read for one vacancy link,
+ * powering the "+ Add vacancy" modal's "autofill from link" action and the detail modal's "refresh
+ * from link". Every field is a best-effort guess and may come back empty/"" — never an error, see
+ * fetchVacancyDetails on the server. The `company*` fields describe the EMPLOYER (for creating and
+ * linking a `companies` row) and are only populated when an LLM key is configured. */
+export interface VacancyDetails {
+  company: string;
+  position: string;
+  level: string;
+  salary: string;
+  stack: string[];
+  fit: Fit;
+  notes: string;
+  companyNotes: string;
+  companyWebsite: string;
+  companyQuestions: string[];
 }
 
 export interface CvAnalysis {
@@ -702,6 +729,42 @@ export interface ContactInput {
   linkedinUrl: string;
   notes: string;
   lastContactAt: string;
+}
+
+export interface EnrichmentQueryInput {
+  companyId?: number;
+  companyName: string;
+  domain?: string;
+  titles?: string[];
+  personName?: string;
+  limit?: number;
+}
+
+export interface EnrichedPerson {
+  name: string;
+  title: string;
+  /** "" if locked/not returned. */
+  email: string;
+  emailStatus: "verified" | "unverified" | "guessed" | "locked";
+  /** "" if absent. */
+  linkedinUrl: string;
+  companyName: string;
+  /** Provider display name, e.g. "Hunter.io", "Pattern guess" — attribution, never translate. */
+  source: string;
+  /** 0..100 */
+  confidence: number;
+  /** Non-"" only for Apollo rows with emailStatus "locked" — pass to the reveal endpoint. */
+  revealId: string;
+}
+
+export interface EnrichmentResult {
+  query: { companyName: string; domain: string; titles: string[] };
+  results: EnrichedPerson[];
+  providers: { name: string; used: boolean; cached: boolean; count: number }[];
+  /** true = only the keyless pattern-guess fallback contributed. */
+  offline: boolean;
+  /** true = daily paid-lookup cap hit today, keyed providers were skipped. */
+  budgetExhausted: boolean;
 }
 
 export interface CvShare {

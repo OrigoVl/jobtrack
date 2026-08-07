@@ -9,6 +9,8 @@
     "title": "No companies yet",
     "hint": "Add a company to keep notes and a bank of interview questions."
   },
+  "websiteLabel": "Website",
+  "websitePlaceholder": "e.g. acme.com",
   "notesAriaLabel": "Notes about {{name}}",
   "notesPlaceholder": "Notes (stack, people, salary, impressions)…",
   "questionsAriaLabel": "Questions asked at {{name}}",
@@ -17,6 +19,16 @@
   "editAriaLabel": "Edit {{name}}",
   "deleteAriaLabel": "Delete {{name}}",
   "deleteConfirmTitle": "Delete {{name}}?",
+  "rollup": {
+    "vacanciesCount_one": "{{count}} vacancy",
+    "vacanciesCount_other": "{{count}} vacancies",
+    "contactsCount_one": "{{count}} contact",
+    "contactsCount_other": "{{count}} contacts",
+    "vacanciesHeading": "Linked vacancies",
+    "contactsHeading": "Linked contacts",
+    "noVacancies": "No linked vacancies",
+    "noContacts": "No linked contacts"
+  },
   "toasts": {
     "saved": "Saved",
     "deleted": "Deleted"

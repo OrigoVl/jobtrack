@@ -6,6 +6,7 @@ function vacancy(overrides: Partial<Vacancy> = {}): Vacancy {
   return {
     id: 1,
     company: "Acme",
+    companyId: null,
     position: "Engineer",
     level: "",
     salary: "",
@@ -16,11 +17,14 @@ function vacancy(overrides: Partial<Vacancy> = {}): Vacancy {
     next: "",
     notes: "",
     stack: [],
+    favorite: false,
+    coverLetter: "",
+    coverLetterDetails: "",
     ...overrides,
   };
 }
 
-const noFilter = { search: "", status: "all", fit: "all", sortBy: "default" as const, sortDir: "asc" as const };
+const noFilter = { search: "", status: "all", fit: "all", favoritesOnly: false, sortBy: "default" as const, sortDir: "asc" as const };
 
 describe("filterAndSortVacancies", () => {
   it("keeps the original (server) order when sortBy is 'default'", () => {
@@ -37,6 +41,12 @@ describe("filterAndSortVacancies", () => {
   it("filters by fit", () => {
     const rows = [vacancy({ id: 1, fit: "high" }), vacancy({ id: 2, fit: "low" })];
     expect(filterAndSortVacancies(rows, { ...noFilter, fit: "high" }).map((v) => v.id)).toEqual([1]);
+  });
+
+  it("filters to favorites only", () => {
+    const rows = [vacancy({ id: 1, favorite: true }), vacancy({ id: 2, favorite: false })];
+    expect(filterAndSortVacancies(rows, { ...noFilter, favoritesOnly: true }).map((v) => v.id)).toEqual([1]);
+    expect(filterAndSortVacancies(rows, { ...noFilter, favoritesOnly: false }).map((v) => v.id)).toEqual([1, 2]);
   });
 
   it("searches across company, position, stack, and notes (case-insensitive)", () => {

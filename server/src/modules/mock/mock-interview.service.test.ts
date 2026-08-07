@@ -28,6 +28,10 @@ const vacancy: VacancyRow = {
   notes: "Focus on performance.",
   stack: ["React", "TypeScript"],
   created: "",
+  companyId: null,
+  favorite: false,
+  coverLetter: "",
+  coverLetterDetails: "",
 };
 
 describe("runInterviewTurn()", () => {

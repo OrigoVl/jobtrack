@@ -26,6 +26,7 @@ const NEW_VACANCY = {
 let repo: typeof import("./vacancies.repo.js");
 let history: typeof import("../../db/vacancy-history.js");
 let kv: typeof import("../../db/kv.js");
+let companiesRepo: typeof import("../companies/companies.repo.js");
 
 beforeAll(async () => {
   const testDb = await createTestDb();
@@ -35,6 +36,7 @@ beforeAll(async () => {
   repo = await import("./vacancies.repo.js");
   history = await import("../../db/vacancy-history.js");
   kv = await import("../../db/kv.js");
+  companiesRepo = await import("../companies/companies.repo.js");
 });
 
 describe("vacancies.repo (PGlite)", () => {
@@ -100,6 +102,44 @@ describe("vacancies.repo (PGlite)", () => {
     const row = await repo.getVacancy(USER_A, id);
     expect(row).not.toHaveProperty("embedding");
     expect(await repo.listVacancies(USER_A)).not.toContainEqual(expect.objectContaining({ embedding: expect.anything() }));
+  });
+
+  describe("companyId (plain single-column FK to companies.id, ON DELETE SET NULL)", () => {
+    it("createVacancy() + getVacancy() round-trips a companyId owned by the same user", async () => {
+      await companiesRepo.upsertCompany(USER_A, { name: "Acme Corp", notes: "", questions: [] });
+      const company = await companiesRepo.findCompanyByName(USER_A, "Acme Corp");
+      const id = await repo.createVacancy(USER_A, { ...NEW_VACANCY, companyId: company!.id });
+      const row = await repo.getVacancy(USER_A, id);
+      expect(row?.companyId).toBe(company!.id);
+    });
+
+    it("deleting the linked company sets the vacancy's companyId back to null (ON DELETE SET NULL), without deleting the vacancy itself", async () => {
+      await companiesRepo.upsertCompany(USER_A, { name: "Beta Corp", notes: "", questions: [] });
+      const company = await companiesRepo.findCompanyByName(USER_A, "Beta Corp");
+      const id = await repo.createVacancy(USER_A, { ...NEW_VACANCY, companyId: company!.id });
+
+      await companiesRepo.deleteCompany(USER_A, company!.id);
+
+      const row = await repo.getVacancy(USER_A, id);
+      expect(row).toBeDefined();
+      expect(row?.companyId).toBeNull();
+    });
+
+    // Unlike contacts.companyId (a composite (userId, companyId) FK to companies), vacancies.companyId
+    // is a plain single-column FK straight to companies.id (see schema/app.ts's own comment on why:
+    // a vacancy must survive its linked company being deleted, via a plain SET NULL FK, which can't
+    // also be composite against the NOT NULL userId column). So nothing at the repo/DB level stops a
+    // vacancy from pointing at another user's company row — the repo has no ownership-aware read/write
+    // path for companyId at all, it's just a plain column that round-trips whatever id it's given.
+    // The actual cross-tenant guard lives at the route layer (vacancies.routes.ts's
+    // assertOwnCompanyOrNull, called before createVacancy/updateVacancy), not here.
+    it("the repo layer itself does not enforce companyId ownership — it round-trips a cross-tenant companyId unchanged (guarded at the route layer instead)", async () => {
+      await companiesRepo.upsertCompany(USER_B, { name: "Only B's Co", notes: "", questions: [] });
+      const companyOfB = await companiesRepo.findCompanyByName(USER_B, "Only B's Co");
+      const id = await repo.createVacancy(USER_A, { ...NEW_VACANCY, companyId: companyOfB!.id });
+      const row = await repo.getVacancy(USER_A, id);
+      expect(row?.companyId).toBe(companyOfB!.id);
+    });
   });
 
   describe("getVacancyEmbedding()/updateVacancyEmbedding()/findSimilarVacancies()", () => {

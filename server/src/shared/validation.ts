@@ -2,6 +2,7 @@
 import net from "node:net";
 import { HttpError } from "../core/http.js";
 import { isTrack, type Track } from "./tracks.js";
+import { toDomain } from "./domain.js";
 
 export const STATUSES = [
   "Want to apply",
@@ -72,6 +73,10 @@ export interface VacancyInput {
   next?: string;
   notes?: string;
   stack?: string[];
+  companyId?: number | null;
+  favorite?: boolean;
+  coverLetter?: string;
+  coverLetterDetails?: string;
 }
 
 export function parseVacancyInput(body: unknown, { partial = false }: { partial?: boolean } = {}): VacancyInput {
@@ -97,6 +102,18 @@ export function parseVacancyInput(body: unknown, { partial = false }: { partial?
   if (!partial || has("next")) out.next = toDateOrEmpty(b.next, "next");
   if (!partial || has("notes")) out.notes = asString(b.notes).slice(0, 5000);
   if (!partial || has("stack")) out.stack = toStringArray(b.stack, "stack");
+  if (!partial || has("companyId")) {
+    if (b.companyId == null || b.companyId === "") {
+      out.companyId = null;
+    } else {
+      const n = Number(b.companyId);
+      if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, 'Field "companyId" must be a positive integer');
+      out.companyId = n;
+    }
+  }
+  if (!partial || has("favorite")) out.favorite = b.favorite === true;
+  if (!partial || has("coverLetter")) out.coverLetter = asString(b.coverLetter).slice(0, 5000);
+  if (!partial || has("coverLetterDetails")) out.coverLetterDetails = asString(b.coverLetterDetails).slice(0, 1000);
   return out;
 }
 
@@ -249,6 +266,10 @@ export interface CompanyInput {
   name: string;
   notes: string;
   questions: string[];
+  /** Bare host ("acme.com"), normalized via toDomain() from a full URL/bare domain — used as the
+   * contact-enrichment provider/cache key (modules/contacts/enrichment/). "" when unset/unparseable —
+   * this is a lenient, best-effort field, never a reason to reject the whole company. */
+  website?: string;
 }
 
 export function parseCompanyInput(body: unknown): CompanyInput {
@@ -259,6 +280,7 @@ export function parseCompanyInput(body: unknown): CompanyInput {
     name,
     notes: asString(b.notes).slice(0, 5000),
     questions: toStringArray(b.questions, "questions"),
+    website: toDomain(asString(b.website)),
   };
 }
 
@@ -305,6 +327,35 @@ export function parseContactInput(body: unknown, { partial = false }: { partial?
   if (!partial || has("notes")) out.notes = asString(b.notes).slice(0, 5000);
   if (!partial || has("lastContactAt")) out.lastContactAt = toDateOrEmpty(b.lastContactAt, "lastContactAt");
   return out;
+}
+
+// Default recruiter/hiring-contact titles used when the caller doesn't pass any — see
+// modules/contacts/enrichment/enrichment-providers.ts's EnrichmentQuery for the shape this feeds.
+const DEFAULT_ENRICHMENT_TITLES = ["recruiter", "talent acquisition", "technical recruiter", "hr"];
+const MAX_ENRICHMENT_TITLES = 5;
+
+export interface EnrichmentQuery {
+  companyName: string;
+  domain: string;
+  titles: string[];
+  personName: string;
+  limit: number;
+}
+
+/** POST /contacts/enrich body — see modules/contacts/enrichment/enrichment.service.ts's
+ * enrichContacts(). `domain` accepts a full URL/bare host/email the same way CompanyInput.website
+ * does (normalized via toDomain()); resolving a domain from a linked company's own `website` is
+ * contacts.routes.ts's job (needs a DB lookup), not this pure parsing layer. */
+export function parseEnrichmentQuery(body: unknown): EnrichmentQuery {
+  const b = (body || {}) as Record<string, unknown>;
+  const companyName = asString(b.companyName).trim().slice(0, 200);
+  const domain = toDomain(asString(b.domain));
+  const rawTitles = toStringArray(b.titles, "titles").slice(0, MAX_ENRICHMENT_TITLES);
+  const titles = rawTitles.length ? rawTitles : DEFAULT_ENRICHMENT_TITLES;
+  const personName = asString(b.personName).trim().slice(0, 200);
+  const rawLimit = Number(b.limit);
+  const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(25, Math.floor(rawLimit))) : 10;
+  return { companyName, domain, titles, personName, limit };
 }
 
 export interface DigestPreferencesInput {

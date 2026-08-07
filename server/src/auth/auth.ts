@@ -70,6 +70,27 @@ const DELETE_ACCOUNT_EMAIL: Record<AppLocale, EmailTemplate> = {
   },
 };
 
+// undefined (not configured) — the client hides the corresponding "Continue with …" button
+// entirely (see GET /api/auth-config, client/src/shared/auth-client.ts) rather than showing a
+// button that would fail. Both Google and LinkedIn follow this same graceful-offline pattern;
+// spreading each conditionally keeps adding further providers cheap.
+const socialProviders = {
+  ...(env.auth.google ? { google: env.auth.google } : {}),
+  ...(env.auth.linkedin
+    ? {
+        linkedin: {
+          ...env.auth.linkedin,
+          // LinkedIn's OpenID Connect scopes only return name/email/picture — no headline,
+          // positions, or skills (LinkedIn locked down r_fullprofile years ago). This mapping is
+          // just a fallback for the rare case `name` is empty but given/family name aren't.
+          mapProfileToUser: (profile: { name?: string; given_name?: string; family_name?: string }) => ({
+            name: profile.name || [profile.given_name, profile.family_name].filter(Boolean).join(" "),
+          }),
+        },
+      }
+    : {}),
+};
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
   secret: env.auth.secret,
@@ -113,10 +134,7 @@ export const auth = betterAuth({
     },
   },
 
-  // undefined (not configured) — the client hides the "Continue with Google" button entirely
-  // (see GET /api/auth-config, client/src/shared/auth-client.ts) rather than showing a button
-  // that would fail.
-  socialProviders: env.auth.google ? { google: env.auth.google } : undefined,
+  socialProviders: Object.keys(socialProviders).length ? socialProviders : undefined,
 
   user: {
     // Self-service account deletion (Phase 7) — email-confirmation flow (not immediate

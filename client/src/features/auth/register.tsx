@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Btn } from "../../shared/ui";
 import { AuthLayout, AuthError, authInputClass } from "./auth-layout";
 import { PasswordInput } from "./password-input";
-import { GoogleButton } from "./google-button";
+import { SocialButtons } from "./social-buttons";
 import { signUp } from "../../shared/auth-client";
 import { storeReferralCode } from "../../shared/referral-storage";
 
@@ -77,7 +77,7 @@ export function Register() {
         <Btn type="submit" loading={loading} className="w-full">
           {t("register.submit")}
         </Btn>
-        <GoogleButton />
+        <SocialButtons />
       </form>
       <div className="mt-4 text-sm">
         <span className="text-ink-dim">{t("register.alreadyHaveAccount")}</span>

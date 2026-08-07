@@ -47,6 +47,10 @@ const vacancy: VacancyRow = {
   notes: "High-traffic payments platform.",
   stack: ["Go", "Kafka", "PostgreSQL"],
   created: "",
+  companyId: null,
+  favorite: false,
+  coverLetter: "",
+  coverLetterDetails: "",
 };
 const task: DesignTask = {
   title: "URL shortener",

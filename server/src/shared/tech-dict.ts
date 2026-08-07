@@ -559,3 +559,56 @@ export function extractLevel(text: unknown): string {
   if (/\bjunior\b|\btrainee\b/.test(t)) return "Junior";
   return "";
 }
+
+/** True when `re` matches the WHOLE string, not merely a token inside it — so "Vue.js" folds onto
+ * Vue, but "Web Performance Optimization" is never collapsed to whatever its first word aliases to. */
+function matchesWholeSkill(re: RegExp, skill: string): boolean {
+  const m = re.exec(skill);
+  return !!m && m.index === 0 && m[0].length === skill.length;
+}
+
+/**
+ * Folds a skill name onto the dictionary's canonical spelling ("Vue.js" → "Vue", "k8s" →
+ * "Kubernetes"), leaving anything the dictionary doesn't know untouched.
+ *
+ * Needed because extractSkills() unions two sources that spell the same technology differently:
+ * the regex dictionary (canonical names) and the LLM (whatever the posting itself wrote). Its
+ * dedupe is case-insensitive only, so "Vue" + "Vue.js" both survived as separate chips.
+ */
+export function canonicalTechName(skill: string): string {
+  const raw = skill.trim();
+  if (!raw || TECHS[raw]) return raw;
+  for (const [name, def] of Object.entries(TECHS)) {
+    if (matchesWholeSkill(def.re, raw)) return name;
+  }
+  return raw;
+}
+
+/**
+ * Canonicalizes a skill list and drops entries that the source text doesn't actually support.
+ *
+ * The verification rule is deliberately asymmetric: a skill that resolves to a KNOWN dictionary
+ * technology must have that technology's own regex match the source text, while a free-form phrase
+ * the dictionary doesn't know ("Caching", "Web Vitals", "Code Review") is trusted as-is. That
+ * asymmetry is what makes it safe on a non-English posting — an LLM reading Ukrainian prose
+ * legitimately reports English concept names that appear nowhere in the text verbatim, but it has
+ * no such excuse for naming a concrete technology the posting never mentions. This is what removes
+ * the hallucinated "SSRF" (invented next to the posting's real "SSR") and any stray "React"/
+ * "Python" that survives from page chrome.
+ */
+export function sanitizeSkills(skills: string[], sourceText: unknown): string[] {
+  const text = String(sourceText || "");
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const skill of skills) {
+    const name = canonicalTechName(skill);
+    if (!name) continue;
+    const known = TECHS[name];
+    if (known && !known.re.test(text)) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
+}

@@ -19,6 +19,10 @@ function vacancy(overrides: Partial<VacancyRow> = {}): VacancyRow {
     notes: "",
     stack: [],
     created: "2026-01-01",
+    companyId: null,
+    favorite: false,
+    coverLetter: "",
+    coverLetterDetails: "",
     ...overrides,
   };
 }

@@ -2,7 +2,6 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useUi } from "../../shared/ui-state";
 import {
-  useAddVacancy,
   useContacts,
   useDeleteVacancy,
   useImportVacancies,
@@ -15,6 +14,7 @@ import { useToast } from "../../shared/use-toast";
 import { useConfirm } from "../../shared/use-confirm";
 import { Btn, Card, CardsSkeleton, Dropdown, EmptyState, PageHeader, Select, Spinner } from "../../shared/ui";
 import { DateInput } from "../../shared/date-input";
+import { StarIcon } from "../../shared/icons";
 import { STATUSES, type Fit, type VacancyStatus } from "../../shared/types";
 import { fitText, fitLabel } from "../../shared/fit-tone";
 import { statusLabel } from "../../shared/status-labels";
@@ -22,6 +22,7 @@ import { STATUS_SELECT_CLASS, DEFAULT_STATUS_SELECT_CLASS } from "../../shared/s
 import { VacancyBoard } from "./kanban-board";
 import { SimilarVacanciesButton } from "./similar-vacancies-button";
 import { VacancyDetailModal } from "./vacancy-detail-modal";
+import { VacancyCreateModal } from "./vacancy-create-modal";
 import { filterAndSortVacancies, COLUMN_LABEL_KEY, OPTIONAL_COLUMNS, type SortKey, type ColumnKey } from "./vacancies-filter";
 
 // useUi's "vacancies.view" is in-memory only (see ui-state.ts) — it survives switching tabs
@@ -42,6 +43,13 @@ function downloadJson(filename: string, data: unknown): void {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/** Formats the `created` column (YYYY-MM-DD) for display, locale-aware. Empty/invalid → "—". */
+function formatCreated(created: string | undefined, locale: string): string {
+  if (!created) return "—";
+  const d = new Date(created);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString(locale);
 }
 
 /** Days since the applied date (YYYY-MM-DD) until today — shown while waiting for a response. */
@@ -85,7 +93,7 @@ function StackCell({ stack }: { stack: string[] }) {
 
 /* ---------- Vacancies ---------- */
 export function Vacancies() {
-  const { t } = useTranslation(["vacancies", "common"]);
+  const { t, i18n } = useTranslation(["vacancies", "common"]);
   const confirm = useConfirm();
   const { data: vacancies = [], isLoading } = useVacancies();
   const { data: contacts = [] } = useContacts();
@@ -96,7 +104,10 @@ export function Vacancies() {
   // if both are visible) are reflected without an extra lookup.
   const [detailVacancyId, setDetailVacancyId] = useState<number | null>(null);
   const detailVacancy = detailVacancyId != null ? vacancies.find((v) => v.id === detailVacancyId) : undefined;
-  const addVacancyMutation = useAddVacancy();
+  // The "Add vacancy" flow: a dedicated blank-form modal (vacancy-create-modal.tsx) that only
+  // POSTs on an explicit Save, rather than creating a placeholder row immediately and opening the
+  // (auto-saving) detail modal on it — see that file's doc comment for why.
+  const [createOpen, setCreateOpen] = useState(false);
   const updateVacancyMutation = useUpdateVacancy();
   const deleteVacancyMutation = useDeleteVacancy();
   const importVacanciesMutation = useImportVacancies();
@@ -112,9 +123,13 @@ export function Vacancies() {
   const [search, setSearch] = useUi("vacancies.search", "");
   const [filterStatus, setFilterStatus] = useUi<string>("vacancies.filterStatus", "all");
   const [filterFit, setFilterFit] = useUi<string>("vacancies.filterFit", "all");
+  const [favoritesOnly, setFavoritesOnly] = useUi<boolean>("vacancies.favoritesOnly", false);
   const [sortBy, setSortBy] = useUi<SortKey>("vacancies.sortBy", "default");
   const [sortDir, setSortDir] = useUi<"asc" | "desc">("vacancies.sortDir", "asc");
-  const [hiddenColumns, setHiddenColumns] = useUi<ColumnKey[]>("vacancies.hiddenColumns", []);
+  // "created" starts hidden — it's the newest column and, added on top of every other one, was
+  // enough to push the table past the viewport width and force a horizontal scrollbar that wasn't
+  // there before. Still one click away via the Columns menu (or always visible in the detail modal).
+  const [hiddenColumns, setHiddenColumns] = useUi<ColumnKey[]>("vacancies.hiddenColumns", ["created"]);
   const isColVisible = (key: ColumnKey) => !hiddenColumns.includes(key);
   const toggleColumn = (key: ColumnKey) =>
     setHiddenColumns(isColVisible(key) ? [...hiddenColumns, key] : hiddenColumns.filter((k) => k !== key));
@@ -126,13 +141,21 @@ export function Vacancies() {
     }
   };
   const sortArrow = (key: SortKey) => (sortBy === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
-  const hasActiveFilters = filterStatus !== "all" || filterFit !== "all" || search.trim() !== "";
+  const hasActiveFilters = filterStatus !== "all" || filterFit !== "all" || favoritesOnly || search.trim() !== "";
   const resetFilters = () => {
     setSearch("");
     setFilterStatus("all");
     setFilterFit("all");
+    setFavoritesOnly(false);
   };
-  const visibleVacancies = filterAndSortVacancies(vacancies, { search, status: filterStatus, fit: filterFit, sortBy, sortDir });
+  const visibleVacancies = filterAndSortVacancies(vacancies, {
+    search,
+    status: filterStatus,
+    fit: filterFit,
+    favoritesOnly,
+    sortBy,
+    sortDir,
+  });
   const doImport = async () => {
     await importVacanciesMutation.mutateAsync(imp);
     setImp("");
@@ -175,17 +198,7 @@ export function Vacancies() {
                 {t("view.board")}
               </Btn>
             </div>
-            <Btn
-              loading={addVacancyMutation.isPending}
-              onClick={() =>
-                addVacancyMutation.mutate(
-                  { company: "New company", position: "Position" },
-                  { onSuccess: (row) => setDetailVacancyId(row.id) },
-                )
-              }
-            >
-              {t("addVacancy")}
-            </Btn>
+            <Btn onClick={() => setCreateOpen(true)}>{t("addVacancy")}</Btn>
             {/* Collapsed by default — the two import forms used to render as full-width cards
                 ABOVE the table/board on every visit, pushing every actual vacancy off-screen on
                 first load. Grouped into one Dropdown, same pattern as cv-builder.tsx's own
@@ -249,19 +262,7 @@ export function Vacancies() {
           <EmptyState
             title={t("empty.title")}
             hint={t("empty.hint")}
-            action={
-              <Btn
-                loading={addVacancyMutation.isPending}
-                onClick={() =>
-                  addVacancyMutation.mutate(
-                    { company: "New company", position: "Position" },
-                    { onSuccess: (row) => setDetailVacancyId(row.id) },
-                  )
-                }
-              >
-                {t("addFirst")}
-              </Btn>
-            }
+            action={<Btn onClick={() => setCreateOpen(true)}>{t("addFirst")}</Btn>}
           />
         </Card>
       ) : view === "board" ? (
@@ -291,6 +292,17 @@ export function Vacancies() {
                 <option value="med">{fitLabel("med")}</option>
                 <option value="low">{fitLabel("low")}</option>
               </Select>
+              <button
+                type="button"
+                onClick={() => setFavoritesOnly(!favoritesOnly)}
+                aria-pressed={favoritesOnly}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm border ${
+                  favoritesOnly ? "bg-amber-400/10 border-amber-400/40 text-amber-500" : "border-grid text-ink-dim hover:bg-surface-2"
+                }`}
+              >
+                <StarIcon className="h-3.5 w-3.5" fill={favoritesOnly ? "currentColor" : "none"} />
+                {t("filters.favoritesOnly")}
+              </button>
               <Dropdown label={t("filters.columns")}>
                 {OPTIONAL_COLUMNS.map((key) => (
                   <label
@@ -363,6 +375,12 @@ export function Vacancies() {
                           {sortArrow("next")}
                         </th>
                       )}
+                      {isColVisible("created") && (
+                        <th className="p-3 cursor-pointer select-none hover:text-ink" onClick={() => toggleSort("created")}>
+                          {t("table.created")}
+                          {sortArrow("created")}
+                        </th>
+                      )}
                       <th className="p-3"></th>
                     </tr>
                   </thead>
@@ -391,19 +409,35 @@ export function Vacancies() {
                           className="border-t border-surface-2 align-top hover:bg-surface-2/60 cursor-pointer"
                         >
                           <td className="p-3 text-right">
-                            {/* A plain onClick on <tr> isn't reachable by keyboard/screen readers
-                                — this button is the accessible entry point to the same action for
-                                anyone not using a mouse; the row-wide click above is the
-                                discoverable convenience on top of it, not a replacement for it. */}
-                            <button
-                              type="button"
-                              onClick={() => setDetailVacancyId(row.id)}
-                              title={t("detail.openTitle")}
-                              aria-label={t("detail.openAriaLabel", { company: row.company, position: row.position })}
-                              className="text-ink-dim text-xs tabular-nums hover:text-signal hover:underline rounded px-1 -mx-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
-                            >
-                              {i + 1}
-                            </button>
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => updateVacancyMutation.mutate({ id: row.id, patch: { favorite: !row.favorite } })}
+                                title={row.favorite ? t("favorite.removeTitle") : t("favorite.addTitle")}
+                                aria-label={t(row.favorite ? "favorite.removeAriaLabel" : "favorite.addAriaLabel", {
+                                  company: row.company,
+                                })}
+                                aria-pressed={row.favorite}
+                                className={`rounded p-0.5 -m-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${
+                                  row.favorite ? "text-amber-400 hover:text-amber-500" : "text-ink-dim hover:text-amber-400"
+                                }`}
+                              >
+                                <StarIcon className="h-3.5 w-3.5" fill={row.favorite ? "currentColor" : "none"} />
+                              </button>
+                              {/* A plain onClick on <tr> isn't reachable by keyboard/screen readers
+                                  — this button is the accessible entry point to the same action for
+                                  anyone not using a mouse; the row-wide click above is the
+                                  discoverable convenience on top of it, not a replacement for it. */}
+                              <button
+                                type="button"
+                                onClick={() => setDetailVacancyId(row.id)}
+                                title={t("detail.openTitle")}
+                                aria-label={t("detail.openAriaLabel", { company: row.company, position: row.position })}
+                                className="text-ink-dim text-xs tabular-nums hover:text-signal hover:underline rounded px-1 -mx-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
+                              >
+                                {i + 1}
+                              </button>
+                            </div>
                           </td>
                           <td className="p-3">
                             <input
@@ -544,6 +578,9 @@ export function Vacancies() {
                               />
                             </td>
                           )}
+                          {isColVisible("created") && (
+                            <td className="p-3 text-xs text-ink-dim whitespace-nowrap">{formatCreated(row.created, i18n.language)}</td>
+                          )}
                           <td className="p-3 text-right">
                             <button
                               onClick={async () => {
@@ -574,6 +611,15 @@ export function Vacancies() {
         </>
       )}
       {detailVacancy && <VacancyDetailModal vacancy={detailVacancy} onClose={() => setDetailVacancyId(null)} />}
+      {createOpen && (
+        <VacancyCreateModal
+          onClose={() => setCreateOpen(false)}
+          onCreated={(row) => {
+            setCreateOpen(false);
+            setDetailVacancyId(row.id);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -52,6 +52,10 @@ function vacancyRow(id: number, company: string, url: string): VacancyRow {
     next: "",
     notes: "",
     stack: [],
+    companyId: null,
+    favorite: false,
+    coverLetter: "",
+    coverLetterDetails: "",
   };
 }
 

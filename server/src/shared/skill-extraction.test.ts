@@ -1,5 +1,5 @@
 // The only prior coverage of this module was indirect (vacancy-analysis.service.test.ts, which
-// mocks llmAvailable() to false) — the AI-merge branch (regex + LLM skills, dedupe, cap at 25)
+// mocks llmAvailable() to false) — the AI-merge branch (regex + LLM skills, sanitize, cap at 20)
 // never actually ran in CI. These tests exercise extractSkills()/detectDomain() directly, both
 // offline and with a mocked chatJson(), including the cache read/write paths.
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -35,6 +35,18 @@ describe("extractSkills()", () => {
     expect(chatJson).not.toHaveBeenCalled();
   });
 
+  it("offline: drops the tech dictionary's own fuzzy near-misses", async () => {
+    vi.mocked(llmAvailable).mockReturnValue(false);
+
+    // extractTechs()'s fuzzy fallback matches on edit distance, so this posting's genuine "SSR"
+    // (Nuxt server-side rendering) also matched the dictionary's "SSRF" — which is where the
+    // bogus security skill on a Vue/Nuxt vacancy actually came from, LLM or not.
+    const skills = await extractSkills(BOOTSTRAP_USER_ID, "Modern stack: Vue.js 3, Nuxt (SSR), TypeScript, SCSS and Vite.");
+
+    expect(skills).toEqual(expect.arrayContaining(["Vue", "Nuxt", "TypeScript"]));
+    expect(skills).not.toContain("SSRF");
+  });
+
   it("short text (<30 chars): returns regex matches without calling the LLM, even if available", async () => {
     vi.mocked(llmAvailable).mockReturnValue(true);
 
@@ -54,17 +66,30 @@ describe("extractSkills()", () => {
     expect(chatJson).not.toHaveBeenCalled();
   });
 
-  it("merges regex + AI skills and de-duplicates case-insensitively", async () => {
+  it("merges regex + AI skills, folding aliases onto one canonical spelling", async () => {
     vi.mocked(llmAvailable).mockReturnValue(true);
-    // "node.js" (lowercase) duplicates a regex match ("Node.js") — the regex spelling should win
-    // (dedupe() keeps the FIRST occurrence, and regex results are concatenated before AI ones).
-    vi.mocked(chatJson).mockResolvedValue({ skills: ["node.js", "Kubernetes", "  Terraform  "] });
+    // "node.js" (lowercase) and "NodeJS" both duplicate a regex match ("Node.js") — sanitizeSkills()
+    // canonicalizes every spelling to the dictionary's own, so only one chip survives.
+    vi.mocked(chatJson).mockResolvedValue({ skills: ["node.js", "NodeJS", "  Docker  "] });
 
     const skills = await extractSkills(BOOTSTRAP_USER_ID, VACANCY_TEXT);
 
     expect(skills.filter((s) => s.toLowerCase() === "node.js")).toEqual(["Node.js"]);
-    expect(skills).toEqual(expect.arrayContaining(["Kubernetes", "Terraform"]));
+    expect(skills.filter((s) => s === "Docker")).toEqual(["Docker"]);
     expect(setLlmCache).toHaveBeenCalledWith(expect.stringMatching(/^skx:/), { skills });
+  });
+
+  it("drops an AI-suggested technology the text never mentions, keeping free-form skill phrases", async () => {
+    vi.mocked(llmAvailable).mockReturnValue(true);
+    // The regression this guards: the model padded a posting's stack with technologies that merely
+    // "go with" the ones it saw (Kubernetes/Terraform here, React/Angular on the real DOU page).
+    // A free-form phrase outside the tech dictionary is still trusted — see sanitizeSkills().
+    vi.mocked(chatJson).mockResolvedValue({ skills: ["Kubernetes", "Terraform", "Code Review"] });
+
+    const skills = await extractSkills(BOOTSTRAP_USER_ID, VACANCY_TEXT);
+
+    expect(skills).not.toEqual(expect.arrayContaining(["Kubernetes", "Terraform"]));
+    expect(skills).toEqual(expect.arrayContaining(["Code Review", "Node.js", "PostgreSQL", "Docker"]));
   });
 
   it("falls back to regex-only results (without caching) when the AI returns no skills", async () => {

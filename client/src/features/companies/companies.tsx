@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useUi } from "../../shared/ui-state";
-import { useCompanies, useDeleteCompany, useSaveCompany, useUpdateCompany } from "../../shared/queries";
+import { useCompanies, useContacts, useDeleteCompany, useSaveCompany, useUpdateCompany, useVacancies } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, EmptyState, PageHeader, Spinner } from "../../shared/ui";
 import { useConfirm } from "../../shared/use-confirm";
-import type { Company } from "../../shared/types";
+import type { Company, Contact, Vacancy } from "../../shared/types";
 
 /* ---------- Company card ---------- */
 // Name/notes/questions are edited in a local draft and only sent to the server on an explicit
@@ -12,17 +12,23 @@ import type { Company } from "../../shared/types";
 // navigation between fields with no actual change.
 function CompanyCard({
   company: c,
+  linkedVacancies,
+  linkedContacts,
   updateCompanyMutation,
   deleteCompanyMutation,
 }: {
   company: Company;
+  linkedVacancies: Vacancy[];
+  linkedContacts: Contact[];
   updateCompanyMutation: ReturnType<typeof useUpdateCompany>;
   deleteCompanyMutation: ReturnType<typeof useDeleteCompany>;
 }) {
   const { t } = useTranslation(["companies", "common"]);
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
+  const [rollupOpen, setRollupOpen] = useState(false);
   const [name, setName] = useState(c.name);
+  const [website, setWebsite] = useState(c.website);
   const [notes, setNotes] = useState(c.notes);
   const [questions, setQuestions] = useState(c.questions.join("\n"));
   const isSaving = updateCompanyMutation.isPending && updateCompanyMutation.variables?.id === c.id;
@@ -30,6 +36,7 @@ function CompanyCard({
 
   const startEdit = () => {
     setName(c.name);
+    setWebsite(c.website);
     setNotes(c.notes);
     setQuestions(c.questions.join("\n"));
     setEditing(true);
@@ -37,7 +44,7 @@ function CompanyCard({
   const save = () => {
     if (!name.trim()) return;
     updateCompanyMutation.mutate(
-      { id: c.id, patch: { name: name.trim(), notes, questions: questions.split("\n").filter(Boolean) } },
+      { id: c.id, patch: { name: name.trim(), website: website.trim(), notes, questions: questions.split("\n").filter(Boolean) } },
       { onSuccess: () => setEditing(false) },
     );
   };
@@ -96,6 +103,13 @@ function CompanyCard({
       </div>
       {editing ? (
         <>
+          <input
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            aria-label={t("websiteLabel")}
+            placeholder={t("websitePlaceholder")}
+            className="w-full mb-2 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+          />
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -113,6 +127,16 @@ function CompanyCard({
         </>
       ) : (
         <>
+          {c.website && (
+            <a
+              href={c.website.startsWith("http") ? c.website : `https://${c.website}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-ink-dim hover:text-signal hover:underline break-all"
+            >
+              {c.website}
+            </a>
+          )}
           {c.notes ? (
             <p className="text-sm text-ink-dim whitespace-pre-wrap">{c.notes}</p>
           ) : (
@@ -129,6 +153,50 @@ function CompanyCard({
           )}
         </>
       )}
+      <div className="mt-2 pt-2 border-t border-grid">
+        <button
+          type="button"
+          onClick={() => setRollupOpen((v) => !v)}
+          className="w-full flex items-center gap-1.5 text-xs text-ink-dim hover:text-signal"
+        >
+          <span>
+            {t("rollup.vacanciesCount", { count: linkedVacancies.length })} · {t("rollup.contactsCount", { count: linkedContacts.length })}
+          </span>
+          <span className="ml-auto shrink-0">{rollupOpen ? "▾" : "▸"}</span>
+        </button>
+        {rollupOpen && (
+          <div className="mt-1.5 grid sm:grid-cols-2 gap-3">
+            <div>
+              <div className="text-[11px] font-semibold text-ink-dim uppercase tracking-wide mb-1">{t("rollup.vacanciesHeading")}</div>
+              {linkedVacancies.length > 0 ? (
+                <ul className="space-y-0.5">
+                  {linkedVacancies.map((v) => (
+                    <li key={v.id} className="text-xs text-ink truncate">
+                      {v.position}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-ink-dim/60 italic">{t("rollup.noVacancies")}</p>
+              )}
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-ink-dim uppercase tracking-wide mb-1">{t("rollup.contactsHeading")}</div>
+              {linkedContacts.length > 0 ? (
+                <ul className="space-y-0.5">
+                  {linkedContacts.map((ct) => (
+                    <li key={ct.id} className="text-xs text-ink truncate">
+                      {ct.name}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-ink-dim/60 italic">{t("rollup.noContacts")}</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </Card>
   );
 }
@@ -137,6 +205,8 @@ function CompanyCard({
 export function Companies() {
   const { t } = useTranslation(["companies", "common"]);
   const { data: companies = [], isLoading } = useCompanies();
+  const { data: vacancies = [] } = useVacancies();
+  const { data: contacts = [] } = useContacts();
   const saveCompanyMutation = useSaveCompany();
   const updateCompanyMutation = useUpdateCompany();
   const deleteCompanyMutation = useDeleteCompany();
@@ -179,6 +249,8 @@ export function Companies() {
             <CompanyCard
               key={c.id}
               company={c}
+              linkedVacancies={vacancies.filter((v) => v.companyId === c.id)}
+              linkedContacts={contacts.filter((ct) => ct.companyId === c.id)}
               updateCompanyMutation={updateCompanyMutation}
               deleteCompanyMutation={deleteCompanyMutation}
             />

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Btn } from "../../shared/ui";
 import { AuthLayout, AuthError, authInputClass } from "./auth-layout";
 import { PasswordInput } from "./password-input";
-import { GoogleButton } from "./google-button";
+import { SocialButtons } from "./social-buttons";
 import { signIn } from "../../shared/auth-client";
 
 export function Login() {
@@ -46,7 +46,7 @@ export function Login() {
         <Btn type="submit" loading={loading} className="w-full">
           {t("login.submit")}
         </Btn>
-        <GoogleButton />
+        <SocialButtons />
       </form>
       <div className="mt-4 flex justify-between text-sm">
         <Link to="/register" className="text-ink-dim hover:text-signal hover:underline">
