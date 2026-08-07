@@ -58,9 +58,34 @@ export interface Resource {
   ai?: boolean;
 }
 
+/** GET /onboarding/state. The two `has*` flags exist for the sidebar's "this section has nothing
+ * in it yet" dimming (App.tsx) — they ride on this endpoint because the shell already fetches it
+ * on every route, so the dimming costs no extra request and can't disagree with itself between
+ * pages the way a per-page list query would. */
+export interface OnboardingState {
+  welcomeSeen: boolean;
+  hasVacancies: boolean;
+  hasNetwork: boolean;
+}
+
+/** Mirrors FOCUS_ACTION_KINDS in server/src/modules/analytics/analytics.service.ts — a closed set
+ * of app areas, deliberately not URLs (the server doesn't know the client's routes). Mapped to an
+ * actual destination by features/dashboard/focus-destination.ts. */
+export type FocusActionKind = "vacancies" | "interviews" | "skills" | "cards" | "contacts" | "cv";
+
+/** Mirrors FOCUS_ACTION_CODES on the server. Present only on the OFFLINE heuristic fallback,
+ * whose `title`/`why` are hardcoded English — the dashboard translates this instead (see
+ * dashboard.json's `focusWeek.heuristic`), which also gets correct uk one/few/many plurals from
+ * i18next for free. An LLM-authored action has no `code`; its prose is already localized. */
+export type FocusActionCode = "overdue" | "interviews" | "gap" | "moreVacancies" | "dueCards" | "stale";
+
 export interface FocusAction {
   title: string;
   why: string;
+  /** Absent when the model couldn't classify the action — it then renders as plain text. */
+  kind?: FocusActionKind;
+  code?: FocusActionCode;
+  params?: Record<string, string | number>;
 }
 
 export interface FocusWeek {
@@ -318,6 +343,11 @@ export interface ResourcesData {
   cheat: ({ title: string; items: string[] } & Scored)[];
   checklist: { text: string; relevant: boolean }[];
   focus: string;
+  /** true when `focus` is the user's own text rather than a generated one — see
+   * resources.service.ts's setFocusOverride. */
+  focusCustom: boolean;
+  /** Top gap techs offered as one-click suggestions while editing the focus. */
+  focusSuggestions: string[];
 }
 
 export interface Toast {
@@ -840,6 +870,10 @@ export type DesignAnnotationKind = "freehand" | "rectangle" | "ellipse" | "arrow
 interface DesignAnnotationBase {
   id: string;
   color: string;
+  /** Clockwise degrees about the annotation's own bounding-box center; absent means unrotated.
+   * Arrows never carry one — they're reshaped by dragging their two endpoints instead, and a
+   * rotation would fight the node binding below, which writes endpoints in world coordinates. */
+  rotation?: number;
 }
 export interface DesignFreehandAnnotation extends DesignAnnotationBase {
   kind: "freehand";
@@ -865,6 +899,13 @@ export interface DesignArrowAnnotation extends DesignAnnotationBase {
   y1: number;
   x2: number;
   y2: number;
+  /** Ids of the DesignNodes this arrow's start/end are stuck to, set by dropping that endpoint on a
+   * node. The endpoint coordinates above stay the source of truth for rendering — the binding just
+   * makes the canvas recompute them whenever the bound node moves or resizes, so the arrow follows
+   * (see design-annotations.ts's applyArrowBindings). Still decorative: unlike a DesignEdge, a
+   * bound arrow is never read as a structural connection by the grader. */
+  startNodeId?: string;
+  endNodeId?: string;
 }
 export interface DesignTextAnnotation extends DesignAnnotationBase {
   kind: "text";

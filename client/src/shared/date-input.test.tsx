@@ -49,6 +49,44 @@ describe("DateInput", () => {
     expect(onChange).toHaveBeenCalledWith("");
   });
 
+  it("opens the calendar when the field itself is clicked, not only the icon", () => {
+    const onChange = vi.fn();
+    render(<DateInput value="2026-07-01" onChange={onChange} aria-label="Applied date" />);
+    const input = screen.getByLabelText("Applied date");
+    expect(screen.queryByLabelText("Previous month")).not.toBeInTheDocument();
+
+    fireEvent.click(input);
+
+    expect(screen.getByLabelText("Previous month")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /July 15, 2026/ }));
+    expect(onChange).toHaveBeenCalledWith("2026-07-15");
+  });
+
+  it("keeps the calendar open when the field is clicked again, so the caret can be moved", () => {
+    // Toggling here would dismiss the panel the moment someone clicks into the text to fix a
+    // digit — the icon stays the toggle, the field only ever opens.
+    render(<DateInput value="2026-07-01" onChange={() => {}} aria-label="Applied date" />);
+    const input = screen.getByLabelText("Applied date");
+    fireEvent.click(input);
+    fireEvent.click(input);
+    expect(screen.getByLabelText("Previous month")).toBeInTheDocument();
+  });
+
+  it("still lets the field be typed into while the calendar is open", () => {
+    const onChange = vi.fn();
+    render(<DateInput value="" onChange={onChange} aria-label="Applied date" />);
+    const input = screen.getByLabelText("Applied date");
+    fireEvent.click(input);
+    fireEvent.change(input, { target: { value: "07012026" } });
+    expect(onChange).toHaveBeenCalledWith("2026-07-01");
+  });
+
+  it("does not open on focus alone, so tabbing through a table doesn't spawn calendars", () => {
+    render(<DateInput value="2026-07-01" onChange={() => {}} aria-label="Applied date" />);
+    fireEvent.focus(screen.getByLabelText("Applied date"));
+    expect(screen.queryByLabelText("Previous month")).not.toBeInTheDocument();
+  });
+
   it("opens a calendar popover with the picker button and commits the clicked day", () => {
     const onChange = vi.fn();
     render(<DateInput value="2026-07-01" onChange={onChange} aria-label="Applied date" />);
@@ -113,6 +151,14 @@ describe("DateTimeInput", () => {
     render(<DateTimeInput value="" onChange={onChange} aria-label="Event start" />);
     fireEvent.change(screen.getByLabelText("Event start"), { target: { value: "073120262565" } });
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("opens the calendar when the field itself is clicked, keeping the typed time of day", () => {
+    const onChange = vi.fn();
+    render(<DateTimeInput value="2026-07-31T14:30" onChange={onChange} aria-label="Event start" />);
+    fireEvent.click(screen.getByLabelText("Event start"));
+    fireEvent.click(screen.getByRole("button", { name: /July 15, 2026/ }));
+    expect(onChange).toHaveBeenCalledWith("2026-07-15T14:30");
   });
 
   it("picking a day from the calendar popover keeps the existing time of day", () => {

@@ -1,10 +1,91 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useUi } from "../../shared/ui-state";
-import { useResources } from "../../shared/queries";
-import { Btn, Card, Chip, PageHeader } from "../../shared/ui";
+import { useResources, useSetResourcesFocus } from "../../shared/queries";
+import { Btn, Card, Chip, PageHeader, Segmented } from "../../shared/ui";
 import { TargetIcon } from "../../shared/icons";
 import type { ResourcesData } from "../../shared/types";
+
+/** The focus note, with a manual override on top of the generated one. The suggestion chips are
+ * the same gap techs the rest of the page is personalized against (`focusSuggestions`, top 5) —
+ * they only PREFILL the field, so picking one is a shortcut, never a constraint: the user can
+ * edit it afterwards or ignore them entirely and write their own. */
+function FocusCard({ data }: { data: ResourcesData }) {
+  const { t } = useTranslation(["resources", "common"]);
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState("");
+  const save = useSetResourcesFocus();
+  // A blank `text` is what clears the override, so "which button is spinning" can be told apart
+  // by the submitted value itself — no second mutation hook or local flag needed.
+  const clearing = save.isPending && save.variables === "";
+
+  const open = () => {
+    setText(data.focusCustom ? data.focus : "");
+    setEditing(true);
+  };
+  const submit = (value: string) => save.mutate(value, { onSuccess: () => setEditing(false) });
+
+  return (
+    <Card className="!bg-signal/10 !border-signal/30">
+      {editing ? (
+        <div className="space-y-2">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            // Mirrors the server's FOCUS_OVERRIDE_MAX_LEN (resources.service.ts), which truncates
+            // rather than rejects — this only stops the user typing text that would be cut silently.
+            maxLength={300}
+            aria-label={t("focus.editAriaLabel")}
+            placeholder={t("focus.placeholder")}
+            className="w-full h-20 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+          />
+          {data.focusSuggestions.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t("focus.suggestions")}>
+              <span className="text-xs text-ink-dim">{t("focus.suggestions")}</span>
+              {data.focusSuggestions.map((tech) => (
+                <button
+                  key={tech}
+                  type="button"
+                  onClick={() => setText(t("focus.suggestionText", { tech }))}
+                  className="text-xs font-medium px-2 py-0.5 rounded-full border bg-surface-2 text-ink-dim border-grid hover:border-signal/50 hover:text-signal transition focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
+                >
+                  {tech}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Btn size="sm" onClick={() => submit(text)} loading={save.isPending && !clearing} disabled={!text.trim()}>
+              {t("common:actions.save")}
+            </Btn>
+            <Btn size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={save.isPending}>
+              {t("common:actions.cancel")}
+            </Btn>
+            {data.focusCustom && (
+              <Btn size="sm" variant="subtle" onClick={() => submit("")} loading={clearing}>
+                {t("focus.resetAuto")}
+              </Btn>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-start gap-3">
+          <div className="flex-1 text-sm text-signal">
+            <span className="font-semibold">{t("focus.heading")}</span> {data.focus}
+            {data.focusCustom && (
+              <span className="ml-2 align-middle">
+                <Chip tone="slate">{t("focus.customBadge")}</Chip>
+              </span>
+            )}
+          </div>
+          <Btn size="sm" variant="ghost" onClick={open}>
+            {t("common:actions.edit")}
+          </Btn>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 /* ---------- Resources ---------- */
 export function Resources() {
@@ -25,27 +106,24 @@ export function Resources() {
   };
   if (!d) return null;
   const checkN = Object.values(done).filter(Boolean).length;
-  const T = (id: typeof sub, label: string) => (
-    <Btn variant={sub === id ? "primary" : "ghost"} size="sm" onClick={() => setSub(id)}>
-      {label}
-    </Btn>
-  );
   return (
     <div className="space-y-4">
       <PageHeader eyebrow={t("eyebrow")} title={t("title")} subtitle={t("subtitle")} />
 
-      <Card className="!bg-signal/10 !border-signal/30">
-        <div className="text-sm text-signal">
-          <span className="font-semibold">{t("focus.heading")}</span> {d.focus}
-        </div>
-      </Card>
+      <FocusCard data={d} />
 
-      <div className="flex gap-2 flex-wrap">
-        {T("bp", t("tabs.bestPractices"))}
-        {T("plat", t("tabs.platforms"))}
-        {T("cheat", t("tabs.cheatSheet"))}
-        {T("check", t("tabs.checklist", { done: checkN, total: d.checklist.length }))}
-      </div>
+      {/* Shared `Segmented` (shared/ui.tsx) — this page used to hand-roll its own `T()` tab
+          helper out of Btns, a third distinct look for the same "pick one view" control. */}
+      <Segmented
+        value={sub}
+        onChange={setSub}
+        options={[
+          { value: "bp" as const, label: t("tabs.bestPractices") },
+          { value: "plat" as const, label: t("tabs.platforms") },
+          { value: "cheat" as const, label: t("tabs.cheatSheet") },
+          { value: "check" as const, label: t("tabs.checklist", { done: checkN, total: d.checklist.length }) },
+        ]}
+      />
 
       {sub === "bp" && (
         <div className="grid md:grid-cols-2 gap-4">

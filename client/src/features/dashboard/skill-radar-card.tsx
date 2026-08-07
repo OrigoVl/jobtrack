@@ -6,6 +6,11 @@ import type { RoadmapNode } from "../../shared/types";
 const SIZE = 220;
 const CENTER = SIZE / 2;
 const RADIUS = 78;
+// Horizontal breathing room for the axis LABELS, which sit outside the circle and were being
+// clipped by the viewBox at both ends ("Kubernetes" rendered as "etes", "React" as "Reac").
+// Added as viewBox padding rather than by shrinking RADIUS, so the chart itself stays the same
+// size; only the box around it grows. Sized for the longest label the compact axis set produces.
+const LABEL_PAD = 56;
 const RINGS = [1, 0.66, 0.33];
 
 function point(index: number, count: number, value: number, radius = RADIUS): [number, number] {
@@ -33,7 +38,7 @@ export function SkillRadarCard({ nodes, onOpen }: { nodes: RoadmapNode[]; onOpen
         </button>
       </div>
       <div role="img" aria-label={t("skillRadar.heading")} className="flex justify-center">
-        <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+        <svg width={SIZE + LABEL_PAD * 2} height={SIZE} viewBox={`${-LABEL_PAD} 0 ${SIZE + LABEL_PAD * 2} ${SIZE}`} className="max-w-full">
           {RINGS.map((r) => (
             <circle key={r} cx={CENTER} cy={CENTER} r={RADIUS * r} className="stroke-grid fill-none" />
           ))}

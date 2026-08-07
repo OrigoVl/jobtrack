@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -26,6 +26,7 @@ import {
   LayersIcon,
   PencilIcon,
   RectangleToolIcon,
+  TrashIcon,
   TypeIcon,
   type IconComponent,
 } from "../../shared/icons";
@@ -35,13 +36,29 @@ import {
   ANNOTATION_COLORS,
   DEFAULT_ANNOTATION_COLOR,
   MIN_SHAPE_SIZE,
+  RESIZE_HANDLES,
+  anchorPointOnNode,
+  angleFromCenter,
+  annotationBounds,
+  annotationCenter,
+  applyArrowBindings,
   buildFreehandPathD,
   colorMarkerKey,
+  findBindTarget,
   isDrawTool,
   nextAnnotationId,
+  normalizeAngle,
   normalizeRect,
+  resizeBounds,
+  resizeHandlePoint,
+  rotatePoint,
+  rotationTransform,
+  scaleAnnotationToBounds,
   translateAnnotation,
+  type BindableNode,
   type DesignDrawTool,
+  type Rect,
+  type ResizeHandle,
 } from "../../shared/design-annotations";
 import { DesignNode, type DesignNodeData } from "./design-node";
 import type { DesignAnnotation, DesignDiagram, DesignNodeKind } from "../../shared/types";
@@ -50,6 +67,11 @@ const NODE_TYPES = { designNode: DesignNode };
 // Backspace and Delete both remove the selected node(s)/edge(s) — React Flow's default is just
 // Backspace; Delete is the more common expectation on Windows keyboards.
 const DELETE_KEYS = ["Backspace", "Delete"];
+// Only used for the single frame between dropping a node and React Flow measuring it — see
+// bindableNodes below. Roughly a DesignNode card's rendered size, so an arrow bound on that frame
+// doesn't visibly jump once the real measurement lands.
+const DEFAULT_NODE_WIDTH = 180;
+const DEFAULT_NODE_HEIGHT = 70;
 
 // design-patterns.ts's labelKey fields are plain runtime strings (kept i18n-free there — see that
 // file's own comment) — these Records re-attach them to LITERAL i18next keys (small, closed sets)
@@ -149,6 +171,9 @@ function PatternPaletteItem({ pattern }: { pattern: DesignPattern }) {
 /** A draft shape/stroke still being dragged out, before it's committed as a real DesignAnnotation
  * on pointer-up. Text has no draft — it commits immediately on click (see AnnotationLayer's
  * onPointerDown). */
+type ArrowEndpoint = "start" | "end";
+const ARROW_ENDPOINTS: ArrowEndpoint[] = ["start", "end"];
+
 type AnnotationDraft =
   | { kind: "freehand"; points: { x: number; y: number }[] }
   | { kind: "rectangle" | "ellipse"; start: { x: number; y: number }; current: { x: number; y: number } }
@@ -157,7 +182,6 @@ type AnnotationDraft =
 function AnnotationShape({
   annotation,
   interactive,
-  isSelected,
   isEditing,
   onSelectAndDrag,
   onEnterEdit,
@@ -165,16 +189,28 @@ function AnnotationShape({
 }: {
   annotation: DesignAnnotation;
   interactive: boolean;
-  isSelected: boolean;
   isEditing: boolean;
   onSelectAndDrag: (id: string, e: React.PointerEvent) => void;
   onEnterEdit: (id: string) => void;
   onCommitText: (id: string, text: string) => void;
 }) {
-  const selectionStyle = isSelected ? { filter: "drop-shadow(0 0 0 2px rgb(var(--signal)))" } : undefined;
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Focusing a just-created text annotation has to wait a frame. The annotation is created in the
+  // layer's pointerdown handler, which React flushes synchronously — so a focus() issued during
+  // that render lands BEFORE the browser runs the pointerdown's own default action, which moves
+  // focus to the document body. The textarea would blur immediately, and the blur handler commits
+  // the (still empty) text by deleting the annotation — i.e. clicking with the text tool appeared
+  // to do nothing at all. A rAF puts the focus after that default action instead.
+  useEffect(() => {
+    if (!isEditing) return;
+    const raf = requestAnimationFrame(() => textareaRef.current?.focus());
+    return () => cancelAnimationFrame(raf);
+  }, [isEditing]);
+
   const pointerProps = interactive
-    ? { style: { cursor: "move", ...selectionStyle }, onPointerDown: (e: React.PointerEvent) => onSelectAndDrag(annotation.id, e) }
-    : { style: selectionStyle };
+    ? { style: { cursor: "move" }, onPointerDown: (e: React.PointerEvent) => onSelectAndDrag(annotation.id, e) }
+    : {};
 
   switch (annotation.kind) {
     case "freehand":
@@ -234,25 +270,33 @@ function AnnotationShape({
         />
       );
     case "text":
+      // Unlike the SVG shapes above (each sets its own pointerEvents), HTML inside a foreignObject
+      // inherits pointer-events from AnnotationLayer's Panel — which is "none" for every non-draw
+      // tool. Creating a text annotation switches the tool straight back to "select", so without an
+      // explicit override the fresh textarea is unclickable and a click aimed at it lands on the
+      // pane beneath, blurring it into an empty-string commit that deletes the annotation again.
+      // Re-enabled on the interactive children only (never on the foreignObject box itself, whose
+      // 220x90 area would otherwise swallow clicks on nodes underneath), and the label is
+      // inline-block so its hit area is the text, not a full-width strip.
       return (
-        <foreignObject x={annotation.x} y={annotation.y} width={220} height={90} style={{ overflow: "visible" }}>
+        <foreignObject x={annotation.x} y={annotation.y} width={220} height={90} style={{ overflow: "visible" }} pointerEvents="none">
           {isEditing ? (
             <textarea
               defaultValue={annotation.text}
-              ref={(el) => el?.focus()}
+              ref={textareaRef}
               onBlur={(e) => onCommitText(annotation.id, e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Escape") e.currentTarget.blur();
               }}
               className="w-full h-16 bg-surface border border-signal rounded p-1 text-sm resize-none focus:outline-none"
-              style={{ color: annotation.color }}
+              style={{ color: annotation.color, pointerEvents: "auto" }}
             />
           ) : (
             <div
               onPointerDown={interactive ? (e) => onSelectAndDrag(annotation.id, e) : undefined}
               onDoubleClick={() => onEnterEdit(annotation.id)}
-              className="text-sm font-medium select-none whitespace-pre-wrap"
-              style={{ color: annotation.color, cursor: interactive ? "move" : "default", ...selectionStyle }}
+              className="inline-block text-sm font-medium select-none whitespace-pre-wrap"
+              style={{ color: annotation.color, cursor: interactive ? "move" : "default", pointerEvents: interactive ? "auto" : "none" }}
             >
               {annotation.text || <em className="opacity-50">…</em>}
             </div>
@@ -260,6 +304,118 @@ function AnnotationShape({
         </foreignObject>
       );
   }
+}
+
+// Screen-pixel sizes for the selection chrome. Everything drawn inside the viewport-transformed <g>
+// is in flow coordinates, so each of these is divided by the current zoom to keep the outline hairline
+// and the handles grabbable at any zoom level — the same trick as SVG's `vector-effect`, applied to
+// handle geometry too (which `vector-effect` can't cover, since it only scales strokes).
+const HANDLE_SIZE = 9;
+const SELECTION_PADDING = 6;
+/** How far above the box's top edge the rotate handle floats — same idea as Excalidraw's ◯. */
+const ROTATE_HANDLE_OFFSET = 22;
+const HANDLE_CURSOR: Record<ResizeHandle, string> = { nw: "nwse-resize", ne: "nesw-resize", se: "nwse-resize", sw: "nesw-resize" };
+
+/** Excalidraw-style selection chrome for the active annotation. What it offers depends on the kind:
+ * an arrow gets a round grip on each ENDPOINT (dragging one end is what reshaping an arrow means —
+ * corner handles would be a clumsy proxy for that, and rotation is redundant once both ends move
+ * freely), everything else gets four corner handles plus a rotate grip above the box. Text gets
+ * neither resize (its size is the font's) nor endpoints — just the outline and the rotate grip.
+ * Purely an overlay: it never wraps the shape, so it can't interfere with the shape's own hit
+ * area, and it renders after every annotation so the grips stay on top. */
+function SelectionBox({
+  annotation,
+  bounds,
+  zoom,
+  onResizeStart,
+  onRotateStart,
+  onEndpointStart,
+}: {
+  annotation: DesignAnnotation;
+  bounds: Rect;
+  zoom: number;
+  onResizeStart: (handle: ResizeHandle, e: React.PointerEvent) => void;
+  onRotateStart: (e: React.PointerEvent) => void;
+  onEndpointStart: (end: ArrowEndpoint, e: React.PointerEvent) => void;
+}) {
+  const pad = SELECTION_PADDING / zoom;
+  const stroke = 1 / zoom;
+  const box: Rect = { x: bounds.x - pad, y: bounds.y - pad, width: bounds.width + pad * 2, height: bounds.height + pad * 2 };
+  const size = HANDLE_SIZE / zoom;
+  const isArrow = annotation.kind === "arrow";
+  const resizable = annotation.kind !== "text" && !isArrow;
+  const rotateAnchor = { x: box.x + box.width / 2, y: box.y - ROTATE_HANDLE_OFFSET / zoom };
+  return (
+    <g transform={rotationTransform(annotation)}>
+      <rect
+        {...box}
+        fill="none"
+        stroke="rgb(var(--signal))"
+        strokeWidth={stroke}
+        strokeDasharray={`${4 / zoom} ${3 / zoom}`}
+        pointerEvents="none"
+      />
+      {resizable &&
+        RESIZE_HANDLES.map((handle) => {
+          const point = resizeHandlePoint(box, handle);
+          return (
+            <rect
+              key={handle}
+              x={point.x - size / 2}
+              y={point.y - size / 2}
+              width={size}
+              height={size}
+              rx={stroke}
+              fill="rgb(var(--surface))"
+              stroke="rgb(var(--signal))"
+              strokeWidth={stroke * 1.5}
+              style={{ cursor: HANDLE_CURSOR[handle] }}
+              pointerEvents="all"
+              onPointerDown={(e) => onResizeStart(handle, e)}
+            />
+          );
+        })}
+      {!isArrow && (
+        <>
+          <line
+            x1={box.x + box.width / 2}
+            y1={box.y}
+            x2={rotateAnchor.x}
+            y2={rotateAnchor.y}
+            stroke="rgb(var(--signal))"
+            strokeWidth={stroke}
+            pointerEvents="none"
+          />
+          <circle
+            cx={rotateAnchor.x}
+            cy={rotateAnchor.y}
+            r={size / 1.6}
+            fill="rgb(var(--surface))"
+            stroke="rgb(var(--signal))"
+            strokeWidth={stroke * 1.5}
+            style={{ cursor: "grab" }}
+            pointerEvents="all"
+            onPointerDown={onRotateStart}
+          />
+        </>
+      )}
+      {annotation.kind === "arrow" &&
+        ARROW_ENDPOINTS.map((end) => (
+          <circle
+            key={end}
+            cx={end === "start" ? annotation.x1 : annotation.x2}
+            cy={end === "start" ? annotation.y1 : annotation.y2}
+            r={size / 1.6}
+            fill="rgb(var(--surface))"
+            stroke="rgb(var(--signal))"
+            strokeWidth={stroke * 1.5}
+            style={{ cursor: "move" }}
+            pointerEvents="all"
+            onPointerDown={(e) => onEndpointStart(end, e)}
+          />
+        ))}
+    </g>
+  );
 }
 
 /** The freeform drawing layer — an SVG overlay transformed by the same pan/zoom viewport as the
@@ -278,6 +434,7 @@ function AnnotationLayer({
   editingId,
   setEditingId,
   onToolUsed,
+  bindableNodes,
 }: {
   tool: DesignDrawTool;
   color: string;
@@ -288,13 +445,25 @@ function AnnotationLayer({
   editingId: string | null;
   setEditingId: (id: string | null) => void;
   onToolUsed: () => void;
+  /** The diagram's nodes as plain boxes, for snapping arrow endpoints onto them. */
+  bindableNodes: BindableNode[];
 }) {
   const { screenToFlowPosition } = useReactFlow();
   const viewport = useViewport();
   const [draft, setDraft] = useState<AnnotationDraft | null>(null);
   const dragRef = useRef<{ id: string; lastFlow: { x: number; y: number } } | null>(null);
+  // The annotation as it was when the resize drag started, plus its box then — every frame rescales
+  // that snapshot rather than the previous frame's result (see scaleAnnotationToBounds' own note).
+  const resizeRef = useRef<{ handle: ResizeHandle; from: Rect; original: DesignAnnotation } | null>(null);
+  const rotateRef = useRef<{ id: string; center: { x: number; y: number }; startRotation: number; startAngle: number } | null>(null);
+  const endpointRef = useRef<{ id: string; end: ArrowEndpoint } | null>(null);
+  // The node an in-flight arrow-endpoint drag would bind to if released now — drawn as a highlight
+  // so the snap is visible BEFORE letting go, rather than a surprise on pointer-up.
+  const [bindCandidate, setBindCandidate] = useState<string | null>(null);
 
   const drawing = isDrawTool(tool);
+  const selected = tool === "select" ? (annotations.find((a) => a.id === selectedId) ?? null) : null;
+  const bindCandidateNode = bindCandidate ? (bindableNodes.find((n) => n.id === bindCandidate) ?? null) : null;
 
   const toFlow = useCallback(
     (e: { clientX: number; clientY: number }) => screenToFlowPosition({ x: e.clientX, y: e.clientY }),
@@ -312,7 +481,73 @@ function AnnotationLayer({
     [tool, setSelectedId, toFlow],
   );
 
+  // Pointer capture on each grip keeps its drag alive when the cursor outruns the 9px target, and —
+  // because captured events still bubble — the layer's own move/up handlers below stay the single
+  // place every drag is tracked, exactly like onSelectAndDrag's move drag.
+  const captureGrip = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+  };
+
+  const onResizeStart = (handle: ResizeHandle, e: React.PointerEvent) => {
+    if (!selected) return;
+    captureGrip(e);
+    resizeRef.current = { handle, from: annotationBounds(selected), original: selected };
+  };
+
+  const onRotateStart = (e: React.PointerEvent) => {
+    if (!selected) return;
+    captureGrip(e);
+    const center = annotationCenter(selected);
+    rotateRef.current = {
+      id: selected.id,
+      center,
+      startRotation: selected.rotation ?? 0,
+      // Anchoring to the angle the drag STARTED at (rather than snapping the shape to the pointer)
+      // is what keeps the grip under the cursor instead of jumping a quarter turn on grab.
+      startAngle: angleFromCenter(center, toFlow(e)),
+    };
+  };
+
+  const onEndpointStart = (end: ArrowEndpoint, e: React.PointerEvent) => {
+    if (!selected || selected.kind !== "arrow") return;
+    captureGrip(e);
+    endpointRef.current = { id: selected.id, end };
+  };
+
   const onLayerPointerMove = (e: React.PointerEvent) => {
+    if (endpointRef.current) {
+      const { id, end } = endpointRef.current;
+      const pt = toFlow(e);
+      const target = findBindTarget(pt, bindableNodes);
+      setBindCandidate(target);
+      setAnnotations((prev) =>
+        prev.map((a) =>
+          a.id === id && a.kind === "arrow" ? (end === "start" ? { ...a, x1: pt.x, y1: pt.y } : { ...a, x2: pt.x, y2: pt.y }) : a,
+        ),
+      );
+      return;
+    }
+    if (rotateRef.current) {
+      const { id, center, startRotation, startAngle } = rotateRef.current;
+      const delta = angleFromCenter(center, toFlow(e)) - startAngle;
+      // Shift constrains to 15° steps, the same coarse-angle affordance Excalidraw offers.
+      const next = e.shiftKey ? Math.round((startRotation + delta) / 15) * 15 : startRotation + delta;
+      setAnnotations((prev) => prev.map((a) => (a.id === id ? { ...a, rotation: normalizeAngle(next) } : a)));
+      return;
+    }
+    if (resizeRef.current) {
+      const { handle, from, original } = resizeRef.current;
+      // A rotated shape stores axis-aligned geometry and is only DRAWN turned, so the pointer is
+      // turned back into that frame (about the box center captured at drag start, which keeps the
+      // mapping stable for the whole drag) before the plain, rotation-free resize math runs.
+      const rotation = original.rotation ?? 0;
+      const center = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
+      const pt = rotation ? rotatePoint(toFlow(e), center, -rotation) : toFlow(e);
+      const to = resizeBounds(from, handle, pt);
+      setAnnotations((prev) => prev.map((a) => (a.id === original.id ? scaleAnnotationToBounds(original, from, to) : a)));
+      return;
+    }
     if (dragRef.current) {
       const pt = toFlow(e);
       const { id, lastFlow } = dragRef.current;
@@ -332,6 +567,36 @@ function AnnotationLayer({
   };
 
   const onLayerPointerUp = () => {
+    if (endpointRef.current) {
+      const { id, end } = endpointRef.current;
+      endpointRef.current = null;
+      // Releasing over a node binds that end to it; releasing anywhere else clears the binding, so
+      // dragging an endpoint off a node is how you detach it — no separate unbind gesture.
+      const nodeId = bindCandidate;
+      setBindCandidate(null);
+      setAnnotations((prev) =>
+        prev.map((a) => {
+          if (a.id !== id || a.kind !== "arrow") return a;
+          const next = { ...a };
+          const key = end === "start" ? "startNodeId" : "endNodeId";
+          if (nodeId) next[key] = nodeId;
+          else delete next[key];
+          const node = nodeId ? bindableNodes.find((n) => n.id === nodeId) : undefined;
+          if (!node) return next;
+          const anchor = anchorPointOnNode(node, end === "start" ? { x: next.x2, y: next.y2 } : { x: next.x1, y: next.y1 });
+          return end === "start" ? { ...next, x1: anchor.x, y1: anchor.y } : { ...next, x2: anchor.x, y2: anchor.y };
+        }),
+      );
+      return;
+    }
+    if (rotateRef.current) {
+      rotateRef.current = null;
+      return;
+    }
+    if (resizeRef.current) {
+      resizeRef.current = null;
+      return;
+    }
     if (dragRef.current) {
       dragRef.current = null;
       return;
@@ -419,11 +684,6 @@ function AnnotationLayer({
         onPointerDown={onLayerPointerDown}
         onPointerMove={onLayerPointerMove}
         onPointerUp={onLayerPointerUp}
-        onClick={(e) => {
-          // A click on empty canvas in select mode deselects — but not one that just finished a
-          // drag (dragRef is already cleared by then, so this only fires for a genuine bare click).
-          if (tool === "select" && e.target === e.currentTarget) setSelectedId(null);
-        }}
       >
         <defs>
           {ANNOTATION_COLORS.map((c) => (
@@ -433,18 +693,45 @@ function AnnotationLayer({
           ))}
         </defs>
         <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.zoom})`}>
+          {/* The rotation lives on this wrapper rather than inside AnnotationShape: the stored
+              geometry stays axis-aligned (so bounds/resize/binding math never has to deal with
+              angles) and only the drawing is turned — and SVG hit-testing follows the transform,
+              so a rotated shape still grabs where it LOOKS like it is. */}
           {annotations.map((a) => (
-            <AnnotationShape
-              key={a.id}
-              annotation={a}
-              interactive={tool === "select"}
-              isSelected={selectedId === a.id}
-              isEditing={editingId === a.id}
-              onSelectAndDrag={onSelectAndDrag}
-              onEnterEdit={setEditingId}
-              onCommitText={commitText}
-            />
+            <g key={a.id} transform={rotationTransform(a)}>
+              <AnnotationShape
+                annotation={a}
+                interactive={tool === "select"}
+                isEditing={editingId === a.id}
+                onSelectAndDrag={onSelectAndDrag}
+                onEnterEdit={setEditingId}
+                onCommitText={commitText}
+              />
+            </g>
           ))}
+          {bindCandidateNode && (
+            <rect
+              x={bindCandidateNode.x - 4}
+              y={bindCandidateNode.y - 4}
+              width={bindCandidateNode.width + 8}
+              height={bindCandidateNode.height + 8}
+              rx={10}
+              fill="rgb(var(--signal) / 0.1)"
+              stroke="rgb(var(--signal))"
+              strokeWidth={1.5 / viewport.zoom}
+              pointerEvents="none"
+            />
+          )}
+          {selected && editingId !== selected.id && (
+            <SelectionBox
+              annotation={selected}
+              bounds={annotationBounds(selected)}
+              zoom={viewport.zoom}
+              onResizeStart={onResizeStart}
+              onRotateStart={onRotateStart}
+              onEndpointStart={onEndpointStart}
+            />
+          )}
           {draft && (
             <g opacity={0.7} pointerEvents="none">
               {draft.kind === "freehand" && (
@@ -531,6 +818,47 @@ function DesignCanvasInner({
 
   const onConnect = useCallback((connection: Connection) => setEdges((eds) => addEdge(connection, eds)), [setEdges]);
 
+  // React Flow reports a node's rendered size in `measured` once it has been laid out; the fallbacks
+  // only cover the very first frame after a drop, before that measurement exists.
+  const bindableNodes: BindableNode[] = useMemo(
+    () =>
+      nodes.map((n) => ({
+        id: n.id,
+        x: n.position.x,
+        y: n.position.y,
+        width: n.measured?.width ?? DEFAULT_NODE_WIDTH,
+        height: n.measured?.height ?? DEFAULT_NODE_HEIGHT,
+      })),
+    [nodes],
+  );
+  // Re-anchor every bound arrow after the nodes move/resize — keyed on the node GEOMETRY alone, not
+  // on `annotations`: re-running whenever an annotation changes would fight the user mid-drag
+  // (every endpoint move would be snapped straight back), whereas this way dragging a bound node
+  // pulls its arrows along, which is the behaviour the binding exists for. applyArrowBindings
+  // returns the same reference when nothing moved, so an unrelated node nudge is a no-op update.
+  const nodeGeometryKey = bindableNodes.map((n) => `${n.id}:${n.x}:${n.y}:${n.width}:${n.height}`).join("|");
+  useEffect(() => {
+    const nodeMap = new Map(bindableNodes.map((n) => [n.id, n]));
+    setAnnotations((prev) => {
+      const next = prev.map((a) => (a.kind === "arrow" ? applyArrowBindings(a, nodeMap) : a));
+      return next.some((a, i) => a !== prev[i]) ? next : prev;
+    });
+    // bindableNodes is derived from the same nodes as nodeGeometryKey, which is the actual trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodeGeometryKey]);
+
+  const selectedAnnotation = annotations.find((a) => a.id === selectedAnnotationId) ?? null;
+
+  const applyColor = (next: string) => {
+    setColor(next);
+    if (selectedAnnotationId) setAnnotations((prev) => prev.map((a) => (a.id === selectedAnnotationId ? { ...a, color: next } : a)));
+  };
+
+  const deleteSelectedAnnotation = () => {
+    setAnnotations((prev) => prev.filter((a) => a.id !== selectedAnnotationId));
+    setSelectedAnnotationId(null);
+  };
+
   const resolvePatternLabel = useCallback(
     (n: DesignPatternNode) => (n.labelKey ? t(PATTERN_NODE_LABEL_KEY[n.labelKey]) : designNodeKindLabel(n.kind)),
     [t],
@@ -591,6 +919,10 @@ function DesignCanvasInner({
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            // Clicking bare canvas clears the annotation selection. It has to be handled here, not
+            // on the annotation layer's own SVG: in "select" mode that layer is pointer-events:none
+            // (only the shapes themselves opt back in), so a click on empty space never reaches it.
+            onPaneClick={() => setSelectedAnnotationId(null)}
             nodeTypes={NODE_TYPES}
             deleteKeyCode={readOnly ? [] : DELETE_KEYS}
             nodesDraggable={!readOnly}
@@ -639,7 +971,11 @@ function DesignCanvasInner({
                       };
                     })}
                   />
-                  {tool !== "select" && (
+                  {/* Doubles as Excalidraw's properties panel: with nothing selected the swatches
+                      set the color the NEXT shape is drawn in; with a shape selected they recolor
+                      that shape (and still update the default), and a delete button appears next to
+                      them so removing a shape doesn't depend on knowing the Delete-key shortcut. */}
+                  {(tool !== "select" || selectedAnnotation) && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-ink-dim">{t("canvas.colorLabel")}</span>
                       {ANNOTATION_COLORS.map((c) => (
@@ -647,11 +983,22 @@ function DesignCanvasInner({
                           key={c}
                           type="button"
                           aria-label={c}
-                          onClick={() => setColor(c)}
-                          className={`h-5 w-5 rounded-full border-2 ${color === c ? "border-ink" : "border-transparent"}`}
+                          onClick={() => applyColor(c)}
+                          className={`h-5 w-5 rounded-full border-2 ${(selectedAnnotation?.color ?? color) === c ? "border-ink" : "border-transparent"}`}
                           style={{ backgroundColor: c }}
                         />
                       ))}
+                      {selectedAnnotation && (
+                        <button
+                          type="button"
+                          onClick={deleteSelectedAnnotation}
+                          title={t("canvas.deleteShape")}
+                          aria-label={t("canvas.deleteShape")}
+                          className="ml-1 flex items-center justify-center h-6 w-6 rounded-lg text-ink-dim hover:text-ink hover:bg-surface-2 transition-colors"
+                        >
+                          <TrashIcon className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -668,6 +1015,7 @@ function DesignCanvasInner({
                 editingId={editingAnnotationId}
                 setEditingId={setEditingAnnotationId}
                 onToolUsed={() => setTool("select")}
+                bindableNodes={bindableNodes}
               />
             )}
           </ReactFlow>

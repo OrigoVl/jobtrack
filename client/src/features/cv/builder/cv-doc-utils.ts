@@ -63,9 +63,12 @@ export function buildCvHtml(doc: CvDoc): string {
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
+  // `.trim()`, not `filter(Boolean)`: a bullet the user cleared down to spaces is still truthy,
+  // and would print as a visible empty bullet point on the exported PDF. ResumeCompleteness
+  // already judges "has this entry got any content" the same way.
   const list = (arr: string[]) =>
     arr
-      .filter(Boolean)
+      .filter((x) => x.trim())
       .map((x) => `<li>${esc(x)}</li>`)
       .join("");
   const isUk = isCyrillicDoc(doc);
@@ -80,7 +83,7 @@ export function buildCvHtml(doc: CvDoc): string {
     .map(
       (e, i) =>
         `<div class="exp" data-section="experience-${i}"><div class="row"><span class="role">${esc(e.role)}</span><span class="period">${esc(e.period)}</span></div>` +
-        `<div class="company">${esc(e.company)}</div>${e.bullets.filter(Boolean).length ? `<ul>${list(e.bullets)}</ul>` : ""}</div>`,
+        `<div class="company">${esc(e.company)}</div>${e.bullets.some((b) => b.trim()) ? `<ul>${list(e.bullets)}</ul>` : ""}</div>`,
     )
     .join("");
   // Reuses the `.exp`/`.row`/`.period`/`.company` classes Experience entries already style —
@@ -350,7 +353,8 @@ export function cvDocToText(doc: CvDoc): string {
     lines.push("\nExperience:");
     doc.experience.forEach((e) => {
       lines.push(`${e.role} — ${e.company} (${e.period})`);
-      e.bullets.filter(Boolean).forEach((b) => lines.push(`- ${b}`));
+      // Whitespace-only bullets would otherwise reach the LLM as an empty "- " line.
+      e.bullets.filter((b) => b.trim()).forEach((b) => lines.push(`- ${b}`));
     });
   }
   const projects = doc.projects

@@ -410,6 +410,19 @@ export function ChevronsLeftIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** The mobile bottom bar's "More" entry (app/mobile-nav.tsx) — three dots, the near-universal
+ * mobile convention for "the rest of the navigation lives behind this". Filled rather than
+ * stroked: three 1.4-weight outlined circles at 18px read as fuzzy smudges, not dots. */
+export function MoreIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" fill="currentColor" {...props}>
+      <circle cx="4" cy="9" r="1.5" />
+      <circle cx="9" cy="9" r="1.5" />
+      <circle cx="14" cy="9" r="1.5" />
+    </svg>
+  );
+}
+
 // --- Design-trainer canvas icons (design-canvas.tsx/design-node.tsx) — an Excalidraw-style
 // icon-first toolbar/shape-library, filled variants (cursor/lightning) matching FlameIcon's
 // convention above, everything else the file's shared outline style. ---
@@ -598,6 +611,43 @@ export function ShapesIcon(props: SVGProps<SVGSVGElement>) {
     <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
       <rect x="2" y="8" width="7" height="7" rx="1" />
       <circle cx="12.5" cy="6" r="4" />
+    </svg>
+  );
+}
+
+/** Reordering — one arrow up, one down. Replaced the ↕️ emoji on the CV Builder's "Section order"
+ * accordion (cv/builder/layout-presets-panel.tsx): every OTHER section header in that column is
+ * plain text, so a lone full-color emoji was the only thing on the page not drawn in this set's
+ * line style. */
+export function ArrowsUpDownIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <path d="M5.5 3v12M2.5 6l3-3 3 3" />
+      <path d="M12.5 15V3M9.5 12l3 3 3-3" />
+    </svg>
+  );
+}
+
+/** Inline warning marker — the ⚠ glyph's replacement (roadmap.tsx's shared-track note, the CV
+ * preview's "more than one page" hint). Color comes from the caller (`text-alert`), like every
+ * other icon here. */
+export function AlertTriangleIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <path d="M9 2.5 16.5 15.5H1.5L9 2.5Z" />
+      <path d="M9 7v3.5M9 13h.01" />
+    </svg>
+  );
+}
+
+/** Keyboard — the Roadmap node's "drills solved" chip (roadmap.tsx), where drills are the
+ * type-the-code exercises. Replaced the ⌨ glyph, for the same reason as ArrowsUpDownIcon. */
+export function KeyboardIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <rect x="1.5" y="4" width="15" height="10" rx="1.5" />
+      <path d="M4.5 7h.01M7 7h.01M9.5 7h.01M12 7h.01M4.5 9.5h.01M7 9.5h.01M9.5 9.5h.01M12 9.5h.01" />
+      <path d="M5.5 11.75h7" />
     </svg>
   );
 }

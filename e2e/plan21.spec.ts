@@ -1,12 +1,18 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * End-to-end test of a key flow: marking a day in the 21-day intensive as done
- * (features/plan21/plan21.tsx -> POST /api/plan21/day) and persisting progress on the backend —
- * we check that the checkbox stays checked after reloading the page.
+ * End-to-end test of a key flow: marking a day in the intensive plan as done
+ * (features/plan21/plan21.tsx -> PUT /api/plan21/progress) and persisting progress on the
+ * backend — we check that the checkbox stays checked after reloading the page.
+ *
+ * /plan21 is no longer a page of its own: it's the Roadmap's "Intensive" view, and the old URL
+ * redirects there with that view selected (app/App.tsx's RoadmapViewRedirect). The reload below
+ * therefore also covers the reason `roadmap-view.ts` persists the choice — without that, a
+ * refresh would drop the user back on the skill list and this spec would find no checkbox.
  */
 test("marks a plan21 day as done and persists it across reload", async ({ page }) => {
   await page.goto("/plan21");
+  await expect(page).toHaveURL(/\/roadmap$/);
 
   const checkbox = page.getByRole("checkbox").first();
   await expect(checkbox).toBeVisible();

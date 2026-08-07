@@ -1,7 +1,7 @@
 // Repository wrapping the `contacts` table — mirrors companies.repo.ts almost exactly (thin,
 // unit-testable data access, every function scoped by `userId`), with the extra bits contacts
 // needs: an optional company link and a nullable "last contacted" date.
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import db from "../../db/client.js";
 import { contacts } from "../../db/schema/index.js";
 import type { UserId } from "../../db/user-id.js";
@@ -42,6 +42,13 @@ function toContact(row: typeof contacts.$inferSelect): Contact {
 export async function listContacts(userId: UserId): Promise<Contact[]> {
   const rows = await db.select().from(contacts).where(eq(contacts.userId, userId)).orderBy(contacts.name);
   return rows.map(toContact);
+}
+
+/** Row count only — see countCompanies() in companies.repo.ts for why the sidebar needs this
+ * rather than the full list. */
+export async function countContacts(userId: UserId): Promise<number> {
+  const [row] = await db.select({ c: count() }).from(contacts).where(eq(contacts.userId, userId));
+  return row?.c ?? 0;
 }
 
 export async function getContact(userId: UserId, id: number): Promise<Contact | undefined> {

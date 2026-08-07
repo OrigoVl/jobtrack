@@ -12,7 +12,7 @@ import {
 import { api } from "../../shared/api";
 import { useToast } from "../../shared/use-toast";
 import { useConfirm } from "../../shared/use-confirm";
-import { Btn, Card, CardsSkeleton, Dropdown, EmptyState, PageHeader, Select, Spinner } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Dropdown, EmptyState, PageHeader, Segmented, Select, Spinner } from "../../shared/ui";
 import { DateInput } from "../../shared/date-input";
 import { StarIcon } from "../../shared/icons";
 import { STATUSES, type Fit, type VacancyStatus } from "../../shared/types";
@@ -190,14 +190,18 @@ export function Vacancies() {
         subtitle={t("subtitle")}
         actions={
           <div className="flex gap-2 flex-wrap">
-            <div className="flex gap-1 bg-surface-2 rounded-lg p-0.5">
-              <Btn variant={view === "table" ? "primary" : "subtle"} size="sm" onClick={() => setView("table")}>
-                {t("view.table")}
-              </Btn>
-              <Btn variant={view === "board" ? "primary" : "subtle"} size="sm" onClick={() => setView("board")}>
-                {t("view.board")}
-              </Btn>
-            </div>
+            {/* Shared `Segmented` (shared/ui.tsx) rather than a hand-rolled row of Btns in a
+                rounded track — this was one of three places that reimplemented the same control
+                slightly differently, so the app showed the user two visually distinct answers to
+                "these are mutually exclusive views of one thing". */}
+            <Segmented
+              value={view}
+              onChange={setView}
+              options={[
+                { value: "table", label: t("view.table") },
+                { value: "board", label: t("view.board") },
+              ]}
+            />
             <Btn onClick={() => setCreateOpen(true)}>{t("addVacancy")}</Btn>
             {/* Collapsed by default — the two import forms used to render as full-width cards
                 ABOVE the table/board on every visit, pushing every actual vacancy off-screen on

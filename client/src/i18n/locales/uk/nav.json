@@ -1,30 +1,28 @@
 {
-  "sections": {
-    "jobSearch": "Пошук роботи",
-    "growth": "Розвиток",
-    "profile": "Профіль",
-    "admin": "Адмін"
-  },
   "items": {
     "dashboard": "Дашборд",
     "vacancies": "Вакансії",
-    "jobSearch": "Пошук вакансій",
-    "vacancyAnalysis": "Аналіз вакансії",
+    "jobSearch": "Знайти вакансії",
+    "vacancyAnalysis": "Розібрати вакансію",
+    "network": "Нетворк",
     "companies": "Компанії",
     "contacts": "Контакти",
     "analytics": "Аналітика",
     "calendar": "Календар",
-    "growthHub": "Розвиток",
+    "growth": "Розвиток",
     "roadmap": "Дорожня карта",
-    "intensivePlan": "Інтенсив-план",
-    "learningPlan": "План навчання",
     "practice": "Практика",
     "petProjects": "Пет-проєкти",
     "resources": "Ресурси",
     "cv": "Резюме",
     "cvBuilder": "Конструктор резюме",
+    "cvReview": "Резюме текстом",
+    "coverLetter": "Супровідний лист",
     "account": "Акаунт",
-    "admin": "Адмін"
+    "admin": "Адмін",
+    "intensivePlan": "Інтенсив-план",
+    "learningPlan": "Матеріали для навчання",
+    "radar": "Радар навичок"
   },
   "ai": {
     "on": "ШІ: увімкнено",
@@ -37,6 +35,16 @@
   "roadmapProgress": "Дорожня карта: {{done}}/{{total}}",
   "connectionError": "Не вдалося підключитися до сервера",
   "openCommandPalette": "Відкрити командну панель",
+  "mobile": {
+    "more": "Ще",
+    "moreAriaLabel": "Інші розділи",
+    "closeMore": "Закрити",
+    "primaryAriaLabel": "Основна навігація"
+  },
+  "locked": {
+    "needsVacancy": "Додайте першу вакансію, щоб тут з'явилися дані",
+    "needsNetwork": "Додайте контакт або компанію, щоб тут з'явилися дані"
+  },
   "footer": {
     "privacy": "Конфіденційність",
     "terms": "Умови"

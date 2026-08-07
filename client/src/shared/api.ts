@@ -39,13 +39,14 @@ import type {
   EnrichmentResult,
   FetchAllJobState,
   FocusWeek,
+  InterviewTurnResult,
   JobSearchResult,
   JsonVacancyImportResult,
   KnowledgeData,
   LearnData,
   LinkedInOptimizeResult,
   MockEvaluation,
-  InterviewTurnResult,
+  OnboardingState,
   OutreachResult,
   Plan21Data,
   Profile,
@@ -215,6 +216,9 @@ export const api = {
   knowledge: (tech: string) => req<KnowledgeData>(`/knowledge/${encodeURIComponent(tech)}`),
 
   resources: () => req<ResourcesData>("/resources"),
+  /** An empty `text` clears the override and puts the focus back on auto. */
+  setResourcesFocus: (text: string) =>
+    req<{ ok: boolean; focus: string; focusCustom: boolean }>("/resources/focus", { method: "PUT", body: JSON.stringify({ text }) }),
 
   study: async (): Promise<StudyState> => {
     const [due, content] = await Promise.all([
@@ -370,7 +374,7 @@ export const api = {
   referralState: () => req<ReferralState>("/referrals/me"),
   claimReferral: (code: string) => req<{ claimed: boolean }>("/referrals/claim", { method: "POST", body: JSON.stringify({ code }) }),
 
-  onboardingState: () => req<{ welcomeSeen: boolean }>("/onboarding/state"),
+  onboardingState: () => req<OnboardingState>("/onboarding/state"),
   markWelcomeSeen: () => req<{ welcomeSeen: boolean }>("/onboarding/welcome-seen", { method: "POST", body: "{}" }),
 
   billingMe: () => req<BillingState>("/billing/me"),

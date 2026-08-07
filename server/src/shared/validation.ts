@@ -532,13 +532,34 @@ function parseDesignTask(raw: unknown): DesignTaskInput {
   };
 }
 
+type DesignAnnotationBaseInput = { id: string; color: string; rotation?: number };
 export type DesignAnnotationInput =
-  | { id: string; kind: "freehand"; color: string; points: { x: number; y: number }[] }
-  | { id: string; kind: "rectangle" | "ellipse"; color: string; x: number; y: number; width: number; height: number }
-  | { id: string; kind: "arrow"; color: string; x1: number; y1: number; x2: number; y2: number }
-  | { id: string; kind: "text"; color: string; x: number; y: number; text: string };
+  | (DesignAnnotationBaseInput & { kind: "freehand"; points: { x: number; y: number }[] })
+  | (DesignAnnotationBaseInput & { kind: "rectangle" | "ellipse"; x: number; y: number; width: number; height: number })
+  | (DesignAnnotationBaseInput & {
+      kind: "arrow";
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      startNodeId?: string;
+      endNodeId?: string;
+    })
+  | (DesignAnnotationBaseInput & { kind: "text"; x: number; y: number; text: string });
 
-function parseDesignAnnotation(item: unknown, i: number): DesignAnnotationInput | null {
+/** Wraps any incoming rotation into [0, 360) — an out-of-range or garbage value becomes a
+ * harmless 0/equivalent angle rather than being rejected, since annotations are decorative and a
+ * bad one shouldn't 400 the whole diagram save. */
+function parseRotation(raw: unknown): number {
+  const deg = asNumber(raw) % 360;
+  return deg < 0 ? deg + 360 : deg;
+}
+
+/** `nodeIds` is the set of node ids that survived parsing above — an arrow bound to a node that
+ * isn't in this diagram (stale client state, hand-crafted payload) keeps its coordinates and
+ * simply loses the binding, rather than throwing the way a structural edge to an unknown node
+ * does: the binding is a drawing convenience, not a claim about the diagram's structure. */
+function parseDesignAnnotation(item: unknown, i: number, nodeIds: Set<string>): DesignAnnotationInput | null {
   const it = (item || {}) as Record<string, unknown>;
   const id = asString(it.id).trim().slice(0, 100) || `annotation-${i}`;
   const rawKind = asString(it.kind);
@@ -546,21 +567,35 @@ function parseDesignAnnotation(item: unknown, i: number): DesignAnnotationInput 
   const kind = rawKind as DesignAnnotationKind;
   const rawColor = asString(it.color);
   const color = HEX_COLOR_RE.test(rawColor) ? rawColor : DEFAULT_ANNOTATION_COLOR;
+  const rotation = parseRotation(it.rotation);
+  const base = rotation ? { id, color, rotation } : { id, color };
   switch (kind) {
     case "freehand": {
       const rawPoints = Array.isArray(it.points) ? it.points : [];
       const points = rawPoints
         .slice(0, MAX_FREEHAND_POINTS)
         .map((p) => ({ x: asNumber((p as Record<string, unknown>)?.x), y: asNumber((p as Record<string, unknown>)?.y) }));
-      return points.length < 2 ? null : { id, kind: "freehand", color, points };
+      return points.length < 2 ? null : { ...base, kind: "freehand", points };
     }
     case "rectangle":
     case "ellipse":
-      return { id, kind, color, x: asNumber(it.x), y: asNumber(it.y), width: asNumber(it.width), height: asNumber(it.height) };
-    case "arrow":
-      return { id, kind: "arrow", color, x1: asNumber(it.x1), y1: asNumber(it.y1), x2: asNumber(it.x2), y2: asNumber(it.y2) };
+      return { ...base, kind, x: asNumber(it.x), y: asNumber(it.y), width: asNumber(it.width), height: asNumber(it.height) };
+    case "arrow": {
+      const startNodeId = asString(it.startNodeId).trim();
+      const endNodeId = asString(it.endNodeId).trim();
+      return {
+        ...base,
+        kind: "arrow",
+        x1: asNumber(it.x1),
+        y1: asNumber(it.y1),
+        x2: asNumber(it.x2),
+        y2: asNumber(it.y2),
+        ...(nodeIds.has(startNodeId) ? { startNodeId } : {}),
+        ...(nodeIds.has(endNodeId) ? { endNodeId } : {}),
+      };
+    }
     case "text":
-      return { id, kind: "text", color, x: asNumber(it.x), y: asNumber(it.y), text: asString(it.text).slice(0, 500) };
+      return { ...base, kind: "text", x: asNumber(it.x), y: asNumber(it.y), text: asString(it.text).slice(0, 500) };
   }
 }
 
@@ -602,7 +637,7 @@ export function parseDesignDiagramInput(raw: unknown): DesignDiagramInput {
   });
   const annotations = ((b.annotations as unknown[]) || [])
     .slice(0, MAX_DESIGN_ANNOTATIONS)
-    .map((item, i) => parseDesignAnnotation(item, i))
+    .map((item, i) => parseDesignAnnotation(item, i, nodeIds))
     .filter((a): a is DesignAnnotationInput => a != null);
   return { nodes, edges, annotations };
 }

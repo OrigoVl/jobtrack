@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import { addVacancy, detailDialog } from "./helpers";
 
 /**
  * End-to-end test of the vacancy detail modal (features/vacancies/vacancy-detail-modal.tsx) — the
@@ -16,14 +17,6 @@ import { test, expect, type Page } from "@playwright/test";
  * Save — the detail modal offers only the "Linked company" select, no free-text company field.
  */
 
-/**
- * The create modal and the detail modal are BOTH role="dialog", and the create one stays up until
- * its Save round-trip (POST /companies/enrich + POST /vacancies) finishes — so a bare
- * getByRole("dialog") right after clicking Save resolves to the modal that's on its way out, and
- * every step after it silently runs against the wrong form. Narrowing by the tab strip (which only
- * the detail modal has) both disambiguates and waits for the handover.
- */
-const detailDialog = (page: Page) => page.getByRole("dialog").filter({ has: page.getByRole("button", { name: "Cover letter" }) });
 test("adding a vacancy opens its detail modal, and cover letter + fit analysis both work", async ({ page }) => {
   // "Analyze fit" is disabled without a CV, and a freshly registered account gets EMPTY_PROFILE
   // (seed-vacancies.ts — real signups deliberately no longer get the fictional SAMPLE_PROFILE), so
@@ -170,8 +163,11 @@ test("closing the detail modal with an unsaved edit asks first and throws the ed
   });
 
   await dialog.getByLabel("Position", { exact: true }).fill("Typed But Never Saved");
+  // Escape rather than the footer's Cancel: same requestClose() path, and this is the one place
+  // that keypress is safe to assert on — the "Unsaved changes" assertion above already proves the
+  // modal has re-rendered after user input, so its keydown effect is long since registered.
   await expect(dialog.getByText("Unsaved changes")).toBeVisible();
-  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await page.keyboard.press("Escape");
   // The confirm dialog is role="alertdialog" (shared/confirm.tsx), so it doesn't collide with the
   // modal's own role="dialog" locator above.
   await page.getByRole("alertdialog").getByRole("button", { name: "Discard" }).click();
@@ -184,19 +180,9 @@ test("closing the detail modal with an unsaved edit asks first and throws the ed
 
 test("opens the same detail modal from a Kanban card", async ({ page }) => {
   await page.goto("/vacancies");
-  await page.getByRole("button", { name: "+ Add vacancy" }).click();
-  const createDialog = page.getByRole("dialog");
-  await expect(createDialog).toBeVisible();
-  await createDialog.getByLabel("Company", { exact: true }).fill("New company");
-  await createDialog.getByLabel("Position", { exact: true }).fill("Position");
-  await createDialog.getByRole("button", { name: "Save" }).click();
-  // Saving opens the new vacancy's detail modal (a real network round-trip, not instant) — wait
-  // for it to actually appear before closing it, or Escape fires on an empty page and the modal
-  // (opening moments later) is left open, blocking the Kanban toggle below.
-  const addDialog = detailDialog(page);
-  await expect(addDialog.getByLabel("Position", { exact: true })).toHaveValue("Position");
-  await page.keyboard.press("Escape");
-  await expect(addDialog).not.toBeVisible();
+  // addVacancy() waits for the detail modal the save opens and dismisses it again — leaving it up
+  // would cover the Kanban toggle with its backdrop.
+  await addVacancy(page, { company: "New company", position: "Position" });
 
   await page.getByRole("button", { name: "Kanban" }).click();
 

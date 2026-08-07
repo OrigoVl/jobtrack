@@ -1,0 +1,34 @@
+{
+  "vacancies": {
+    "ariaLabel": "Розділи вакансій",
+    "tabs": {
+      "tracker": "Мої вакансії",
+      "find": "Знайти",
+      "analyze": "Розібрати"
+    }
+  },
+  "network": {
+    "ariaLabel": "Розділи нетворку",
+    "tabs": {
+      "contacts": "Контакти",
+      "companies": "Компанії"
+    }
+  },
+  "growth": {
+    "ariaLabel": "Розділи розвитку",
+    "tabs": {
+      "roadmap": "Дорожня карта",
+      "study": "Практика",
+      "projects": "Пет-проєкти",
+      "resources": "Ресурси"
+    }
+  },
+  "cv": {
+    "ariaLabel": "Розділи резюме",
+    "tabs": {
+      "builder": "Конструктор",
+      "review": "Резюме текстом",
+      "coverLetter": "Супровідний лист"
+    }
+  }
+}

@@ -455,6 +455,35 @@ describe("parseDesignGradeInput", () => {
     const out = parseDesignGradeInput({ task: designTask, diagram: { nodes: manyNodes, edges: [] } });
     expect(out.diagram.nodes.length).toBe(40);
   });
+
+  it("wraps an annotation's rotation into [0, 360) and omits it when it comes out zero", () => {
+    const out = parseDesignGradeInput({
+      task: designTask,
+      diagram: {
+        ...designDiagram,
+        annotations: [
+          { id: "r1", kind: "rectangle", color: "#dc2626", x: 0, y: 0, width: 10, height: 10, rotation: -90 },
+          { id: "r2", kind: "rectangle", color: "#dc2626", x: 0, y: 0, width: 10, height: 10, rotation: "nonsense" },
+        ],
+      },
+    });
+    expect(out.diagram.annotations[0]).toMatchObject({ id: "r1", rotation: 270 });
+    expect(out.diagram.annotations[1]).not.toHaveProperty("rotation");
+  });
+
+  it("keeps an arrow binding to a known node and silently drops one to an unknown node", () => {
+    const out = parseDesignGradeInput({
+      task: designTask,
+      diagram: {
+        ...designDiagram,
+        annotations: [{ id: "a1", kind: "arrow", color: "#16a34a", x1: 0, y1: 0, x2: 5, y2: 5, startNodeId: "1", endNodeId: "missing" }],
+      },
+    });
+    // Unlike a structural edge to an unknown node (which throws above), a stale decorative binding
+    // just disappears — the arrow itself survives with its coordinates intact.
+    expect(out.diagram.annotations[0]).toMatchObject({ id: "a1", startNodeId: "1", x1: 0, x2: 5 });
+    expect(out.diagram.annotations[0]).not.toHaveProperty("endNodeId");
+  });
 });
 
 describe("parseDesignHelpInput", () => {

@@ -58,8 +58,8 @@ import enResources from "./locales/en/resources.json";
 import ukResources from "./locales/uk/resources.json";
 import enStudy from "./locales/en/study.json";
 import ukStudy from "./locales/uk/study.json";
-import enGrowth from "./locales/en/growth.json";
-import ukGrowth from "./locales/uk/growth.json";
+import enSections from "./locales/en/sections.json";
+import ukSections from "./locales/uk/sections.json";
 
 // Matches the existing `jobtrack.*` localStorage key convention (see shared/notifications.ts) —
 // deliberately NOT shared/ui-state.ts's `useUi`, which is an in-memory-only module singleton
@@ -112,7 +112,7 @@ export const i18nReady = i18n.use(initReactI18next).init({
       projects: enProjects,
       resources: enResources,
       study: enStudy,
-      growth: enGrowth,
+      sections: enSections,
     },
     uk: {
       common: ukCommon,
@@ -140,7 +140,7 @@ export const i18nReady = i18n.use(initReactI18next).init({
       projects: ukProjects,
       resources: ukResources,
       study: ukStudy,
-      growth: ukGrowth,
+      sections: ukSections,
     },
   },
   interpolation: { escapeValue: false }, // React already escapes — i18next's own escaping would double-escape.

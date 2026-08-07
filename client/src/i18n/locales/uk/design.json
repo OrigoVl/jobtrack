@@ -64,6 +64,7 @@
       "arrow": "Стрілка",
       "text": "Текст"
     },
+    "deleteShape": "Видалити фігуру",
     "colorLabel": "Колір",
     "fullscreenEnter": "На весь екран",
     "fullscreenExit": "Вийти з повноекранного режиму"

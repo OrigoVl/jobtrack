@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { addVacancy } from "./helpers";
 
 /**
  * End-to-end test of the "Link" field in the vacancies table: saving a URL must trigger a PUT
@@ -19,20 +20,10 @@ import { test, expect } from "@playwright/test";
 test("saving a vacancy url pointing at a private/internal address is blocked without a network call (SSRF guard)", async ({ page }) => {
   await page.goto("/vacancies");
 
-  const [addResponse] = await Promise.all([
-    page.waitForResponse((r) => /\/api\/vacancies$/.test(r.url()) && r.request().method() === "POST"),
-    page.getByRole("button", { name: "+ Add vacancy" }).click(),
-  ]);
-  expect(addResponse.ok()).toBeTruthy();
-  // "+ Add vacancy" now opens the detail modal for filling it in right away (vacancy-detail-modal.tsx)
-  // — close it to reach the table's own url input underneath, which is what this test exercises.
-  // Waiting for it to actually be visible first matters: it opens from the add-mutation's success
-  // callback, a render cycle after the awaited network response above, so it isn't necessarily
-  // on-screen yet.
-  const addDialog = page.getByRole("dialog");
-  await expect(addDialog).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(addDialog).not.toBeVisible();
+  // addVacancy() closes the detail modal the save opens, so the table's own url input underneath
+  // — what this test exercises — is reachable. The vacancy is deliberately added WITHOUT a url:
+  // the point is to save one afterwards, from the table.
+  await addVacancy(page, { company: "New company", position: "Position" });
 
   const urlInput = page.locator("table tbody tr").first().getByPlaceholder("Vacancy link (from any site) → the stack fills in itself…");
   await expect(urlInput).toBeVisible();

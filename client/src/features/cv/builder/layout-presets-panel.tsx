@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Btn, Section } from "../../../shared/ui";
+import { ArrowsUpDownIcon } from "../../../shared/icons";
 import type { CvPreset, CvSection } from "../../../shared/types";
 
 // Local translation-key map for the section-order UI's display labels — deliberately NOT
@@ -63,7 +64,7 @@ export function LayoutPresetsPanel({
   const [secDrag, setSecDrag] = useState<number | null>(null);
   return (
     <>
-      <Section title={t("layoutPresets.order.title")} icon="↕️">
+      <Section title={t("layoutPresets.order.title")} icon={<ArrowsUpDownIcon className="h-4 w-4" />}>
         <div className="flex flex-col gap-1">
           {sectionOrder.map((key, i) => {
             const label = t(SECTION_LABEL_KEY[key]);

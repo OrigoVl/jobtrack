@@ -8,6 +8,7 @@ A full-featured, lightweight full-stack app: **analyzes job postings and CVs, su
 ## What it does
 
 - **🌐 Any profession** — with an LLM, skills and role are inferred from the CV and job postings (not just IT), and AI advice adapts accordingly. Offline — falls back to an IT tech dictionary.
+- **🧭 Grouped navigation** — related pages live under one sidebar entry and share a tab strip (Vacancies/Find/Analyze, Contacts/Companies, the Growth pages, the three CV pages) while each keeps its own URL, so links and bookmarks are unaffected. On narrow screens the sidebar becomes a bottom bar: four primary destinations, with the rest behind a "More" sheet.
 - **🇺🇦 English / Ukrainian** — a language switcher (sidebar, or the Account page) that translates every page, toast, and email, plus AI-generated feedback and the study/knowledge-base content, with the choice persisted across reloads.
 - **📋 Job postings** — CRUD, inline table editing, color-coded status (table + Kanban), auto-fills stack/level/fit from a URL (from any public job site) when adding/editing a link, import from a DOU export, JSON import/export (upsert by `url`/company+position).
 - **🔔 Reminders** — optional browser Web Notifications for overdue/today's "next steps."
@@ -20,7 +21,7 @@ A full-featured, lightweight full-stack app: **analyzes job postings and CVs, su
 - **🗺️ Roadmap** — a roadmap.sh-style skill map built from your real tracked stack, with a self-rated skill radar chart.
 - **📅 21-Day Intensive** — a dynamic study plan closing the gap between your CV and the jobs you're tracking.
 - **🧩 Pet projects** — a ladder of 4 projects with Definition-of-Done checklists.
-- **📄 CV** — analysis against market demand, a Skills generator, cover letters (manual text / picked from the tracker / auto-fetched from a link), a CV Builder with a live preview, PDF export, and **multiple named CV profiles** (up to 5, tab strip) — each with its own layout/theme presets and its own public share link.
+- **📄 CV** — three tabs: a **CV Builder** (structured editor + live A4 preview, click a block in the preview to jump to its fields), the raw **CV text** every other AI feature reads, and a **cover letter** generator (manual text / picked from the tracker / auto-fetched from a link). The builder splits into *Content* and *Appearance* modes — seven templates picked from skeleton thumbnails, accent/font/scale, photo, drag-to-reorder sections, saved presets — plus a completeness meter whose missing items jump straight to the section they name, AI review/vacancy-match/tailor-to-a-posting, PDF export, and **multiple named CV profiles** (up to 5, switched from the page header), each with its own presets and public share link. A brand-new CV opens on a start card — import an existing one (file / LinkedIn `.zip` / your CV text) or start blank — rather than a wall of empty sections.
 - **🔗 Public CV link** — a shareable, no-login resume page per CV profile (enable/disable, regenerate the slug any time).
 - **🏢 Companies** — notes, a bank of "what they asked here" questions, and an AI-assisted org-chart diagram.
 - **🧑‍🤝‍🧑 Contacts** — a lightweight networking tracker (recruiters/interviewers), optionally linked to a company/vacancy, with AI-drafted outreach/follow-up messages. **Contact enrichment**: search Hunter.io/Apollo.io/Snov.io (when configured) for recruiter contacts at a company by domain, with a keyless email-pattern-guess + LinkedIn-search-link fallback when no provider is configured — save any result as a Contact with one click.
@@ -155,15 +156,17 @@ For aggregating logs in production (JSON to stdout, compatible with any collecto
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR to `main`:
 
-1. **Lint · Typecheck · Test · Build** — for client and server, with baseline test-coverage thresholds.
-2. **E2E (Playwright)** — key end-to-end flows against the production build (registers + logs in a real test user first, see `e2e/auth.setup.ts`), LLM in offline mode (deterministic, no paid APIs), run sequentially (`workers: 1`). Locally, `pnpm test:e2e` points at a separate `jobtrack_e2e` database on the same Postgres instance (not the one `pnpm dev` uses) — create it once with `createdb jobtrack_e2e` (or any Postgres client) if it doesn't exist yet; `pretest:e2e` drops every table in it before each run.
+1. **Format · Lint · Typecheck · Test · Build** — for client and server, via `pnpm test:coverage` with baseline coverage thresholds. Those thresholds are a *regression gate pinned to what the report actually measures*, not a quality target: the client report spans every file matched by its `include` glob, and the UI components covered by e2e rather than vitest count as 0% (see the comment in `client/vitest.config.ts` before adjusting them).
+2. **E2E (Playwright)** — key end-to-end flows against the production build (registers + logs in a real test user first, see `e2e/auth.setup.ts`), LLM in offline mode (deterministic, no paid APIs), run sequentially (`workers: 1`) with the per-IP rate limits raised for the run (see "Security"). Locally, `pnpm test:e2e` points at a separate `jobtrack_e2e` database on the same Postgres instance (not the one `pnpm dev` uses) — create it once with `createdb jobtrack_e2e` (or any Postgres client) if it doesn't exist yet; `pretest:e2e` drops every table in it before each run.
+
+Server unit tests cap their worker pool (`server/vitest.config.js`): ~21 suites boot their own in-process Postgres (PGlite), and one worker per core means a dozen WASM instances competing to start, which times out their setup hooks on a machine with many cores.
 
 Locally, `husky` + `lint-staged` automatically run Prettier before every commit.
 Dependabot (`.github/dependabot.yml`) proposes npm/Docker/Actions updates weekly.
 
 ## Security
 
-- `helmet()` with a real Content-Security-Policy, a global rate limit on `/api` (600 requests/15 min per IP), a separate, stricter limit for AI endpoints (30/15 min per **account** — falling back to IP only when unauthenticated — they cost real money in LLM usage, and per-IP alone would let one heavy account throttle everyone sharing its office/VPN address).
+- `helmet()` with a real Content-Security-Policy, a global rate limit on `/api` (600 requests/15 min per IP, `API_RATE_LIMIT_MAX`), a separate, stricter limit for AI endpoints (30/15 min per **account** — falling back to IP only when unauthenticated — they cost real money in LLM usage, and per-IP alone would let one heavy account throttle everyone sharing its office/VPN address). better-auth's own `/api/auth/*` limiter has its own ceiling (`AUTH_RATE_LIMIT_MAX`, 100 per 10s, production builds only). Both defaults are sized for one human clicking around, so both are configurable — raise them only for legitimate automated traffic from a single address, which is exactly what the e2e suite is (`playwright.config.ts` raises both for the run).
 - Timeouts on all LLM provider calls, SSRF protection for parsing job postings by URL (blocks localhost/private/link-local IPs, including cloud metadata addresses), file-type restrictions on uploads (`multer`).
 - `CORS_ORIGIN`/`TRUST_PROXY` are explicitly disabled by default, enabled only when actually needed.
 - The JS sandbox for drill practice (`study/runner.ts`) runs in an isolated Web Worker with a hard timeout — not on the main thread.
@@ -218,7 +221,11 @@ jobtrack/
 └── client/                  # React + Vite + TS + Router + TanStack Query
     └── src/
         ├── main.tsx, index.css      # entrypoint
-        ├── app/App.tsx              # routing (React Router), sidebar/shell, providers
+        ├── app/                     # routing (React Router), grouped sidebar/shell, providers
+        │   ├── App.tsx              # route tree + the grouped nav model
+        │   ├── section-tabs.tsx     # pathless layout route: tabs above a group of sibling pages,
+        │   │                        #   without changing any of their URLs
+        │   └── mobile-nav.tsx       # bottom bar (4 primary destinations + a "More" sheet)
         ├── i18n/                    # react-i18next bootstrap; locales/{en,uk}/<namespace>.json; type-safe keys (i18next.d.ts)
         ├── shared/                  # cross-cutting things shared by all features:
         │   ├── api.ts               # single typed contract with the backend
@@ -230,7 +237,8 @@ jobtrack/
         │   └── ui.tsx               # UI kit (Btn, Card, Chip, PageHeader, Skeleton…)
         └── features/                # one folder per screen domain (mirrors server/src/modules):
             ├── dashboard/, vacancies/, jobs/, analyzer/, companies/
-            ├── cv/                  # CV view + CV Builder (cv.tsx, cv-builder/*, multi-profile tab strip)
+            ├── cv/                  # CV text page, cover letter, and the CV Builder
+            │                        #   (cv.tsx, cover-letter.tsx, cv-builder.tsx + builder/*)
             ├── calendar/            # unified interview/deadline calendar + reminder notifications
             ├── contacts/            # networking tracker
             ├── knowledge/           # study plan (learn.tsx)

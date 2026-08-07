@@ -8,13 +8,31 @@ import { demandMap, gapPriorityMap } from "../../shared/demand.js";
 import { allCards } from "../study/content-store.js";
 import { effectiveTrack } from "../../shared/tracks.js";
 import { listVacancyStatusRows, listVacancyStatusNextRows } from "../vacancies/vacancies.repo.js";
-import { FUNNEL_PROGRESSION_ORDER, buildAnalyticsSummary, buildFocusSummary, heuristicFocus } from "./analytics.service.js";
+import {
+  FOCUS_ACTION_KINDS,
+  FUNNEL_PROGRESSION_ORDER,
+  buildAnalyticsSummary,
+  buildFocusSummary,
+  heuristicFocus,
+} from "./analytics.service.js";
 
 // `.catch("")` (not .optional()) on `why` — the LLM sometimes omits the field instead of
 // returning "": the schema still accepts the response (no repair-retry over this), just
 // normalizes it to an empty string, the same as the old manual typeof check used to.
 const FocusActionsSchema = z.object({
-  actions: z.array(z.object({ title: z.string(), why: z.string().catch("") })).max(3),
+  actions: z
+    .array(
+      z.object({
+        title: z.string(),
+        why: z.string().catch(""),
+        // `.catch(undefined)` rather than a bare optional enum: a model that answers with some
+        // other word ("networking") must degrade to an unlinked, plain-text action — exactly how
+        // every action rendered before this field existed — instead of failing the whole
+        // response's validation and throwing away three otherwise-good actions.
+        kind: z.enum(FOCUS_ACTION_KINDS).optional().catch(undefined),
+      }),
+    )
+    .max(3),
 });
 
 const r = express.Router();
@@ -60,7 +78,11 @@ r.get(
       // prompt) set: the LLM translated "why" but kept "title" in English, apparently reading
       // the format spec's own English placeholder words as content to preserve literally.
       `Search state (JSON): ${JSON.stringify(summary)}.\n` +
-        `Give exactly 3 priority actions with an explanation of why now. Both "title" and "why" must be in the language you were told to respond in above (this instruction itself stays in English regardless — only YOUR reply follows that language). Format strictly as JSON: {"actions":[{"title":"…","why":"…"}]}`,
+        `Give exactly 3 priority actions with an explanation of why now. Both "title" and "why" must be in the language you were told to respond in above (this instruction itself stays in English regardless — only YOUR reply follows that language). ` +
+        // "kind" is machine-read (it picks which screen the action links to), so unlike title/why
+        // it must stay an English identifier from the fixed list — never translated.
+        `Also tag each action with "kind": which part of the app it is about, exactly one of ${FOCUS_ACTION_KINDS.join(" | ")} — always this literal English value, never translated. ` +
+        `Format strictly as JSON: {"actions":[{"title":"…","why":"…","kind":"vacancies"}]}`,
       FocusActionsSchema,
       // "fast": prioritizing 3 actions from a structured funnel state — a light task, doesn't
       // need "smart"-tier; cheaper and faster for a card the user sees every day.

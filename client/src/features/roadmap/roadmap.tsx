@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, ProgressBar, Segmented } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
+import { AlertTriangleIcon, KeyboardIcon } from "../../shared/icons";
 import { useUi } from "../../shared/ui-state";
 import { useHealth, useRoadmap, useSetRoadmapStatus, useSetSkillLevel } from "../../shared/queries";
 import { SkillRadar } from "./skill-radar";
+import { readStoredRoadmapView, storeRoadmapView, type RoadmapView } from "./roadmap-view";
+// Lazy — the Materials view pulls in the whole knowledge-base page; no reason to load it for
+// someone who only ever looks at the skill list.
+const LearnPlan = lazy(() => import("../knowledge/learn").then((m) => ({ default: m.LearnPlan })));
+const Plan21 = lazy(() => import("../plan21/plan21").then((m) => ({ default: m.Plan21 })));
 import { STATUS_LABEL_KEY } from "./radar-data";
 import { roadmapGroupLabel } from "../../shared/roadmap-group-labels";
 import type { KnowledgeData, RoadmapNode, RoadmapStatus } from "../../shared/types";
@@ -109,7 +115,10 @@ function Node({ node }: { node: RoadmapNode }) {
           <Chip tone={node.levelManual != null ? "amber" : "slate"}>{t("radar.tooltip.level", { level: node.level })}</Chip>
           {node.drillsTotal > 0 && (
             <Chip tone={node.drillsSolved === node.drillsTotal ? "emerald" : "slate"}>
-              ⌨ {node.drillsSolved}/{node.drillsTotal}
+              <span className="inline-flex items-center gap-1">
+                <KeyboardIcon className="h-3 w-3" />
+                {node.drillsSolved}/{node.drillsTotal}
+              </span>
             </Chip>
           )}
           <span className={`ml-auto text-xs font-medium ${meta.text}`}>{statusLabel}</span>
@@ -165,7 +174,10 @@ function Node({ node }: { node: RoadmapNode }) {
                 })}
               </div>
               {node.practiceShared && (
-                <div className="text-xs text-alert mt-1">⚠ {t("level.sharedTrack", { cat: node.practiceCat, tech: node.tech })}</div>
+                <div className="text-xs text-alert mt-1 flex items-start gap-1">
+                  <AlertTriangleIcon className="h-3.5 w-3.5 shrink-0 mt-px" />
+                  {t("level.sharedTrack", { cat: node.practiceCat, tech: node.tech })}
+                </div>
               )}
             </div>
             {loadingDyn && <div className="text-xs text-ink-dim">{t("personalizing")}</div>}
@@ -224,10 +236,17 @@ export function Roadmap() {
   const { data: roadmap, isLoading } = useRoadmap();
   const [onlyGaps, setOnlyGaps] = useUi("roadmap.onlyGaps", false);
   const [group, setGroup] = useUi<string>("roadmap.group", "all");
-  // "Radar" used to be its own sidebar page — merged in here as a second view of the same
-  // underlying data (roadmap progress vs. market demand), so the two related screens aren't
-  // scattered across the sidebar (see App.tsx's NAV — /radar now redirects here).
-  const [view, setView] = useUi<"list" | "radar">("roadmap.view", "list");
+  // Radar, Materials and Intensive were each their own sidebar page once. All are views of the
+  // SAME thing this page already computes — your skills against market demand — so they live here
+  // as views rather than as separate destinations a newcomer has to tell apart by name ("Roadmap"
+  // vs "Learning plan" vs "Intensive plan" all read as synonyms until you open them). /radar,
+  // /learn and /plan21 all redirect here (see App.tsx's NAV).
+  const [view, setViewUi] = useUi<RoadmapView>("roadmap.view", readStoredRoadmapView());
+  const setView = (v: RoadmapView) => {
+    setViewUi(v);
+    storeRoadmapView(v);
+  };
+  const { data: health } = useHealth();
   if (isLoading) return <CardsSkeleton count={3} />;
   if (!roadmap) return null;
   const { done, learning, total } = roadmap.progress;
@@ -249,6 +268,8 @@ export function Roadmap() {
             options={[
               { value: "list", label: t("view.list") },
               { value: "radar", label: t("view.radar") },
+              { value: "materials", label: t("view.materials") },
+              { value: "plan", label: t("view.plan") },
             ]}
           />
         }
@@ -256,6 +277,14 @@ export function Roadmap() {
 
       {view === "radar" ? (
         <SkillRadar embedded />
+      ) : view === "materials" ? (
+        <Suspense fallback={<CardsSkeleton count={2} />}>
+          <LearnPlan llm={health?.llm ?? false} embedded />
+        </Suspense>
+      ) : view === "plan" ? (
+        <Suspense fallback={<CardsSkeleton count={3} />}>
+          <Plan21 embedded />
+        </Suspense>
       ) : (
         <>
           <Card className="relative overflow-hidden">

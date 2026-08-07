@@ -19,21 +19,24 @@ import { ErrorBoundary } from "../shared/error-boundary";
 import { useSession, signOut } from "../shared/auth-client";
 import { takeStoredReferralCode } from "../shared/referral-storage";
 import { CommandPalette } from "./command-palette";
+import { SectionTabs } from "./section-tabs";
+import { MobileNav } from "./mobile-nav";
 import { NotFound } from "./not-found";
+import { storeRoadmapView, type RoadmapView } from "../features/roadmap/roadmap-view";
 import {
   BarChartIcon,
-  BookOpenIcon,
   BriefcaseIcon,
   BuildingIcon,
   CalendarIcon,
+  BookOpenIcon,
   CardsStackIcon,
   ChevronsLeftIcon,
   FileSearchIcon,
   FileTextIcon,
   HomeIcon,
   LayersIcon,
-  LibraryIcon,
   ListChecksIcon,
+  LibraryIcon,
   LogOutIcon,
   MapIcon,
   SearchIcon,
@@ -59,12 +62,9 @@ const CVView = lazy(() => import("../features/cv/cv").then((m) => ({ default: m.
 const CvBuilder = lazy(() => import("../features/cv/cv-builder").then((m) => ({ default: m.CvBuilder })));
 const Companies = lazy(() => import("../features/companies/companies").then((m) => ({ default: m.Companies })));
 const Jobs = lazy(() => import("../features/jobs/jobs").then((m) => ({ default: m.Jobs })));
-const LearnPlan = lazy(() => import("../features/knowledge/learn").then((m) => ({ default: m.LearnPlan })));
 const Resources = lazy(() => import("../features/resources/resources").then((m) => ({ default: m.Resources })));
 const Projects = lazy(() => import("../features/projects/projects").then((m) => ({ default: m.Projects })));
-const Plan21 = lazy(() => import("../features/plan21/plan21").then((m) => ({ default: m.Plan21 })));
 const Roadmap = lazy(() => import("../features/roadmap/roadmap").then((m) => ({ default: m.Roadmap })));
-const GrowthHub = lazy(() => import("../features/growth/growth-hub").then((m) => ({ default: m.GrowthHub })));
 const Analytics = lazy(() => import("../features/analytics/charts").then((m) => ({ default: m.Analytics })));
 const Admin = lazy(() => import("../features/admin/admin").then((m) => ({ default: m.Admin })));
 const Account = lazy(() => import("../features/account/account").then((m) => ({ default: m.Account })));
@@ -72,70 +72,94 @@ const Pricing = lazy(() => import("../features/billing/pricing").then((m) => ({ 
 const Welcome = lazy(() => import("../features/welcome/welcome").then((m) => ({ default: m.Welcome })));
 const Calendar = lazy(() => import("../features/calendar/calendar").then((m) => ({ default: m.CalendarPage })));
 const Contacts = lazy(() => import("../features/contacts/contacts").then((m) => ({ default: m.Contacts })));
+const CoverLetter = lazy(() => import("../features/cv/cover-letter").then((m) => ({ default: m.CoverLetter })));
 // Public (no session) — mounted at the same tier as /login below, NOT inside Shell/AuthGate.
 const CvPublic = lazy(() => import("../features/cv/cv-public").then((m) => ({ default: m.CvPublic })));
 const Privacy = lazy(() => import("../features/legal/privacy").then((m) => ({ default: m.Privacy })));
 const Terms = lazy(() => import("../features/legal/terms").then((m) => ({ default: m.Terms })));
 
-// Static structure — paths/icons/grouping never change with the language, only the label text
-// does. Kept as translation KEYS (resolved to actual NavItem[] inside Shell() below, where
-// useTranslation() is available) rather than translated up front: this is a module-level
-// constant evaluated once at import time, before i18next necessarily even has a language chosen,
-// and it wouldn't react to a language switch afterward if it held resolved strings.
+// Static structure — paths/icons never change with the language, only the label text does. Kept
+// as translation KEYS (resolved to actual NavItem[] inside Shell() below, where useTranslation()
+// is available) rather than translated up front: this is a module-level constant evaluated once
+// at import time, before i18next necessarily even has a language chosen, and it wouldn't react to
+// a language switch afterward if it held resolved strings.
 //
-// labelKey/sectionKey are typed against the ACTUAL nav.json shape (not a plain `string`) so a
-// typo here is still a tsc error, same guarantee as calling t("...") with a literal — see
-// i18n/i18next.d.ts's own comment on why that matters for the Phase B delegation.
+// labelKey is typed against the ACTUAL nav.json shape (not a plain `string`) so a typo here is
+// still a tsc error, same guarantee as calling t("...") with a literal — see i18n/i18next.d.ts's
+// own comment on why that matters.
 type NavItem = { path: string; icon: IconComponent; label: string };
 type NavLabelKey = `items.${keyof (typeof import("../i18n/locales/en/nav.json"))["items"]}`;
-type NavSectionKey = `sections.${keyof (typeof import("../i18n/locales/en/nav.json"))["sections"]}`;
-type NavItemDef = { path: string; icon: IconComponent; labelKey: NavLabelKey; sidebarHidden?: boolean };
-const NAV_DEF: { sectionKey: NavSectionKey; items: NavItemDef[] }[] = [
+type NavItemDef = {
+  path: string;
+  icon: IconComponent;
+  labelKey: NavLabelKey;
+  /** Sibling routes that belong to this same sidebar entry — the pages reachable through its
+   * section tab strip (app/section-tabs.tsx). Without this, standing on /jobs would leave every
+   * sidebar row unlit, because NavLink only ever matches its own `to`. */
+  alsoMatches?: string[];
+  /** Which "does the account have any data yet" flag dims this row on a brand-new account (see
+   * Shell's `dimmed` below). The row stays clickable — the page's own EmptyState is a better
+   * teacher than a missing menu item, and hiding entries outright means a user never learns the
+   * feature exists. */
+  needs?: "vacancies" | "network";
+};
+
+// EIGHT top-level destinations, flat and unsectioned. This used to be seventeen rows split
+// across three labelled sections, which is roughly double the point where a menu stops being
+// scanned and starts being read — and three of those rows ("Vacancies", "Job Search", "Vacancy
+// Analysis") were near-identical labels sitting adjacent, with no way for a newcomer to guess
+// which one they wanted. Related screens are now grouped behind ONE entry each and surfaced as a
+// tab strip on the page itself (SectionTabs), so every original page keeps its own URL — old
+// bookmarks, deep links and e2e specs all still resolve exactly where they did before.
+const NAV_DEF: NavItemDef[] = [
+  { path: "/dashboard", icon: HomeIcon, labelKey: "items.dashboard" },
+  { path: "/vacancies", icon: BriefcaseIcon, labelKey: "items.vacancies", alsoMatches: ["/jobs", "/analyzer"] },
+  { path: "/contacts", icon: UsersIcon, labelKey: "items.network", alsoMatches: ["/companies"], needs: "network" },
+  { path: "/analytics", icon: BarChartIcon, labelKey: "items.analytics", needs: "vacancies" },
+  { path: "/calendar", icon: CalendarIcon, labelKey: "items.calendar", needs: "vacancies" },
   {
-    sectionKey: "sections.jobSearch",
-    items: [
-      { path: "/dashboard", icon: HomeIcon, labelKey: "items.dashboard" },
-      { path: "/vacancies", icon: BriefcaseIcon, labelKey: "items.vacancies" },
-      { path: "/jobs", icon: SearchIcon, labelKey: "items.jobSearch" },
-      { path: "/analyzer", icon: FileSearchIcon, labelKey: "items.vacancyAnalysis" },
-      { path: "/companies", icon: BuildingIcon, labelKey: "items.companies" },
-      { path: "/contacts", icon: UsersIcon, labelKey: "items.contacts" },
-      { path: "/analytics", icon: BarChartIcon, labelKey: "items.analytics" },
-      { path: "/calendar", icon: CalendarIcon, labelKey: "items.calendar" },
-    ],
+    // Lands on the Roadmap — the group's natural starting point. There used to be a separate
+    // /growth "overview" page here listing the other Growth screens as cards; once those screens
+    // became tabs it was showing the same names, in the same order, directly under the tab strip
+    // that already offered them (and had silently gone stale, listing four of six). A hub whose
+    // whole job is a menu is dead weight next to a real menu, so it's gone — /growth redirects.
+    path: "/roadmap",
+    icon: MapIcon,
+    labelKey: "items.growth",
+    alsoMatches: ["/growth", "/plan21", "/learn", "/study", "/projects", "/resources"],
   },
-  {
-    sectionKey: "sections.growth",
-    items: [
-      // Roadmap includes the former "Skill Radar" page as a tab, and Practice includes the
-      // former "Mock Interview" page as a mode — related screens grouped instead of scattered
-      // across the sidebar (old /radar and /mock links still work, see the redirects below).
-      // These four are independent pages (market-wide skill map, a day plan, deep-dive material,
-      // flashcards/drills), not a sequence — each gets its own flat, equally-weighted sidebar row
-      // so its own item lights up via NavLink's normal exact-path match when you're on it (no
-      // grouping/nesting: that read as a confusing sub-menu in practice). /growth is a separate
-      // overview page linking to all four with a live progress readout from each (growth-hub.tsx)
-      // — `sidebarHidden` keeps it out of this list (redundant with the four rows right above it)
-      // while it stays reachable via ⌘K.
-      { path: "/roadmap", icon: MapIcon, labelKey: "items.roadmap" },
-      { path: "/plan21", icon: ListChecksIcon, labelKey: "items.intensivePlan" },
-      { path: "/learn", icon: BookOpenIcon, labelKey: "items.learningPlan" },
-      { path: "/study", icon: CardsStackIcon, labelKey: "items.practice" },
-      { path: "/growth", icon: MapIcon, labelKey: "items.growthHub", sidebarHidden: true },
-      { path: "/projects", icon: LayersIcon, labelKey: "items.petProjects" },
-      { path: "/resources", icon: LibraryIcon, labelKey: "items.resources" },
-    ],
-  },
-  {
-    sectionKey: "sections.profile",
-    items: [
-      { path: "/cv", icon: FileTextIcon, labelKey: "items.cv" },
-      { path: "/cvbuilder", icon: WrenchIcon, labelKey: "items.cvBuilder" },
-      { path: "/account", icon: SettingsIcon, labelKey: "items.account" },
-    ],
-  },
+  { path: "/cvbuilder", icon: FileTextIcon, labelKey: "items.cv", alsoMatches: ["/cv", "/cover-letter"] },
+  { path: "/account", icon: SettingsIcon, labelKey: "items.account" },
 ];
 const ADMIN_ITEM_DEF: NavItemDef = { path: "/admin", icon: ShieldIcon, labelKey: "items.admin" };
+
+// Every individual screen, flat — what ⌘K searches over. Deliberately NOT derived from NAV_DEF:
+// collapsing the sidebar to eight entries must not cost power users their one-keystroke jump
+// straight to "Find jobs" or "Intensive plan", so the palette still indexes all of them by name.
+const PALETTE_DEF: NavItemDef[] = [
+  { path: "/dashboard", icon: HomeIcon, labelKey: "items.dashboard" },
+  { path: "/vacancies", icon: BriefcaseIcon, labelKey: "items.vacancies" },
+  { path: "/jobs", icon: SearchIcon, labelKey: "items.jobSearch" },
+  { path: "/analyzer", icon: FileSearchIcon, labelKey: "items.vacancyAnalysis" },
+  { path: "/contacts", icon: UsersIcon, labelKey: "items.contacts" },
+  { path: "/companies", icon: BuildingIcon, labelKey: "items.companies" },
+  { path: "/analytics", icon: BarChartIcon, labelKey: "items.analytics" },
+  { path: "/calendar", icon: CalendarIcon, labelKey: "items.calendar" },
+  { path: "/roadmap", icon: MapIcon, labelKey: "items.roadmap" },
+  // These three resolve through RoadmapViewRedirect, which opens the matching view of /roadmap —
+  // so ⌘K still reaches every screen by the name the user knows it by, even though they stopped
+  // being routes of their own.
+  { path: "/radar", icon: MapIcon, labelKey: "items.radar" },
+  { path: "/plan21", icon: ListChecksIcon, labelKey: "items.intensivePlan" },
+  { path: "/learn", icon: BookOpenIcon, labelKey: "items.learningPlan" },
+  { path: "/study", icon: CardsStackIcon, labelKey: "items.practice" },
+  { path: "/projects", icon: LayersIcon, labelKey: "items.petProjects" },
+  { path: "/resources", icon: LibraryIcon, labelKey: "items.resources" },
+  { path: "/cvbuilder", icon: WrenchIcon, labelKey: "items.cvBuilder" },
+  { path: "/cv", icon: FileTextIcon, labelKey: "items.cvReview" },
+  { path: "/cover-letter", icon: FileTextIcon, labelKey: "items.coverLetter" },
+  { path: "/account", icon: SettingsIcon, labelKey: "items.account" },
+];
 const DEFAULT_PATH = "/dashboard";
 
 function ToastHost() {
@@ -212,7 +236,95 @@ function SidebarProgress() {
   );
 }
 
-function navBtn(item: NavItem, compact = false) {
+/* ---------- Section layouts ----------
+ * Pathless layout routes (a <Route> with an `element` and no `path`) that wrap a group of
+ * sibling pages with SectionTabs' tab strip. Because they contribute nothing to the URL, every
+ * child keeps the exact path it always had. Each child also keeps rendering its own PageHeader
+ * below the strip — including whatever controls it hangs off that header's `actions` slot (the
+ * vacancy table/board switch, Companies' add-company input, Practice's mode buttons), which a
+ * "hoist one shared header into the layout" approach would have quietly dropped. */
+function VacanciesLayout() {
+  const { t } = useTranslation("sections");
+  return (
+    <SectionTabs
+      ariaLabel={t("vacancies.ariaLabel")}
+      tabs={[
+        { path: "/vacancies", label: t("vacancies.tabs.tracker") },
+        { path: "/jobs", label: t("vacancies.tabs.find") },
+        { path: "/analyzer", label: t("vacancies.tabs.analyze") },
+      ]}
+    />
+  );
+}
+function NetworkLayout() {
+  const { t } = useTranslation("sections");
+  return (
+    <SectionTabs
+      ariaLabel={t("network.ariaLabel")}
+      tabs={[
+        { path: "/contacts", label: t("network.tabs.contacts") },
+        { path: "/companies", label: t("network.tabs.companies") },
+      ]}
+    />
+  );
+}
+function GrowthLayout() {
+  const { t } = useTranslation("sections");
+  return (
+    <SectionTabs
+      ariaLabel={t("growth.ariaLabel")}
+      tabs={[
+        { path: "/roadmap", label: t("growth.tabs.roadmap") },
+        { path: "/study", label: t("growth.tabs.study") },
+        { path: "/projects", label: t("growth.tabs.projects") },
+        { path: "/resources", label: t("growth.tabs.resources") },
+      ]}
+    />
+  );
+}
+function CvLayout() {
+  const { t } = useTranslation("sections");
+  return (
+    <SectionTabs
+      ariaLabel={t("cv.ariaLabel")}
+      tabs={[
+        { path: "/cvbuilder", label: t("cv.tabs.builder") },
+        { path: "/cv", label: t("cv.tabs.review") },
+        { path: "/cover-letter", label: t("cv.tabs.coverLetter") },
+      ]}
+    />
+  );
+}
+
+/** Redirects to the Roadmap AND opens one of its views. The Radar / Materials / Intensive screens
+ * used to be routes of their own; they're now views of `/roadmap` (see roadmap.tsx for why). A
+ * plain `<Navigate>` would honour the old bookmark but dump the visitor on the default skill list
+ * — technically "not a 404", practically the wrong page. This sets the same `"roadmap.view"`
+ * useUi key roadmap.tsx reads before handing over, so /plan21 still lands on the Intensive plan,
+ * and ⌘K's entries for those screens keep meaning what they say. */
+function RoadmapViewRedirect({ view }: { view: RoadmapView }) {
+  const [, setView] = useUi<RoadmapView>("roadmap.view", "list");
+  useEffect(() => {
+    setView(view);
+    // Also persisted, so a reload on the redirected-to /roadmap stays on this view instead of
+    // snapping back to the skill list (see roadmap.tsx for why the view is stored at all).
+    storeRoadmapView(view);
+  }, [setView, view]);
+  return <Navigate to="/roadmap" replace />;
+}
+
+/** Whether `item` is the sidebar entry for the page currently on screen — its own path, or any
+ * of the sibling routes reachable through its section tab strip. Compared against full path
+ * segments (not `startsWith`, which would light up "/cv" while standing on "/cvbuilder"). */
+function navItemActive(item: { path: string; alsoMatches?: string[] }, pathname: string): boolean {
+  return [item.path, ...(item.alsoMatches ?? [])].some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+/** One sidebar row. `active` is passed in rather than taken from NavLink's own `isActive`,
+ * because a row now stands for a whole section: /jobs and /analyzer both have to light up
+ * "Vacancies" (see navItemActive). `dimHint` marks a section the account has no data for yet —
+ * rendered at reduced opacity with the hint as its tooltip, but still a live link. */
+function navBtn(item: NavItem & { active: boolean; dimHint?: string }) {
   // No font-display here — the landing page's own nav uses its body font, not the display face;
   // reserve font-display for headings/wordmark. Active state fills with the vivid, theme-
   // independent `star` (never `signal` — see shared/ui.tsx's Btn-primary comment: `signal` is
@@ -222,18 +334,18 @@ function navBtn(item: NavItem, compact = false) {
   // to a PALE indigo-300 (tuned to read as text on a dark surface) — filling the whole active nav
   // row with that pale value made it look like a glaring, washed-out block against the dark
   // sidebar instead of a confident brand-colored highlight.
-  const cls = ({ isActive }: { isActive: boolean }) =>
-    compact
-      ? `shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-          isActive ? "bg-star text-on-signal" : "text-ink-dim hover:bg-surface-2"
-        }`
-      : `w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-          isActive ? "bg-star text-on-signal" : "text-ink-dim hover:bg-surface-2"
-        }`;
   const Icon = item.icon;
   return (
-    <NavLink key={item.path} to={item.path} className={cls}>
-      <span className={compact ? "mr-1 flex" : "w-5 flex justify-center shrink-0"}>
+    <NavLink
+      key={item.path}
+      to={item.path}
+      title={item.dimHint}
+      aria-current={item.active ? "page" : undefined}
+      className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+        item.active ? "bg-star text-on-signal" : "text-ink-dim hover:bg-surface-2"
+      } ${item.dimHint && !item.active ? "opacity-45 hover:opacity-100" : ""}`}
+    >
+      <span className="w-5 flex justify-center shrink-0">
         <Icon className="w-4 h-4" />
       </span>
       {item.label}
@@ -331,18 +443,42 @@ function Shell() {
   // preference (e.g. "give the Kanban board more room") survives a reload.
   const [sidebarCollapsed, setSidebarCollapsed] = useUi<boolean>("shell.sidebarCollapsed", false);
   const go = (path: string) => navigate(`/${path}`);
-  // Resolved from NAV_DEF/ADMIN_ITEM_DEF's translation keys here (not at module load) — see
-  // those constants' own comment for why.
-  const navAll = NAV_DEF.map((group) => ({
-    section: t(group.sectionKey),
-    items: group.items.map((it) => ({ ...it, label: t(it.labelKey) })),
+  // "Does this account have anything here yet", for the dimming below. Both flags come from
+  // /onboarding/state — which this shell ALREADY fetches on every route (see WelcomeRedirect), so
+  // this costs no extra request. Deriving them from useVacancies()/useContacts() here instead
+  // would have put three list queries on every page in the app (the "god context" CLAUDE.md warns
+  // off), and reading those queries' CACHE instead made the dimming inconsistent — the same
+  // account looked empty on Practice and populated on Vacancies, purely by which page happened to
+  // have fetched what. `undefined` (still loading) counts as "has data": a nav that flickers
+  // half-dim on every cold load would be worse than never dimming at all.
+  const { data: onboarding } = useOnboardingState();
+  const hasVacancies = onboarding === undefined || onboarding.hasVacancies;
+  const hasNetwork = onboarding === undefined || onboarding.hasNetwork;
+  const dimHintFor = (needs: NavItemDef["needs"]): string | undefined => {
+    if (needs === "vacancies" && !hasVacancies) return t("locked.needsVacancy");
+    if (needs === "network" && !hasNetwork) return t("locked.needsNetwork");
+    return undefined;
+  };
+  // Resolved from NAV_DEF/PALETTE_DEF/ADMIN_ITEM_DEF's translation keys here (not at module
+  // load) — see those constants' own comment for why.
+  const resolve = (it: NavItemDef) => ({
+    ...it,
+    label: t(it.labelKey),
+    active: navItemActive(it, location.pathname),
+    dimHint: dimHintFor(it.needs),
+  });
+  const adminItem = resolve(ADMIN_ITEM_DEF);
+  const sidebarItems = isAdmin ? [...NAV_DEF.map(resolve), adminItem] : NAV_DEF.map(resolve);
+  // ⌘K indexes every individual screen, not just the eight sidebar sections (see PALETTE_DEF).
+  const paletteItems: NavItem[] = [...PALETTE_DEF, ...(isAdmin ? [ADMIN_ITEM_DEF] : [])].map((it) => ({
+    ...it,
+    label: t(it.labelKey),
   }));
-  // The desktop sidebar list only shows non-hidden items (see NAV_DEF's growth section comment);
-  // the command palette and mobile nav below use `allItems`/`navAll` unfiltered so a hidden page
-  // (e.g. /growth) is still one ⌘K search away.
-  const nav = navAll.map((group) => ({ ...group, items: group.items.filter((it) => !it.sidebarHidden) }));
-  const adminItem: NavItem = { ...ADMIN_ITEM_DEF, label: t(ADMIN_ITEM_DEF.labelKey) };
-  const allItems = isAdmin ? [...navAll.flatMap((g) => g.items), adminItem] : navAll.flatMap((g) => g.items);
+  // Mobile: the four destinations worth a permanent thumb-reachable slot, everything else behind
+  // "More". Split by path so the choice is explicit rather than "whatever the first four are".
+  const MOBILE_PRIMARY_PATHS = ["/dashboard", "/vacancies", "/roadmap", "/cvbuilder"];
+  const mobilePrimary = sidebarItems.filter((it) => MOBILE_PRIMARY_PATHS.includes(it.path));
+  const mobileMore = sidebarItems.filter((it) => !MOBILE_PRIMARY_PATHS.includes(it.path));
 
   async function logOut() {
     await signOut();
@@ -395,20 +531,9 @@ function Shell() {
             </span>
             <span className="ml-auto font-mono text-[10px] bg-surface-2 rounded px-1.5 py-0.5 text-ink-dim">⌘K</span>
           </button>
-          <nav className="flex flex-col gap-2.5 flex-1">
-            {nav.map((group) => (
-              <div key={group.section}>
-                <div className="eyebrow text-ink-dim px-3 mb-1">{group.section}</div>
-                <div className="flex flex-col gap-0.5">{group.items.map((it) => navBtn(it))}</div>
-              </div>
-            ))}
-            {isAdmin && (
-              <div>
-                <div className="eyebrow text-ink-dim px-3 mb-1">{t("sections.admin")}</div>
-                <div className="flex flex-col gap-0.5">{navBtn(adminItem)}</div>
-              </div>
-            )}
-          </nav>
+          {/* Flat and unlabelled — at eight entries, section headers cost a line of chrome each
+              and buy nothing; they were only ever load-bearing back when this list was 17 rows. */}
+          <nav className="flex flex-col gap-0.5 flex-1">{sidebarItems.map((it) => navBtn(it))}</nav>
           <SidebarProgress />
           <Btn variant="ghost" size="sm" onClick={logOut}>
             {t("logOut")}
@@ -435,7 +560,8 @@ function Shell() {
         </button>
       )}
 
-      {/* Mobile top nav */}
+      {/* Mobile top bar — identity and global switches only. The navigation itself moved to the
+          bottom bar (app/mobile-nav.tsx), where a thumb can actually reach it. */}
       <div className="flex-1 min-w-0">
         <header className="lg:hidden sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-grid">
           <div className="px-4 py-3 flex items-center gap-3">
@@ -446,43 +572,57 @@ function Shell() {
               <Btn variant="ghost" size="sm" onClick={() => setPaletteOpen(true)} aria-label={t("openCommandPalette")}>
                 <SearchIcon className="w-4 h-4" />
               </Btn>
-              <Btn variant="ghost" size="sm" onClick={logOut}>
-                {t("logOut")}
-              </Btn>
             </div>
           </div>
-          <nav className="flex gap-1 overflow-x-auto px-3 pb-2 no-scrollbar">{allItems.map((it) => navBtn(it, true))}</nav>
         </header>
 
         {/* max-w widens when the sidebar is collapsed — otherwise the freed ~256px just becomes
             idle margin on a wide viewport instead of being reclaimed by the content (the whole
-            point of the collapse toggle, e.g. for the Vacancies Kanban board). */}
-        <main className={`mx-auto px-4 py-6 ${sidebarCollapsed ? "max-w-[96rem]" : "max-w-7xl"}`}>
+            point of the collapse toggle, e.g. for the Vacancies Kanban board).
+            pb-24 on mobile keeps the last card clear of the fixed bottom nav. */}
+        <main className={`mx-auto px-4 py-6 pb-24 lg:pb-6 ${sidebarCollapsed ? "max-w-[96rem]" : "max-w-7xl"}`}>
           <ErrorBoundary key={location.pathname}>
             <Suspense fallback={<CardsSkeleton count={2} />}>
               <Routes>
                 <Route path="/" element={<Navigate to={DEFAULT_PATH} replace />} />
                 <Route path="/dashboard" element={<Dashboard go={go} />} />
-                <Route path="/vacancies" element={<Vacancies />} />
-                <Route path="/jobs" element={<Jobs />} />
-                <Route path="/analyzer" element={<Analyzer />} />
-                <Route path="/companies" element={<Companies />} />
-                <Route path="/contacts" element={<Contacts />} />
+                {/* Four pathless layout routes (no `path` of their own) add each section's tab
+                    strip WITHOUT touching any child's URL — see app/section-tabs.tsx. */}
+                <Route element={<VacanciesLayout />}>
+                  <Route path="/vacancies" element={<Vacancies />} />
+                  <Route path="/jobs" element={<Jobs />} />
+                  <Route path="/analyzer" element={<Analyzer />} />
+                </Route>
+                <Route element={<NetworkLayout />}>
+                  <Route path="/contacts" element={<Contacts />} />
+                  <Route path="/companies" element={<Companies />} />
+                </Route>
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/calendar" element={<Calendar />} />
-                <Route path="/growth" element={<GrowthHub />} />
-                <Route path="/roadmap" element={<Roadmap />} />
-                <Route path="/plan21" element={<Plan21 />} />
-                <Route path="/learn" element={<LearnPlanWrapper />} />
-                <Route path="/study" element={<Study />} />
-                {/* Mock Interview and Skill Radar are now tabs inside Practice/Roadmap
-                    respectively (see NAV_DEF above) — old links/bookmarks still resolve. */}
+                <Route element={<GrowthLayout />}>
+                  <Route path="/roadmap" element={<Roadmap />} />
+                  <Route path="/study" element={<Study />} />
+                  <Route path="/projects" element={<Projects />} />
+                  <Route path="/resources" element={<Resources />} />
+                </Route>
+                {/* Mock Interview and Skill Radar are tabs inside Practice/Roadmap respectively
+                    — old links/bookmarks still resolve. */}
                 <Route path="/mock" element={<Navigate to="/study" replace />} />
-                <Route path="/projects" element={<Projects />} />
-                <Route path="/radar" element={<Navigate to="/roadmap" replace />} />
-                <Route path="/resources" element={<Resources />} />
-                <Route path="/cv" element={<CVWrapper />} />
-                <Route path="/cvbuilder" element={<CvBuilderWrapper />} />
+                {/* The Growth overview page is gone (see NAV_DEF) — its bookmarks land on the
+                    group's first tab instead of 404ing. */}
+                <Route path="/growth" element={<Navigate to="/roadmap" replace />} />
+                <Route path="/radar" element={<RoadmapViewRedirect view="radar" />} />
+                {/* "Learning plan" was a separate page whose name read as a synonym of "Roadmap";
+                    it's now that page's "Materials" view, built from the same gap data. */}
+                <Route path="/learn" element={<RoadmapViewRedirect view="materials" />} />
+                {/* Same story as /learn: "Intensive plan" was a third destination whose name read
+                    as a synonym of the other two. It's now the Roadmap's "Intensive" view. */}
+                <Route path="/plan21" element={<RoadmapViewRedirect view="plan" />} />
+                <Route element={<CvLayout />}>
+                  <Route path="/cvbuilder" element={<CvBuilderWrapper />} />
+                  <Route path="/cv" element={<CVWrapper />} />
+                  <Route path="/cover-letter" element={<CoverLetter />} />
+                </Route>
                 {/* The sidebar link is "/cvbuilder" (no hyphen), but "/cv-builder" is the more
                     guessable/typed spelling — redirect it instead of 404ing on a reasonable guess. */}
                 <Route path="/cv-builder" element={<Navigate to="/cvbuilder" replace />} />
@@ -511,8 +651,9 @@ function Shell() {
       <WelcomeRedirect />
       <ReferralClaimer />
       <CalendarReminderNotifier />
+      <MobileNav primary={mobilePrimary} more={mobileMore} onLogOut={logOut} />
       <CommandPalette
-        items={allItems}
+        items={paletteItems}
         actions={[{ id: "logout", icon: LogOutIcon, label: t("logOut"), onRun: logOut }]}
         open={paletteOpen}
         setOpen={setPaletteOpen}
@@ -521,10 +662,6 @@ function Shell() {
   );
 }
 
-function LearnPlanWrapper() {
-  const { data } = useHealth();
-  return <LearnPlan llm={data?.llm ?? false} />;
-}
 function CVWrapper() {
   const { data } = useHealth();
   return <CVView llm={data?.llm ?? false} />;

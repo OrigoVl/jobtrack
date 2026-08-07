@@ -5,7 +5,11 @@ import { Card, CardsSkeleton, Chip, PageHeader, ProgressBar } from "../../shared
 /* ---------- Fast-track intensive plan (day count is dynamic — driven by the candidate's
    actual skill gaps, not a fixed number, so the name/copy here deliberately avoid promising
    a specific day count like "21-Day") ---------- */
-export function Plan21() {
+/** `embedded` skips this page's own PageHeader — it renders as the Roadmap's "Intensive" view
+ * (features/roadmap/roadmap.tsx), the same pattern Materials/Radar already use there. The
+ * day-count Chip that normally sits in the header's `actions` slot moves into the progress card
+ * below rather than being dropped. */
+export function Plan21({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation(["plan21", "common"]);
   const { data: plan21, isLoading } = usePlan21();
   const setPlanDayMutation = useSetPlanDay();
@@ -15,16 +19,22 @@ export function Plan21() {
   const pct = allDays.length ? Math.round((done / allDays.length) * 100) : 0;
   return (
     <div className="space-y-4">
-      <PageHeader
-        eyebrow={t("eyebrow")}
-        title={t("title")}
-        subtitle={t("subtitle")}
-        actions={<Chip tone="emerald">{t("daysTotal", { count: allDays.length })}</Chip>}
-      />
+      {!embedded && (
+        <PageHeader
+          eyebrow={t("eyebrow")}
+          title={t("title")}
+          subtitle={t("subtitle")}
+          actions={<Chip tone="emerald">{t("daysTotal", { count: allDays.length })}</Chip>}
+        />
+      )}
       <Card>
+        {embedded && <p className="text-sm text-ink-dim mb-2">{t("subtitle")}</p>}
         <div className="flex items-center justify-between text-sm mb-2">
           <span className="font-semibold text-ink">{t("daysDone", { count: done, total: allDays.length })}</span>
-          <span className="text-ink-dim">{pct}%</span>
+          <span className="flex items-center gap-2 text-ink-dim">
+            {embedded && <Chip tone="emerald">{t("daysTotal", { count: allDays.length })}</Chip>}
+            {pct}%
+          </span>
         </div>
         <ProgressBar value={done} max={allDays.length} tone="emerald" />
       </Card>

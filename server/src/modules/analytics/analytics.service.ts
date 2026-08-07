@@ -78,9 +78,46 @@ export interface FocusSummary {
   staleApplications: number;
 }
 
+/**
+ * What area of the app an action is about — the ONLY routing hint that crosses the wire. A closed
+ * enum, never a URL: the server has no business knowing the client's route table, and an LLM
+ * asked to emit a path would happily invent one that 404s. The client maps kind → destination
+ * (client/src/features/dashboard/focus-destination.ts).
+ *
+ * Kept as a Zod-validated field on the LLM's own response (see FocusActionsSchema in
+ * analytics.routes.ts) rather than guessed from the action's wording, so a value outside this
+ * list is a schema mismatch that `chatJson` self-repairs, not a silently-broken link.
+ */
+export const FOCUS_ACTION_KINDS = ["vacancies", "interviews", "skills", "cards", "contacts", "cv"] as const;
+export type FocusActionKind = (typeof FOCUS_ACTION_KINDS)[number];
+
+/**
+ * Which heuristic rule produced an action. Only the OFFLINE fallback (heuristicFocus below) sets
+ * this — an LLM-written action has prose of its own, already in the user's language via `chat()`'s
+ * `outputLocale: "app"`.
+ *
+ * It exists because that fallback's `title`/`why` are hardcoded English, and this card is the most
+ * prominent thing on the dashboard: without an LLM key — the app's documented, fully-supported
+ * offline mode — a Ukrainian user was reading English advice. Rather than build a message catalog
+ * plus Slavic one/few/many plural logic on the server (which has no i18n runtime; see CLAUDE.md's
+ * "server i18n" notes), the server sends the rule id and its numbers, and the CLIENT renders it
+ * through i18next — which already does correct uk pluralization for free. `title`/`why` stay
+ * populated as an English fallback so any consumer that doesn't know about `code` still shows
+ * something sensible.
+ */
+export const FOCUS_ACTION_CODES = ["overdue", "interviews", "gap", "moreVacancies", "dueCards", "stale"] as const;
+export type FocusActionCode = (typeof FOCUS_ACTION_CODES)[number];
+
 export interface FocusAction {
   title: string;
   why: string;
+  /** Optional — an action the model couldn't classify simply renders as plain text, exactly as
+   * every action did before this field existed. */
+  kind?: FocusActionKind;
+  /** Set only by heuristicFocus(); absent on LLM-authored actions. */
+  code?: FocusActionCode;
+  /** Interpolation values for `code`'s translated message (counts, tech name). */
+  params?: Record<string, string | number>;
 }
 
 export interface BuildFocusSummaryInput {
@@ -120,30 +157,55 @@ export function heuristicFocus(s: FocusSummary): FocusAction[] {
   const actions: FocusAction[] = [];
   if (s.overdue > 0)
     actions.push({
+      // English `title`/`why` throughout this function are a FALLBACK, not what the dashboard
+      // renders — the client translates `code` + `params` instead (see FOCUS_ACTION_CODES above).
+      // They also stay deliberately literal so the two never drift in meaning.
       title: `Update ${s.overdue} overdue steps`,
       why: 'There are vacancies with a "next step" date in the past — don\'t lose the contact.',
+      kind: "vacancies",
+      code: "overdue",
+      params: { count: s.overdue },
     });
   if (s.interviews > 0)
     actions.push({
       title: "Prepare for interviews",
       why: `${s.interviews} vacancies at the interview stage — do a "Mock interview" and review your cards.`,
+      kind: "interviews",
+      code: "interviews",
+      params: { count: s.interviews },
     });
   if (s.gaps.length > 0)
     actions.push({
       title: `Close the "${s.gaps[0]}" gap`,
       why: "Missing from your profile, and the single skill that would newly qualify you for the most tracked vacancies.",
+      kind: "skills",
+      code: "gap",
+      // `gaps[0]` is already "Tech (count)" (see buildFocusSummary) — a display string, passed
+      // through as-is rather than re-derived, so the two paths can't disagree on which gap won.
+      params: { gap: s.gaps[0] ?? "" },
     });
   if (s.totalVac < 3)
-    actions.push({ title: "Add more vacancies", why: "A small sample — import vacancies so the analytics and roadmap are more accurate." });
+    actions.push({
+      title: "Add more vacancies",
+      why: "A small sample — import vacancies so the analytics and roadmap are more accurate.",
+      kind: "vacancies",
+      code: "moreVacancies",
+    });
   if (s.dueCards > 0)
     actions.push({
       title: `Review ${s.dueCards} cards`,
       why: "There are cards due for review today — keep your knowledge fresh with the SRS algorithm.",
+      kind: "cards",
+      code: "dueCards",
+      params: { count: s.dueCards },
     });
   if (s.staleApplications > 0)
     actions.push({
       title: `Nudge ${s.staleApplications} vacancies with no response`,
       why: `More than ${STALE_APPLICATION_DAYS} days of silence after applying — send the recruiter a follow-up or mark it "Rejected" if it's no longer relevant.`,
+      kind: "contacts",
+      code: "stale",
+      params: { count: s.staleApplications, days: STALE_APPLICATION_DAYS },
     });
   return actions.slice(0, 3);
 }

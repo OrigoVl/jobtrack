@@ -18,28 +18,43 @@
   },
   "builder": {
     "header": {
-      "eyebrow": "CV",
+      "eyebrow": "Резюме",
       "title": "Конструктор резюме",
       "subtitle": "Структуроване резюме з фокусом на результати. Заповни його з наявного резюме, відредагуй і експортуй у PDF.",
       "exportPdf": "Експортувати PDF",
       "exportPdfTitle": "У діалозі друку браузера дата/назва документа вгорі сторінок вимикаються автоматично; якщо вони все ж з'являються — вимкни «Колонтитули»",
       "exportPopupBlocked": "Дозволь спливаючі вікна для цього сайту, щоб експортувати PDF."
     },
+    "editorMode": {
+      "content": "Вміст",
+      "design": "Оформлення"
+    },
+    "start": {
+      "title": "Створімо резюме",
+      "subtitle": "Завантаж наявне резюме — і ШІ розбере його на розділи. Або почни з чистого аркуша.",
+      "uploadFile": "Завантажити файл резюме",
+      "manual": "Заповнити вручну →"
+    },
     "autosave": {
       "saving": "Зберігається…",
       "saved": "Усі зміни збережено",
-      "unsavedWarning": "У резюме є незбережені зміни. Продовжити?"
+      "unsavedWarning": "У резюме є незбережені зміни. Продовжити?",
+      "unsaved": "Незбережені зміни"
     },
     "profiles": {
       "unnamed": "Без назви",
       "renameHint": "Подвійний клік, щоб перейменувати",
-      "menuAria": "Опції резюме",
+      "switcherAria": "Поточне резюме: {{name}} — перемкнути або керувати",
       "rename": "Перейменувати",
       "duplicate": "Дублювати",
       "delete": "Видалити",
       "confirmDelete": "Видалити «{{name}}»?",
       "addTab": "Нове резюме",
       "limitReached": "Можна мати до {{max}} резюме"
+    },
+    "toolbar": {
+      "fillGroup": "Заповнити",
+      "aiGroup": "ШІ-інструменти"
     },
     "importMenu": {
       "label": "Імпорт",
@@ -109,6 +124,8 @@
     },
     "sections": {
       "emptyHint": "порожньо",
+      "moreTitle": "Додаткові розділи",
+      "moreHint": "нагороди, публікації, волонтерство, рекомендації",
       "addedCount_one": "{{count}} додано",
       "addedCount_few": "{{count}} додано",
       "addedCount_many": "{{count}} додано",
@@ -117,24 +134,54 @@
       "itemsCount_few": "{{count}} елементи",
       "itemsCount_many": "{{count}} елементів",
       "itemsCount_other": "{{count}} елементи",
-      "general": { "title": "Загальне" },
+      "general": {
+        "title": "Загальне"
+      },
       "experience": {
         "title": "Досвід",
         "entries_one": "{{count}} запис",
         "entries_few": "{{count}} записи",
         "entries_many": "{{count}} записів",
-        "entries_other": "{{count}} записи"
+        "entries_other": "{{count}} записи",
+        "addHint": "+ додати місце роботи"
       },
-      "skills": { "title": "Навички", "searchPlaceholder": "Пошук навички…" },
-      "projects": { "title": "Проєкти" },
-      "education": { "title": "Освіта" },
-      "certifications": { "title": "Сертифікати" },
-      "awards": { "title": "Нагороди" },
-      "publications": { "title": "Публікації" },
-      "volunteer": { "title": "Волонтерство" },
-      "languages": { "title": "Мови" },
-      "references": { "title": "Рекомендації" },
-      "design": { "title": "Дизайн" }
+      "skills": {
+        "title": "Навички",
+        "searchPlaceholder": "Пошук навички…",
+        "addHint": "+ додати навички"
+      },
+      "projects": {
+        "title": "Проєкти",
+        "addHint": "+ додати проєкт"
+      },
+      "education": {
+        "title": "Освіта",
+        "addHint": "+ додати освіту"
+      },
+      "certifications": {
+        "title": "Сертифікати",
+        "addHint": "+ додати сертифікат"
+      },
+      "awards": {
+        "title": "Нагороди",
+        "addHint": "+ додати нагороду"
+      },
+      "publications": {
+        "title": "Публікації",
+        "addHint": "+ додати публікацію"
+      },
+      "volunteer": {
+        "title": "Волонтерство",
+        "addHint": "+ додати досвід"
+      },
+      "languages": {
+        "title": "Мови",
+        "addHint": "+ додати мову"
+      },
+      "references": {
+        "title": "Рекомендації",
+        "addHint": "+ додати рекомендацію"
+      }
     },
     "toasts": {
       "enterPresetName": "Введи назву пресету",
@@ -408,6 +455,8 @@
   "completeness": {
     "title": "Повнота резюме",
     "missingHint": "Бракує: {{items}}",
+    "missingLabel": "Бракує:",
+    "jumpAria": "Перейти до розділу: {{section}}",
     "checks": {
       "generalInfo": "Загальна інформація",
       "summary": "Підсумок",
@@ -456,9 +505,9 @@
     }
   },
   "cvPage": {
-    "eyebrow": "CV",
-    "title": "Резюме та рекомендації",
-    "subtitleLlm": "Аналіз резюме порівняно з ринковим попитом + генерація розділу навичок і супровідного листа.",
+    "eyebrow": "Резюме",
+    "title": "Резюме текстом",
+    "subtitleLlm": "Текст, який читають усі ШІ-функції застосунку — роадмап, план навчання, підбір вакансій. Завантаж або встав його один раз; структуровану версію редагуй у конструкторі.",
     "subtitleOffline": "Офлайн-режим — увімкни ШІ в server/.env для розумних порад.",
     "exportPdf": "Резюме в PDF",
     "uploadLabel": "Завантажити:",
@@ -466,7 +515,7 @@
     "uploadCvLabel": "Резюме (PDF / DOCX / TXT)",
     "aiAnalysisLabel": "ШІ-аналіз:",
     "compareMarket": "Резюме проти ринку",
-    "deepReview": "Глибокий огляд",
+    "deepReviewMoved": "Глибокий ШІ-аналіз → у конструкторі",
     "howItWorksSummary": "Як це працює і як завантажити з LinkedIn?",
     "howItWorksBody": "Одне завантаження — і твоє резюме працює <b>всюди</b>: аналіз ринку, дорожня карта, план навчання, рекомендації + автоматичний розбір на розділи в <b>Конструкторі резюме</b>. <b>LinkedIn:</b> профіль → «Ще» → «Зберегти в PDF» → завантаж це тут (пряме зчитування з LinkedIn заборонено його умовами використання).",
     "domainLabel": "Професія / роль — усі поради ШІ підлаштовуються під неї",
@@ -476,6 +525,9 @@
     "cvTextPlaceholder": "Встав або відредагуй текст свого резюме…",
     "updateSkillsTitle": "Оновити розділ навичок",
     "coverLetterTitle": "Супровідний лист для вакансії",
+    "coverLetterSubtitle": "Вставте вакансію (або оберіть із тих, що вже відстежуєте) — і отримайте супровідний лист саме під неї.",
+    "coverSourceHeading": "Куди подаєтесь?",
+    "coverResultHeading": "Ваш супровідний лист",
     "coverVacancyAria": "Обери вакансію з трекера для супровідного листа",
     "selectVacancyFromTracker": "— обери вакансію з трекера —",
     "coverUrlAria": "Посилання на вакансію для супровідного листа",

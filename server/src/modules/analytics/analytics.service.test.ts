@@ -7,6 +7,7 @@ import {
   heuristicFocus,
   FUNNEL_ORDER,
   FUNNEL_PROGRESSION_ORDER,
+  FOCUS_ACTION_KINDS,
 } from "./analytics.service.js";
 
 describe("isStaleApplication()", () => {
@@ -162,5 +163,44 @@ describe("heuristicFocus()", () => {
       staleApplications: 0,
     });
     expect(actions[0]?.title).toBe("Update 2 overdue steps");
+  });
+
+  // Every heuristic action must carry a `kind` — that's what makes it a click target on the
+  // dashboard (client/src/features/dashboard/focus-destination.ts maps kind → route). An action
+  // without one silently degrades to plain text, which is exactly the "tells you what to do but
+  // not where" problem this field exists to fix.
+  it("tags every action with a routable kind", () => {
+    const actions = heuristicFocus({
+      totalVac: 1,
+      interviews: 2,
+      overdue: 3,
+      upcoming: 0,
+      funnel: {},
+      gaps: ["React (5)"],
+      skillsCount: 1,
+      dueCards: 4,
+      staleApplications: 5,
+    });
+    expect(actions.length).toBeGreaterThan(0);
+    actions.forEach((a) => expect(FOCUS_ACTION_KINDS).toContain(a.kind));
+  });
+
+  it("routes each condition to the area it is actually about", () => {
+    const base = {
+      totalVac: 10,
+      interviews: 0,
+      overdue: 0,
+      upcoming: 0,
+      funnel: {},
+      gaps: [] as string[],
+      skillsCount: 5,
+      dueCards: 0,
+      staleApplications: 0,
+    };
+    expect(heuristicFocus({ ...base, overdue: 1 })[0]?.kind).toBe("vacancies");
+    expect(heuristicFocus({ ...base, interviews: 1 })[0]?.kind).toBe("interviews");
+    expect(heuristicFocus({ ...base, gaps: ["React (5)"] })[0]?.kind).toBe("skills");
+    expect(heuristicFocus({ ...base, dueCards: 1 })[0]?.kind).toBe("cards");
+    expect(heuristicFocus({ ...base, staleApplications: 1 })[0]?.kind).toBe("contacts");
   });
 });

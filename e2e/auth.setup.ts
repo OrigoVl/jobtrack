@@ -33,12 +33,14 @@ setup("authenticate", async ({ page, baseURL }) => {
   await page.getByPlaceholder("Email").fill(EMAIL);
   await page.getByPlaceholder("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Log in" }).click();
-  await page.waitForURL("**/dashboard");
+  // Either landing page proves the session is live. A freshly-registered user has
+  // onboarding.welcomeSeen=false, so App.tsx's WelcomeRedirect bounces it to /welcome — whether
+  // /dashboard is ever painted on the way is a race this setup must not depend on (waiting for
+  // /dashboard alone times out whenever the redirect wins).
+  await page.waitForURL(/\/(dashboard|welcome)$/);
 
-  // A freshly-registered user has onboarding.welcomeSeen=false, so App.tsx's WelcomeRedirect
-  // bounces every route back to /welcome on a fresh page load — the brief /dashboard touch above
-  // is just a client-side race, not proof onboarding is done. Mark it done directly so every spec
-  // reusing this storageState lands on its target route instead of /welcome.
+  // Mark onboarding done directly, so every spec reusing this storageState lands on its target
+  // route instead of being bounced to /welcome.
   await page.request.post("/api/onboarding/welcome-seen", { headers: { origin: baseURL! } });
 
   await page.context().storageState({ path: AUTH_FILE });

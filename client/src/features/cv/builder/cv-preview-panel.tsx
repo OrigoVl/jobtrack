@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Btn, Card, Segmented } from "../../../shared/ui";
 import { useUi } from "../../../shared/ui-state";
-import { ExpandIcon } from "../../../shared/icons";
+import { AlertTriangleIcon, ExpandIcon } from "../../../shared/icons";
 import type { CvDoc } from "../../../shared/types";
 import { buildCvHtml } from "./cv-doc-utils";
 
@@ -114,7 +114,13 @@ function ScaledFrame({
   );
 }
 
-/** Preview panel header: page-count badge, zoom, and actions — shared by the inline card and the fullscreen modal. */
+/** Preview panel header: page-count badge, zoom, and actions — shared by the inline card and the
+ * fullscreen modal.
+ *
+ * `onExport` is deliberately passed by the FULLSCREEN toolbar only. The inline card sits a few
+ * dozen pixels below the page header's own "Export PDF" button, so offering a second one here was
+ * the same action twice under two different names; the modal covers that header, so there it's
+ * the only way out to a PDF rather than a duplicate. */
 function PreviewToolbar({
   pages,
   zoom,
@@ -126,7 +132,7 @@ function PreviewToolbar({
   pages: number;
   zoom: number;
   onZoomChange: (z: number) => void;
-  onExport: () => void;
+  onExport?: () => void;
   onToggleFullscreen?: () => void;
   fullscreenLabel?: string;
 }) {
@@ -154,9 +160,11 @@ function PreviewToolbar({
             <ExpandIcon className="h-4 w-4" />
           </Btn>
         )}
-        <Btn size="sm" variant="ghost" onClick={onExport} title={t("preview.exportTitle")}>
-          {t("shared.pdfButton")}
-        </Btn>
+        {onExport && (
+          <Btn size="sm" variant="ghost" onClick={onExport} title={t("preview.exportTitle")}>
+            {t("shared.pdfButton")}
+          </Btn>
+        )}
       </div>
     </div>
   );
@@ -188,7 +196,6 @@ export function CvPreviewPanel({
           pages={pages}
           zoom={zoom}
           onZoomChange={setZoom}
-          onExport={onExport}
           onToggleFullscreen={() => setFullscreen(true)}
           fullscreenLabel={t("preview.fullscreen")}
         />
@@ -219,11 +226,7 @@ export function CvPreviewPanel({
         className="sm:hidden fixed bottom-5 right-5 z-30 rounded-full bg-star text-on-signal shadow-lg px-4 py-3 text-sm font-semibold flex items-center gap-1.5 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 focus-visible:ring-offset-2"
       >
         {t("preview.previewFab")}
-        {pages > 1 && (
-          <span className="text-alert/40" aria-hidden>
-            ⚠
-          </span>
-        )}
+        {pages > 1 && <AlertTriangleIcon className="h-3.5 w-3.5 text-alert/40" aria-hidden />}
       </button>
       {/* sm–lg ("laptop, not maximized" — 640-1024px): enough width for a persistent strip
           instead of a small icon-only FAB, so the preview stays one glance + one tap away rather

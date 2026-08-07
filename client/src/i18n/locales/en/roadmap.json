@@ -1,10 +1,12 @@
 {
-  "eyebrow": "Decode",
+  "eyebrow": "Growth",
   "title": "Skill roadmap",
   "subtitle": "A personal roadmap built from the real skills in your vacancies and CV. Click the circle to mark progress — it's all saved.",
   "view": {
-    "list": "Roadmap",
-    "radar": "Radar"
+    "list": "Skills",
+    "radar": "Radar",
+    "materials": "Materials",
+    "plan": "Intensive"
   },
   "progress": {
     "prefix": "Progress:",

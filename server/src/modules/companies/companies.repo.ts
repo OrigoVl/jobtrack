@@ -1,7 +1,7 @@
 // Repository wrapping the `companies` table — extracted from companies.routes.ts so the route
 // stays thin (parse → delegate → respond) and this data-access logic is unit-testable without
 // an Express request/response. Every function is scoped by `userId` (see server/src/db/user-id.ts).
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import db from "../../db/client.js";
 import { companies } from "../../db/schema/index.js";
 import type { UserId } from "../../db/user-id.js";
@@ -25,6 +25,14 @@ function toCompany(row: typeof companies.$inferSelect): Company {
 export async function listCompanies(userId: UserId): Promise<Company[]> {
   const rows = await db.select().from(companies).where(eq(companies.userId, userId)).orderBy(companies.name);
   return rows.map(toCompany);
+}
+
+/** Just the row count — for the sidebar's "this section has nothing in it yet" dimming, which
+ * needs to know IF there is data, never what it is (see GET /onboarding/state). Deliberately not
+ * `listCompanies(...).length`: that would ship every company over the wire on every page load. */
+export async function countCompanies(userId: UserId): Promise<number> {
+  const [row] = await db.select({ c: count() }).from(companies).where(eq(companies.userId, userId));
+  return row?.c ?? 0;
 }
 
 export async function upsertCompany(userId: UserId, input: CompanyInput): Promise<void> {

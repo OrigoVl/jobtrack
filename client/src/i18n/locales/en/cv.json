@@ -25,21 +25,36 @@
       "exportPdfTitle": "In the browser's print dialog, the date/document title at the top of pages are disabled automatically; if they still appear — turn off «Headers and footers»",
       "exportPopupBlocked": "Allow pop-ups for this site to export the PDF."
     },
+    "editorMode": {
+      "content": "Content",
+      "design": "Appearance"
+    },
+    "start": {
+      "title": "Let's build your CV",
+      "subtitle": "Bring in a CV you already have and AI will split it into sections — or start from a blank one.",
+      "uploadFile": "Upload a CV file",
+      "manual": "Fill it in manually →"
+    },
     "autosave": {
       "saving": "Saving…",
       "saved": "All changes saved",
-      "unsavedWarning": "Your CV has unsaved changes. Continue?"
+      "unsavedWarning": "Your CV has unsaved changes. Continue?",
+      "unsaved": "Unsaved changes"
     },
     "profiles": {
       "unnamed": "Untitled CV",
       "renameHint": "Double-click to rename",
-      "menuAria": "CV options",
+      "switcherAria": "Current CV: {{name}} — switch or manage",
       "rename": "Rename",
       "duplicate": "Duplicate",
       "delete": "Delete",
       "confirmDelete": "Delete “{{name}}”?",
       "addTab": "New CV",
       "limitReached": "You can have up to {{max}} CV profiles"
+    },
+    "toolbar": {
+      "fillGroup": "Fill in",
+      "aiGroup": "AI tools"
     },
     "importMenu": {
       "label": "Import",
@@ -105,26 +120,58 @@
     },
     "sections": {
       "emptyHint": "empty",
+      "moreTitle": "Additional sections",
+      "moreHint": "awards, publications, volunteering, references",
       "addedCount_one": "{{count}} added",
       "addedCount_other": "{{count}} added",
       "itemsCount_one": "{{count}} item",
       "itemsCount_other": "{{count}} items",
-      "general": { "title": "General" },
+      "general": {
+        "title": "General"
+      },
       "experience": {
         "title": "Experience",
         "entries_one": "{{count}} entry",
-        "entries_other": "{{count}} entries"
+        "entries_other": "{{count}} entries",
+        "addHint": "+ add a job"
       },
-      "skills": { "title": "Skills", "searchPlaceholder": "Search skill…" },
-      "projects": { "title": "Projects" },
-      "education": { "title": "Education" },
-      "certifications": { "title": "Certifications" },
-      "awards": { "title": "Awards" },
-      "publications": { "title": "Publications" },
-      "volunteer": { "title": "Volunteer Experience" },
-      "languages": { "title": "Languages" },
-      "references": { "title": "References" },
-      "design": { "title": "Design" }
+      "skills": {
+        "title": "Skills",
+        "searchPlaceholder": "Search skill…",
+        "addHint": "+ add skills"
+      },
+      "projects": {
+        "title": "Projects",
+        "addHint": "+ add a project"
+      },
+      "education": {
+        "title": "Education",
+        "addHint": "+ add education"
+      },
+      "certifications": {
+        "title": "Certifications",
+        "addHint": "+ add a certificate"
+      },
+      "awards": {
+        "title": "Awards",
+        "addHint": "+ add an award"
+      },
+      "publications": {
+        "title": "Publications",
+        "addHint": "+ add a publication"
+      },
+      "volunteer": {
+        "title": "Volunteer Experience",
+        "addHint": "+ add experience"
+      },
+      "languages": {
+        "title": "Languages",
+        "addHint": "+ add a language"
+      },
+      "references": {
+        "title": "References",
+        "addHint": "+ add a reference"
+      }
     },
     "toasts": {
       "enterPresetName": "Enter a preset name",
@@ -396,6 +443,8 @@
   "completeness": {
     "title": "Resume completeness",
     "missingHint": "Missing: {{items}}",
+    "missingLabel": "Missing:",
+    "jumpAria": "Go to section: {{section}}",
     "checks": {
       "generalInfo": "General info",
       "summary": "Summary",
@@ -445,8 +494,8 @@
   },
   "cvPage": {
     "eyebrow": "CV tools",
-    "title": "CV and recommendations",
-    "subtitleLlm": "CV analysis against market demand + generation of the Skills section and cover letter.",
+    "title": "Your CV as plain text",
+    "subtitleLlm": "The raw text every AI feature here reads — roadmap, learning plan, vacancy matching. Upload or paste it once; edit the structured version in the CV Builder.",
     "subtitleOffline": "Offline mode — enable LLM in server/.env for smart advice.",
     "exportPdf": "CV to PDF",
     "uploadLabel": "Upload:",
@@ -454,7 +503,7 @@
     "uploadCvLabel": "CV (PDF / DOCX / TXT)",
     "aiAnalysisLabel": "AI analysis:",
     "compareMarket": "CV vs market",
-    "deepReview": "Deep review",
+    "deepReviewMoved": "Deep AI review → in the CV Builder",
     "howItWorksSummary": "How does this work, and how do I upload from LinkedIn?",
     "howItWorksBody": "One upload — and your CV works <b>everywhere</b>: market analysis, roadmap, learning plan, recommendations + auto-parsing into sections in <b>the CV Builder</b>. <b>LinkedIn:</b> profile → «More» → «Save to PDF» → upload it here (direct LinkedIn parsing is forbidden by its ToS).",
     "domainLabel": "Profession / role — all AI advice adapts to it",
@@ -464,6 +513,9 @@
     "cvTextPlaceholder": "Paste or edit your resume text…",
     "updateSkillsTitle": "Update Skills section",
     "coverLetterTitle": "Cover letter for a vacancy",
+    "coverLetterSubtitle": "Paste a vacancy (or pick one you already track) and get a tailored cover letter for it.",
+    "coverSourceHeading": "What are you applying to?",
+    "coverResultHeading": "Your cover letter",
     "coverVacancyAria": "Select a vacancy from the tracker for the cover letter",
     "selectVacancyFromTracker": "— select a vacancy from the tracker —",
     "coverUrlAria": "Vacancy link for the cover letter",

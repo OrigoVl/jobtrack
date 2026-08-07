@@ -27,6 +27,131 @@ const TEMPLATE_KEYS: [
   ["timeline", "templates.timeline"],
 ];
 
+/**
+ * A ~A4-proportioned skeleton of each template's page structure — accent-coloured blocks for
+ * headings/rules, grey ones for body lines. Deliberately abstract (no legible text): the choice
+ * being made here is "where does stuff sit on the page", and a row of seven text-only buttons
+ * made that answerable only by clicking each one in turn and watching the real preview change.
+ *
+ * `accent` is the live theme colour, so the thumbnails re-tint as soon as a swatch is picked and
+ * the grid doubles as a preview of that choice too.
+ */
+function TemplateThumb({ template, accent }: { template: CvTheme["template"]; accent: string }) {
+  const line = "currentColor";
+  // 40×52 viewBox ≈ A4's 1:1.41. Every template draws into the same box so the seven thumbnails
+  // read as variations of one page rather than seven unrelated icons.
+  const body = () => {
+    switch (template) {
+      case "twocol":
+        return (
+          <>
+            <rect x="5" y="5" width="20" height="3" fill={accent} />
+            <rect x="5" y="12" width="14" height="1.5" fill={line} />
+            <rect x="5" y="18" width="13" height="2" fill={accent} />
+            <rect x="5" y="23" width="14" height="1.5" fill={line} />
+            <rect x="5" y="27" width="12" height="1.5" fill={line} />
+            <rect x="5" y="31" width="14" height="1.5" fill={line} />
+            <rect x="21" y="18" width="13" height="2" fill={accent} />
+            <rect x="21" y="23" width="14" height="1.5" fill={line} />
+            <rect x="21" y="27" width="11" height="1.5" fill={line} />
+            <rect x="21" y="31" width="14" height="1.5" fill={line} />
+          </>
+        );
+      case "sidebar":
+        return (
+          <>
+            <rect x="4" y="4" width="11" height="44" fill={accent} opacity="0.25" />
+            <rect x="6" y="7" width="7" height="2" fill={accent} />
+            <rect x="6" y="12" width="7" height="1.5" fill={line} />
+            <rect x="6" y="16" width="6" height="1.5" fill={line} />
+            <rect x="6" y="20" width="7" height="1.5" fill={line} />
+            <rect x="18" y="6" width="16" height="3" fill={accent} />
+            <rect x="18" y="14" width="12" height="2" fill={accent} />
+            <rect x="18" y="19" width="17" height="1.5" fill={line} />
+            <rect x="18" y="23" width="15" height="1.5" fill={line} />
+            <rect x="18" y="29" width="12" height="2" fill={accent} />
+            <rect x="18" y="34" width="17" height="1.5" fill={line} />
+            <rect x="18" y="38" width="14" height="1.5" fill={line} />
+          </>
+        );
+      case "timeline":
+        return (
+          <>
+            <rect x="5" y="5" width="22" height="3" fill={accent} />
+            <rect x="9" y="14" width="1" height="30" fill={accent} opacity="0.4" />
+            <circle cx="9.5" cy="17" r="2" fill={accent} />
+            <rect x="14" y="15" width="18" height="2" fill={accent} />
+            <rect x="14" y="20" width="16" height="1.5" fill={line} />
+            <circle cx="9.5" cy="29" r="2" fill={accent} />
+            <rect x="14" y="27" width="18" height="2" fill={accent} />
+            <rect x="14" y="32" width="15" height="1.5" fill={line} />
+            <circle cx="9.5" cy="41" r="2" fill={accent} />
+            <rect x="14" y="39" width="17" height="2" fill={accent} />
+          </>
+        );
+      case "academic":
+        return (
+          <>
+            <rect x="11" y="5" width="18" height="3" fill={accent} />
+            <rect x="14" y="11" width="12" height="1.5" fill={line} />
+            <rect x="5" y="18" width="30" height="0.8" fill={accent} />
+            <rect x="5" y="22" width="11" height="2" fill={accent} />
+            <rect x="5" y="27" width="30" height="1.5" fill={line} />
+            <rect x="5" y="31" width="27" height="1.5" fill={line} />
+            <rect x="5" y="37" width="11" height="2" fill={accent} />
+            <rect x="5" y="42" width="30" height="1.5" fill={line} />
+          </>
+        );
+      case "minimal":
+        return (
+          <>
+            <rect x="5" y="7" width="18" height="2.5" fill={line} />
+            <rect x="5" y="14" width="26" height="1.5" fill={line} />
+            <rect x="5" y="18" width="23" height="1.5" fill={line} />
+            <rect x="5" y="26" width="9" height="1.5" fill={accent} />
+            <rect x="5" y="31" width="26" height="1.5" fill={line} />
+            <rect x="5" y="35" width="22" height="1.5" fill={line} />
+            <rect x="5" y="42" width="9" height="1.5" fill={accent} />
+          </>
+        );
+      case "compact":
+        return (
+          <>
+            <rect x="5" y="5" width="20" height="2.5" fill={accent} />
+            <rect x="5" y="11" width="30" height="1.2" fill={line} />
+            <rect x="5" y="14" width="28" height="1.2" fill={line} />
+            <rect x="5" y="17" width="30" height="1.2" fill={line} />
+            <rect x="5" y="22" width="10" height="1.8" fill={accent} />
+            <rect x="5" y="26" width="30" height="1.2" fill={line} />
+            <rect x="5" y="29" width="29" height="1.2" fill={line} />
+            <rect x="5" y="32" width="30" height="1.2" fill={line} />
+            <rect x="5" y="37" width="10" height="1.8" fill={accent} />
+            <rect x="5" y="41" width="30" height="1.2" fill={line} />
+            <rect x="5" y="44" width="27" height="1.2" fill={line} />
+          </>
+        );
+      default:
+        return (
+          <>
+            <rect x="5" y="5" width="22" height="3" fill={accent} />
+            <rect x="5" y="12" width="16" height="1.5" fill={line} />
+            <rect x="5" y="19" width="11" height="2" fill={accent} />
+            <rect x="5" y="24" width="30" height="1.5" fill={line} />
+            <rect x="5" y="28" width="26" height="1.5" fill={line} />
+            <rect x="5" y="35" width="11" height="2" fill={accent} />
+            <rect x="5" y="40" width="30" height="1.5" fill={line} />
+            <rect x="5" y="44" width="24" height="1.5" fill={line} />
+          </>
+        );
+    }
+  };
+  return (
+    <svg viewBox="0 0 40 52" className="w-full h-auto rounded-sm bg-white text-slate-300 shadow-sm" role="presentation">
+      {body()}
+    </svg>
+  );
+}
+
 // Curated, resume-appropriate accent swatches — a quicker path to a good-looking result than
 // hunting through the raw <input type="color"> wheel; the picker itself stays for anyone who
 // wants an exact brand color. Not persisted/validated separately — clicking one is just shorthand
@@ -75,14 +200,16 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
         defaultOpen
         hint={t(TEMPLATE_KEYS.find(([id]) => id === theme.template)?.[1] ?? "templates.classic")}
       >
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
           {TEMPLATE_KEYS.map(([id, labelKey]) => (
             <button
               key={id}
               onClick={() => onSetTheme({ template: id })}
-              className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${theme.template === id ? "border-signal bg-signal/10 text-signal" : "border-grid text-ink-dim hover:bg-surface-2"}`}
+              aria-pressed={theme.template === id}
+              className={`flex flex-col gap-1.5 p-1.5 rounded-lg border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${theme.template === id ? "border-signal bg-signal/10 text-signal" : "border-grid text-ink-dim hover:bg-surface-2"}`}
             >
-              {t(labelKey)}
+              <TemplateThumb template={id} accent={theme.accent} />
+              <span className="text-[11px] font-medium leading-tight text-center">{t(labelKey)}</span>
             </button>
           ))}
         </div>

@@ -61,6 +61,18 @@ export default defineConfig({
       // whose Origin doesn't match baseURL/trustedOrigins, and "localhost" vs "127.0.0.1" count
       // as different origins even though they're the same machine.
       BETTER_AUTH_URL: BASE_URL,
+      // The global API limiter (core/rate-limit.ts's apiLimiter) is per-IP and defaults to 600
+      // requests per 15 minutes — sized for one human clicking around, while this whole suite is
+      // a single IP making thousands of calls in a few minutes. At the default, the budget runs
+      // out partway through and every spec after that point fails with 429s that look like
+      // unrelated app bugs (and the failure set moves as specs are added/reordered). Raised here
+      // rather than skipped entirely so the middleware itself still runs in the tested build.
+      API_RATE_LIMIT_MAX: "1000000",
+      // Same story one layer down: better-auth runs its OWN per-IP limiter for /api/auth/*, on by
+      // default in production builds. Every page load checks the session and several specs
+      // register users, so the suite trips it late in a run — as an intermittent "sign-up
+      // failed"/"session lost" in whichever spec happens to be running then.
+      AUTH_RATE_LIMIT_MAX: "1000000",
     },
   },
 });

@@ -51,6 +51,21 @@ function useCalendarPopover() {
   });
 }
 
+/**
+ * Opening the picker by clicking the FIELD, not only the little calendar icon. A date field looks
+ * clickable everywhere, so aiming for a 16px icon to get a calendar is a hit-target most people
+ * don't discover — clicking the text just put a caret in it and nothing appeared to happen.
+ *
+ * `onClick`, deliberately not `onFocus`: these fields sit in dense table rows (Vacancies' Applied
+ * / Next-step columns), and opening on focus would fire a calendar at every tab stop while
+ * keyboard-navigating past them. Keyboard users reach the picker through the icon button, which is
+ * focusable and labelled.
+ *
+ * Opens rather than toggles, so clicking the text again to reposition the caret doesn't dismiss
+ * the panel underneath. Closing is Escape, an outside click, picking a day, or the icon.
+ */
+const openPickerOnClick = (setOpen: (v: boolean) => void) => () => setOpen(true);
+
 /** The small calendar-icon toggle button glued to the right edge of the input, plus the popover panel (see
  * shared/popover.tsx) around `children` (the CalendarPanel) once open. */
 function PickerButton({
@@ -90,8 +105,9 @@ function PickerButton({
  * OS/browser locale regardless of the page's language (a Ukrainian-locale OS shows dd.mm.yyyy
  * even inside this English-only UI, and `lang` on the element isn't reliably honored across
  * browsers) — this always displays and accepts "mm/dd/yyyy", matching the rest of the English UI,
- * and stores/emits the value as ISO "yyyy-mm-dd" (what the API and analytics expect). A calendar
- * icon opens a month-grid popover (CalendarPanel) for picking a day visually, on top of typing.
+ * and stores/emits the value as ISO "yyyy-mm-dd" (what the API and analytics expect). Clicking
+ * the field (or the calendar icon) opens a month-grid popover (CalendarPanel) for picking a day
+ * visually, on top of typing.
  */
 export function DateInput({
   value,
@@ -136,6 +152,7 @@ export function DateInput({
         value={text}
         aria-label={ariaLabel}
         className={`${className ?? ""} pr-7`}
+        onClick={openPickerOnClick(setOpen)}
         onChange={(e) => {
           const masked = maskDigits(e.target.value);
           setText(masked);
@@ -210,8 +227,9 @@ const DEFAULT_PICKED_TIME = "09:00";
  * placeholder, and `lang` on the element isn't reliably honored across browsers). Value/onChange
  * use the same local "yyyy-MM-ddTHH:mm" string a native `datetime-local` input's `value`/
  * `e.target.value` would — a drop-in replacement for call sites already using
- * `toLocalInput`/`fromLocalInput` (see `calendar-date-utils.ts`). A calendar icon opens the same
- * month-grid popover as DateInput for picking the day visually; the time-of-day is still typed.
+ * `toLocalInput`/`fromLocalInput` (see `calendar-date-utils.ts`). Clicking the field (or the
+ * calendar icon) opens the same month-grid popover as DateInput for picking the day visually; the
+ * time-of-day is still typed.
  */
 export function DateTimeInput({
   value,
@@ -252,6 +270,7 @@ export function DateTimeInput({
         value={text}
         aria-label={ariaLabel}
         className={`${className ?? ""} pr-7`}
+        onClick={openPickerOnClick(setOpen)}
         onChange={(e) => {
           const masked = maskDateTimeDigits(e.target.value);
           setText(masked);

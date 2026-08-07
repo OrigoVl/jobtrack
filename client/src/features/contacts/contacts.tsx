@@ -11,6 +11,7 @@ import {
 } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Select, Spinner } from "../../shared/ui";
 import { useConfirm } from "../../shared/use-confirm";
+import { DateInput } from "../../shared/date-input";
 import type { Contact, ContactInput, OutreachResult } from "../../shared/types";
 import { ContactEnrichmentPanel } from "./contact-enrichment";
 
@@ -162,11 +163,14 @@ function ContactModal({
           </label>
           <label className="block">
             <span className="text-xs font-semibold text-ink-dim">{t("modal.lastContacted")}</span>
-            <input
-              type="date"
-              lang="en-US"
+            {/* The shared DateInput, not a native `<input type="date">` — `lang="en-US"` isn't
+                reliably honored, so a Ukrainian-locale OS rendered this one field as dd.mm.yyyy
+                while every other date in the app showed mm/dd/yyyy, and its picker only opened
+                from the native icon. Same ISO "yyyy-mm-dd" value shape either way. */}
+            <DateInput
               value={form.lastContactAt}
-              onChange={(e) => set("lastContactAt", e.target.value)}
+              onChange={(iso) => set("lastContactAt", iso)}
+              aria-label={t("modal.lastContacted")}
               className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
             />
           </label>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { Btn, Wordmark } from "../../shared/ui";
 import { useMarkWelcomeSeen, useProfile, useSaveProfile } from "../../shared/queries";
 
@@ -76,7 +76,30 @@ export function Welcome() {
             <div className="mt-3">
               <h1 className="text-lg font-bold text-ink">{t("step2.title")}</h1>
               <p className="text-sm text-ink-dim mt-1">{t("step2.subtitle")}</p>
-              <div className="mt-4 space-y-2">
+              {/* A one-glance map of the four places the actual work happens, matching the sidebar
+                  the user is about to see (App.tsx's NAV_DEF). Cheaper than a guided tour and it
+                  answers the question a newcomer actually has — "where is anything?" — before
+                  they've had a chance to get lost looking for it. The remaining four sidebar
+                  entries (Dashboard, Analytics, Calendar, Account) are named in the subtitle
+                  rather than listed: they're self-explanatory, and eight bullets is a wall. */}
+              <ul className="mt-4 space-y-2">
+                {(["vacancies", "network", "growth", "cv"] as const).map((key) => (
+                  <li key={key} className="flex gap-2.5 text-sm">
+                    <span className="mt-1.5 w-1.5 h-1.5 shrink-0 rounded-full bg-star" aria-hidden />
+                    <span>
+                      <b className="text-ink">{t(`step2.map.${key}.title`)}</b>{" "}
+                      <span className="text-ink-dim">{t(`step2.map.${key}.desc`)}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {/* ⌘K carries much more weight now that the sidebar is eight entries and the rest of
+                  the screens live behind section tabs — it's the only one-step route to "Find
+                  jobs" or "Cover letter". Worth one line here; nothing else ever tells the user. */}
+              <p className="mt-4 rounded-lg bg-surface-2 border border-grid px-3 py-2 text-xs text-ink-dim">
+                <Trans i18nKey="step2.shortcutHint" ns="welcome" components={{ b: <b className="text-ink font-mono" /> }} />
+              </p>
+              <div className="mt-5 space-y-2">
                 <Btn className="w-full" loading={markSeen.isPending} onClick={() => finish("/vacancies")}>
                   {t("step2.addVacancy")}
                 </Btn>

@@ -1,0 +1,34 @@
+{
+  "vacancies": {
+    "ariaLabel": "Vacancy sections",
+    "tabs": {
+      "tracker": "My vacancies",
+      "find": "Find jobs",
+      "analyze": "Analyze"
+    }
+  },
+  "network": {
+    "ariaLabel": "Network sections",
+    "tabs": {
+      "contacts": "Contacts",
+      "companies": "Companies"
+    }
+  },
+  "growth": {
+    "ariaLabel": "Growth sections",
+    "tabs": {
+      "roadmap": "Roadmap",
+      "study": "Practice",
+      "projects": "Pet projects",
+      "resources": "Resources"
+    }
+  },
+  "cv": {
+    "ariaLabel": "CV sections",
+    "tabs": {
+      "builder": "Builder",
+      "review": "CV text",
+      "coverLetter": "Cover letter"
+    }
+  }
+}

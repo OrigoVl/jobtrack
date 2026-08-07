@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { addVacancy } from "./helpers";
 
 /**
  * End-to-end test of the unified Calendar feature (server/src/modules/calendar/, client
@@ -73,23 +74,12 @@ test("navigates to Vacancies from a vacancy's next-step marker on the calendar",
   const pad2 = (n: number) => String(n).padStart(2, "0");
   const todayDisplay = `${pad2(now.getMonth() + 1)}/${pad2(now.getDate())}/${now.getFullYear()}`;
 
-  const [addRes] = await Promise.all([
-    page.waitForResponse((r) => r.url().includes("/api/vacancies") && r.request().method() === "POST"),
-    page.getByRole("button", { name: "+ Add vacancy" }).click(),
-  ]);
-  expect(addRes.ok()).toBeTruthy();
-  const vacancy = (await addRes.json()) as { id: number; company: string };
-
-  // "+ Add vacancy" now opens the detail modal (features/vacancies/vacancy-detail-modal.tsx) for
-  // filling it in right away — close it to get back to the table, which is what the rest of this
-  // test actually exercises (also avoids a duplicate-label match: the modal has its own "Next
-  // step date" field with the same aria-label as the table's). Waiting for the dialog to actually
-  // be visible first matters: the mutation's success callback (which opens it) runs a render
-  // cycle after the awaited network response above, so it isn't necessarily on-screen yet.
-  const addDialog = page.getByRole("dialog");
-  await expect(addDialog).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(addDialog).not.toBeVisible();
+  // addVacancy() also dismisses the detail modal the save opens, which the rest of this test needs
+  // gone: it carries its own "Next step date" field with the same aria-label as the table's.
+  // A unique company name per run, because the row is then addressed BY that name ("Next step
+  // date — <company>") — a fixed one silently becomes ambiguous the moment a leftover row from an
+  // interrupted run is still in this shared, only-reset-per-suite database.
+  const vacancy = await addVacancy(page, { company: `Calendar Corp ${Date.now()}`, position: "Next Step Engineer" });
 
   await page.getByLabel(`Next step date — ${vacancy.company}`).fill(todayDisplay);
   await page.waitForResponse((r) => r.url().includes(`/api/vacancies/${vacancy.id}`) && r.request().method() === "PUT");

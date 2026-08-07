@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { addVacancy } from "./helpers";
 
 /**
  * End-to-end test of "Tailor CV" (POST /cv/tailor, cv-builder.tsx): adapts the CV Builder doc
@@ -10,11 +11,20 @@ import { test, expect } from "@playwright/test";
  */
 test("tailoring the CV for a selected vacancy shows a report tab and can be applied to the builder", async ({ page }) => {
   await page.goto("/vacancies");
-  const [addResponse] = await Promise.all([
-    page.waitForResponse((r) => /\/api\/vacancies$/.test(r.url()) && r.request().method() === "POST"),
-    page.getByRole("button", { name: "+ Add vacancy" }).click(),
-  ]);
-  expect(addResponse.ok()).toBeTruthy();
+  await addVacancy(page, { company: "Tailor Corp", position: "Frontend Developer" });
+
+  // The builder opens on a first-run start card (import a CV / start blank) while the doc is
+  // still completely empty — the section list this spec drives only exists past that choice. Give
+  // the doc a name/title through the real API so it's past the empty state no matter which other
+  // specs did or didn't run against this shared account first (cv-builder-start.spec.ts is the
+  // one that covers the empty state itself, on a profile it creates for exactly that purpose).
+  const profilesRes = await page.request.get("/api/cv/profiles");
+  expect(profilesRes.ok()).toBeTruthy();
+  const [profile] = (await profilesRes.json()) as { id: number }[];
+  const seedRes = await page.request.put(`/api/cv/profiles/${profile!.id}/doc`, {
+    data: { name: "E2E Tailor Person", title: "Frontend Developer" },
+  });
+  expect(seedRes.ok()).toBeTruthy();
 
   await page.goto("/cvbuilder");
 

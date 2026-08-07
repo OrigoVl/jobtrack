@@ -17,7 +17,7 @@ import {
   useStartCvReviewJob,
   useVacancies,
 } from "../../shared/queries";
-import { Btn, Card, CardsSkeleton, Dropdown, PageHeader, Section, Select, Spinner } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Dropdown, PageHeader, Section, Segmented, Select, Spinner } from "../../shared/ui";
 import { SkillsInput } from "../../shared/view-kit";
 import type { CvDoc, CvExperience, CvMatch, CvPreset, CvReview, CvTailorResult, CvTheme, Vacancy } from "../../shared/types";
 import { DEFAULT_ORDER, cvDocToText, exportCvDoc, themeOf } from "./builder/cv-doc-utils";
@@ -41,8 +41,12 @@ import { ResumeCompleteness } from "./builder/resume-completeness";
 import { ShareLinkCard } from "./builder/share-link-card";
 import { ReportsPanel } from "./builder/reports-panel";
 import { CvReviewProgress } from "./builder/cv-review-progress";
-import { ProfileTabs } from "./builder/profile-tabs";
+import { ProfileSwitcher } from "./builder/profile-switcher";
 
+// Only CONTENT sections — "what's in the CV". Appearance/layout is deliberately NOT one of these
+// (see `editorMode` below): choosing a template or reordering blocks is a different job from
+// typing your work history, so it lives one level up as its own editor mode rather than as a
+// thirteenth peer accordion at the bottom of the content list.
 type SectionKey =
   | "general"
   | "experience"
@@ -54,8 +58,18 @@ type SectionKey =
   | "publications"
   | "volunteer"
   | "languages"
-  | "references"
-  | "design";
+  | "references";
+
+/** Which half of the editor column is showing: the content sections, or the appearance/layout
+ * controls. Two clearly separate jobs, so they're a mode switch rather than neighbours in one list. */
+type EditorMode = "content" | "design";
+
+/** The content sections most CVs legitimately never fill in — folded behind one "additional
+ * sections" disclosure so the primary list stays short and every row in it is one the user is
+ * actually expected to act on. Typed as `CvDoc` keys so the "does this CV use any of them"
+ * check below can index the doc directly. */
+const EXTRA_SECTIONS = ["awards", "publications", "volunteer", "references"] as const satisfies readonly (keyof CvDoc & SectionKey)[];
+const EXTRA_SECTION_KEYS = new Set<SectionKey>(EXTRA_SECTIONS);
 
 // Mirrors the server's cv-profiles.service.ts#MAX_CV_PROFILES — this constant is UI-only (disables
 // the "+" tab button and shows a tooltip); the server remains the actual source of truth and
@@ -132,10 +146,33 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   const [tailored, setTailored] = useUi<CvTailorResult | null>(`cvbuilder.tailored:${profileKey}`, null);
   const [activeReport, setActiveReport] = useUi<"review" | "match" | "tailor">(`cvbuilder.activeReport:${profileKey}`, "review");
   const [dismissedSuggest, setDismissedSuggest] = useState(false);
-  // Single exclusive accordion instead of the old "Content / Design" tab split with every card
-  // stacked underneath — one section open at a time, so there's never more scrolling than one
-  // section's worth of fields. "design" folds in the old Appearance + Layout/Presets panels.
+  // Single exclusive accordion — one section open at a time, so there's never more scrolling than
+  // one section's worth of fields.
   const [activeSection, setActiveSection] = useUi<SectionKey | null>("cvbuilder.activeSection", "general");
+  // Content vs. appearance. Appearance used to be the last item of the accordion list above,
+  // which read as "the 12th thing to fill in" even though it isn't content at all — and buried
+  // template/photo/section-order behind a scroll past every content section. As a mode switch it
+  // sits at the top of the editor column, next to the live preview it actually affects.
+  const [editorMode, setEditorMode] = useUi<EditorMode>("cvbuilder.editorMode", "content");
+  // Whether the "additional sections" disclosure (awards/publications/volunteer/references) is
+  // expanded. Defaults to open only when this CV already uses one of them — `useUi` re-reads its
+  // `initial` on every render until the key is actually written, so this still lands correctly on
+  // the render where `doc` first arrives, and the user's own toggle wins from then on.
+  const [moreOpen, setMoreOpen] = useUi("cvbuilder.moreSectionsOpen", !!doc && EXTRA_SECTIONS.some((k) => (doc[k] ?? []).length > 0));
+  // Drives the first-run start card in the content column (see the render below). "Empty" is
+  // judged on the fields a CV can't do without — the optional sections deliberately don't count,
+  // or a doc holding nothing but one award would skip the card that's meant to get it started.
+  // Per-profile: adding a second CV tab starts from the same blank slate the first one did.
+  const docIsEmpty =
+    !!doc &&
+    !doc.name.trim() &&
+    !doc.title.trim() &&
+    !doc.summary.trim() &&
+    doc.experience.length === 0 &&
+    doc.skills.length === 0 &&
+    doc.projects.length === 0 &&
+    doc.education.length === 0;
+  const [startedManually, setStartedManually] = useUi(`cvbuilder.startedManually:${profileKey}`, false);
   // Which experience entry the live preview asked to focus (click sync) — applied once by
   // ExperienceCard, not held/forced every render (see its own render-time reset guard).
   const [expFocusIndex, setExpFocusIndex] = useState<number | null>(null);
@@ -144,7 +181,11 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   // last successful save" without keeping a second copy of the doc around.
   const lastSavedRef = useRef("");
   const [autosaving, setAutosaving] = useState(false);
-  const [everSaved, setEverSaved] = useState(false);
+  // Mirrors `lastSavedRef` as render-visible state (a ref alone can't drive the header's status
+  // line). Maintained by the autosave effect below, which already does the same comparison —
+  // it's what lets the header say "all changes saved" honestly instead of only claiming it after
+  // this session happened to perform a save, and lets Save go quiet when there's nothing to save.
+  const [dirty, setDirty] = useState(false);
   // Falls back to the first (lowest-position) tab once the profile list loads, or if the
   // previously-active tab got deleted (in another tab of the browser, or via this tab's own
   // ProfileTabs) and no longer exists.
@@ -181,13 +222,16 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   useEffect(() => {
     if (!doc || activeProfileId == null) return;
     const serialized = JSON.stringify(doc);
-    if (serialized === lastSavedRef.current) return;
+    if (serialized === lastSavedRef.current) {
+      setDirty(false);
+      return;
+    }
+    setDirty(true);
     const timer = setTimeout(async () => {
       setAutosaving(true);
       try {
         const saved = await api.saveCvDoc(activeProfileId, doc);
         lastSavedRef.current = JSON.stringify(saved);
-        setEverSaved(true);
         setDoc(saved);
       } catch {
         // Left unsaved — beforeunload below still guards against silently losing it.
@@ -361,7 +405,6 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     try {
       const saved = await api.saveCvDoc(activeProfileId, doc);
       lastSavedRef.current = JSON.stringify(saved);
-      setEverSaved(true);
       setDoc(saved);
       toast(t("builder.toasts.cvSaved"), "success");
     } finally {
@@ -486,15 +529,22 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   // Clicking a section/entry in the live preview jumps straight to it in the editor — the
   // preview tags each block with data-section (see cv-doc-utils.ts); "summary"/"general" both
   // map to the General section since Name/Role/Contacts/Summary live together there.
+  // Opening a content section from anywhere (preview click, completeness chip) has to leave the
+  // appearance mode too — otherwise the accordion it just opened isn't on screen at all.
+  const openSection = (key: SectionKey) => {
+    setEditorMode("content");
+    setActiveSection(key);
+    if (EXTRA_SECTION_KEYS.has(key)) setMoreOpen(true);
+  };
   const onPreviewSectionClick = (section: string) => {
     const expMatch = /^experience-(\d+)$/.exec(section);
     if (expMatch) {
-      setActiveSection("experience");
+      openSection("experience");
       setExpFocusIndex(Number(expMatch[1]));
       return;
     }
     if (section === "summary" || section === "general") {
-      setActiveSection("general");
+      openSection("general");
       return;
     }
     if (
@@ -533,15 +583,37 @@ export function CvBuilder({ llm }: { llm: boolean }) {
         subtitle={t("builder.header.subtitle")}
         actions={
           <>
-            {/* Autosave status — only ever shows once something has actually been saved this
-                session (no "saved" claim before that's true), and never fights the explicit
-                Save button's own `busy === "save"` spinner (a manual save always wins visually). */}
-            {busy !== "save" && (autosaving || everSaved) && (
+            {/* Which CV you're editing reads as this page's document title, so it heads the action
+                row rather than costing a third row of tabs below the header. */}
+            {cvProfiles && cvProfiles.length > 0 && (
+              <ProfileSwitcher
+                profiles={cvProfiles}
+                activeId={activeProfileId}
+                onSelect={setActiveProfileId}
+                onCreate={() => createProfileMutation.mutate("", { onSuccess: (created) => setActiveProfileId(created.id) })}
+                onDuplicate={(id) => duplicateProfileMutation.mutate(id, { onSuccess: (created) => setActiveProfileId(created.id) })}
+                onRename={(id, name) => renameProfileMutation.mutate({ id, name })}
+                onDelete={(id) => deleteProfileMutation.mutate(id)}
+                creating={createProfileMutation.isPending}
+                renamingProfileId={renameProfileMutation.isPending ? renameProfileMutation.variables?.id : undefined}
+                duplicatingProfileId={duplicateProfileMutation.isPending ? duplicateProfileMutation.variables : undefined}
+                deletingProfileId={deleteProfileMutation.isPending ? deleteProfileMutation.variables : undefined}
+                atLimit={cvProfiles.length >= MAX_CV_PROFILES}
+                maxProfiles={MAX_CV_PROFILES}
+              />
+            )}
+            {/* Save status, always present rather than appearing only after this session
+                happened to save something: with `dirty` tracked as real state, "all changes
+                saved" is a truthful statement about a freshly-loaded doc too. Hidden only while
+                an explicit save is in flight, so it never fights that button's own spinner. */}
+            {busy !== "save" && (
               <span className="flex items-center gap-1.5 text-xs text-ink-dim self-center mr-1">
                 {autosaving ? (
                   <>
                     <Spinner className="h-3 w-3" /> {t("builder.autosave.saving")}
                   </>
+                ) : dirty ? (
+                  t("builder.autosave.unsaved")
                 ) : (
                   t("builder.autosave.saved")
                 )}
@@ -554,140 +626,133 @@ export function CvBuilder({ llm }: { llm: boolean }) {
             >
               {t("builder.header.exportPdf")}
             </Btn>
-            <Btn onClick={save} loading={busy === "save"}>
+            {/* Disabled when there's nothing to save — paired with the status line above, that
+                reads as "you're up to date", not as a broken button. */}
+            <Btn onClick={save} loading={busy === "save"} disabled={!dirty && !autosaving}>
               {t("shared.saveButton")}
             </Btn>
           </>
         }
       />
-      {cvProfiles && cvProfiles.length > 0 && (
-        <ProfileTabs
-          profiles={cvProfiles}
-          activeId={activeProfileId}
-          onSelect={setActiveProfileId}
-          onCreate={() => createProfileMutation.mutate("", { onSuccess: (created) => setActiveProfileId(created.id) })}
-          onDuplicate={(id) => duplicateProfileMutation.mutate(id, { onSuccess: (created) => setActiveProfileId(created.id) })}
-          onRename={(id, name) => renameProfileMutation.mutate({ id, name })}
-          onDelete={(id) => deleteProfileMutation.mutate(id)}
-          creating={createProfileMutation.isPending}
-          renamingProfileId={renameProfileMutation.isPending ? renameProfileMutation.variables?.id : undefined}
-          duplicatingProfileId={duplicateProfileMutation.isPending ? duplicateProfileMutation.variables : undefined}
-          deletingProfileId={deleteProfileMutation.isPending ? deleteProfileMutation.variables : undefined}
-          atLimit={cvProfiles.length >= MAX_CV_PROFILES}
-          maxProfiles={MAX_CV_PROFILES}
-        />
-      )}
-      {/* Simplified toolbar: two grouped dropdowns (Import, Vacancy) instead of a row of
-          equal-weight buttons, plus Compare/AI Assistant — Save/Export stayed above as the
-          only two primary-looking actions. */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Dropdown label={t("builder.importMenu.label")}>
-          <label className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm cursor-pointer hover:bg-surface-2">
-            {busy === "upload" ? (
-              <>
-                <Spinner className="h-3.5 w-3.5" /> {t("builder.importMenu.parsing")}
-              </>
-            ) : (
-              t("builder.importMenu.fromFile")
-            )}
-            <input
-              type="file"
-              accept=".pdf,.docx,.txt"
-              className="hidden"
-              disabled={busy === "upload"}
-              onChange={(e) => uploadFile(e.target.files?.[0])}
-            />
-          </label>
-          <label className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm cursor-pointer hover:bg-surface-2">
-            {busy === "li" ? (
-              <>
-                <Spinner className="h-3.5 w-3.5" /> {t("builder.importMenu.importingLinkedin")}
-              </>
-            ) : (
-              t("builder.importMenu.linkedin")
-            )}
-            <input
-              type="file"
-              accept=".zip,application/zip"
-              className="hidden"
-              disabled={busy === "li"}
-              onChange={(e) => importLinkedIn(e.target.files?.[0])}
-            />
-          </label>
-          <button
-            type="button"
-            onClick={fromText}
-            // 30-char floor matches the server's own gate (cv.routes.ts's doc/generate route) —
-            // below it the server can't call the LLM at all and just echoes back the current doc
-            // unchanged, so keeping the button enabled down to "any character" only set up a
-            // confusing no-op click.
-            disabled={!llm || busy === "gen" || (profile?.cvText?.trim().length ?? 0) < 30}
-            title={(profile?.cvText?.trim().length ?? 0) < 30 ? t("builder.importMenu.fromProfileEmptyTitle") : undefined}
-            className="w-full flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-left hover:bg-surface-2 disabled:opacity-40"
-          >
-            {busy === "gen" && <Spinner className="h-3.5 w-3.5" />} {t("builder.importMenu.fromProfileText")}
-          </button>
-          <details className="text-xs text-ink-dim px-2 pt-1" data-keep-open>
-            <summary className="cursor-pointer select-none hover:text-ink font-medium">
-              {t("builder.importMenu.fromProfileHelpSummary")}
-            </summary>
-            <div className="mt-1.5 text-ink-dim">
-              <Trans i18nKey="builder.importMenu.fromProfileHelpBody" ns="cv" components={{ b: <b /> }} />
-            </div>
-          </details>
-          <details className="text-xs text-ink-dim px-2 pt-1" data-keep-open>
-            <summary className="cursor-pointer select-none hover:text-ink font-medium">
-              {t("builder.importMenu.linkedinHelpSummary")}
-            </summary>
-            <div className="mt-1.5 text-ink-dim">
-              <Trans i18nKey="builder.importMenu.linkedinHelpBody" ns="cv" components={{ b: <b /> }} />
-            </div>
-          </details>
-        </Dropdown>
-        <Dropdown
-          label={
-            matchVacId
-              ? (vacancies.find((v) => v.id === matchVacId)?.position ?? t("builder.vacancyMenu.fallback"))
-              : t("builder.vacancyMenu.label")
-          }
-        >
-          <div className="text-xs font-semibold text-ink-dim px-1 pb-1">{t("builder.vacancyMenu.compareAgainst")}</div>
-          {vacancies.length === 0 ? (
-            <div className="text-xs text-ink-dim px-1 py-1">{t("builder.vacancyMenu.noVacancies")}</div>
-          ) : (
-            <Select
-              data-keep-open
-              value={matchVacId}
-              onChange={(e) => setMatchVacId(Number(e.target.value))}
-              className="w-full bg-surface-2 focus:outline-none focus:ring-2 focus:ring-signal/50"
+      {/* Toolbar, split into the two jobs it actually serves rather than one undifferentiated row
+          of equal-weight buttons: getting content INTO the CV (left) and running AI checks ON it
+          (right). Each half is named, so "Vacancy / Compare / Tailor / AI Assistant" reads as one
+          coherent group instead of four unrelated buttons that happen to sit next to each other.
+          Save/Export stay in the header above as the only two primary-looking actions. */}
+      <div className="flex items-start gap-x-5 gap-y-3 flex-wrap rounded-card border border-grid bg-surface px-4 py-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-dim">{t("builder.toolbar.fillGroup")}</span>
+          <Dropdown label={t("builder.importMenu.label")}>
+            <label className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm cursor-pointer hover:bg-surface-2">
+              {busy === "upload" ? (
+                <>
+                  <Spinner className="h-3.5 w-3.5" /> {t("builder.importMenu.parsing")}
+                </>
+              ) : (
+                t("builder.importMenu.fromFile")
+              )}
+              <input
+                type="file"
+                accept=".pdf,.docx,.txt"
+                className="hidden"
+                disabled={busy === "upload"}
+                onChange={(e) => uploadFile(e.target.files?.[0])}
+              />
+            </label>
+            <label className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm cursor-pointer hover:bg-surface-2">
+              {busy === "li" ? (
+                <>
+                  <Spinner className="h-3.5 w-3.5" /> {t("builder.importMenu.importingLinkedin")}
+                </>
+              ) : (
+                t("builder.importMenu.linkedin")
+              )}
+              <input
+                type="file"
+                accept=".zip,application/zip"
+                className="hidden"
+                disabled={busy === "li"}
+                onChange={(e) => importLinkedIn(e.target.files?.[0])}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={fromText}
+              // 30-char floor matches the server's own gate (cv.routes.ts's doc/generate route) —
+              // below it the server can't call the LLM at all and just echoes back the current doc
+              // unchanged, so keeping the button enabled down to "any character" only set up a
+              // confusing no-op click.
+              disabled={!llm || busy === "gen" || (profile?.cvText?.trim().length ?? 0) < 30}
+              title={(profile?.cvText?.trim().length ?? 0) < 30 ? t("builder.importMenu.fromProfileEmptyTitle") : undefined}
+              className="w-full flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-left hover:bg-surface-2 disabled:opacity-40"
             >
-              <option value={0}>{t("builder.vacancyMenu.selectPlaceholder")}</option>
-              {vacancies.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.position}
-                  {v.company ? ` — ${v.company}` : ""}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Dropdown>
-        <Btn size="sm" variant="ghost" onClick={doMatch} loading={busyMatch} disabled={!matchVacId}>
-          {t("builder.compareButton")}
-        </Btn>
-        <Btn
-          size="sm"
-          variant="ghost"
-          onClick={doTailor}
-          loading={busyTailor}
-          disabled={!matchVacId}
-          title={t("builder.tailorButtonTitle")}
-        >
-          {t("builder.tailorButton")}
-        </Btn>
-        <span className="mx-1 h-5 w-px bg-grid" aria-hidden />
-        <Btn size="sm" variant="ghost" onClick={doReview} loading={startReviewJob.isPending || reviewRunning} disabled={reviewRunning}>
-          {t("builder.aiAssistantButton")}
-        </Btn>
+              {busy === "gen" && <Spinner className="h-3.5 w-3.5" />} {t("builder.importMenu.fromProfileText")}
+            </button>
+            <details className="text-xs text-ink-dim px-2 pt-1" data-keep-open>
+              <summary className="cursor-pointer select-none hover:text-ink font-medium">
+                {t("builder.importMenu.fromProfileHelpSummary")}
+              </summary>
+              <div className="mt-1.5 text-ink-dim">
+                <Trans i18nKey="builder.importMenu.fromProfileHelpBody" ns="cv" components={{ b: <b /> }} />
+              </div>
+            </details>
+            <details className="text-xs text-ink-dim px-2 pt-1" data-keep-open>
+              <summary className="cursor-pointer select-none hover:text-ink font-medium">
+                {t("builder.importMenu.linkedinHelpSummary")}
+              </summary>
+              <div className="mt-1.5 text-ink-dim">
+                <Trans i18nKey="builder.importMenu.linkedinHelpBody" ns="cv" components={{ b: <b /> }} />
+              </div>
+            </details>
+          </Dropdown>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-dim">{t("builder.toolbar.aiGroup")}</span>
+          <Dropdown
+            label={
+              matchVacId
+                ? (vacancies.find((v) => v.id === matchVacId)?.position ?? t("builder.vacancyMenu.fallback"))
+                : t("builder.vacancyMenu.label")
+            }
+          >
+            <div className="text-xs font-semibold text-ink-dim px-1 pb-1">{t("builder.vacancyMenu.compareAgainst")}</div>
+            {vacancies.length === 0 ? (
+              <div className="text-xs text-ink-dim px-1 py-1">{t("builder.vacancyMenu.noVacancies")}</div>
+            ) : (
+              <Select
+                data-keep-open
+                value={matchVacId}
+                onChange={(e) => setMatchVacId(Number(e.target.value))}
+                className="w-full bg-surface-2 focus:outline-none focus:ring-2 focus:ring-signal/50"
+              >
+                <option value={0}>{t("builder.vacancyMenu.selectPlaceholder")}</option>
+                {vacancies.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.position}
+                    {v.company ? ` — ${v.company}` : ""}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Dropdown>
+          <Btn size="sm" variant="ghost" onClick={doMatch} loading={busyMatch} disabled={!matchVacId}>
+            {t("builder.compareButton")}
+          </Btn>
+          <Btn
+            size="sm"
+            variant="ghost"
+            onClick={doTailor}
+            loading={busyTailor}
+            disabled={!matchVacId}
+            title={t("builder.tailorButtonTitle")}
+          >
+            {t("builder.tailorButton")}
+          </Btn>
+          <span className="mx-1 h-5 w-px bg-grid" aria-hidden />
+          <Btn size="sm" variant="ghost" onClick={doReview} loading={startReviewJob.isPending || reviewRunning} disabled={reviewRunning}>
+            {t("builder.aiAssistantButton")}
+          </Btn>
+        </div>
       </div>
       {reviewRunning && (
         <Card>
@@ -701,7 +766,10 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           <div className="text-sm text-alert">{reviewJob.error || t("builder.toasts.analysisError")}</div>
         </Card>
       )}
-      {!dismissedSuggest && llm && !!profile?.cvText?.trim() && !doc.name && !doc.summary && doc.experience.length === 0 && (
+      {/* Suppressed while the first-run start card is up — that card already offers this exact
+          action ("from your Profile CV text") as one of its three, and two prompts to do the same
+          thing on one screen is the confusion this pass is removing, not adding. */}
+      {!dismissedSuggest && !(docIsEmpty && !startedManually) && llm && !!profile?.cvText?.trim() && doc.experience.length === 0 && (
         <Card className="!py-3 bg-alert/10 border-alert/30 flex items-center gap-3">
           <div className="text-sm text-ink flex-1">{t("builder.suggest.message")}</div>
           <Btn size="sm" onClick={fromText} loading={busy === "gen"}>
@@ -730,7 +798,6 @@ export function CvBuilder({ llm }: { llm: boolean }) {
         }}
         onApplyRewrite={applyRewrite}
       />
-      <ShareLinkCard profileId={activeProfileId} />
       {/* grid-cols-1 (not just "grid" with no columns) — important: Tailwind explicitly sets
           `minmax(0, 1fr)`, whereas "none" (the default implicit grid without any `grid-cols-*`)
           gives track sizing "auto", which honors the min-content of descendants. The CV preview
@@ -749,113 +816,20 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           reads fine at a more modest width and doesn't need the extra room nearly as much. */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-4 items-start pb-16 lg:pb-0">
         <div className="min-w-0 space-y-2.5">
-          <ResumeCompleteness doc={doc} />
-          {accordion(
-            "general",
-            "",
-            t("builder.sections.general.title"),
-            doc.name || undefined,
-            <GeneralSection doc={doc} onChange={set} llm={llm} busyStyle={busyStyle} onImproveSummary={improveSummary} />,
-          )}
-          {accordion(
-            "experience",
-            "",
-            t("builder.sections.experience.title"),
-            doc.experience.length
-              ? t("builder.sections.experience.entries", { count: doc.experience.length })
-              : t("builder.sections.emptyHint"),
-            <ExperienceCard
-              experience={doc.experience}
-              onAdd={() => set({ experience: [...doc.experience, { role: "", company: "", period: "", bullets: [] }] })}
-              onRemove={(i) => set({ experience: doc.experience.filter((_, idx) => idx !== i) })}
-              onSet={setExp}
-              onMove={moveExp}
-              llm={llm}
-              busyKey={busy}
-              onImproveBullets={improveBullets}
-              onImproveBullet={improveBullet}
-              canUndoBullets={canUndoBullets}
-              canUndoBullet={canUndoBullet}
-              onUndoBullets={undoBullets}
-              onUndoBullet={undoBullet}
-              focusIndex={expFocusIndex}
-            />,
-          )}
-          {accordion(
-            "skills",
-            "",
-            t("builder.sections.skills.title"),
-            doc.skills.length ? t("builder.sections.addedCount", { count: doc.skills.length }) : t("builder.sections.emptyHint"),
-            <SkillsInput
-              label={t("builder.sections.skills.title")}
-              hideLabel
-              skills={doc.skills}
-              onChange={(skills) => set({ skills })}
-              placeholder={t("builder.sections.skills.searchPlaceholder")}
-            />,
-          )}
-          {accordion(
-            "projects",
-            "",
-            t("builder.sections.projects.title"),
-            doc.projects.length ? t("builder.sections.itemsCount", { count: doc.projects.length }) : t("builder.sections.emptyHint"),
-            <ProjectsSection projects={doc.projects} onChange={(projects) => set({ projects })} />,
-          )}
-          {accordion(
-            "education",
-            "",
-            t("builder.sections.education.title"),
-            doc.education.length ? t("builder.sections.itemsCount", { count: doc.education.length }) : t("builder.sections.emptyHint"),
-            <EducationSection education={doc.education} onChange={(education) => set({ education })} />,
-          )}
-          {accordion(
-            "certifications",
-            "",
-            t("builder.sections.certifications.title"),
-            certifications.length ? t("builder.sections.itemsCount", { count: certifications.length }) : t("builder.sections.emptyHint"),
-            <CertificationsSection certifications={certifications} onChange={(certifications) => set({ certifications })} />,
-          )}
-          {accordion(
-            "awards",
-            "",
-            t("builder.sections.awards.title"),
-            awards.length ? t("builder.sections.itemsCount", { count: awards.length }) : t("builder.sections.emptyHint"),
-            <AwardsSection awards={awards} onChange={(awards) => set({ awards })} />,
-          )}
-          {accordion(
-            "publications",
-            "",
-            t("builder.sections.publications.title"),
-            publications.length ? t("builder.sections.itemsCount", { count: publications.length }) : t("builder.sections.emptyHint"),
-            <PublicationsSection publications={publications} onChange={(publications) => set({ publications })} />,
-          )}
-          {accordion(
-            "volunteer",
-            "",
-            t("builder.sections.volunteer.title"),
-            volunteer.length ? t("builder.sections.itemsCount", { count: volunteer.length }) : t("builder.sections.emptyHint"),
-            <VolunteerSection volunteer={volunteer} onChange={(volunteer) => set({ volunteer })} />,
-          )}
-          {accordion(
-            "languages",
-            "",
-            t("builder.sections.languages.title"),
-            langs.length ? t("builder.sections.addedCount", { count: langs.length }) : t("builder.sections.emptyHint"),
-            <LanguagesSection languages={langs} onChange={(languages) => set({ languages })} />,
-          )}
-          {accordion(
-            "references",
-            "",
-            t("builder.sections.references.title"),
-            references.length ? t("builder.sections.itemsCount", { count: references.length }) : t("builder.sections.emptyHint"),
-            <ReferencesSection references={references} onChange={(references) => set({ references })} />,
-          )}
-          {accordion(
-            "design",
-            "",
-            t("builder.sections.design.title"),
-            t(TEMPLATE_LABEL_KEYS[theme.template]),
-            <div className="space-y-2">
+          {/* The editor's own top-level split. Sits at the very top of the column (not buried at
+              the end of the section list) so "what's in my CV" and "how it looks" are visibly two
+              modes of the same editor, both watched through the same live preview on the right. */}
+          <Segmented
+            value={editorMode}
+            onChange={setEditorMode}
+            size="md"
+            options={[
+              { value: "content", label: t("builder.editorMode.content") },
+              { value: "design", label: t("builder.editorMode.design") },
+            ]}
+          />
+          {editorMode === "design" ? (
+            <div className="space-y-2.5">
               <AppearancePanel doc={doc} theme={theme} onSetTheme={setTheme} onSetPhoto={(photo) => set({ photo })} />
               <LayoutPresetsPanel
                 sectionOrder={sectionOrder}
@@ -868,7 +842,203 @@ export function CvBuilder({ llm }: { llm: boolean }) {
                 onDeletePreset={deletePreset}
                 saving={busy === "preset"}
               />
-            </div>,
+            </div>
+          ) : docIsEmpty && !startedManually ? (
+            /* First run: a brand-new CV has nothing to complete and nothing to preview, so the
+               eleven empty accordions below are eleven equally-plausible places to start. This
+               card narrows that to the two decisions that actually exist — bring an existing CV
+               in, or start typing — and disappears on its own the moment the doc has content. */
+            <Card className="space-y-4 text-center">
+              <div>
+                <div className="font-display text-lg font-bold text-ink">{t("builder.start.title")}</div>
+                <p className="text-sm text-ink-dim mt-1">{t("builder.start.subtitle")}</p>
+              </div>
+              <div className="flex flex-col items-stretch gap-2 max-w-xs mx-auto">
+                <label
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold px-3 py-2 text-sm transition-colors ${busy === "upload" ? "bg-star/40 text-on-signal" : "bg-star text-on-signal hover:opacity-90 cursor-pointer"}`}
+                >
+                  {busy === "upload" ? (
+                    <>
+                      <Spinner className="h-3.5 w-3.5" /> {t("builder.importMenu.parsing")}
+                    </>
+                  ) : (
+                    t("builder.start.uploadFile")
+                  )}
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.txt"
+                    className="hidden"
+                    disabled={busy === "upload"}
+                    onChange={(e) => uploadFile(e.target.files?.[0])}
+                  />
+                </label>
+                <label className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-grid bg-surface-2 px-3 py-2 text-sm font-semibold text-ink cursor-pointer hover:bg-grid">
+                  {busy === "li" ? (
+                    <>
+                      <Spinner className="h-3.5 w-3.5" /> {t("builder.importMenu.importingLinkedin")}
+                    </>
+                  ) : (
+                    t("builder.importMenu.linkedin")
+                  )}
+                  <input
+                    type="file"
+                    accept=".zip,application/zip"
+                    className="hidden"
+                    disabled={busy === "li"}
+                    onChange={(e) => importLinkedIn(e.target.files?.[0])}
+                  />
+                </label>
+                {/* Same gate as the Import menu's own item — offered here only when there IS
+                    profile text to parse and the LLM can actually parse it. */}
+                {llm && (profile?.cvText?.trim().length ?? 0) >= 30 && (
+                  <Btn variant="subtle" onClick={fromText} loading={busy === "gen"}>
+                    {t("builder.importMenu.fromProfileText")}
+                  </Btn>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setStartedManually(true)}
+                className="text-sm font-medium text-signal hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 rounded"
+              >
+                {t("builder.start.manual")}
+              </button>
+            </Card>
+          ) : (
+            <div className="space-y-2.5">
+              <ResumeCompleteness doc={doc} onJump={openSection} />
+              {accordion(
+                "general",
+                "",
+                t("builder.sections.general.title"),
+                doc.name || undefined,
+                <GeneralSection doc={doc} onChange={set} llm={llm} busyStyle={busyStyle} onImproveSummary={improveSummary} />,
+              )}
+              {accordion(
+                "experience",
+                "",
+                t("builder.sections.experience.title"),
+                doc.experience.length
+                  ? t("builder.sections.experience.entries", { count: doc.experience.length })
+                  : t("builder.sections.experience.addHint"),
+                <ExperienceCard
+                  experience={doc.experience}
+                  onAdd={() => set({ experience: [...doc.experience, { role: "", company: "", period: "", bullets: [] }] })}
+                  onRemove={(i) => set({ experience: doc.experience.filter((_, idx) => idx !== i) })}
+                  onSet={setExp}
+                  onMove={moveExp}
+                  llm={llm}
+                  busyKey={busy}
+                  onImproveBullets={improveBullets}
+                  onImproveBullet={improveBullet}
+                  canUndoBullets={canUndoBullets}
+                  canUndoBullet={canUndoBullet}
+                  onUndoBullets={undoBullets}
+                  onUndoBullet={undoBullet}
+                  focusIndex={expFocusIndex}
+                />,
+              )}
+              {accordion(
+                "skills",
+                "",
+                t("builder.sections.skills.title"),
+                doc.skills.length ? t("builder.sections.addedCount", { count: doc.skills.length }) : t("builder.sections.skills.addHint"),
+                <SkillsInput
+                  label={t("builder.sections.skills.title")}
+                  hideLabel
+                  skills={doc.skills}
+                  onChange={(skills) => set({ skills })}
+                  placeholder={t("builder.sections.skills.searchPlaceholder")}
+                />,
+              )}
+              {accordion(
+                "projects",
+                "",
+                t("builder.sections.projects.title"),
+                doc.projects.length
+                  ? t("builder.sections.itemsCount", { count: doc.projects.length })
+                  : t("builder.sections.projects.addHint"),
+                <ProjectsSection projects={doc.projects} onChange={(projects) => set({ projects })} />,
+              )}
+              {accordion(
+                "education",
+                "",
+                t("builder.sections.education.title"),
+                doc.education.length
+                  ? t("builder.sections.itemsCount", { count: doc.education.length })
+                  : t("builder.sections.education.addHint"),
+                <EducationSection education={doc.education} onChange={(education) => set({ education })} />,
+              )}
+              {accordion(
+                "certifications",
+                "",
+                t("builder.sections.certifications.title"),
+                certifications.length
+                  ? t("builder.sections.itemsCount", { count: certifications.length })
+                  : t("builder.sections.certifications.addHint"),
+                <CertificationsSection certifications={certifications} onChange={(certifications) => set({ certifications })} />,
+              )}
+              {accordion(
+                "languages",
+                "",
+                t("builder.sections.languages.title"),
+                langs.length ? t("builder.sections.addedCount", { count: langs.length }) : t("builder.sections.languages.addHint"),
+                <LanguagesSection languages={langs} onChange={(languages) => set({ languages })} />,
+              )}
+              {/* Everything above is either scored by ResumeCompleteness or on nearly every CV. The
+              four below are genuinely optional, so they're one collapsed row instead of four more
+              "empty" rows competing for attention with Experience. */}
+              <button
+                type="button"
+                onClick={() => setMoreOpen(!moreOpen)}
+                aria-expanded={moreOpen}
+                className="w-full flex items-center gap-2 rounded-card px-3.5 py-2 text-sm font-medium text-ink-dim hover:bg-surface-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
+              >
+                <span>{t("builder.sections.moreTitle")}</span>
+                <span className="text-xs font-normal text-ink-dim truncate">· {t("builder.sections.moreHint")}</span>
+                <span className={`ml-auto transition-transform duration-200 ${moreOpen ? "rotate-90" : ""}`} aria-hidden>
+                  ›
+                </span>
+              </button>
+              {moreOpen && (
+                <>
+                  {accordion(
+                    "awards",
+                    "",
+                    t("builder.sections.awards.title"),
+                    awards.length ? t("builder.sections.itemsCount", { count: awards.length }) : t("builder.sections.awards.addHint"),
+                    <AwardsSection awards={awards} onChange={(awards) => set({ awards })} />,
+                  )}
+                  {accordion(
+                    "publications",
+                    "",
+                    t("builder.sections.publications.title"),
+                    publications.length
+                      ? t("builder.sections.itemsCount", { count: publications.length })
+                      : t("builder.sections.publications.addHint"),
+                    <PublicationsSection publications={publications} onChange={(publications) => set({ publications })} />,
+                  )}
+                  {accordion(
+                    "volunteer",
+                    "",
+                    t("builder.sections.volunteer.title"),
+                    volunteer.length
+                      ? t("builder.sections.itemsCount", { count: volunteer.length })
+                      : t("builder.sections.volunteer.addHint"),
+                    <VolunteerSection volunteer={volunteer} onChange={(volunteer) => set({ volunteer })} />,
+                  )}
+                  {accordion(
+                    "references",
+                    "",
+                    t("builder.sections.references.title"),
+                    references.length
+                      ? t("builder.sections.itemsCount", { count: references.length })
+                      : t("builder.sections.references.addHint"),
+                    <ReferencesSection references={references} onChange={(references) => set({ references })} />,
+                  )}
+                </>
+              )}
+            </div>
           )}
         </div>
         {/* Right column — preview only, nothing above it: sticky and immediately in focus no
@@ -881,25 +1051,10 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           />
         </div>
       </div>
+      {/* Sharing is what you do with a FINISHED CV, so it sits after the editor rather than
+          between the toolbar and the fields — it used to take a full row of prime above-the-fold
+          space on a page whose whole job is editing. */}
+      <ShareLinkCard profileId={activeProfileId} />
     </div>
   );
 }
-
-const TEMPLATE_LABEL_KEYS: Record<
-  CvTheme["template"],
-  | "templates.classic"
-  | "templates.compact"
-  | "templates.academic"
-  | "templates.twocol"
-  | "templates.minimal"
-  | "templates.sidebar"
-  | "templates.timeline"
-> = {
-  classic: "templates.classic",
-  compact: "templates.compact",
-  academic: "templates.academic",
-  twocol: "templates.twocol",
-  minimal: "templates.minimal",
-  sidebar: "templates.sidebar",
-  timeline: "templates.timeline",
-};

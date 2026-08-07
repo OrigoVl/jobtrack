@@ -6,6 +6,7 @@
 // database (workers: 1): logging out through the shared/default context would invalidate the
 // session every other spec relies on for the rest of the run.
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { skipWelcome } from "./helpers";
 import pg from "pg";
 
 const DB_URL = process.env.DATABASE_URL || "postgres://jobtrack:jobtrack@localhost:5432/jobtrack_e2e";
@@ -40,7 +41,9 @@ test("an unauthenticated visitor hitting a protected route is redirected to /log
   // the shared authenticated one.
   const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
-  await page.goto("/dashboard");
+  // waitUntil "commit" — same reason as the logout test below: the guard's redirect can abort
+  // this navigation's own load, and that redirect is exactly what's being asserted.
+  await page.goto("/dashboard", { waitUntil: "commit" });
   await page.waitForURL("**/login");
   await context.close();
 });
@@ -61,15 +64,24 @@ test("logging out invalidates the session server-side — a direct visit to a pr
   await page.getByPlaceholder("Email").fill(email);
   await page.getByPlaceholder("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Log in" }).click();
-  await page.waitForURL("**/dashboard");
+  // This user has never logged in before, so the app parks it on /welcome first.
+  await skipWelcome(page);
 
   await page.getByRole("button", { name: "Log out" }).click();
   await page.waitForURL("**/login");
+  // Landing on the URL isn't the same as the page having settled: log-out also clears the query
+  // cache and tears the app shell down, and a navigation started while that's still unwinding
+  // gets cancelled (net::ERR_ABORTED) before the reload below can even commit. Waiting for the
+  // login form to actually render is the cheap "the app is idle again" signal.
+  await expect(page.getByPlaceholder("Email")).toBeVisible();
 
   // Not just "the SPA's router redirected" (a client-side-only guard could pass this while the
   // server-side session is still technically valid) — reload straight into the protected route
-  // and confirm the server itself rejects it too.
-  await page.goto("/dashboard");
+  // and confirm the server itself rejects it too. waitUntil "commit": the app bounces to /login
+  // as soon as the session check comes back, which can abort the /dashboard load before it fires
+  // "load" (net::ERR_ABORTED) — the redirect IS the assertion here, so waiting for the aborted
+  // page to finish loading is both unnecessary and flaky.
+  await page.goto("/dashboard", { waitUntil: "commit" });
   await page.waitForURL("**/login");
   await context.close();
 });
@@ -80,7 +92,7 @@ test("a regular (non-admin) user never sees the Admin nav item and is bounced aw
   await page.goto("/dashboard");
   await expect(page.locator("aside").getByRole("link", { name: "Admin" })).toHaveCount(0);
 
-  await page.goto("/admin");
+  await page.goto("/admin", { waitUntil: "commit" });
   await page.waitForURL("**/dashboard");
 });
 
@@ -95,7 +107,7 @@ test("a promoted admin sees the Admin nav item and can load the admin panel", as
   await page.getByPlaceholder("Email").fill(email);
   await page.getByPlaceholder("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Log in" }).click();
-  await page.waitForURL("**/dashboard");
+  await skipWelcome(page);
 
   const adminLink = page.locator("aside").getByRole("link", { name: "Admin" });
   await expect(adminLink).toBeVisible();

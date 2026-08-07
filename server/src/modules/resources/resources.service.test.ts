@@ -20,7 +20,7 @@ vi.mock("../../llm/index.js", () => ({
 import { getProfile, getKvJson, setKvJson } from "../../db/index.js";
 import { demandMap, gapPriorityMap } from "../../shared/demand.js";
 import { llmAvailable, chatJson } from "../../llm/index.js";
-import { getDynamicResources } from "./resources.service.js";
+import { getDynamicResources, getFocusOverride, setFocusOverride } from "./resources.service.js";
 
 const getProfileMock = vi.mocked(getProfile);
 const getKvJsonMock = vi.mocked(getKvJson);
@@ -75,7 +75,9 @@ describe("getDynamicResources()", () => {
       "Interview Preparation",
     ]);
     expect(result.focus).toMatch(/add vacancies/i);
-    expect(getKvJsonMock).not.toHaveBeenCalled();
+    // The manual-override lookup is the ONLY kv read on this path — with no gaps there's nothing
+    // to cache a generated focus/actions for.
+    expect(getKvJsonMock).toHaveBeenCalledExactlyOnceWith(BOOTSTRAP_USER_ID, "resources-focus-override");
     expect(chatJsonMock).not.toHaveBeenCalled();
   });
 
@@ -124,5 +126,80 @@ describe("getDynamicResources()", () => {
     expect(result.focus).toBe("Spend this week on React — it dominates your pipeline.");
     expect(result.checklist[0]!.text).toBe("Build a tiny React counter app with TanStack Query.");
     expect(setKvJsonMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("offers the top 5 gaps as focus suggestions while still personalizing on the top 3", async () => {
+    getProfileMock.mockResolvedValue({ skills: [], cvText: "", domain: "" });
+    demandMapMock.mockResolvedValue({});
+    gapPriorityMapMock.mockResolvedValue({ React: 9, Docker: 8, AWS: 7, GraphQL: 6, Redis: 5, Kafka: 4 });
+
+    const result = await getDynamicResources(BOOTSTRAP_USER_ID, false);
+
+    expect(result.focusSuggestions).toEqual(["React", "Docker", "AWS", "GraphQL", "Redis"]);
+    // The sections themselves keep acting on the top 3 only — suggestions are a wider menu.
+    expect(result.focus).toBe("Priority: React, Docker, AWS — these show up often in your vacancies but aren't in your profile yet.");
+    expect(result.focusCustom).toBe(false);
+  });
+
+  it("lets a user-set focus win over the generated one, without spending an LLM call on it", async () => {
+    getProfileMock.mockResolvedValue({ skills: ["Vue"], cvText: "", domain: "Frontend" });
+    demandMapMock.mockResolvedValue({ React: 9 });
+    gapPriorityMapMock.mockResolvedValue({ React: 9 });
+    llmAvailableMock.mockReturnValue(true);
+    getKvJsonMock.mockImplementation(async (_userId, key) =>
+      key === "resources-focus-override" ? { text: "Finish the Kafka course." } : null,
+    );
+    chatJsonMock.mockResolvedValue({ actions: ["Build a tiny React counter app."] });
+
+    const result = await getDynamicResources(BOOTSTRAP_USER_ID, false);
+
+    expect(result.focus).toBe("Finish the Kafka course.");
+    expect(result.focusCustom).toBe(true);
+    // Only getPersonalizedActions() called the LLM — the focus note never ran.
+    expect(chatJsonMock).toHaveBeenCalledTimes(1);
+    // Still suggests gaps, so the edit UI has something to offer next time.
+    expect(result.focusSuggestions).toEqual(["React"]);
+  });
+
+  it("treats a blank override as no override at all", async () => {
+    getProfileMock.mockResolvedValue({ skills: [], cvText: "", domain: "" });
+    demandMapMock.mockResolvedValue({});
+    gapPriorityMapMock.mockResolvedValue({});
+    getKvJsonMock.mockImplementation(async (_userId, key) => (key === "resources-focus-override" ? { text: "   " } : null));
+
+    const result = await getDynamicResources(BOOTSTRAP_USER_ID, false);
+
+    expect(result.focusCustom).toBe(false);
+    expect(result.focus).toMatch(/add vacancies/i);
+  });
+});
+
+describe("setFocusOverride()", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("stores the trimmed text and reads it back", async () => {
+    const stored = await setFocusOverride(BOOTSTRAP_USER_ID, "  Ship the CI/CD pipeline.  ");
+
+    expect(stored).toBe("Ship the CI/CD pipeline.");
+    expect(setKvJsonMock).toHaveBeenCalledWith(BOOTSTRAP_USER_ID, "resources-focus-override", { text: "Ship the CI/CD pipeline." });
+  });
+
+  it("caps an over-long override instead of rejecting it", async () => {
+    const stored = await setFocusOverride(BOOTSTRAP_USER_ID, "x".repeat(500));
+
+    expect(stored).toHaveLength(300);
+  });
+
+  it("clears back to auto on a blank text", async () => {
+    const stored = await setFocusOverride(BOOTSTRAP_USER_ID, "   ");
+
+    expect(stored).toBe("");
+    expect(setKvJsonMock).toHaveBeenCalledWith(BOOTSTRAP_USER_ID, "resources-focus-override", { text: "" });
+  });
+
+  it("reports an empty override as none", async () => {
+    getKvJsonMock.mockResolvedValue({ text: "" });
+
+    expect(await getFocusOverride(BOOTSTRAP_USER_ID)).toBe("");
   });
 });
