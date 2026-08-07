@@ -40,6 +40,10 @@ Run, in this order, and make sure all are green:
 5. `pnpm test:e2e` if the change touches a flow already covered by `e2e/*.spec.ts`, or add a new
    spec if you added a new critical user-facing flow.
 
+CI additionally runs `pnpm format:check` and `pnpm test:coverage` (not plain `pnpm test`), so a
+change that adds a meaningful amount of untested code can pass everything above and still fail
+there — run those two as well when you've added more than a few lines.
+
 Don't declare a task finished on the basis of "it should work" — actually run the above.
 
 ## Architecture conventions (match existing patterns, don't refactor drive-by)
@@ -51,6 +55,16 @@ Don't declare a task finished on the basis of "it should work" — actually run 
 - **Frontend**: `client/src/features/<domain>/` mirrors the server's `modules/<domain>/`. Data
   fetching/mutations go through `client/src/shared/queries/*` (TanStack Query hooks, one per
   domain, typed cache keys). No global "god context" — pages subscribe only to what they need.
+- **Navigation**: related pages are grouped under a *pathless* layout route rendering
+  `app/section-tabs.tsx`'s `SectionTabs` (see `app/App.tsx`) — the tab strip wraps its children
+  WITHOUT changing any URL, so existing links/bookmarks/e2e specs keep working and every page
+  keeps rendering its own `PageHeader` (and whatever controls hang off its `actions` slot). Adding
+  a page to an existing section = one entry in that section's `tabs` array plus a label in the
+  `sections` i18n namespace; don't thread an `embedded` prop through the page itself. The tabs are
+  real `NavLink`s, not `Segmented` — they're navigation, so middle-click/cmd-click/back must work.
+  The sidebar is grouped and its `labelKey`s are typed against `nav.json`'s actual shape (a typo
+  is a `tsc` error, not a missing string at runtime); `app/mobile-nav.tsx` renders the same
+  destinations as four primary tabs plus a "More" sheet below `lg`.
 - **Env vars**: never read `process.env` directly outside `server/src/config/env.ts` — add new
   vars to the Zod schema there, they're validated fail-fast at startup.
 - **pgvector columns**: a `vector(...)` column (`drizzle-orm/pg-core`) needs the `vector` Postgres
@@ -143,6 +157,35 @@ Don't declare a task finished on the basis of "it should work" — actually run 
   Docker), with `vi.doMock(".../client.js", () => ({ default: testDb }))` before a dynamic
   `import()` of the module under test. See `companies.repo.test.ts`/`vacancies.repo.test.ts` for
   the pattern — prove multi-tenant scoping actually holds at the SQL level, don't just mock it away.
+- **`server/vitest.config.js` caps `maxWorkers` on purpose.** ~21 suites boot their own PGlite
+  instance in a `beforeAll`; at vitest's default of one worker per core, a dozen WASM Postgres
+  instances start at once and starve each other past the hook timeout. The symptom is distinctive
+  and misleading — a *different random handful* of suites fails on each run, always as
+  "Hook timed out in Nms", never as an assertion, and every one of them passes when run alone. If
+  you see that, it's contention, not a regression; don't go bisecting, and don't raise the cap.
+- **A `pnpm test:coverage` failure is not automatically a "lower the threshold" situation.** The
+  client report spans every file matched by `include`, so the many UI files no unit test imports
+  count as 0% — the thresholds in `client/vitest.config.ts` are a regression gate pinned to that
+  reality (see the comment there). Add tests for the logic you introduced; only re-baseline when
+  you can show the *measurement* changed, not the coverage.
+
+### E2E specifics
+
+- **Use `e2e/helpers.ts`'s `addVacancy()`** in any spec that just needs a vacancy to exist before
+  testing something else. "+ Add vacancy" opens a create form that only saves on an explicit Save
+  (it used to POST a placeholder row immediately), so clicking the button and waiting for
+  `POST /vacancies` no longer describes the flow — don't re-spell the form out per spec.
+- **`playwright.config.ts` raises `API_RATE_LIMIT_MAX`/`AUTH_RATE_LIMIT_MAX` for the run, and must
+  keep doing so.** The whole suite is one IP making thousands of calls; at the human-sized default
+  the budget runs out partway through and every spec after that point fails with 429s that look
+  like unrelated app bugs — with the failing set moving as specs are added or reordered.
+- **The CV Builder opens on a first-run start card while its doc is empty**, so the section
+  accordions don't exist yet. A spec driving those fields must first give the doc content (seed it
+  via `PUT /api/cv/profiles/:id/doc`, the deterministic option on the shared e2e account) or click
+  "Fill it in manually". See `cv-builder-tailor.spec.ts` (seeds) and `cv-builder-start.spec.ts`
+  (covers the card itself, on a CV profile it creates so no other spec's seeding can affect it).
+- The e2e account is **shared across spec files** and several of them seed the default CV profile.
+  Anything that depends on "this is empty" needs its own profile/row, not the default one.
 
 ## Style
 

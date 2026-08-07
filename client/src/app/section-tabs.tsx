@@ -7,7 +7,7 @@ export interface SectionTab {
 
 /**
  * The tab strip shown above a group of related pages (Vacancies/Find/Analyze, Contacts/Companies,
- * the six Growth pages, the three CV pages) — mounted as a pathless layout route in app/App.tsx,
+ * the seven Growth pages, the three CV pages) — mounted as a pathless layout route in app/App.tsx,
  * so it wraps its children WITHOUT changing any of their URLs. Existing links, bookmarks and
  * e2e specs that `goto("/jobs")` keep working exactly as before; the page just now renders with
  * its siblings' tabs above it.
