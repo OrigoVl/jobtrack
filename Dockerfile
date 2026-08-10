@@ -8,6 +8,17 @@ COPY server/package.json server/package.json
 RUN pnpm install --frozen-lockfile
 COPY client/ client/
 COPY server/ server/
+# Vite inlines VITE_* at BUILD time (client/src/shared/sentry.ts reads import.meta.env.VITE_SENTRY_DSN),
+# so unlike every server-side key these can't be supplied as runtime env vars — they have to reach
+# this build stage or client-side error tracking is silently off. Declared as build args (Railway
+# and `docker build --build-arg` both feed service variables in this way) and re-exported as env so
+# the vite process sees them. Both are optional: an empty value builds a bundle with Sentry
+# disabled, exactly as before. Neither is a secret — a Sentry DSN is public by design (it only
+# allows POSTing events), which is why it's safe to bake into a client bundle at all.
+ARG VITE_SENTRY_DSN=""
+ARG VITE_APP_VERSION=""
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
+ENV VITE_APP_VERSION=$VITE_APP_VERSION
 RUN pnpm --filter jobtrack-client build
 RUN pnpm --filter jobtrack-server build
 
