@@ -7,6 +7,7 @@
 // that signs up and immediately churns).
 import { contextLogger } from "../../core/logger.js";
 import type { UserId } from "../../db/user-id.js";
+import { notify } from "../../shared/notify.js";
 import { countVacancies } from "../vacancies/vacancies.repo.js";
 import {
   createReferral,
@@ -80,6 +81,15 @@ export async function qualifyPendingReferrals(nowMs: number = Date.now()): Promi
       if (isEligibleForQualification(c.refereeEmailVerified, hasActivity)) {
         await markReferralQualified(c.id, nowMs);
         qualifiedCount++;
+        // The referrer's quota just went up and nothing else would ever tell them so — the bonus is
+        // granted by a background sweep, not by anything they did. Keyed on the referral id so a
+        // re-run of the sweep can't congratulate them twice for the same person, and deliberately
+        // says nothing identifying about the referee.
+        await notify(c.referrerUserId, {
+          kind: "referral",
+          text: `🎁 One of your referrals just qualified — +${REFERRAL_BONUS_PER_REFERRAL} AI calls a month, up to ${REFERRAL_MAX_BONUS_REFERRALS} referrals.`,
+          dedupeKey: `referral:${c.id}`,
+        });
       }
     } catch (err) {
       contextLogger().error({ err, referralId: c.id }, "Failed to evaluate one pending referral");

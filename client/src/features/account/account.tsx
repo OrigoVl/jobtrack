@@ -9,8 +9,10 @@ import {
   useBilling,
   useCreateTelegramLinkToken,
   useDigestPreferences,
+  useNotificationSettings,
   useOpenBillingPortal,
   useReferralState,
+  useSaveNotificationSettings,
   useSetDigestEnabled,
   useTelegramStatus,
   useUnlinkTelegram,
@@ -67,6 +69,8 @@ export function Account() {
   const { data: telegramStatus } = useTelegramStatus();
   const createTelegramLinkToken = useCreateTelegramLinkToken();
   const unlinkTelegram = useUnlinkTelegram();
+  const { data: notificationSettings } = useNotificationSettings();
+  const saveNotificationSettings = useSaveNotificationSettings();
   const { data: referral } = useReferralState();
   const [notifOn, setNotifOn] = useState(() => notificationsEnabled());
   const [deleteRequested, setDeleteRequested] = useState(false);
@@ -91,6 +95,17 @@ export function Account() {
     setNotifOn(false);
     toast(t("notifications.disabledToast"), "success");
   };
+
+  function onToggleNotificationKind(kind: string, enabled: boolean) {
+    if (!notificationSettings) return;
+    // The whole map is sent on every toggle — the endpoint is a PUT that replaces the blob, and
+    // only explicit opt-outs are stored, so turning one back ON means dropping its key rather than
+    // sending `true` (which would pin it against any future change to the default).
+    const next = { ...notificationSettings.prefs };
+    if (enabled) delete next[kind];
+    else next[kind] = false;
+    saveNotificationSettings.mutate(next);
+  }
 
   async function onLinkTelegram() {
     const { deepLink } = await createTelegramLinkToken.mutateAsync();
@@ -181,6 +196,31 @@ export function Account() {
               )
             }
           />
+        )}
+        {/* Per-event opt-outs only make sense once there's a chat to send to — an unlinked account
+            has nothing to switch off, and showing nine dead toggles would just be noise. */}
+        {telegramStatus?.linked && notificationSettings && (
+          <SettingRow heading={t("telegramEvents.heading")} description={t("telegramEvents.description")}>
+            <div className="grid gap-1.5 sm:grid-cols-2">
+              {notificationSettings.kinds.map((kind) => (
+                <label key={kind} className="flex items-center gap-2 text-xs text-ink-dim cursor-pointer">
+                  <input
+                    type="checkbox"
+                    // Sparse storage: a kind absent from `prefs` is ON. Mirrors the server's
+                    // isNotificationEnabled() so the two can't disagree about the default.
+                    checked={notificationSettings.prefs[kind] ?? true}
+                    onChange={(e) => onToggleNotificationKind(kind, e.target.checked)}
+                    disabled={saveNotificationSettings.isPending}
+                    className="accent-signal"
+                  />
+                  {/* The kind is a persisted wire value — only its display label is translated, via
+                      a defaultValue fallback so a kind the client doesn't have a string for yet
+                      renders as itself instead of a raw i18n key. */}
+                  {t(`telegramEvents.kinds.${kind}` as never, { defaultValue: kind })}
+                </label>
+              ))}
+            </div>
+          </SettingRow>
         )}
       </GroupCard>
 

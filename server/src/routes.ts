@@ -29,6 +29,7 @@ import design from "./modules/design/design.routes.js";
 import billing from "./modules/billing/billing.routes.js";
 import onboarding from "./modules/onboarding/onboarding.routes.js";
 import telegram from "./modules/telegram/telegram.routes.js";
+import notifications from "./modules/notifications/notifications.routes.js";
 import referrals from "./modules/referrals/referrals.routes.js";
 
 const r = express.Router();
@@ -58,6 +59,7 @@ r.use(design);
 r.use(billing);
 r.use(onboarding);
 r.use(telegram);
+r.use(notifications);
 r.use(referrals);
 
 export default r;

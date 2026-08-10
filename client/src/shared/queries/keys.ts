@@ -40,6 +40,7 @@ export const queryKeys = {
   billing: ["billing"] as const,
   onboardingState: ["onboardingState"] as const,
   telegramStatus: ["telegramStatus"] as const,
+  notificationSettings: ["notificationSettings"] as const,
   applyProgress: ["applyProgress"] as const,
   referralState: ["referralState"] as const,
 };

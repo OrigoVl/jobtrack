@@ -73,4 +73,73 @@ describe("chat id storage (PGlite)", () => {
     await repo.clearTelegramChatId(userId);
     expect(await repo.getTelegramChatId(userId)).toBeNull();
   });
+
+  // A numeric-looking chat id must survive storage as the STRING it is. This used to be a real
+  // hazard when the value lived in a jsonb user_kv blob (a bare "111" round-tripped back as the
+  // NUMBER 111); it's a text column now, and this pins that.
+  it("keeps a numeric-looking chat id a string", async () => {
+    const userId = "user-numeric-chat" as UserId;
+    await insertTestUser(testDb, userId);
+    await repo.setTelegramChatId(userId, "111");
+    expect(await repo.getTelegramChatId(userId)).toBe("111");
+  });
+});
+
+// The direction that only works because this is a real table — it's what lets the webhook turn an
+// incoming message (which carries nothing but a chat id) into an account.
+describe("getUserIdByChatId() (PGlite)", () => {
+  it("resolves a linked chat back to its user", async () => {
+    const userId = "user-reverse" as UserId;
+    await insertTestUser(testDb, userId);
+    await repo.setTelegramChatId(userId, "chat-reverse");
+    expect(await repo.getUserIdByChatId("chat-reverse")).toBe(userId);
+  });
+
+  // This is the bot's ONLY authentication (see telegram.commands.ts) — an unknown chat resolving
+  // to anything but null would mean commands running against somebody's account.
+  it("returns null for a chat that was never linked", async () => {
+    expect(await repo.getUserIdByChatId("never-linked-chat")).toBeNull();
+  });
+
+  it("returns null once the account unlinks", async () => {
+    const userId = "user-reverse-unlink" as UserId;
+    await insertTestUser(testDb, userId);
+    await repo.setTelegramChatId(userId, "chat-goes-away");
+    await repo.clearTelegramChatId(userId);
+    expect(await repo.getUserIdByChatId("chat-goes-away")).toBeNull();
+  });
+
+  it("clearTelegramChat() drops the link given only the chat id (the blocked-bot cleanup path)", async () => {
+    const userId = "user-blocked-bot" as UserId;
+    await insertTestUser(testDb, userId);
+    await repo.setTelegramChatId(userId, "chat-blocked");
+    await repo.clearTelegramChat("chat-blocked");
+    expect(await repo.getTelegramChatId(userId)).toBeNull();
+    expect(await repo.getUserIdByChatId("chat-blocked")).toBeNull();
+  });
+});
+
+// Two different UNIQUE constraints can each be violated by a re-link, which is why
+// setTelegramChatId deletes both candidate rows in a transaction rather than doing one upsert.
+describe("re-linking (PGlite)", () => {
+  it("moves the link when the same account links a second chat", async () => {
+    const userId = "user-relink" as UserId;
+    await insertTestUser(testDb, userId);
+    await repo.setTelegramChatId(userId, "chat-old");
+    await repo.setTelegramChatId(userId, "chat-new");
+    expect(await repo.getTelegramChatId(userId)).toBe("chat-new");
+    // The old chat must stop resolving, or a command sent from it would still act on the account.
+    expect(await repo.getUserIdByChatId("chat-old")).toBeNull();
+  });
+
+  it("moves the link when the same chat is claimed by a different account", async () => {
+    const first = "user-chat-owner-1" as UserId;
+    const second = "user-chat-owner-2" as UserId;
+    await insertTestUser(testDb, first);
+    await insertTestUser(testDb, second);
+    await repo.setTelegramChatId(first, "shared-chat");
+    await repo.setTelegramChatId(second, "shared-chat");
+    expect(await repo.getUserIdByChatId("shared-chat")).toBe(second);
+    expect(await repo.getTelegramChatId(first)).toBeNull();
+  });
 });

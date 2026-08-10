@@ -175,6 +175,19 @@ export async function updateVacancy(userId: UserId, id: number | string, m: Vaca
     .where(and(eq(vacancies.userId, userId), eq(vacancies.id, numId)));
 }
 
+/** Status-only update, for callers that have nothing else to write — currently the Telegram bot's
+ * inline quick-action buttons (modules/telegram/telegram.commands.ts). updateVacancy() above is a
+ * full-row REPLACE (every field of VacancyUpdate is required), so routing a one-field change
+ * through it would mean reading the row back and re-sending all eleven columns, turning a lost
+ * update race into a real risk for no benefit. Same narrow-updater shape as
+ * updateVacancyEnrichment/updateVacancyImportedTitle below. */
+export async function updateVacancyStatus(userId: UserId, id: number, status: string): Promise<void> {
+  await db
+    .update(vacancies)
+    .set({ status })
+    .where(and(eq(vacancies.userId, userId), eq(vacancies.id, id)));
+}
+
 export async function updateVacancyFromJson(userId: UserId, id: number, item: JsonVacancyInsert): Promise<void> {
   await db
     .update(vacancies)
@@ -320,6 +333,27 @@ export async function listVacancyDigestRows(
       position: vacancies.position,
       status: vacancies.status,
       applied: vacancies.applied,
+    })
+    .from(vacancies)
+    .where(eq(vacancies.userId, userId));
+}
+
+/** Narrow projection for the push-notification scheduler (modules/notifications/) — the digest
+ * projection above plus `next`, which the notifications need (a next step falling due today is one
+ * of the things they announce) and the digest deliberately doesn't. A separate function rather than
+ * widening listVacancyDigestRows: that one's return type is documented as NOT carrying `next`, and
+ * digest.service.ts#VacancyDigestRow is written against exactly that shape. */
+export async function listVacancyReminderRows(
+  userId: UserId,
+): Promise<{ id: number; company: string; position: string; status: string; applied: string; next: string }[]> {
+  return db
+    .select({
+      id: vacancies.id,
+      company: vacancies.company,
+      position: vacancies.position,
+      status: vacancies.status,
+      applied: vacancies.applied,
+      next: vacancies.next,
     })
     .from(vacancies)
     .where(eq(vacancies.userId, userId));

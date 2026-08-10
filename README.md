@@ -28,7 +28,7 @@ A full-featured, lightweight full-stack app: **analyzes job postings and CVs, su
 - **📅 Calendar** — a unified view of interviews/deadlines/reminders (manual entries + vacancy next-steps + SRS due-cards), with optional browser notifications.
 - **📬 Job alerts** — saved searches (query + region) re-run on a schedule, emailing you newly-appeared postings.
 - **📧 Weekly digest** — an opt-in email summary (stale applications, study streak, upcoming interviews).
-- **📲 Telegram notifications** — link your account to a Telegram bot as an alternative channel for the digest/job-alert notifications.
+- **📲 Telegram bot** — link your account to a Telegram bot for time-sensitive push notifications email can't cover: interview reminders (24h/1h before), a next step falling due today, an application that's gone quiet, a study streak about to break, someone opening your public CV link, job alerts and the weekly digest — each individually switchable on the Account page. The bot is two-way: send it a vacancy link (or `/add <url>`) to track it, ask `/today` for what's scheduled, and tap the inline buttons on any notification to change a vacancy's status without opening the app.
 - **🗂 Job Kanban** — drag-and-drop between statuses (keyboard-accessible too).
 - **💳 Billing** — optional Stripe subscriptions (free tier with an AI-call quota, paid tier with a fair-use cost ceiling) — inert until Stripe keys are configured.
 
@@ -277,6 +277,14 @@ flag) exists only for the one-time bulk backfill at deploy time and to re-link a
 public CV share row (from the old one-share-per-account era) to that new profile; see the script's
 own header comment for why this couldn't be folded into the `drizzle-kit`-generated schema
 migration itself.
+
+**Telegram link backfill (required if anyone had linked a chat before the bot became two-way).**
+The chat id moved out of the generic `user_kv` store into a real `telegram_links` table, so an
+incoming message — which carries only a chat id — can be resolved back to an account. Schema
+migration `0018` creates the table empty; run `npx tsx server/scripts/migrate-telegram-links.ts
+--dry-run` (then without the flag) once after it applies to carry existing links over. Skipping it
+doesn't break anything visibly — those accounts simply stop receiving notifications until they
+re-link from the Account page.
 
 ## Multi-user SaaS readiness
 

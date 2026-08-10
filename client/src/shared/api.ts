@@ -47,6 +47,7 @@ import type {
   LinkedInOptimizeResult,
   MockEvaluation,
   OnboardingState,
+  NotificationSettings,
   OutreachResult,
   Plan21Data,
   Profile,
@@ -370,6 +371,16 @@ export const api = {
   telegramStatus: () => req<{ linked: boolean }>("/telegram/status"),
   createTelegramLinkToken: () => req<{ deepLink: string }>("/telegram/link-token", { method: "POST", body: "{}" }),
   unlinkTelegram: () => req<{ linked: boolean }>("/telegram/unlink", { method: "POST", body: "{}" }),
+
+  notificationSettings: () => req<NotificationSettings>("/notifications/settings"),
+  saveNotificationSettings: (prefs: Record<string, boolean>) =>
+    req<NotificationSettings>("/notifications/settings", {
+      method: "PUT",
+      // The timezone rides along with every save rather than having an endpoint of its own: the
+      // user never sets it, it's just whatever their browser currently reports, and this is the one
+      // request where they're already telling the server about their notification setup.
+      body: JSON.stringify({ prefs, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+    }),
 
   referralState: () => req<ReferralState>("/referrals/me"),
   claimReferral: (code: string) => req<{ claimed: boolean }>("/referrals/claim", { method: "POST", body: JSON.stringify({ code }) }),

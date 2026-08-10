@@ -68,6 +68,9 @@ export interface PendingReferralForSweep {
   id: number;
   refereeUserId: UserId;
   refereeEmailVerified: boolean;
+  /** Who earns the bonus if this qualifies — carried so the sweep can notify them without a second
+   * per-row lookup (see referrals.service.ts#qualifyPendingReferrals). */
+  referrerUserId: UserId;
 }
 
 /** Candidates for the qualification sweep (referrals.service.ts#qualifyPendingReferrals) — only
@@ -76,11 +79,16 @@ export interface PendingReferralForSweep {
  * mathematically too young every single tick. */
 export async function listPendingReferralsOlderThan(cutoff: Date): Promise<PendingReferralForSweep[]> {
   const rows = await db
-    .select({ id: referrals.id, refereeUserId: referrals.refereeUserId, refereeEmailVerified: user.emailVerified })
+    .select({
+      id: referrals.id,
+      refereeUserId: referrals.refereeUserId,
+      refereeEmailVerified: user.emailVerified,
+      referrerUserId: referrals.referrerUserId,
+    })
     .from(referrals)
     .innerJoin(user, eq(user.id, referrals.refereeUserId))
     .where(and(eq(referrals.status, "pending"), lt(referrals.createdAt, cutoff)));
-  return rows.map((r) => ({ ...r, refereeUserId: r.refereeUserId as UserId }));
+  return rows.map((r) => ({ ...r, refereeUserId: r.refereeUserId as UserId, referrerUserId: r.referrerUserId as UserId }));
 }
 
 export async function markReferralQualified(id: number, nowMs: number): Promise<void> {
