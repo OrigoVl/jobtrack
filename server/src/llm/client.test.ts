@@ -297,6 +297,73 @@ describe("callProviderOnce() Anthropic system-prompt caching", () => {
   });
 });
 
+// The OpenAI request body has two model-dependent fields. Getting either wrong is a 400 from the
+// provider, which the client turns into its offline fallback — so the app looks like it simply
+// "has no AI" rather than like it's sending a malformed request. That's exactly how this shipped
+// broken: OPENAI_MODEL_SMART defaults to gpt-5, so the whole smart tier 400'd while the fast tier
+// (gpt-4o-mini) kept working.
+describe("callProviderOnce() OpenAI request body per model family", () => {
+  beforeAll(async () => {
+    await import("dotenv/config");
+  });
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv("ANTHROPIC_API_KEY", undefined);
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
+    vi.stubEnv("LLM_PROVIDER", "openai");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  function mockOpenAiOk() {
+    return vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }),
+    } as Response);
+  }
+
+  it("never sends the legacy max_tokens field, which the reasoning models reject outright", async () => {
+    vi.stubEnv("OPENAI_MODEL", "gpt-4o-mini");
+    const fetchSpy = mockOpenAiOk();
+    const { chat } = await import("./client.js");
+    await chat(BOOTSTRAP_USER_ID, "system", "user", { maxTokens: 123 });
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body));
+    expect(body.max_completion_tokens).toBe(123);
+    expect(body).not.toHaveProperty("max_tokens");
+  });
+
+  it("omits temperature for a reasoning model, which only accepts its default of 1", async () => {
+    vi.stubEnv("OPENAI_MODEL", "gpt-5-mini");
+    const fetchSpy = mockOpenAiOk();
+    const { chat } = await import("./client.js");
+    await chat(BOOTSTRAP_USER_ID, "system", "user", { temperature: 0.4 });
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body));
+    expect(body).not.toHaveProperty("temperature");
+  });
+
+  it("still sends temperature for a gpt-4 generation model, which supports it", async () => {
+    vi.stubEnv("OPENAI_MODEL", "gpt-4o-mini");
+    const fetchSpy = mockOpenAiOk();
+    const { chat } = await import("./client.js");
+    await chat(BOOTSTRAP_USER_ID, "system", "user", { temperature: 0.4 });
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body));
+    expect(body.temperature).toBe(0.4);
+  });
+
+  it("classifies both reasoning families by name, and anything unknown as non-reasoning", async () => {
+    const { isOpenAiReasoningModel } = await import("./client.js");
+    expect(isOpenAiReasoningModel("gpt-5")).toBe(true);
+    expect(isOpenAiReasoningModel("gpt-5-mini")).toBe(true);
+    expect(isOpenAiReasoningModel("o3-2025-04-16")).toBe(true);
+    expect(isOpenAiReasoningModel("gpt-4o-mini")).toBe(false);
+    expect(isOpenAiReasoningModel("some-future-model")).toBe(false);
+  });
+});
+
 // Claude Sonnet 5's `output_config.effort` (Anthropic Messages API): only ever meaningful for the
 // "smart" tier — Haiku 4.5 ("fast" tier) doesn't support the parameter at all and 400s if it's
 // sent. Mirrors the "callProviderOnce() Anthropic system-prompt caching" setup above (anthropic

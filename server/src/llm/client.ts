@@ -300,6 +300,15 @@ interface CallProviderOnceOptions {
   effort?: LlmEffort;
 }
 
+/** OpenAI's reasoning models (the gpt-5 family and the o-series) accept a narrower set of request
+ * fields than the gpt-4 generation — see the request body in callProviderOnce() for which ones and
+ * why. Matched on the model NAME because that's the only thing the caller gives us; both families
+ * are versioned by suffix ("gpt-5-mini", "o3-2025-04-16"), so the prefix is the stable part. An
+ * unknown future model falls into the non-reasoning branch, i.e. exactly today's behavior. */
+export function isOpenAiReasoningModel(model: string): boolean {
+  return /^(gpt-5|o\d)/.test(model);
+}
+
 // Provider HTTP statuses worth a single retry: transient infrastructure failures
 // (5xx) or overload (429). Others (400/401/404 etc.) are permanent config/request errors —
 // a retry won't fix them, so we don't spend an extra round trip on them (within a SINGLE
@@ -448,8 +457,16 @@ async function callProviderOnce(
       headers: { "content-type": "application/json", authorization: `Bearer ${env.llm.openaiApiKey}` },
       body: JSON.stringify({
         model,
-        max_tokens: maxTokens,
-        temperature,
+        // `max_completion_tokens`, never the legacy `max_tokens`: the reasoning models reject the
+        // old field outright (400 unsupported_parameter), and every current chat model accepts
+        // the new one — so this needs no per-model branch.
+        max_completion_tokens: maxTokens,
+        // `temperature`, on the other hand, does: a reasoning model supports only its default of
+        // 1 and 400s on anything else ("Unsupported value: 'temperature' does not support 0.4"),
+        // so the field is omitted for them rather than sent with a value they'd reject. Both of
+        // these took down the ENTIRE smart tier while the fast one kept working, since
+        // OPENAI_MODEL_SMART defaults to gpt-5 and OPENAI_MODEL to gpt-4o-mini.
+        ...(isOpenAiReasoningModel(model) ? {} : { temperature }),
         messages: [
           { role: "system", content: system },
           { role: "user", content: user },
