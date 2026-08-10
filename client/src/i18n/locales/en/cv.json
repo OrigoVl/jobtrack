@@ -36,7 +36,6 @@
       "manual": "Fill it in manually →"
     },
     "autosave": {
-      "saving": "Saving…",
       "saved": "All changes saved",
       "unsavedWarning": "Your CV has unsaved changes. Continue?",
       "unsaved": "Unsaved changes"
@@ -465,6 +464,7 @@
     "linkAria": "Public CV link",
     "regenerate": "↻ Regenerate",
     "regenerateTitle": "Generate a new link — the old one stops working",
+    "unsavedNote": "Unsaved changes won't show on the public link until you press Save",
     "toasts": {
       "created": "Public link created",
       "enabled": "Public link enabled",

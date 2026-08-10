@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
@@ -176,16 +176,19 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   // Which experience entry the live preview asked to focus (click sync) — applied once by
   // ExperienceCard, not held/forced every render (see its own render-time reset guard).
   const [expFocusIndex, setExpFocusIndex] = useState<number | null>(null);
-  // Tracks what's actually been persisted (a JSON snapshot, not just a boolean) so both the
-  // autosave effect and the beforeunload guard below can tell "has anything changed since the
-  // last successful save" without keeping a second copy of the doc around.
+  // Tracks what's actually been persisted (a JSON snapshot, not just a boolean) so the dirty
+  // check, the safety-net flush and the beforeunload guard below can all tell "has anything
+  // changed since the last successful save" without keeping a second copy of the doc around.
   const lastSavedRef = useRef("");
-  const [autosaving, setAutosaving] = useState(false);
   // Mirrors `lastSavedRef` as render-visible state (a ref alone can't drive the header's status
-  // line). Maintained by the autosave effect below, which already does the same comparison —
-  // it's what lets the header say "all changes saved" honestly instead of only claiming it after
-  // this session happened to perform a save, and lets Save go quiet when there's nothing to save.
+  // line) — it's what lets the header say "all changes saved" honestly instead of only claiming
+  // it after this session happened to save, and lets Save go quiet when there's nothing to save.
   const [dirty, setDirty] = useState(false);
+  // Latest doc + the profile it belongs to, readable from effect CLEANUPS (which see the values
+  // from the last committed render, not a stale closure) — that's how the safety-net flush below
+  // can still save the OUTGOING profile's doc while the deps that triggered it already changed.
+  const docRef = useRef<CvDoc | null>(null);
+  const docProfileIdRef = useRef<number | null>(null);
   // Falls back to the first (lowest-position) tab once the profile list loads, or if the
   // previously-active tab got deleted (in another tab of the browser, or via this tab's own
   // ProfileTabs) and no longer exists.
@@ -214,33 +217,55 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       .then((r) => setPresets(r.presets))
       .catch(() => undefined);
   }, [activeProfileId]);
-  // Debounced autosave, ~1.5s after the last edit — so a save doesn't fire on every keystroke,
-  // but an accidental navigation/close moments after editing still isn't a real risk. Silent (no
-  // toast) on both success and failure: this runs constantly while typing, and a toast on every
-  // tick would be noise; the explicit "Зберегти" button remains the visible, toast-confirmed
-  // action, and the beforeunload guard below is the actual safety net if autosave keeps failing.
+  // Runs after EVERY render (no dep array on purpose) so effect cleanups below — which see the
+  // last committed render's values, not a stale closure — can read the doc that was on screen
+  // when the thing they're cleaning up (a profile switch, this page unmounting) happened.
   useEffect(() => {
-    if (!doc || activeProfileId == null) return;
-    const serialized = JSON.stringify(doc);
-    if (serialized === lastSavedRef.current) {
-      setDirty(false);
-      return;
-    }
-    setDirty(true);
-    const timer = setTimeout(async () => {
-      setAutosaving(true);
-      try {
-        const saved = await api.saveCvDoc(activeProfileId, doc);
+    docRef.current = doc;
+    docProfileIdRef.current = doc ? activeProfileId : null;
+  });
+  useEffect(() => {
+    setDirty(!!doc && JSON.stringify(doc) !== lastSavedRef.current);
+  }, [doc, activeProfileId]);
+  // Saving is EXPLICIT: nothing is written while you type, so the Save button is the action that
+  // persists your work and the header's status line tells you when it's pending. This is only the
+  // safety net for leaving the editor WITHOUT pressing it — an in-app navigation (unmount), a
+  // profile switch, or the tab going to the background. Fire-and-forget by design: at cleanup
+  // time there's often no component left to render a toast into, and a hard close/reload is the
+  // beforeunload guard's job below (a request started there isn't guaranteed to survive anyway).
+  const flushSave = useCallback(async () => {
+    const pending = docRef.current;
+    const profileId = docProfileIdRef.current;
+    if (!pending || profileId == null) return;
+    const serialized = JSON.stringify(pending);
+    const previouslySaved = lastSavedRef.current;
+    if (serialized === previouslySaved) return;
+    // Claimed as saved BEFORE awaiting so two triggers in quick succession (tab hidden, then the
+    // page unmounting) don't fire the same PUT twice; rolled back below if the request fails.
+    lastSavedRef.current = serialized;
+    try {
+      const saved = await api.saveCvDoc(profileId, pending);
+      // Only adopt the response while it's still the doc on screen — after a profile switch it
+      // belongs to a CV the user has already navigated away from.
+      if (docProfileIdRef.current === profileId) {
         lastSavedRef.current = JSON.stringify(saved);
         setDoc(saved);
-      } catch {
-        // Left unsaved — beforeunload below still guards against silently losing it.
-      } finally {
-        setAutosaving(false);
       }
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [doc, activeProfileId]);
+    } catch {
+      if (docProfileIdRef.current === profileId) {
+        lastSavedRef.current = previouslySaved;
+        setDirty(true);
+      }
+    }
+  }, []);
+  useEffect(() => () => void flushSave(), [activeProfileId, flushSave]);
+  useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") void flushSave();
+    };
+    document.addEventListener("visibilitychange", onHidden);
+    return () => document.removeEventListener("visibilitychange", onHidden);
+  }, [flushSave]);
   // Browsers show their own generic text here regardless of `returnValue`'s content — the
   // `preventDefault()`/`returnValue` pair is just what triggers the native confirmation dialog.
   useEffect(() => {
@@ -255,6 +280,15 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   }, [doc]);
   if (!doc || activeProfileId == null) return <CardsSkeleton count={2} />;
   const set = (p: Partial<CvDoc>) => setDoc({ ...doc, ...p });
+  // For docs that came back from an endpoint which ALREADY persisted them (import from LinkedIn,
+  // generate from profile text, CV upload — all of them call updateProfileDoc server-side, see
+  // cv.routes.ts). Recording the snapshot keeps the header from reporting "unsaved changes" for
+  // something that's already on the server, now that no autosave tick papers over it a moment
+  // later. Deliberately NOT used for the tailor result, which is client-side until you Save.
+  const adoptSavedDoc = (next: CvDoc) => {
+    lastSavedRef.current = JSON.stringify(next);
+    setDoc(next);
+  };
   const setExp = (i: number, p: Partial<CvExperience>) =>
     set({ experience: doc.experience.map((e, idx) => (idx === i ? { ...e, ...p } : e)) });
   const theme = themeOf(doc);
@@ -403,9 +437,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   const save = async () => {
     setBusy("save");
     try {
-      const saved = await api.saveCvDoc(activeProfileId, doc);
-      lastSavedRef.current = JSON.stringify(saved);
-      setDoc(saved);
+      adoptSavedDoc(await api.saveCvDoc(activeProfileId, doc));
       toast(t("builder.toasts.cvSaved"), "success");
     } finally {
       setBusy("");
@@ -415,7 +447,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     setBusy("gen");
     try {
       const r = await api.generateCvDoc(activeProfileId, profile?.cvText || "");
-      if (r.doc) setDoc(r.doc);
+      if (r.doc) adoptSavedDoc(r.doc);
       toast(r.offline ? t("builder.toasts.aiOffline") : t("builder.toasts.parsedFromText"), r.offline ? "info" : "success");
     } finally {
       setBusy("");
@@ -426,7 +458,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     setBusy("li");
     try {
       const r = await api.importLinkedIn(activeProfileId, file);
-      if (r.doc) setDoc(r.doc);
+      if (r.doc) adoptSavedDoc(r.doc);
       toast(t("builder.toasts.linkedinImported"), "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : t("builder.toasts.importError"), "error");
@@ -440,7 +472,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     try {
       const r = await api.uploadCV(activeProfileId, file);
       await applyCvUpload(r);
-      setDoc(r.cvDoc ?? (await api.cvDoc(activeProfileId)));
+      adoptSavedDoc(r.cvDoc ?? (await api.cvDoc(activeProfileId)));
       toast(r.cvDoc ? t("builder.toasts.cvUploadedParsed") : t("builder.toasts.cvUploadedNoParsing"), "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : t("builder.toasts.uploadError"), "error");
@@ -608,15 +640,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
                 an explicit save is in flight, so it never fights that button's own spinner. */}
             {busy !== "save" && (
               <span className="flex items-center gap-1.5 text-xs text-ink-dim self-center mr-1">
-                {autosaving ? (
-                  <>
-                    <Spinner className="h-3 w-3" /> {t("builder.autosave.saving")}
-                  </>
-                ) : dirty ? (
-                  t("builder.autosave.unsaved")
-                ) : (
-                  t("builder.autosave.saved")
-                )}
+                {dirty ? t("builder.autosave.unsaved") : t("builder.autosave.saved")}
               </span>
             )}
             <Btn
@@ -628,7 +652,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
             </Btn>
             {/* Disabled when there's nothing to save — paired with the status line above, that
                 reads as "you're up to date", not as a broken button. */}
-            <Btn onClick={save} loading={busy === "save"} disabled={!dirty && !autosaving}>
+            <Btn onClick={save} loading={busy === "save"} disabled={!dirty}>
               {t("shared.saveButton")}
             </Btn>
           </>
@@ -1054,7 +1078,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       {/* Sharing is what you do with a FINISHED CV, so it sits after the editor rather than
           between the toolbar and the fields — it used to take a full row of prime above-the-fold
           space on a page whose whole job is editing. */}
-      <ShareLinkCard profileId={activeProfileId} />
+      <ShareLinkCard profileId={activeProfileId} unsaved={dirty} />
     </div>
   );
 }

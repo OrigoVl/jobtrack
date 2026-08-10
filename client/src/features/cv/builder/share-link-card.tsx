@@ -6,7 +6,7 @@ import { Btn, Card } from "../../../shared/ui";
 /** Public CV link toggle — generate/enable/disable/copy. Lives on the CV Builder page (not
  * Account) since it's tightly scoped to `cvDoc`, the thing this whole page edits. Scoped to the
  * active CV profile tab — each profile has its own independent share link. */
-export function ShareLinkCard({ profileId }: { profileId: number }) {
+export function ShareLinkCard({ profileId, unsaved }: { profileId: number; unsaved: boolean }) {
   const { t } = useTranslation(["cv", "common"]);
   const { data: share, isLoading } = useCvShare(profileId);
   const generateMutation = useGenerateCvShare(profileId);
@@ -70,6 +70,10 @@ export function ShareLinkCard({ profileId }: { profileId: number }) {
           )}
         </div>
       </div>
+      {/* The public page renders the doc as PERSISTED, and saving is explicit — so an editor full
+          of unsaved edits and a live share link disagree until Save is pressed. Say so here
+          rather than letting someone send a link to a version they think they just fixed. */}
+      {share && share.enabled && unsaved && <p className="mt-2 text-xs text-ink-dim">{t("shareLink.unsavedNote")}</p>}
     </Card>
   );
 }
