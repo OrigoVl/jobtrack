@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate, useLocation } from "react-router";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
@@ -353,10 +353,26 @@ function navBtn(item: NavItem & { active: boolean; dimHint?: string }) {
   );
 }
 
+/** better-auth's `useSession` flips `isPending` back to `true` on every REFETCH, not just the
+ * first load — and it refetches after `signUp.email()`, `signOut()`, and any other call that
+ * could have changed the session. A gate that renders nothing while `isPending` therefore
+ * UNMOUNTS whatever is on screen mid-flight and remounts it with all of its state gone. That's
+ * what made a successful registration look like nothing happened at all: sign-up succeeded (the
+ * account was created, the verification email sent), the refetch it triggers blanked /register,
+ * and `Register` came back freshly mounted — no "check your email" screen, and the typed-in
+ * fields wiped. So the gates below block only on the FIRST, genuinely-unresolved load; once a
+ * session state is known, a background refetch keeps rendering the current one. */
+function useResolvedSession() {
+  const { data: session, isPending } = useSession();
+  const resolvedOnce = useRef(false);
+  if (!isPending) resolvedOnce.current = true;
+  return { session, loading: isPending && !resolvedOnce.current };
+}
+
 /** Wraps /login, /register, /forgot-password, /reset-password — bounces an already-signed-in user to the app instead of showing them a login form. */
 function PublicRoute({ children }: { children: ReactNode }) {
-  const { data: session, isPending } = useSession();
-  if (isPending) return null;
+  const { session, loading } = useResolvedSession();
+  if (loading) return null;
   if (session) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
@@ -399,17 +415,17 @@ function ReferralClaimer() {
 /** Wraps /welcome — needs a real session (so a signed-out visitor can't reach it) but deliberately
  * NOT nested inside AuthGate/Shell: it's a focused, chrome-free moment, not a page in the main app. */
 function WelcomeGate() {
-  const { data: session, isPending } = useSession();
-  if (isPending) return null;
+  const { session, loading } = useResolvedSession();
+  if (loading) return null;
   if (!session) return <Navigate to="/login" replace />;
   return <Welcome />;
 }
 
 /** Everything under "/" — redirects a signed-out visitor to /login instead of rendering the app shell. */
 function AuthGate() {
-  const { data: session, isPending } = useSession();
+  const { session, loading } = useResolvedSession();
   const location = useLocation();
-  if (isPending) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <CardsSkeleton count={1} />

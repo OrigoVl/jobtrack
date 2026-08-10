@@ -134,6 +134,13 @@ const RawEnvSchema = z
     // the whole suite's sign-ups and session checks share one bucket from one address and start
     // getting 429s late in the run. Raised there (playwright.config.ts), untouched anywhere else.
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+    // The credential endpoints (sign-in/sign-up/change-password/change-email) get their own,
+    // much tighter bucket inside better-auth — its built-in rule is 3 per 10s per IP and it
+    // deliberately IGNORES AUTH_RATE_LIMIT_MAX above, so raising that alone can't reach it. The
+    // default here restates better-auth's own number (production behaviour is unchanged by this
+    // being configurable); it exists so the e2e run — one IP registering several throwaway
+    // accounts back to back — can raise it the same way it raises the other two limits.
+    AUTH_CREDENTIAL_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(3),
     // Resend (optional) — not set → verification/reset-password emails are logged instead of
     // sent (the same graceful-offline-fallback pattern as the LLM keys), so local dev/e2e need
     // no email provider at all. EMAIL_FROM defaults to Resend's shared sandbox sender, which
@@ -289,6 +296,7 @@ export const env = {
     // a local server restart during development.
     secret: raw.BETTER_AUTH_SECRET || "dev-only-insecure-secret-do-not-use-in-production",
     rateLimitMax: raw.AUTH_RATE_LIMIT_MAX,
+    credentialRateLimitMax: raw.AUTH_CREDENTIAL_RATE_LIMIT_MAX,
     baseUrl: raw.BETTER_AUTH_URL || `http://localhost:${raw.PORT}`,
     google:
       raw.GOOGLE_CLIENT_ID && raw.GOOGLE_CLIENT_SECRET

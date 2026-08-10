@@ -73,6 +73,12 @@ export default defineConfig({
       // register users, so the suite trips it late in a run — as an intermittent "sign-up
       // failed"/"session lost" in whichever spec happens to be running then.
       AUTH_RATE_LIMIT_MAX: "1000000",
+      // And one layer deeper still: the credential endpoints have their own bucket that
+      // AUTH_RATE_LIMIT_MAX doesn't reach (3 per 10 SECONDS per IP — see auth.ts's customRules).
+      // Several specs register a throwaway account through /sign-up + /sign-in, so at the
+      // production value the third or fourth of them fails with a 429 that reads like a broken
+      // signup — and which spec draws the short straw changes as specs are added or reordered.
+      AUTH_CREDENTIAL_RATE_LIMIT_MAX: "1000000",
     },
   },
 });

@@ -104,6 +104,18 @@ export const auth = betterAuth({
   rateLimit: {
     storage: "database",
     max: env.auth.rateLimitMax,
+    // better-auth applies its own built-in rule to the credential endpoints (3 per 10s per IP)
+    // which `max` above does NOT override — restated here with the same production numbers so
+    // the limit is actually configurable: an e2e run is a single IP registering and logging in
+    // several throwaway accounts back to back, and hits 3-in-10s the moment one more spec signs
+    // up. `customRules` takes precedence over the built-in rule (see better-auth's
+    // resolveRateLimitConfig); the paths are relative to /api/auth.
+    customRules: {
+      "/sign-in/*": { window: 10, max: env.auth.credentialRateLimitMax },
+      "/sign-up/*": { window: 10, max: env.auth.credentialRateLimitMax },
+      "/change-password": { window: 10, max: env.auth.credentialRateLimitMax },
+      "/change-email": { window: 10, max: env.auth.credentialRateLimitMax },
+    },
   },
   // better-auth rejects any request whose Origin header isn't baseURL or in this list. In dev,
   // the browser's real origin is Vite's dev server (client/vite.config.ts, port 5173) — Vite

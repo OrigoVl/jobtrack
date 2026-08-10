@@ -33,6 +33,39 @@ async function registerAndVerify(request: APIRequestContext, baseURL: string, em
   await withDb((client) => client.query('UPDATE "user" SET email_verified = true WHERE email = $1', [email]));
 }
 
+/**
+ * Regression test: registering through the FORM (every other spec, and auth.setup.ts, register
+ * through the API instead, so this path had no coverage at all). `signUp.email()` makes
+ * better-auth's client refetch the session, which flips `useSession().isPending` back to true —
+ * and App.tsx's PublicRoute used to render nothing whenever that was true, unmounting the very
+ * page that had just submitted. The account was created and the verification email sent, but the
+ * "check your email" screen never appeared and the typed-in fields were wiped: pressing "Create
+ * account" looked like it did nothing whatsoever.
+ */
+test("registering through the form lands on the check-your-email screen, and really creates the account", async ({ browser }) => {
+  const email = `form-signup-${Date.now()}@example.test`;
+  // Its own signed-out context — the default `page` fixture carries the shared authenticated
+  // session (see this file's header), and /register would just bounce it to the dashboard.
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const page = await context.newPage();
+  await page.goto("/register");
+
+  await page.getByPlaceholder("Name").fill("Form Signup");
+  await page.getByPlaceholder("Email").fill(email);
+  await page.getByPlaceholder("Password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Create account" }).click();
+
+  await expect(page.getByText("Check your email")).toBeVisible();
+  // Still on /register (the screen replaces the form in place) — asserted so a future redirect
+  // can't quietly satisfy the check above from some other page.
+  expect(new URL(page.url()).pathname).toBe("/register");
+
+  const rows = await withDb((client) => client.query('SELECT email_verified FROM "user" WHERE email = $1', [email]));
+  expect(rows.rowCount).toBe(1);
+  expect(rows.rows[0].email_verified).toBe(false);
+  await context.close();
+});
+
 test("an unauthenticated visitor hitting a protected route is redirected to /login", async ({ browser }) => {
   // Playwright Test's `browser` fixture inherits the project's configured context defaults —
   // including "chromium"'s `storageState: AUTH_FILE` (playwright.config.ts) — for ANY
