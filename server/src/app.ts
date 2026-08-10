@@ -1,6 +1,6 @@
 // Assembles the Express app: middleware → /api router → frontend static files → error handler.
 // Kept separate from index.ts so app can be imported in tests without app.listen().
-import express from "express";
+import express, { type RequestHandler } from "express";
 import cors from "cors";
 import compression from "compression";
 import helmet from "helmet";
@@ -160,7 +160,13 @@ if (fs.existsSync(env.clientDistPath)) {
   // agent sandboxes under `.claude/worktrees/...`), that check silently 404s every single SPA
   // route, even though `index.html` plainly exists. Passing `root` makes the dotfiles check
   // (correctly) only look at the path *relative to* the served directory.
-  app.get("/*splat", (_q, res) => res.sendFile("index.html", { root: env.clientDistPath }));
+  //
+  // Both "/" and "/*splat" are registered: in path-to-regexp v8 the wildcard needs at least one
+  // character to match, so "/*splat" alone covers every deep route but NOT the bare root — the
+  // app's own entry URL would 404 in a production build while /vacancies still worked.
+  const sendIndexHtml: RequestHandler = (_q, res) => res.sendFile("index.html", { root: env.clientDistPath });
+  app.get("/", sendIndexHtml);
+  app.get("/*splat", sendIndexHtml);
 }
 
 // single error handler — consistent {error, details} format

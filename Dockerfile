@@ -20,11 +20,18 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY server/package.json server/package.json
-RUN pnpm install --filter jobtrack-server --prod --frozen-lockfile
+# --ignore-scripts: a --prod install has no devDependencies, so the root package.json's
+# `prepare` script (husky) has no binary to run and would fail the build. Nothing in the
+# server's runtime deps needs a postinstall anyway — pnpm's `onlyBuiltDependencies` (root
+# package.json) already allows exactly one, esbuild, which is a devDependency.
+RUN pnpm install --filter jobtrack-server --prod --frozen-lockfile --ignore-scripts
 # Compiled JS (dist/) — the .ts sources aren't needed at runtime.
 COPY --from=build /app/server/dist /app/server/dist
 # Built frontend, where dist/index.js expects to find it (../../client/dist).
 COPY --from=build /app/client/dist /app/client/dist
+# Generated migrations — db/client.ts resolves them relative to its own file (server/drizzle),
+# and runs migrate() at import time, so without them the container can't even boot.
+COPY --from=build /app/server/drizzle /app/server/drizzle
 RUN chown -R app:app /app
 ENV PORT=3001
 EXPOSE 3001
