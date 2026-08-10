@@ -355,6 +355,36 @@ describe("callProviderOnce() OpenAI request body per model family", () => {
     expect(body.temperature).toBe(0.4);
   });
 
+  it("skips temperature up front for the Anthropic models that dropped it, sparing the fallback a round trip", async () => {
+    vi.stubEnv("OPENAI_API_KEY", undefined);
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test-key");
+    vi.stubEnv("LLM_PROVIDER", "anthropic");
+    vi.stubEnv("ANTHROPIC_MODEL_SMART", "claude-sonnet-5");
+    vi.stubEnv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ content: [{ text: "ok" }], stop_reason: "end_turn" }),
+    } as Response);
+    const { chat } = await import("./client.js");
+
+    await chat(BOOTSTRAP_USER_ID, "system", "user", { tier: "smart", temperature: 0.3 });
+    expect(JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body))).not.toHaveProperty("temperature");
+    // Exactly one call: the point is that no 400-then-resend happened.
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    fetchSpy.mockClear();
+    await chat(BOOTSTRAP_USER_ID, "system", "user", { tier: "fast", temperature: 0.3 });
+    expect(JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body)).temperature).toBe(0.3);
+  });
+
+  it("classifies the Anthropic models that dropped temperature by name, sparing Haiku 4.5", async () => {
+    const { isAnthropicModelWithoutTemperature } = await import("./client.js");
+    expect(isAnthropicModelWithoutTemperature("claude-sonnet-5")).toBe(true);
+    expect(isAnthropicModelWithoutTemperature("claude-opus-5")).toBe(true);
+    expect(isAnthropicModelWithoutTemperature("claude-haiku-4-5-20251001")).toBe(false);
+  });
+
   it("classifies both reasoning families by name, and anything unknown as non-reasoning", async () => {
     const { isOpenAiReasoningModel } = await import("./client.js");
     expect(isOpenAiReasoningModel("gpt-5")).toBe(true);
@@ -463,7 +493,12 @@ describe("chat() Sonnet 5 effort (output_config)", () => {
   // Claude Sonnet 5 accepts `effort` but rejects `temperature` outright ("`temperature` is
   // deprecated for this model") — so the two capability checks must be independent, not an
   // either/or, or a model missing ONE of them would still permanently 400 after "recovering".
-  it("retries once without temperature when the model rejects it, keeping effort", async () => {
+  // Pinned to a model that is NOT on isAnthropicModelWithoutTemperature's list: for the ones that
+  // are, `temperature` is never sent in the first place, so there'd be no 400 to recover from and
+  // this path would go untested. The recovery exists precisely for the models the list doesn't
+  // know about — an older/newer snapshot someone points ANTHROPIC_MODEL_SMART at.
+  it("retries once without temperature when an unrecognized model rejects it, keeping effort", async () => {
+    vi.stubEnv("ANTHROPIC_MODEL_SMART", "claude-sonnet-4-5-20250929");
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce({

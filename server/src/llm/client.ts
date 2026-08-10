@@ -309,6 +309,15 @@ export function isOpenAiReasoningModel(model: string): boolean {
   return /^(gpt-5|o\d)/.test(model);
 }
 
+/** Anthropic's 5-generation models reject `temperature` outright ("`temperature` is deprecated for
+ * this model", 400) — unlike Haiku 4.5, which still accepts it, so this can't just key off the
+ * tier. Matched by name prefix for the same reason as isOpenAiReasoningModel above. This is only
+ * an optimization: a model that drops `temperature` WITHOUT being listed here still recovers via
+ * the resend in callProviderOnce(), just a round trip slower. */
+export function isAnthropicModelWithoutTemperature(model: string): boolean {
+  return /^claude-(sonnet|opus)-5/.test(model);
+}
+
 // Provider HTTP statuses worth a single retry: transient infrastructure failures
 // (5xx) or overload (429). Others (400/401/404 etc.) are permanent config/request errors —
 // a retry won't fix them, so we don't spend an extra round trip on them (within a SINGLE
@@ -412,7 +421,12 @@ async function callProviderOnce(
           },
           body,
         });
-      let r = await fetchAnthropic(anthropicBody({ effort: true, temperature: true }));
+      // Skipping `temperature` up front for the models known to have dropped it, rather than
+      // letting the recovery path below discover it: that path works, but it spends a whole extra
+      // round trip (a 400, then an identical resend) on EVERY smart-tier Anthropic call, which is
+      // the fallback provider — i.e. precisely when the primary already failed and the user has
+      // been waiting longest. Anything not on this list still self-heals exactly as before.
+      let r = await fetchAnthropic(anthropicBody({ effort: true, temperature: !isAnthropicModelWithoutTemperature(model) }));
       // Previously r.ok was not checked here: a provider that responded 401/404/429/500 with a JSON body
       // SHAPED like {"error": {...}} (rather than {"content": [...]}) silently produced text="" (d?.content?.[0]?.text
       // doesn't exist) — and callProvider returned null exactly as it would for a legitimate empty response.

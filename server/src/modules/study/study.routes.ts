@@ -149,24 +149,37 @@ r.post(
     if (!llmAvailable()) return res.json({ offline: true, added: 0, drills: await allDrills(userId, track) });
     const cat = catFor(tech) || tech;
     const role = profile.domain || "specialist";
+    // Read the pool BEFORE generating, not just after: the questions the candidate already has go
+    // INTO the prompt as an exclusion list. That's what makes "generate more" actually generate
+    // more — the loop below drops any task whose `q` is already present, so without telling the
+    // model what to avoid, a second click on the same tech reliably added 0. It also keeps the
+    // cache honest: the cache key hashes the whole prompt, so a pool that has grown produces a new
+    // key, while a click that genuinely changed nothing still gets served the cached answer.
+    const existingQ = new Set((await allDrills(userId, track)).map((d) => d.q));
+    // Capped on both axes — a task statement can run long, and 40 full ones would cost more input
+    // tokens than the 3 tasks being asked for. The opening clause is enough to recognize the topic.
+    const avoid = [...existingQ].slice(0, 40).map((q) => q.slice(0, 120));
     const out = await chatJson(
       userId,
       "You are the author of practical interview tasks. Respond ONLY with valid JSON (code/identifiers/library names in fields may stay in English as is conventional for technical writing).",
       `The candidate (${role}) knows: ${profile.skills.join(", ") || "—"}. Needs to brush up on "${tech}".\n` +
         `Generate 3 new practical interview-level tasks specifically for "${tech}", of varying difficulty.\n` +
+        (avoid.length
+          ? `The candidate ALREADY has the tasks below — every task you return must cover different ground, ` +
+            `not a reworded version of one of these:\n${avoid.map((q) => `- ${q}`).join("\n")}\n`
+          : "") +
         `Format strictly: {"drills":[{"q":"task statement","lvl":"easy|med|hard","sol":"short sample solution","exp":"1-2 sentence explanation"}]}`,
       GenDrillsSchema,
-      // cache: true — llm/client.ts's cache key hashes the full prompt (tech + role + the
-      // candidate's skills list), so this dedupes a repeat "generate more for React" click (or a
-      // retry after a transient failure) for the SAME user, and any two users who happen to share
-      // both role and skills list, without paying for another smart-tier generation — same
-      // reasoning as every other cached generation call site (cv-improve, cover-letter, knowledge).
+      // cache: true — llm/client.ts's cache key hashes the full prompt, which now includes the
+      // exclusion list above, so a repeat click after new tasks were added is a genuine cache MISS
+      // (different pool → different prompt) while a retry after a transient failure, or a click
+      // that added nothing, still hits — the dedupe benefit without the "generate more does
+      // nothing forever" behavior that a pool-independent key produced.
       { maxTokens: 1200, temperature: 0.6, cache: true, tier: "smart", feature: "study-generate-drills", outputLocale: "app" },
     );
     if (!out) return res.json({ offline: true, added: 0, drills: await allDrills(userId, track) });
     const items = out.drills;
     const gen = await genDrills(userId);
-    const existingQ = new Set((await allDrills(userId, track)).map((d) => d.q));
     let added = 0;
     for (const it of items.slice(0, 3)) {
       if (existingQ.has(it.q)) continue;
@@ -202,20 +215,27 @@ r.post(
         .slice(0, 60) || role;
     if (!topic) throw new HttpError(400, "No topic specified");
     if (!llmAvailable()) return res.json({ offline: true, added: 0 });
+    // Same exclusion-list reasoning as /study/generate above — the loop below drops any card whose
+    // question already exists, so the model has to be told which ones those are.
+    const existingQ = new Set((await allCards(userId, track)).map((c) => c.q));
+    const avoid = [...existingQ].slice(0, 40).map((q) => q.slice(0, 120));
     const out = await chatJson(
       userId,
       "You are the author of flashcards for interview prep. Respond ONLY with valid JSON.",
       `Role/topic: "${topic}" (candidate — ${role}).\n` +
         `Generate 5 flashcards, "question → concise accurate answer", at interview level.\n` +
+        (avoid.length
+          ? `The candidate ALREADY has the questions below — every card you return must ask about ` +
+            `something else, not a reworded version of one of these:\n${avoid.map((q) => `- ${q}`).join("\n")}\n`
+          : "") +
         `Format strictly: {"cards":[{"q":"question","a":"answer in 2-4 sentences"}]}`,
       GenCardsSchema,
-      // cache: true — same reasoning as study-generate-drills above: dedupe a repeat/retried
-      // "generate more" click for the same topic+role instead of paying for another generation.
+      // cache: true — same reasoning as study-generate-drills above: the exclusion list is part of
+      // the hashed prompt, so a grown pool misses the cache while a retry still hits.
       { maxTokens: 900, temperature: 0.5, cache: true, tier: "fast", feature: "study-generate-cards", outputLocale: "app" },
     );
     const items = out?.cards ?? [];
     const gen = await genCards(userId);
-    const existingQ = new Set((await allCards(userId, track)).map((c) => c.q));
     let added = 0;
     for (const it of items.slice(0, 5)) {
       if (existingQ.has(it.q)) continue;
