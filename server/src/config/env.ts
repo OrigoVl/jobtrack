@@ -12,6 +12,10 @@ const serverRoot = path.join(__dirname, "..", "..");
 
 const isProduction = process.env.NODE_ENV === "production";
 
+// Vitest sets VITEST=true in every worker it spawns. Read here (and nowhere else — see this
+// file's own rule about process.env) so `migrateOnBoot` below can be forced off under unit tests.
+const isVitest = process.env.VITEST === "true";
+
 // Validate the "raw" process.env right at startup — better to fail with a clear message
 // (e.g. a typo'd LLM_PROVIDER) than silently fall back to a default and break somewhere deep.
 const RawEnvSchema = z
@@ -244,7 +248,18 @@ export const env = {
     // on where the database is without extra .env setup for local development.
     url: raw.DATABASE_URL || "postgres://jobtrack:jobtrack@localhost:5432/jobtrack",
     poolMax: raw.DB_POOL_MAX,
-    migrateOnBoot: raw.DB_MIGRATE_ON_BOOT,
+    // Never migrate-on-boot under Vitest. db/client.ts runs `await migrate(...)` at module top
+    // level, so ANY unit test that transitively imports it — and plenty do, via shared/demand.ts
+    // or a repo module, without ever touching the database themselves — opened a real connection
+    // to Postgres just by being imported. That passes locally (docker-compose is up) and fails in
+    // CI's unit job, which has no Postgres service: eight pure-logic suites died on
+    // `CREATE SCHEMA IF NOT EXISTS "drizzle"` / ECONNREFUSED before running a single assertion.
+    //
+    // The suites that DO need a database don't need this either: they run against PGlite through
+    // db/test-db.ts's createTestDb() and `vi.doMock` db/client.js away entirely (see CLAUDE.md's
+    // testing notes). Same spirit as core/http.ts importing auth/auth.js lazily — a unit test
+    // should never pay for infrastructure it doesn't use.
+    migrateOnBoot: raw.DB_MIGRATE_ON_BOOT && !isVitest,
   },
 
   sentry: {

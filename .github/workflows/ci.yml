@@ -38,8 +38,15 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      # No --coverage here isn't a hard gate (no thresholds in vitest.config) — just
-      # visibility into real coverage in the CI logs plus an uploaded html/lcov report.
+      # This IS a hard gate: both client/vitest.config.ts and server/vitest.config.js declare
+      # coverage `thresholds` (regression baselines pinned to real current coverage), so a drop
+      # fails the job here — on top of the usual test failures. It also uploads an html/lcov
+      # report for the actual numbers.
+      #
+      # Deliberately no Postgres service on this job: unit tests must not need one. The suites
+      # that use a database run PGlite in-process (server/src/db/test-db.ts), and
+      # config/env.ts forces `migrateOnBoot` off under Vitest so importing db/client.ts can't
+      # open a real connection by itself.
       - name: Test + coverage
         run: pnpm test:coverage
 
