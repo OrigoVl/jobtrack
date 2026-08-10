@@ -300,8 +300,9 @@ describe("callProviderOnce() Anthropic system-prompt caching", () => {
 // The OpenAI request body has two model-dependent fields. Getting either wrong is a 400 from the
 // provider, which the client turns into its offline fallback — so the app looks like it simply
 // "has no AI" rather than like it's sending a malformed request. That's exactly how this shipped
-// broken: OPENAI_MODEL_SMART defaults to gpt-5, so the whole smart tier 400'd while the fast tier
-// (gpt-4o-mini) kept working.
+// broken: OPENAI_MODEL_SMART defaulted to gpt-5 back then, so the whole smart tier 400'd while
+// the fast tier (gpt-4o-mini) kept working. The default has since moved off the reasoning models
+// (config/env.ts), which is why these tests pin the model per case instead of relying on it.
 describe("callProviderOnce() OpenAI request body per model family", () => {
   beforeAll(async () => {
     await import("dotenv/config");

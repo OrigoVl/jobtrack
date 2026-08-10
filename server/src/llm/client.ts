@@ -464,8 +464,9 @@ async function callProviderOnce(
         // `temperature`, on the other hand, does: a reasoning model supports only its default of
         // 1 and 400s on anything else ("Unsupported value: 'temperature' does not support 0.4"),
         // so the field is omitted for them rather than sent with a value they'd reject. Both of
-        // these took down the ENTIRE smart tier while the fast one kept working, since
-        // OPENAI_MODEL_SMART defaults to gpt-5 and OPENAI_MODEL to gpt-4o-mini.
+        // these once took down the ENTIRE smart tier while the fast one kept working, back when
+        // OPENAI_MODEL_SMART defaulted to gpt-5 — it no longer does (see config/env.ts), but this
+        // branch is what lets anyone point it back at a reasoning model without hitting that.
         ...(isOpenAiReasoningModel(model) ? {} : { temperature }),
         messages: [
           { role: "system", content: system },

@@ -40,7 +40,14 @@ const RawEnvSchema = z
     LLM_PROVIDER: z.enum(["openai", "anthropic"]).default("openai"),
     OPENAI_API_KEY: z.string().trim().min(1).optional(),
     OPENAI_MODEL: z.string().trim().min(1).default("gpt-4o-mini"),
-    OPENAI_MODEL_SMART: z.string().trim().min(1).default("gpt-5"),
+    // Deliberately NOT a reasoning model (gpt-5/o-series), which this defaulted to before and
+    // which made the heaviest call site — cv-doc-parse, the resume→structure parse — fail for
+    // every user: it spent ~28s thinking on even a short CV (against LLM_TIMEOUT_MS's 30s), and
+    // its reasoning tokens come out of the SAME maxTokens budget as the answer (1664 of 2600 on
+    // that measurement), so a long resume also had its JSON truncated before it closed. Same
+    // parse on gpt-4o: ~5.5s, no reasoning tokens. Set OPENAI_MODEL_SMART explicitly if you want
+    // a reasoning model — raise LLM_TIMEOUT_MS and the per-call maxTokens along with it.
+    OPENAI_MODEL_SMART: z.string().trim().min(1).default("gpt-4o"),
     ANTHROPIC_API_KEY: z.string().trim().min(1).optional(),
     ANTHROPIC_MODEL: z.string().trim().min(1).default("claude-haiku-4-5-20251001"),
     ANTHROPIC_MODEL_SMART: z.string().trim().min(1).default("claude-sonnet-5"),

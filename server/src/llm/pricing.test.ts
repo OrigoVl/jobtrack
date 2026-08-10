@@ -16,7 +16,12 @@ describe("estimateCostUsd()", () => {
     expect(estimateCostUsd("claude-sonnet-5", 1_000_000, 1_000_000)).toBeCloseTo(18, 8);
   });
 
-  it("computes input+output cost for gpt-5 (current default OPENAI_MODEL_SMART)", () => {
+  it("computes input+output cost for gpt-4o (current default OPENAI_MODEL_SMART)", () => {
+    // gpt-4o: $2.5/1M input, $10/1M output.
+    expect(estimateCostUsd("gpt-4o", 1_000_000, 1_000_000)).toBeCloseTo(12.5, 8);
+  });
+
+  it("still prices gpt-5, which OPENAI_MODEL_SMART can be pointed back at — and which historical llmUsage rows reference", () => {
     // gpt-5: $1.25/1M input, $10/1M output.
     expect(estimateCostUsd("gpt-5", 1_000_000, 1_000_000)).toBeCloseTo(11.25, 8);
   });
