@@ -16,32 +16,18 @@ import pg from "pg";
 const url = process.env.DATABASE_URL || "postgres://jobtrack:jobtrack@localhost:5432/jobtrack_e2e";
 const client = new pg.Client({ connectionString: url });
 
-const TABLES = [
-  "calendar_events",
-  "contacts",
-  "saved_searches",
-  "cv_shares",
-  "cv_profiles",
-  "vacancy_status_history",
-  "vacancies",
-  "companies",
-  "srs",
-  "user_kv",
-  "llm_cache",
-  "enrichment_cache",
-  "llm_usage",
-  "product_events",
-  "digest_preferences",
-  "stripe_events",
-  "subscriptions",
-  "referrals",
-  "telegram_link_tokens",
-  "rateLimit",
-  "session",
-  "account",
-  "verification",
-  "user",
-];
+// Every base table in `public` is discovered at runtime rather than listed here. A hardcoded
+// list silently goes stale the moment a migration adds a table nobody remembers to add to it:
+// the reset then drops the drizzle bookkeeping schema below but LEAVES that one table standing,
+// so the next boot re-runs every migration from 0000 and dies on the forgotten table's own
+// `CREATE TABLE ... already exists` — which surfaces as "Playwright could not start the
+// webServer", pointing nowhere near the actual cause. Dropping tables one schema-query at a time
+// rather than `DROP SCHEMA public CASCADE` deliberately: the pgvector extension lives in `public`
+// too, and recreating it needs privileges this connection isn't guaranteed to have.
+async function publicTables(c) {
+  const { rows } = await c.query(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`);
+  return rows.map((r) => r.tablename);
+}
 
 // An e2e server that's ALREADY listening is fatal, not something to work around: Playwright
 // reuses it (webServer.reuseExistingServer, playwright.config.ts) instead of starting a fresh
@@ -64,7 +50,10 @@ if (alreadyRunning) {
 
 try {
   await client.connect();
-  await client.query(`DROP TABLE IF EXISTS ${TABLES.map((t) => `"${t}"`).join(", ")} CASCADE`);
+  const tables = await publicTables(client);
+  // One statement with every table listed, not a loop: CASCADE across a graph of foreign keys
+  // makes the drop order matter otherwise.
+  if (tables.length) await client.query(`DROP TABLE IF EXISTS ${tables.map((t) => `"${t}"`).join(", ")} CASCADE`);
   // Drizzle records applied migrations in its own "drizzle" schema (separate from the app's
   // "public" schema, so it survives the DROP TABLEs above). Without dropping it too, the next
   // boot's migrate-on-boot (server/src/db/client.ts) sees migration 0000's hash already
