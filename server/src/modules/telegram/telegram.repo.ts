@@ -1,15 +1,18 @@
-// Two independent lookups: token -> userId (one-time, dedicated table — see db/schema/telegram.ts
-// for why) and userId -> chatId (naturally user-keyed, so it lives in the generic user_kv store
-// via db/kv.ts's getKvJson/setKvJson, same as the onboarding.welcomeSeen flag).
+// Two lookups over two dedicated tables (db/schema/telegram.ts): token -> userId (one-time, for
+// the /start deep link) and chat id <-> userId (the established link).
+//
+// The chat id used to live in the generic `user_kv` store, which was right while the bot only
+// pushed messages OUT. It moved to its own table once the bot started accepting input: an incoming
+// `/add <url>` or a tapped button arrives carrying only a chat id, and resolving that to an account
+// against a user-keyed KV store means scanning every user. server/scripts/migrate-telegram-links.ts
+// is the one-off backfill that carries the old rows over.
 import { randomBytes } from "node:crypto";
 import { eq, lt } from "drizzle-orm";
 import db from "../../db/client.js";
-import { telegramLinkTokens } from "../../db/schema/index.js";
-import { getKvJson, setKvJson } from "../../db/kv.js";
+import { telegramLinkTokens, telegramLinks } from "../../db/schema/index.js";
 import type { UserId } from "../../db/user-id.js";
 
 const TOKEN_TTL_MS = 15 * 60 * 1000;
-const CHAT_ID_KEY = "telegram.chatId";
 
 export async function createLinkToken(userId: UserId): Promise<string> {
   const token = randomBytes(16).toString("base64url");
@@ -31,24 +34,38 @@ export async function resolveLinkToken(token: string): Promise<UserId | null> {
   return row.userId as UserId;
 }
 
-// Wrapped in an object rather than stored as a bare string: a Telegram chat id is always
-// numeric-LOOKING text (e.g. "111"), and a bare JSON-jsonb string that happens to be valid JSON
-// on its own gets stored/read back as the JSON NUMBER 111, not the string "111" — silently
-// turning `getTelegramChatId` into a `string | number`. An object always round-trips correctly.
-interface ChatIdValue {
-  chatId: string | null;
-}
-
 export async function getTelegramChatId(userId: UserId): Promise<string | null> {
-  return (await getKvJson<ChatIdValue>(userId, CHAT_ID_KEY))?.chatId ?? null;
+  const [row] = await db.select({ chatId: telegramLinks.chatId }).from(telegramLinks).where(eq(telegramLinks.userId, userId));
+  return row?.chatId ?? null;
 }
 
+/** The reverse direction — the one the incoming webhook needs, and the only reason this is a table
+ * rather than a user_kv row. Returns null for a chat that was never linked (or has since been
+ * unlinked), which is exactly how the webhook decides an incoming command is unauthenticated. */
+export async function getUserIdByChatId(chatId: string): Promise<UserId | null> {
+  const [row] = await db.select({ userId: telegramLinks.userId }).from(telegramLinks).where(eq(telegramLinks.chatId, chatId));
+  return (row?.userId as UserId) ?? null;
+}
+
+/** Links a chat, replacing whatever this account was linked to before. Two conflict targets are
+ * genuinely possible and mean different things, so this can't be a single upsert: `chat_id` (the
+ * PK — this chat already belongs to some account) and `user_id` (the unique index — this account
+ * already has a different chat). Deleting both candidate rows first collapses that to a plain
+ * insert, inside a transaction so a concurrent /start can't interleave between the two. */
 export async function setTelegramChatId(userId: UserId, chatId: string): Promise<void> {
-  await setKvJson(userId, CHAT_ID_KEY, { chatId });
+  await db.transaction(async (tx) => {
+    await tx.delete(telegramLinks).where(eq(telegramLinks.chatId, chatId));
+    await tx.delete(telegramLinks).where(eq(telegramLinks.userId, userId));
+    await tx.insert(telegramLinks).values({ chatId, userId });
+  });
 }
 
 export async function clearTelegramChatId(userId: UserId): Promise<void> {
-  // { chatId: null }, not a bare null — user_kv.v has a NOT NULL constraint at the DB level, and
-  // setKvJson passes a top-level JS `null` through as an actual SQL NULL, not a JSON null literal.
-  await setKvJson(userId, CHAT_ID_KEY, { chatId: null });
+  await db.delete(telegramLinks).where(eq(telegramLinks.userId, userId));
+}
+
+/** Drops a link by chat id rather than user id — for the one caller that only has the chat: the
+ * dead-chat cleanup in shared/notify.ts, reacting to a `blocked` send result. */
+export async function clearTelegramChat(chatId: string): Promise<void> {
+  await db.delete(telegramLinks).where(eq(telegramLinks.chatId, chatId));
 }

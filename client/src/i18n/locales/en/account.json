@@ -39,10 +39,24 @@
   },
   "telegram": {
     "heading": "Telegram notifications",
-    "description": "Get job-alert and weekly-digest notifications in Telegram, in addition to email.",
+    "description": "Get job-alert, interview-reminder and digest notifications in Telegram. You can also send the bot a link to track a vacancy.",
     "linkButton": "Link Telegram",
     "linkedBadge": "Linked",
     "unlinkButton": "Unlink"
+  },
+  "telegramEvents": {
+    "heading": "What the bot sends",
+    "description": "Choose which notifications arrive in Telegram. Payment issues are always sent.",
+    "kinds": {
+      "interview": "Interview reminders (24h and 1h before)",
+      "nextStep": "A next step is due today",
+      "stale": "An application has gone quiet",
+      "streak": "Study streak about to break",
+      "jobAlert": "New postings from a saved search",
+      "digest": "Weekly digest",
+      "cvView": "Someone opened my public CV",
+      "referral": "A referral qualified"
+    }
   },
   "export": {
     "heading": "Export your data",

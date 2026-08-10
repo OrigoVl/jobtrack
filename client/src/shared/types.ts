@@ -845,6 +845,18 @@ export interface ReferralState {
   bonusCallsPerMonth: number;
 }
 
+/** Mirrors server/src/modules/notifications/notifications.routes.ts's GET /notifications/settings.
+ *
+ * `prefs` is SPARSE — only explicit opt-outs are stored, so a kind missing from it is ON (see
+ * server/src/shared/notifications.ts). `kinds` comes from the server rather than being a client-side
+ * constant so the two can't drift; the UI renders a toggle per entry and translates the LABEL only,
+ * never the kind itself, which is a persisted wire value. */
+export interface NotificationSettings {
+  prefs: Record<string, boolean>;
+  timezone: string | null;
+  kinds: string[];
+}
+
 export type DesignNodeKind =
   "client" | "loadBalancer" | "service" | "database" | "cache" | "queue" | "cdn" | "storage" | "thirdParty" | "generic";
 

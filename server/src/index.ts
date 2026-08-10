@@ -11,6 +11,7 @@ import logger from "./core/logger.js";
 import { closeDb } from "./db/index.js";
 import { startSavedSearchesScheduler } from "./modules/saved-searches/saved-searches.scheduler.js";
 import { startDigestScheduler } from "./modules/digest/digest.scheduler.js";
+import { startNotificationsScheduler } from "./modules/notifications/notifications.scheduler.js";
 
 // Without these two handlers, an unexpected exception outside an Express request (e.g. a
 // throw in setTimeout/a background timer, or an unhandled Promise rejection from code nobody
@@ -48,6 +49,10 @@ const server = app.listen(env.port, () =>
 const savedSearchesTimer = startSavedSearchesScheduler();
 // Weekly email digest — same in-process-interval shape as the job alerts scheduler above.
 const digestTimer = startDigestScheduler();
+// Time-sensitive push notifications (interview reminders, next steps due, streak) — same shape
+// again, but on a much shorter interval, which it can afford because its pass is driven off the
+// (typically tiny) set of accounts that linked a Telegram chat.
+const notificationsTimer = startNotificationsScheduler();
 
 // Graceful shutdown: without a SIGTERM handler (e.g. from `docker stop`) Node kills the
 // process immediately, cutting off in-flight requests and leaving the SQLite connection
@@ -58,6 +63,7 @@ function shutdown(signal: string): void {
   logger.info(`${signal} received — graceful shutdown…`);
   clearInterval(savedSearchesTimer);
   clearInterval(digestTimer);
+  clearInterval(notificationsTimer);
   const forceExitTimer = setTimeout(() => {
     logger.warn("Graceful shutdown did not complete within 10s — forcing exit");
     process.exit(1);

@@ -402,4 +402,51 @@ export const digestPreferences = pgTable("digest_preferences", {
   userId: userIdCol().primaryKey(),
   enabled: boolean().notNull().default(false),
   lastSentAt: timestamp("last_sent_at", { withTimezone: true, mode: "string" }),
+  // Per-event opt-outs for the push notifications (modules/notifications/) that grew out of this
+  // same row. Deliberately NOT more `boolean` columns: unlike `enabled` above — which the digest
+  // scheduler scans across every user (`WHERE enabled = true`), the whole reason this table exists
+  // instead of a user_kv blob — these are only ever read AFTER the scheduler already has this
+  // user's row in hand (it drives its pass off telegram_links, not off this table), so no query
+  // ever filters on them and a jsonb blob costs nothing.
+  //
+  // Sparse by design: a missing key means "use the default" (shared/notifications.ts's
+  // DEFAULT_NOTIFICATION_PREFS), so a new notification kind ships enabled without a backfill, and
+  // only real user opt-outs ever occupy space here.
+  notificationPrefs: jsonb("notification_prefs").$type<Record<string, boolean>>().notNull().default({}),
+  // IANA zone (e.g. "Europe/Kyiv") captured from the browser — see notifications.routes.ts. NULL
+  // means "never reported", treated as UTC by the app layer (shared/time.ts#localHourIn). Only the
+  // notifications that are meaningful at a specific LOCAL hour need it (the evening streak nudge);
+  // everything else fires off an absolute instant and is timezone-independent.
+  timezone: text(),
 });
+
+// Dedupe ledger for one-shot notifications (modules/notifications/). The schedulers tick far more
+// often than any single reminder should fire — the notifications tick is every 15 minutes, so
+// "your interview is tomorrow" would otherwise go out 96 times — and `digest_preferences.lastSentAt`
+// can't express this: that's ONE marker per user for one weekly job, whereas these are per-user
+// PER-ENTITY ("interview 42, the 24h warning"). Hence a row per (user, key).
+//
+// `key` is an opaque app-level string built by notifications.service.ts#notificationKey (e.g.
+// "interview:42:24h") — deliberately not parsed or indexed on, only ever matched whole.
+//
+// The row doubles as a debounce, not just a once-ever latch: notifications.repo.ts#claimNotification
+// takes a TTL and re-claims a key whose sent_at is older than it (that's what keeps one visitor
+// refreshing a public CV from sending a ping per page load). A once-ever latch is just the same
+// call with an infinite TTL.
+//
+// Swept lazily by the scheduler rather than by a cron of its own, same reasoning as
+// telegram.repo.ts#resolveLinkToken's expired-token sweep — hence the sent_at index.
+export const notificationsSent = pgTable(
+  "notifications_sent",
+  {
+    userId: userIdCol(),
+    key: text().notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // The claim path's ON CONFLICT target, and the covering index for it.
+    primaryKey({ columns: [t.userId, t.key] }),
+    // Covers the housekeeping sweep's `WHERE sent_at < cutoff`, which is not scoped to a user.
+    index("notifications_sent_sent_at_idx").on(t.sentAt),
+  ],
+);

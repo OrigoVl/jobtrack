@@ -5,6 +5,7 @@ import { env } from "../../config/env.js";
 import { HttpError } from "../../core/http.js";
 import { contextLogger } from "../../core/logger.js";
 import type { UserId } from "../../db/user-id.js";
+import { notify } from "../../shared/notify.js";
 import type { CheckoutPlan } from "../../shared/validation.js";
 import {
   getSubscription,
@@ -217,9 +218,38 @@ async function applyStripeEvent(event: z.infer<typeof StripeWebhookEventSchema>)
     // retries/emails. Punishing the first failed charge would be hostile; entitlementsFor()
     // already keeps "past_due" entitled for exactly this reason.
     contextLogger().warn({ eventId: event.id }, "Stripe invoice payment failed — relying on Stripe's dunning, not downgrading");
+    await notifyBillingIssue(
+      event,
+      "⚠️ A payment for your Zorya subscription failed. Stripe will retry — update your card to avoid losing Pro.",
+    );
     return;
   }
   await applySubscriptionEvent(event);
+  // After the state is persisted, not before: a notification claiming the subscription ended must
+  // not go out if writing that fact then fails.
+  if (event.type === "customer.subscription.deleted") {
+    await notifyBillingIssue(event, "Your Zorya Pro subscription has ended. Your data is untouched — you're back on the Free plan.");
+  }
+}
+
+// `billing` is the one notification kind with no opt-out (shared/notifications.ts) — it's
+// transactional, and a user who silenced it would find out they'd lost Pro by hitting a limit.
+// Keyed on the Stripe EVENT id: recordStripeEventOnce already makes the handler idempotent, but a
+// dedupe key costs nothing and keeps a manually replayed event from re-notifying.
+const InvoiceCustomerSchema = z.object({ customer: z.string() });
+
+async function notifyBillingIssue(event: z.infer<typeof StripeWebhookEventSchema>, text: string): Promise<void> {
+  // Resolve the LOCAL user through the customer id we persisted at checkout — the same rule
+  // applySubscriptionEvent follows, and for the same reason: nothing on a Stripe object identifies
+  // one of our accounts in a way we should trust.
+  const parsed = InvoiceCustomerSchema.safeParse(event.data.object);
+  if (!parsed.success) {
+    contextLogger().warn({ eventId: event.id, eventType: event.type }, "Stripe billing event had no customer id to notify against");
+    return;
+  }
+  const existing = await getSubscriptionByStripeCustomerId(parsed.data.customer);
+  if (!existing) return;
+  await notify(existing.userId, { kind: "billing", text, dedupeKey: `billing:${event.id}` });
 }
 
 export interface WebhookResult {

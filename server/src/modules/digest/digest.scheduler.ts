@@ -3,14 +3,13 @@
 // is out of proportion for this app's scale). Runs frequently (every few hours) but each user is
 // only actually emailed once `isDigestDue` says a week has passed since their last digest.
 import { sendEmail } from "../../shared/email.js";
-import { sendTelegramMessage } from "../../shared/telegram.js";
+import { notify } from "../../shared/notify.js";
 import { env } from "../../config/env.js";
 import { contextLogger } from "../../core/logger.js";
 import { getStudyStreak } from "../../db/kv.js";
 import { withAdvisoryLock } from "../../db/index.js";
 import { listVacancyDigestRows } from "../vacancies/vacancies.repo.js";
 import { getCombinedCalendar } from "../calendar/calendar.service.js";
-import { getTelegramChatId } from "../telegram/telegram.repo.js";
 import { listDigestEnabledUsers, recordDigestSent, type DigestUserForRun } from "./digest.repo.js";
 import { qualifyPendingReferrals } from "../referrals/referrals.service.js";
 import {
@@ -68,11 +67,12 @@ async function processOneUserDigest(u: DigestUserForRun, nowMs: number): Promise
   // week, so a stale application that appears the day after a quiet check is still caught soon.
   if (!hasDigestContent(content)) return;
   await sendEmail({ to: u.userEmail, subject: "Your Zorya weekly digest", html: digestHtml(content) + digestFooter() });
-  // A separate, independent channel — not a replacement for email. A linked chat id gets the
-  // same content, rendered as plain text (see digest.service.ts#digestText's own comment on why
-  // it can't just reuse digestHtml's output).
-  const chatId = await getTelegramChatId(u.userId);
-  if (chatId) await sendTelegramMessage(chatId, digestText(content));
+  // A separate, independent channel — not a replacement for email, which is why the email above is
+  // sent unconditionally and this is the only part a `digest` opt-out can switch off. Goes through
+  // notify() rather than calling the Bot API directly so it picks up the per-kind preference and
+  // the blocked-chat cleanup for free; the plain-text rendering is still its own (see
+  // digest.service.ts#digestText's comment on why it can't reuse digestHtml's output).
+  await notify(u.userId, { kind: "digest", text: digestText(content) });
   await recordDigestSent(u.userId);
 }
 

@@ -7,13 +7,12 @@
 import type { RawJob } from "../jobs/job-search.service.js";
 import { fetchAllSources } from "../jobs/job-sources.js";
 import { sendEmail } from "../../shared/email.js";
-import { sendTelegramMessage } from "../../shared/telegram.js";
+import { notify } from "../../shared/notify.js";
 import { contextLogger } from "../../core/logger.js";
 import { getProfile, withAdvisoryLock } from "../../db/index.js";
 import { extractTechs } from "../../shared/tech-dict.js";
 import { computeFit } from "../vacancies/vacancy-text.js";
 import type { Fit } from "../../shared/validation.js";
-import { getTelegramChatId } from "../telegram/telegram.repo.js";
 import { listAllSavedSearches, recordRunResult, type SavedSearchForRun } from "./saved-searches.repo.js";
 
 export const DEFAULT_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
@@ -122,8 +121,8 @@ async function processOneSavedSearch(search: SavedSearchForRun): Promise<void> {
   const jobs = await fetchJobsForRegion(search.query, search.region);
   const { newJobs, nextSeenUrls } = diffNewJobs(jobs, search.lastSeenUrls);
   const firstRun = isFirstRun(search);
-  const notify = !firstRun && newJobs.length > 0;
-  if (notify) {
+  const shouldNotify = !firstRun && newJobs.length > 0;
+  if (shouldNotify) {
     const profile = await getProfile(search.userId);
     const ranked = rankJobsByFit(newJobs, profile.skills);
     await sendEmail({
@@ -132,11 +131,11 @@ async function processOneSavedSearch(search: SavedSearchForRun): Promise<void> {
       html: digestHtml(search, ranked),
     });
     // A separate, independent channel — see digest.scheduler.ts's identical wiring for the
-    // weekly digest.
-    const chatId = await getTelegramChatId(search.userId);
-    if (chatId) await sendTelegramMessage(chatId, digestText(search, ranked));
+    // weekly digest. No dedupe key: recordRunResult below advances lastSeenUrls, so the same
+    // posting is never "new" twice, and the ledger would only duplicate that guarantee.
+    await notify(search.userId, { kind: "jobAlert", text: digestText(search, ranked) });
   }
-  await recordRunResult(search.id, nextSeenUrls, notify);
+  await recordRunResult(search.id, nextSeenUrls, shouldNotify);
 }
 
 export async function runSavedSearchesOnce(): Promise<void> {
