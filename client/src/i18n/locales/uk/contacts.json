@@ -71,5 +71,12 @@
     "posting": "з опису",
     "signature": "з підпису",
     "manual": "додано вручну"
+  },
+  "stale": {
+    "silentFor_one": "тиша {{count}} день",
+    "silentFor_few": "тиша {{count}} дні",
+    "silentFor_many": "тиша {{count}} днів",
+    "silentFor_other": "тиша {{count}} днів",
+    "markContactedToday": "Написав сьогодні"
   }
 }

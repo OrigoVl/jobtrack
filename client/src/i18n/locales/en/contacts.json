@@ -71,5 +71,10 @@
     "posting": "from posting",
     "signature": "from signature",
     "manual": "added by hand"
+  },
+  "stale": {
+    "silentFor_one": "quiet for {{count}} day",
+    "silentFor_other": "quiet for {{count}} days",
+    "markContactedToday": "I've written today"
   }
 }

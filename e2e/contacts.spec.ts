@@ -53,3 +53,40 @@ test("creates, edits, and deletes a contact, persisting across reload", async ({
   await page.reload();
   await expect(page.getByText(editedName, { exact: true })).toHaveCount(0);
 });
+
+/**
+ * A conversation that went quiet gets flagged, and the one action offered clears it. Seeded
+ * through the API with a date well past the 7-day threshold, so the spec doesn't depend on how
+ * long ago some other spec's fixture was written.
+ */
+test("flags a contact who has gone quiet, and clears the flag once you say you've written", async ({ page }) => {
+  const longAgo = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA");
+  // Unique per run: the e2e account is shared, and a row left behind by an interrupted run would
+  // otherwise make the card locator ambiguous rather than failing loudly on its own terms.
+  const name = `E2E Quiet Conversation ${Date.now()}`;
+  const createRes = await page.request.post("/api/contacts", {
+    data: { name, role: "Recruiter", lastContactAt: longAgo },
+  });
+  expect(createRes.ok()).toBeTruthy();
+  const created = (await createRes.json()) as { id: number };
+
+  await page.goto("/contacts");
+  // Scoped to this contact's own Card (shared/ui.tsx renders it with `rounded-card`): the account
+  // is shared across spec files, so an unrelated quiet contact must not satisfy these assertions.
+  const card = page.locator("div.rounded-card").filter({ hasText: name });
+  await expect(card.getByText(/quiet for \d+ days/)).toBeVisible();
+
+  const [updateRes] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes(`/api/contacts/${created.id}`) && r.request().method() === "PUT"),
+    card.getByRole("button", { name: "I've written today" }).click(),
+  ]);
+  expect(updateRes.ok()).toBeTruthy();
+  expect((await updateRes.json()).lastContactAt).toBe(new Date().toLocaleDateString("en-CA"));
+
+  // The flag is derived from the date, so recording today's contact is what makes it go away —
+  // there is no separate "dismissed" state to drift out of sync with reality.
+  await expect(card.getByText(/quiet for \d+ days/)).toBeHidden();
+
+  const deleteRes = await page.request.delete(`/api/contacts/${created.id}`);
+  expect(deleteRes.ok()).toBeTruthy();
+});

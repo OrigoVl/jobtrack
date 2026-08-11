@@ -14,6 +14,7 @@ import { useConfirm } from "../../shared/use-confirm";
 import { DateInput } from "../../shared/date-input";
 import type { Contact, ContactInput, OutreachResult } from "../../shared/types";
 import { SignaturePaste } from "./signature-paste";
+import { isStale, silentDays } from "./stale-contacts";
 
 /** Draft an AI outreach/follow-up message for a contact (POST /contacts/:id/outreach) and let the
  * user copy it — mirrors LinkedInOptimizerCard's generate+copy shape, scoped to one contact card
@@ -221,6 +222,9 @@ export function Contacts() {
   const deleteMutation = useDeleteContact();
   const [modal, setModal] = useState<{ editingId: number | null; draft: ContactInput } | null>(null);
   const [signatureOpen, setSignatureOpen] = useState(false);
+  // Local calendar day, not UTC: "how long since I wrote" is a question about the user's own
+  // calendar, and toISOString() would answer it in a different timezone.
+  const todayIso = new Date().toLocaleDateString("en-CA");
 
   const companyName = (id: number | null) => (id ? (companies.find((c) => c.id === id)?.name ?? "—") : "—");
   const linkedVacancy = (id: number | null) => (id ? vacancies.find((v) => v.id === id) : undefined);
@@ -339,10 +343,25 @@ export function Contacts() {
                     </a>
                   )}
                   {c.lastContactAt && <span className="text-ink-dim">{t("lastContact", { date: c.lastContactAt })}</span>}
+                  {/* A conversation that went quiet. Shown only past the threshold, and never for
+                      someone never written to — that's "reach out", a different situation. */}
+                  {isStale(c, todayIso) && <Chip tone="rose">{t("stale.silentFor", { count: silentDays(c, todayIso) ?? 0 })}</Chip>}
                   {/* Provenance. Only rendered for a known origin: "" means the row predates the
                       field, and inventing "added by hand" for it would be a fact we don't have. */}
                   {c.source && <span className="text-ink-dim/70">{t(`sourceLabel.${c.source}` as "sourceLabel.manual")}</span>}
                 </div>
+                {isStale(c, todayIso) && (
+                  <div className="mt-2">
+                    <Btn
+                      size="sm"
+                      variant="ghost"
+                      loading={updateMutation.isPending && updateMutation.variables?.id === c.id}
+                      onClick={() => updateMutation.mutate({ id: c.id, patch: { lastContactAt: todayIso } })}
+                    >
+                      {t("stale.markContactedToday")}
+                    </Btn>
+                  </div>
+                )}
                 {c.notes && <p className="text-xs text-ink-dim mt-2 whitespace-pre-wrap">{c.notes}</p>}
                 <ContactOutreachPanel contact={c} />
               </Card>
