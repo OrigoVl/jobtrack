@@ -1,4 +1,4 @@
-// Persistence for admin telemetry (Phase 6): both functions are meant to be called WITHOUT
+// Persistence for admin telemetry (Phase 6): the write functions are meant to be called WITHOUT
 // awaiting from their call sites (llm/client.ts, embeddings.ts, jobs.routes.ts) — a slow or
 // failing insert here must never add latency or an error to the user's actual request, so each
 // function swallows its own errors (logged, never thrown/rejected to the caller).
@@ -9,7 +9,7 @@
 // connection (with its own migrate-on-boot side effect) to every test that imports THOSE
 // modules — including llm/client.test.ts, which deliberately mocks only db/llm-cache.js and
 // has nothing to do with telemetry persistence.
-import { and, count, eq, gte, sum } from "drizzle-orm";
+import { and, eq, gte, sum } from "drizzle-orm";
 import { llmUsage, productEvents } from "../db/schema/index.js";
 import type { UserId } from "../db/user-id.js";
 import { contextLogger } from "../core/logger.js";
@@ -102,29 +102,5 @@ export async function insertProductEvent(userId: UserId, name: string, metadata:
     await db.insert(productEvents).values({ userId, name, metadata });
   } catch (err) {
     contextLogger().error({ err, name }, "Failed to persist product event telemetry");
-  }
-}
-
-/**
- * Count of today's (UTC calendar day) product_events rows for this user with a given event name —
- * backs modules/contacts/enrichment/enrichment.service.ts's daily paid-lookup budget
- * (env.enrichment.dailyLookups, counting "contact_enrich_paid" rows). Returns 0 (not a thrown
- * error) on a DB failure — same fail-open bias as getUserCostUsdSince above: a telemetry read
- * failure must never be the reason enrichment stops working, it just under-counts usage for that
- * one request.
- */
-export async function countProductEventsToday(userId: UserId, name: string): Promise<number> {
-  try {
-    const { default: db } = await import("../db/client.js");
-    const startOfDayUtc = new Date();
-    startOfDayUtc.setUTCHours(0, 0, 0, 0);
-    const [row] = await db
-      .select({ n: count() })
-      .from(productEvents)
-      .where(and(eq(productEvents.userId, userId), eq(productEvents.name, name), gte(productEvents.createdAt, startOfDayUtc)));
-    return Number(row?.n ?? 0);
-  } catch (err) {
-    contextLogger().error({ err, userId, name }, "Failed to read today's product event count");
-    return 0;
   }
 }
