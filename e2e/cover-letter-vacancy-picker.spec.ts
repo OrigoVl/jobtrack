@@ -22,10 +22,13 @@ test("selecting a vacancy from the tracker fills the cover-letter textarea and e
   await addVacancy(page, { company: "New company", position: "Position" });
 
   await page.goto("/cover-letter");
-  const select = page.getByLabel("Select a vacancy from the tracker for the cover letter");
-  await expect(select).toBeVisible();
-  // index 0 — the placeholder "— select a vacancy from the tracker —", index 1 — the newest vacancy (highest id).
-  await select.selectOption({ index: 1 });
+  const picker = page.getByLabel("Select a vacancy from the tracker for the cover letter");
+  await expect(picker).toBeVisible();
+  // A SearchSelect (shared/ui.tsx), not a <select>: click to open its list, then pick an option.
+  // index 0 — the placeholder "— select a vacancy from the tracker —", index 1 — the newest
+  // vacancy (highest id), which is the one this test just added.
+  await picker.click();
+  await page.getByRole("option").nth(1).click();
 
   const textarea = page.getByPlaceholder("…or paste the vacancy text manually");
   await expect(textarea).toHaveValue(/Position.*New company/s);

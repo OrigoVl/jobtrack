@@ -17,7 +17,7 @@ import {
   useStartCvReviewJob,
   useVacancies,
 } from "../../shared/queries";
-import { Btn, Card, CardsSkeleton, Dropdown, PageHeader, Section, Segmented, Select, Spinner } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Dropdown, PageHeader, SearchSelect, Section, Segmented, Spinner } from "../../shared/ui";
 import { SkillsInput } from "../../shared/view-kit";
 import type { CvDoc, CvExperience, CvMatch, CvPreset, CvReview, CvTailorResult, CvTheme, Vacancy } from "../../shared/types";
 import { DEFAULT_ORDER, cvDocToText, exportCvDoc, themeOf } from "./builder/cv-doc-utils";
@@ -743,20 +743,19 @@ export function CvBuilder({ llm }: { llm: boolean }) {
             {vacancies.length === 0 ? (
               <div className="text-xs text-ink-dim px-1 py-1">{t("builder.vacancyMenu.noVacancies")}</div>
             ) : (
-              <Select
-                data-keep-open
-                value={matchVacId}
-                onChange={(e) => setMatchVacId(Number(e.target.value))}
+              // SearchSelect carries its own `data-keep-open` (on the field AND its portaled
+              // list), which is what lets a searchable select live inside this Dropdown without
+              // the menu closing mid-pick — see usePopover's onDocDown.
+              <SearchSelect
+                value={String(matchVacId)}
+                onChange={(v) => setMatchVacId(Number(v))}
+                aria-label={t("builder.vacancyMenu.compareAgainst")}
+                options={[
+                  { value: "0", label: t("builder.vacancyMenu.selectPlaceholder") },
+                  ...vacancies.map((v) => ({ value: String(v.id), label: `${v.position}${v.company ? ` — ${v.company}` : ""}` })),
+                ]}
                 className="w-full bg-surface-2 focus:outline-none focus:ring-2 focus:ring-signal/50"
-              >
-                <option value={0}>{t("builder.vacancyMenu.selectPlaceholder")}</option>
-                {vacancies.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.position}
-                    {v.company ? ` — ${v.company}` : ""}
-                  </option>
-                ))}
-              </Select>
+              />
             )}
           </Dropdown>
           <Btn size="sm" variant="ghost" onClick={doMatch} loading={busyMatch} disabled={!matchVacId}>

@@ -14,7 +14,8 @@
   },
   "legend": {
     "vacancyStep": "Vacancy step",
-    "srsDue": "SRS due"
+    "srsDue": "SRS due",
+    "toggleHint": "Show/hide on the calendar"
   },
   "dayAriaLabel_one": "{{date}}, {{count}} event",
   "dayAriaLabel_other": "{{date}}, {{count}} events",
@@ -43,7 +44,11 @@
     "linkedVacancy": "Linked vacancy (optional)",
     "none": "— none —",
     "position": "Position",
-    "notes": "Notes"
+    "notes": "Notes",
+    "linkedContact": "Linked contact (optional)",
+    "exportLabel": "Add to your calendar:",
+    "exportIcs": "⤓ .ics file",
+    "exportGoogle": "Google Calendar"
   },
   "toasts": {
     "added": "Event added",
@@ -53,5 +58,24 @@
   "notifications": {
     "title": "Starting soon",
     "body": "{{title}} ({{type}}) starts at {{time}}"
+  },
+  "moreEvents_one": "+{{count}} more",
+  "moreEvents_other": "+{{count}} more",
+  "quickAddPlaceholder": "Quick add an event…",
+  "upcoming": {
+    "title": "Upcoming",
+    "emptyTitle": "Nothing scheduled ahead",
+    "emptyHint": "Click any day to add an interview, a call or a reminder."
+  },
+  "previousPeriod": "Previous",
+  "nextPeriod": "Next",
+  "view": {
+    "month": "Month",
+    "week": "Week",
+    "list": "List"
+  },
+  "list": {
+    "emptyTitle": "Nothing this month",
+    "emptyHint": "Switch months, or add an event from the Month view."
   }
 }

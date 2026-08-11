@@ -27,10 +27,18 @@ export interface PopoverCoords {
  * callers own the alignment/viewport-clamping logic since that differs per popover (e.g. Dropdown
  * aligns left/right of its button; the date picker also flips above when there's no room below).
  */
-export function usePopover(computeCoords: (anchorRect: DOMRect) => Omit<PopoverCoords, "maxHeight">) {
+/**
+ * `T` is the anchor element's type. It defaults to `HTMLDivElement` (every caller that attaches
+ * `anchorRef` to a wrapper `<div>` in JSX), and is widened by callers that anchor to something
+ * else — the Calendar page assigns `anchorRef.current` imperatively to whichever day-cell button
+ * was clicked, since one popover serves 42 possible anchors and can't be a ref in the markup.
+ */
+export function usePopover<T extends HTMLElement = HTMLDivElement>(
+  computeCoords: (anchorRect: DOMRect, panelHeight: number) => Omit<PopoverCoords, "maxHeight">,
+) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<PopoverCoords>({ top: 0, left: 0, maxHeight: 0 });
-  const anchorRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<T>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const computeCoordsRef = useRef(computeCoords);
   computeCoordsRef.current = computeCoords;
@@ -40,7 +48,12 @@ export function usePopover(computeCoords: (anchorRect: DOMRect) => Omit<PopoverC
     const reposition = () => {
       const rect = anchorRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const { top, left } = computeCoordsRef.current(rect);
+      // The panel's REAL rendered height, so a caller that flips above the anchor can sit right on
+      // top of it instead of guessing. It's 0 on the very first call of an open cycle (the panel
+      // mounts in the same render that this effect follows), which is why callers pass their own
+      // estimate as the fallback — see date-input.tsx / calendar.tsx.
+      const panelHeight = panelRef.current?.offsetHeight ?? 0;
+      const { top, left } = computeCoordsRef.current(rect, panelHeight);
       // A little breathing room below the panel, and never less than a genuinely usable height
       // even on a very short viewport (an edge case, not the common path — the panel itself still
       // scrolls beyond that via overflow-y-auto).
@@ -51,6 +64,12 @@ export function usePopover(computeCoords: (anchorRect: DOMRect) => Omit<PopoverC
     const onDocDown = (e: MouseEvent) => {
       const target = e.target as Node;
       if (anchorRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      // A NESTED popover's panel is portaled to <body>, so it isn't inside this one's panel and
+      // would otherwise read as an outside click — closing the parent out from under the child
+      // (e.g. the CV Builder's vacancy menu vanishing the moment its searchable select is used).
+      // `[data-keep-open]` is the same marker PopoverPanel's own click handler honours, and it's
+      // only ever put on popover-internal chrome, so nothing outside a popover matches it.
+      if (target instanceof Element && target.closest("[data-keep-open]")) return;
       setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {

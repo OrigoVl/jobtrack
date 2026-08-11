@@ -52,6 +52,31 @@ describe("buildInterviewReminders()", () => {
   it("skips an unparseable start time instead of emitting an Invalid Date reminder", () => {
     expect(buildInterviewReminders([{ id: 1, title: "x", startAt: "not-a-date" }], "UTC", NOW)).toEqual([]);
   });
+
+  it("treats an event with no explicit type as an interview, as it always did", () => {
+    const [reminder] = buildInterviewReminders([event], "UTC", NOW);
+    expect(reminder?.kind).toBe("interview");
+    expect(reminder?.text).toContain("📅 Interview tomorrow: Onsite at Acme");
+  });
+
+  it("reminds about non-interview events too, under their own opt-outable kind", () => {
+    const call = { ...event, id: 7, type: "call", title: "Recruiter call" };
+    const [reminder] = buildInterviewReminders([call], "UTC", NOW);
+    expect(reminder?.kind).toBe("event");
+    expect(reminder?.dedupeKey).toBe("event:7:24h");
+    expect(reminder?.text).toContain("📞 Call tomorrow: Recruiter call");
+  });
+
+  it("words each event type in its own terms", () => {
+    const types = ["deadline", "reminder", "other"].map((type) => buildInterviewReminders([{ ...event, type }], "UTC", NOW)[0]?.text);
+    expect(types[0]).toContain("⏳ Deadline");
+    expect(types[1]).toContain("🔔 Reminder");
+    expect(types[2]).toContain("📌 Event");
+  });
+
+  it("falls back to the neutral wording for a type it doesn't know", () => {
+    expect(buildInterviewReminders([{ ...event, type: "no-such-type" }], "UTC", NOW)[0]?.text).toContain("📌 Event");
+  });
 });
 
 describe("buildNextStepReminders()", () => {

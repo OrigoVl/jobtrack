@@ -37,7 +37,10 @@ test("adding a vacancy opens its detail modal, and cover letter + fit analysis b
 
   const dialog = detailDialog(page);
   await expect(dialog.getByLabel("Position", { exact: true })).toHaveValue("Position");
-  await expect(dialog.getByLabel("Linked company", { exact: true })).toHaveValue(/\d+/);
+  // The company row was created from the typed name and linked to this vacancy. The picker is a
+  // SearchSelect (shared/ui.tsx), so its input value is the company's NAME — the id it actually
+  // stores is no longer what a value assertion can see (it was, back when this was a <select>).
+  await expect(dialog.getByLabel("Linked company", { exact: true })).toHaveValue("New company");
 
   // Cover letter tab — LLM offline in e2e (see playwright.config.ts), so the response is the
   // deterministic offline template (writing.routes.ts).
@@ -88,9 +91,10 @@ test("edits every field from the detail modal, the changes persist across reload
 
   const dialog = detailDialog(page);
   await expect(dialog.getByLabel("Position", { exact: true })).toHaveValue("Staff Engineer");
-  // Typing the name in the create modal created the company row and linked it — that select is
-  // the detail modal's only company control.
-  await expect(dialog.locator("select[aria-label='Linked company'] option:checked")).toHaveText("Acme Corp");
+  // Typing the name in the create modal created the company row and linked it — that picker is
+  // the detail modal's only company control. It's a SearchSelect (shared/ui.tsx), i.e. a text
+  // input showing the selected option's label, not a <select> with a checked <option>.
+  await expect(dialog.getByLabel("Linked company")).toHaveValue("Acme Corp");
 
   const urlInput = dialog.getByPlaceholder("Vacancy link (from any site) → the stack fills in itself…");
   const skillInput = dialog.getByPlaceholder("Add a technology…");
@@ -139,7 +143,7 @@ test("edits every field from the detail modal, the changes persist across reload
   await page.getByRole("button", { name: "Open details for Staff Engineer at Acme Corp" }).first().click();
   const reopened = detailDialog(page);
   await expect(reopened.getByLabel("Position", { exact: true })).toHaveValue("Staff Engineer");
-  await expect(reopened.locator("select[aria-label='Linked company'] option:checked")).toHaveText("Acme Corp");
+  await expect(reopened.getByLabel("Linked company")).toHaveValue("Acme Corp");
 });
 
 test("closing the detail modal with an unsaved edit asks first and throws the edit away", async ({ page }) => {

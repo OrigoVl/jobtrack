@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useHealth, useVacancies } from "../../shared/queries";
-import { Btn, Card, EmptyState, Select } from "../../shared/ui";
+import { Btn, Card, EmptyState, SearchSelect, Select } from "../../shared/ui";
 import { InterviewTurnPanel } from "./interview-turn-panel";
 import { MockEvalCard } from "./mock-eval-card";
 import { listVoicesForLocale, speak, stopSpeaking, sttSupported, ttsSupported, useSpeechToText } from "./speech";
@@ -93,15 +93,17 @@ export function VoiceInterview() {
           action={
             <div className="flex flex-col items-center gap-3">
               <div className="flex items-center gap-2 flex-wrap justify-center">
-                <Select value={vacancyId} onChange={(e) => setVacancyId(Number(e.target.value))} aria-label={t("voice.vacancyLabel")}>
-                  <option value={0}>{t("voice.generalOption")}</option>
-                  {vacancies.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.position}
-                      {v.company ? ` — ${v.company}` : ""}
-                    </option>
-                  ))}
-                </Select>
+                <SearchSelect
+                  value={String(vacancyId)}
+                  onChange={(v) => setVacancyId(Number(v))}
+                  aria-label={t("voice.vacancyLabel")}
+                  options={[
+                    { value: "0", label: t("voice.generalOption") },
+                    ...vacancies.map((v) => ({ value: String(v.id), label: `${v.position}${v.company ? ` — ${v.company}` : ""}` })),
+                  ]}
+                  // Explicit width — see the same note in design-task-card.tsx's picker.
+                  className="w-56 max-w-full bg-surface-2"
+                />
                 <Select value={maxTurns} onChange={(e) => setMaxTurns(Number(e.target.value))} aria-label={t("voice.questionsLabel")}>
                   {QUESTION_COUNT_OPTIONS.map((n) => (
                     <option key={n} value={n}>

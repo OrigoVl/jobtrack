@@ -24,3 +24,18 @@ export function buildMonthCells(year: number, month: number): MonthCell[] {
     return { date, key: ymd(date), inMonth: date.getMonth() === month };
   });
 }
+
+/** The Monday-Sunday week containing `day` ("yyyy-MM-dd"), as the same cells buildMonthCells
+ * produces — so the Calendar page's week view can reuse the month view's cell rendering
+ * unchanged. `inMonth` is relative to the anchor day's own month, which is what keeps a week
+ * straddling a month boundary visually honest about which days belong to "this" month. */
+export function buildWeekCells(day: string): MonthCell[] {
+  const [y, m, d] = day.split("-").map(Number);
+  const anchor = y && m && d ? new Date(y, m - 1, d) : new Date();
+  const weekday = (anchor.getDay() + 6) % 7; // Mon=0 .. Sun=6
+  const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - weekday);
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    return { date, key: ymd(date), inMonth: date.getMonth() === anchor.getMonth() };
+  });
+}

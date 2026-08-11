@@ -10,7 +10,8 @@
   },
   "state": {
     "loading": "Loading…",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "noMatches": "No matches"
   },
   "vacancyStatus": {
     "wantToApply": "Want to apply",
@@ -27,6 +28,7 @@
     "openCalendar": "Open calendar",
     "previousMonth": "Previous month",
     "nextMonth": "Next month",
+    "backToCalendar": "Back to calendar",
     "datePlaceholder": "mm/dd/yyyy",
     "dateTimePlaceholder": "mm/dd/yyyy, HH:mm"
   },

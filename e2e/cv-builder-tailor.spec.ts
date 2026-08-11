@@ -36,8 +36,13 @@ test("tailoring the CV for a selected vacancy shows a report tab and can be appl
   await skillInput.press("Enter");
   await expect(page.getByLabel("Remove React")).toBeVisible();
 
+  // The vacancy picker inside this dropdown is a SearchSelect (shared/ui.tsx) — a combobox that
+  // filters as you type, portaled outside the dropdown panel. Picking from it must NOT dismiss
+  // the dropdown around it (that's what the `data-keep-open` marker on both the field and its
+  // list buys); if it did, "Tailor CV" below would never become enabled.
   await page.getByRole("button", { name: /^Vacancy/ }).click();
-  await page.getByRole("combobox").selectOption({ index: 1 }); // newest vacancy first (ORDER BY id DESC)
+  await page.getByRole("combobox").click();
+  await page.getByRole("option", { name: /Frontend Developer/ }).click();
 
   const tailorBtn = page.getByRole("button", { name: "Tailor CV" });
   await expect(tailorBtn).toBeEnabled();

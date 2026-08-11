@@ -9,7 +9,7 @@ import {
   useUpdateContact,
   useVacancies,
 } from "../../shared/queries";
-import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, Select, Spinner } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, SearchSelect, Spinner } from "../../shared/ui";
 import { useConfirm } from "../../shared/use-confirm";
 import { DateInput } from "../../shared/date-input";
 import type { Contact, ContactInput, OutreachResult } from "../../shared/types";
@@ -121,36 +121,32 @@ function ContactModal({
             className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
           />
         </label>
-        <label className="block">
+        {/* Both pickers are SearchSelect, not Select: they list rows the user keeps adding
+            (companies, vacancies), so they're the case a native <select> stops serving once the
+            list is long. Plain <div>, not <label> — see the same note in calendar.tsx. */}
+        <div className="block">
           <span className="text-xs font-semibold text-ink-dim">{t("modal.company")}</span>
-          <Select
-            value={form.companyId ?? ""}
-            onChange={(e) => set("companyId", e.target.value ? Number(e.target.value) : null)}
+          <SearchSelect
+            value={form.companyId ? String(form.companyId) : ""}
+            onChange={(v) => set("companyId", v ? Number(v) : null)}
+            aria-label={t("modal.company")}
+            options={[{ value: "", label: t("modal.companyNone") }, ...companies.map((c) => ({ value: String(c.id), label: c.name }))]}
             className="w-full mt-0.5 bg-surface-2 focus:outline-none focus:ring-2 focus:ring-signal/50"
-          >
-            <option value="">{t("modal.companyNone")}</option>
-            {companies.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="block">
+          />
+        </div>
+        <div className="block">
           <span className="text-xs font-semibold text-ink-dim">{t("modal.vacancy")}</span>
-          <Select
-            value={form.vacancyId ?? ""}
-            onChange={(e) => set("vacancyId", e.target.value ? Number(e.target.value) : null)}
+          <SearchSelect
+            value={form.vacancyId ? String(form.vacancyId) : ""}
+            onChange={(v) => set("vacancyId", v ? Number(v) : null)}
+            aria-label={t("modal.vacancy")}
+            options={[
+              { value: "", label: t("modal.vacancyNone") },
+              ...vacancies.map((v) => ({ value: String(v.id), label: `${v.company} — ${v.position || t("modal.vacancyUntitled")}` })),
+            ]}
             className="w-full mt-0.5 bg-surface-2 focus:outline-none focus:ring-2 focus:ring-signal/50"
-          >
-            <option value="">{t("modal.vacancyNone")}</option>
-            {vacancies.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.company} — {v.position || t("modal.vacancyUntitled")}
-              </option>
-            ))}
-          </Select>
-        </label>
+          />
+        </div>
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
             <span className="text-xs font-semibold text-ink-dim">{t("modal.email")}</span>
