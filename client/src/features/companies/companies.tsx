@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useUi } from "../../shared/ui-state";
 import { useCompanies, useContacts, useDeleteCompany, useSaveCompany, useUpdateCompany, useVacancies } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, EmptyState, PageHeader, Spinner } from "../../shared/ui";
+import { SiteContactsPanel } from "../contacts/site-contacts";
 import { useConfirm } from "../../shared/use-confirm";
 import type { Company, Contact, Vacancy } from "../../shared/types";
 
@@ -137,6 +138,7 @@ function CompanyCard({
               {c.website}
             </a>
           )}
+          <SiteContactsPanel companyId={c.id} hasWebsite={!!c.website} />
           {c.notes ? (
             <p className="text-sm text-ink-dim whitespace-pre-wrap">{c.notes}</p>
           ) : (

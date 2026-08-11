@@ -782,6 +782,16 @@ export interface ContactInput {
   lastContactAt: string;
 }
 
+/** POST /contacts/site-scan — addresses a company publishes on its own careers/contact pages.
+ * Same exact-only rule as PostingContact: every address was literally on the page. */
+export interface SiteContactsResult {
+  contacts: { email: string; page: string }[];
+  /** Paths actually read — excludes anything robots.txt disallowed or that failed to load. */
+  pagesRead: string[];
+  /** True when robots.txt asked automation to stay out of every page we'd have looked at. */
+  blockedByRobots: boolean;
+}
+
 /** A contact the posting itself states — see server modules/contacts/enrichment/posting-contacts.ts.
  * Nothing here is inferred: every `value` appears verbatim in the source text, which is why this
  * has no confidence/status field the way EnrichedPerson does. */

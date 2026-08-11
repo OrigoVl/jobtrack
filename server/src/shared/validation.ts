@@ -288,7 +288,7 @@ export function parseCompanyInput(body: unknown): CompanyInput {
  * client-supplied string would make it worthless as an answer to "where did you get my address".
  * Anything unrecognized is stored as "" (unknown) rather than rejected — provenance is metadata,
  * and a bad value here must never fail an otherwise valid save. */
-export const CONTACT_SOURCES = ["manual", "posting", "signature"] as const;
+export const CONTACT_SOURCES = ["manual", "posting", "signature", "site"] as const;
 export type ContactSource = (typeof CONTACT_SOURCES)[number];
 
 export interface ContactInput {

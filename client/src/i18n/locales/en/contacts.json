@@ -70,11 +70,18 @@
   "sourceLabel": {
     "posting": "from posting",
     "signature": "from signature",
-    "manual": "added by hand"
+    "manual": "added by hand",
+    "site": "from company site"
   },
   "stale": {
     "silentFor_one": "quiet for {{count}} day",
     "silentFor_other": "quiet for {{count}} days",
     "markContactedToday": "I've written today"
+  },
+  "site": {
+    "scan": "Look for addresses on the site",
+    "none": "No published addresses found on this site",
+    "blockedByRobots": "This site asks automated clients not to read these pages",
+    "pagesRead": "Read: {{pages}}"
   }
 }

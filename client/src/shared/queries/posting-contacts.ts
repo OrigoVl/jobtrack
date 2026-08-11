@@ -13,3 +13,10 @@ export function useExtractPostingContacts() {
     onError,
   });
 }
+
+/** Reads the addresses a company publishes on its own site. One-shot like the extraction hook
+ * above; the server decides which pages to read and honors the site's robots.txt. */
+export function useScanCompanySite() {
+  const onError = useMutationErrorToast();
+  return useMutation({ mutationFn: (companyId: number) => api.scanCompanySite(companyId), onError });
+}

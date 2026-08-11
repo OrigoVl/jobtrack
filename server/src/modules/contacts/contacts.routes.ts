@@ -8,6 +8,7 @@ import { getVacancy } from "../vacancies/vacancies.repo.js";
 import { listContacts, getContact, createContact, updateContact, deleteContact } from "./contacts.repo.js";
 import { draftOutreachMessage, type OutreachKind } from "./contacts-outreach.service.js";
 import { extractPostingContacts } from "./enrichment/posting-contacts.js";
+import { findContactsOnSite } from "./enrichment/company-site.js";
 import type { UserId } from "../../db/user-id.js";
 
 const r = express.Router();
@@ -116,6 +117,26 @@ r.post(
       text = [vacancy.notes, vacancy.position, vacancy.company].filter(Boolean).join("\n");
     }
     res.json({ contacts: await extractPostingContacts(userId, text) });
+  }),
+);
+
+// ---------- addresses a company publishes on its own site (company-site.ts) ----------
+// Behind aiLimiter like the other outbound-fetch route (/vacancies/fetch-url): it isn't an AI
+// call, but it makes the server reach out to a third-party host, and that's the budget this app
+// meters such work against.
+r.post(
+  "/contacts/site-scan",
+  aiLimiter,
+  authed(async (userId, req, res) => {
+    const companyIdRaw = (req.body as Record<string, unknown> | null)?.companyId;
+    const companyId = Number(companyIdRaw);
+    if (!Number.isInteger(companyId) || companyId <= 0) throw new HttpError(400, 'Field "companyId" must be a positive integer');
+    // userId-scoped: the website that gets fetched is one THIS user already saved, never an
+    // arbitrary URL from the request body — which is what keeps this from being an open proxy.
+    const company = await getCompanyById(userId, companyId);
+    if (!company) throw new HttpError(404, "Company not found");
+    if (!company.website) throw new HttpError(400, "This company has no website saved", null, "COMPANY_WEBSITE_MISSING");
+    res.json(await findContactsOnSite(company.website));
   }),
 );
 

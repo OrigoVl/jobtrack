@@ -45,7 +45,9 @@ export function Privacy() {
         own text are returned. If an AI provider is configured, that text is sent to it for this (Section 3); otherwise the extraction runs
         entirely on our servers. Results are not cached — they are stored only if you explicitly save one as a Contact, and then they are
         your content. This data concerns people who have not directly interacted with the Service, and we use it only for the professional
-        outreach you are preparing.
+        outreach you are preparing. On request, we can also read the contact addresses a company publishes on its own public website (its
+        careers/contact pages) for a company you track — we fetch only that company's own site, only when you ask, and we honor its
+        robots.txt.
       </p>
       <p>
         <strong>Usage/product analytics.</strong> Which features you use and when (e.g. that you ran a job search), aggregated for product

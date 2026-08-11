@@ -70,7 +70,8 @@
   "sourceLabel": {
     "posting": "з опису",
     "signature": "з підпису",
-    "manual": "додано вручну"
+    "manual": "додано вручну",
+    "site": "з сайту компанії"
   },
   "stale": {
     "silentFor_one": "тиша {{count}} день",
@@ -78,5 +79,11 @@
     "silentFor_many": "тиша {{count}} днів",
     "silentFor_other": "тиша {{count}} днів",
     "markContactedToday": "Написав сьогодні"
+  },
+  "site": {
+    "scan": "Пошукати адреси на сайті",
+    "none": "На цьому сайті опублікованих адрес не знайдено",
+    "blockedByRobots": "Цей сайт просить автоматичних клієнтів не читати ці сторінки",
+    "pagesRead": "Прочитано: {{pages}}"
   }
 }

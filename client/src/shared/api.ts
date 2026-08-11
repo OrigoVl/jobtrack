@@ -36,6 +36,7 @@ import type {
   Drill,
   DrillArchiveEntry,
   PostingContact,
+  SiteContactsResult,
   FetchAllJobState,
   FocusWeek,
   InterviewTurnResult,
@@ -330,6 +331,8 @@ export const api = {
     req<OutreachResult>(`/contacts/${id}/outreach`, { method: "POST", body: JSON.stringify({ kind }) }),
   extractPostingContacts: (input: { vacancyId?: number; text?: string }) =>
     req<{ contacts: PostingContact[] }>("/contacts/extract", { method: "POST", body: JSON.stringify(input) }),
+  scanCompanySite: (companyId: number) =>
+    req<SiteContactsResult>("/contacts/site-scan", { method: "POST", body: JSON.stringify({ companyId }) }),
   cvShare: (profileId: number) => req<CvShare | null>(`/cv/profiles/${profileId}/share`),
   generateCvShare: (profileId: number) => req<CvShare>(`/cv/profiles/${profileId}/share`, { method: "POST" }),
   setCvShareEnabled: (profileId: number, enabled: boolean) =>
