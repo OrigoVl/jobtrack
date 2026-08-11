@@ -5,19 +5,14 @@
 // This is the one part of contact discovery where the server goes out and fetches something, so
 // the safety work is the bulk of the file rather than an afterthought:
 //
-// - SSRF. Every URL — including each redirect hop — goes through assertSafeVacancyUrl(), which
-//   rejects non-https, localhost/internal hostnames and private/reserved IPs. Redirects are
-//   followed MANUALLY (`redirect: "manual"`) for exactly this reason: with the default
-//   "follow", a public host answering 302 → http://169.254.169.254/ would be fetched by undici
-//   without the guard ever seeing that address.
-// - Response size. Bodies are read through a stream and abandoned past MAX_BYTES, so a site that
-//   streams an endless response can't exhaust memory.
+// - SSRF and response size are handled by shared/safe-fetch.ts, which every user-influenced fetch
+//   in this app goes through — see that file for why redirects are followed by hand.
 // - Volume. At most MAX_PAGES well-known paths per company, each with its own timeout — this
 //   visits a handful of pages a person could open by hand, and is not a crawler that follows
 //   links.
 // - robots.txt is fetched first and honored. Not a legal requirement, but this is an automated
 //   client reading someone else's site: if they've asked automation to stay out of a path, we do.
-import { assertSafeVacancyUrl } from "../../../shared/validation.js";
+import { fetchTextSafely } from "../../../shared/safe-fetch.js";
 import { contextLogger } from "../../../core/logger.js";
 
 /** Pages a company puts its hiring/contact details on, most specific first. */
@@ -26,8 +21,14 @@ const MAX_PAGES = 6;
 const MAX_BYTES = 512 * 1024;
 const PAGE_TIMEOUT_MS = 8000;
 const ROBOTS_TIMEOUT_MS = 4000;
-const MAX_REDIRECTS = 3;
 const USER_AGENT = "Mozilla/5.0 (compatible; ZoryaContactFinder/1.0)";
+
+/** Thin wrapper over the shared safe fetch (SSRF-checked per redirect hop, byte-capped, timed
+ * out): this module treats every remote failure the same way — as "nothing found here". */
+async function readPage(url: string, timeoutMs: number): Promise<string> {
+  const { text } = await fetchTextSafely(url, { timeoutMs, maxBytes: MAX_BYTES, userAgent: USER_AGENT });
+  return text;
+}
 
 export interface SiteContact {
   email: string;
@@ -98,63 +99,6 @@ export function isPathAllowed(path: string, rules: RobotsRules): boolean {
   return longestMatch(rules.allow) >= disallowed;
 }
 
-/** Fetches with a byte cap and manual, re-validated redirects. Returns "" on any failure — a site
- * being down or hostile is an ordinary outcome here, not an error worth failing the request over. */
-async function fetchTextCapped(url: string, timeoutMs: number): Promise<string> {
-  let current: string;
-  try {
-    current = assertSafeVacancyUrl(url);
-  } catch {
-    return "";
-  }
-
-  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), timeoutMs);
-    try {
-      const res = await fetch(current, {
-        headers: { "user-agent": USER_AGENT, accept: "text/html,text/plain" },
-        redirect: "manual",
-        signal: ac.signal,
-      });
-
-      if (res.status >= 300 && res.status < 400) {
-        const location = res.headers.get("location");
-        if (!location) return "";
-        // Re-validated on every hop — this is the whole point of following redirects by hand.
-        try {
-          current = assertSafeVacancyUrl(new URL(location, current).toString());
-        } catch {
-          return "";
-        }
-        continue;
-      }
-      if (!res.ok || !res.body) return "";
-
-      const reader = res.body.getReader();
-      const chunks: Uint8Array[] = [];
-      let size = 0;
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (!value) continue;
-        size += value.byteLength;
-        if (size > MAX_BYTES) {
-          await reader.cancel();
-          break;
-        }
-        chunks.push(value);
-      }
-      return new TextDecoder("utf-8", { fatal: false }).decode(Buffer.concat(chunks));
-    } catch {
-      return "";
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-  return "";
-}
-
 /** Every distinct, non-noise address in a page's HTML. `mailto:` links first — an address written
  * as a link is deliberately published, which plain text in the body isn't always. */
 export function emailsInHtml(html: string): string[] {
@@ -186,7 +130,7 @@ export async function findContactsOnSite(website: string): Promise<SiteContactsR
   if (!host || !host.includes(".")) return empty;
   const origin = `https://${host}`;
 
-  const robotsText = await fetchTextCapped(`${origin}/robots.txt`, ROBOTS_TIMEOUT_MS);
+  const robotsText = await readPage(`${origin}/robots.txt`, ROBOTS_TIMEOUT_MS);
   const rules = parseRobots(robotsText);
   const allowedPaths = CANDIDATE_PATHS.filter((p) => isPathAllowed(p, rules)).slice(0, MAX_PAGES);
   if (allowedPaths.length === 0) return { ...empty, blockedByRobots: true };
@@ -197,7 +141,7 @@ export async function findContactsOnSite(website: string): Promise<SiteContactsR
   const pagesRead: string[] = [];
   const seen = new Set<string>();
   for (const path of allowedPaths) {
-    const html = await fetchTextCapped(`${origin}${path}`, PAGE_TIMEOUT_MS);
+    const html = await readPage(`${origin}${path}`, PAGE_TIMEOUT_MS);
     if (!html) continue;
     pagesRead.push(path);
     for (const email of emailsInHtml(html)) {

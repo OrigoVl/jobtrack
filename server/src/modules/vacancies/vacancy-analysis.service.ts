@@ -9,6 +9,7 @@ import { demandMap } from "../../shared/demand.js";
 import { HttpError } from "../../core/http.js";
 import { contextLogger } from "../../core/logger.js";
 import { assertSafeVacancyUrl, type Fit } from "../../shared/validation.js";
+import { fetchTextSafely } from "../../shared/safe-fetch.js";
 import { chatJson, llmAvailable, quoteUntrustedText } from "../../llm/index.js";
 import { computeFit, extractMainContent, extractSalary, stripHtml } from "./vacancy-text.js";
 
@@ -25,16 +26,19 @@ export { computeFit };
  * through here — single autofill, bulk import, the re-parse-everything job — so they all benefit.
  */
 export async function fetchVacancyText(url: string): Promise<string> {
+  // Validated here as well as inside fetchTextSafely(), because THIS call is what turns a bad
+  // paste into the specific 400 the user sees ("Only https links are allowed"); the helper
+  // deliberately reports a blocked url as an ordinary non-result instead of throwing.
   const safeUrl = assertSafeVacancyUrl(url);
-  const ac = new AbortController();
-  const to = setTimeout(() => ac.abort(), 12000);
-  try {
-    const res = await fetch(safeUrl, { headers: { "user-agent": "Mozilla/5.0 (Zorya)" }, signal: ac.signal });
-    if (!res.ok) throw new HttpError(502, "HTTP " + res.status);
-    return stripHtml(extractMainContent(await res.text()));
-  } finally {
-    clearTimeout(to);
-  }
+  // fetchTextSafely re-checks every redirect hop. It used to be a plain fetch() with the default
+  // `redirect: "follow"`, which meant the guard above only ever saw the first url: a posting URL
+  // answering 302 → http://169.254.169.254/ was followed, and its body came back here.
+  const { text, status } = await fetchTextSafely(safeUrl, { timeoutMs: 12000 });
+  // status 0 = never reached (blocked hop, network failure, redirect loop). Previously a network
+  // error propagated as a raw fetch rejection and surfaced as a 500; a 502 is the honest code for
+  // "the upstream site is the problem", and every caller already handles a thrown error.
+  if (status !== 200 || !text) throw new HttpError(502, status ? `HTTP ${status}` : "Could not reach the page");
+  return stripHtml(extractMainContent(text));
 }
 
 export interface QuickAnalysis {

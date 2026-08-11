@@ -32,8 +32,66 @@ vi.mock("../../shared/demand.js", () => ({ demandMap: vi.fn(async () => ({})) })
 const mockLog = { debug: vi.fn(), warn: vi.fn(), error: vi.fn() };
 vi.mock("../../core/logger.js", () => ({ contextLogger: () => mockLog }));
 
-import { tryAutoEnrichStack, companyFromDouUrl, fetchVacancyDetails } from "./vacancy-analysis.service.js";
+import { tryAutoEnrichStack, companyFromDouUrl, fetchVacancyDetails, fetchVacancyText } from "./vacancy-analysis.service.js";
 import { llmAvailable, chatJson } from "../../llm/index.js";
+
+// fetchVacancyText() now goes through shared/safe-fetch.ts, which reads the body as a STREAM (so a
+// hostile host can't stream an endless response) and inspects `status`/`headers` to follow
+// redirects by hand. These stubs therefore have to look like a real Response, not the
+// `{ ok, text() }` shape the old plain-fetch implementation was happy with.
+function pageResponse(html: string, status = 200) {
+  return {
+    status,
+    ok: status >= 200 && status < 300,
+    headers: new Headers(),
+    body: new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(html));
+        controller.close();
+      },
+    }),
+  };
+}
+
+describe("fetchVacancyText()", () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("refuses a posting url that redirects to an internal address", async () => {
+    // The bug this pins: with fetch's default `redirect: "follow"`, assertSafeVacancyUrl only ever
+    // saw the first url, so a public posting page answering 302 → the cloud metadata endpoint got
+    // fetched anyway and its body was returned here as "vacancy text".
+    fetchMock.mockResolvedValue({
+      status: 302,
+      ok: false,
+      headers: new Headers({ location: "http://169.254.169.254/latest/meta-data/" }),
+      body: null,
+    });
+
+    await expect(fetchVacancyText("https://jobs.example.test/vacancy/1")).rejects.toThrow();
+    expect(fetchMock.mock.calls.every((c) => !String(c[0]).includes("169.254"))).toBe(true);
+  });
+
+  it("still reads a page that redirects somewhere safe", async () => {
+    fetchMock
+      .mockResolvedValueOnce({ status: 301, ok: false, headers: new Headers({ location: "/moved" }), body: null })
+      .mockResolvedValueOnce(pageResponse("<html><body>Node.js developer wanted, TypeScript and Docker</body></html>"));
+
+    await expect(fetchVacancyText("https://jobs.example.test/vacancy/1")).resolves.toContain("Node.js");
+  });
+
+  it("rejects a non-https url before any request is made", async () => {
+    await expect(fetchVacancyText("http://jobs.example.test/vacancy/1")).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
 
 describe("tryAutoEnrichStack()", () => {
   const fetchMock = vi.fn();
@@ -65,7 +123,7 @@ describe("tryAutoEnrichStack()", () => {
 
   it("fetches and analyzes the page text for a dou.ua vacancy url", async () => {
     const html = `<html><body>${"Looking for a Senior React TypeScript developer, Docker will be a plus. ".repeat(5)}</body></html>`;
-    fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(html) });
+    fetchMock.mockResolvedValue(pageResponse(html));
 
     const result = await tryAutoEnrichStack(BOOTSTRAP_USER_ID, "https://jobs.dou.ua/companies/acme/vacancies/1/");
 
@@ -81,7 +139,7 @@ describe("tryAutoEnrichStack()", () => {
   // and is analyzed the same way as jobs.dou.ua.
   it("fetches and analyzes the page text for an arbitrary public (non-dou.ua) vacancy url", async () => {
     const html = `<html><body>${"Looking for a Senior React TypeScript engineer, Docker is a plus. ".repeat(5)}</body></html>`;
-    fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(html) });
+    fetchMock.mockResolvedValue(pageResponse(html));
 
     const result = await tryAutoEnrichStack(BOOTSTRAP_USER_ID, "https://www.linkedin.com/jobs/view/123456/");
 
@@ -91,7 +149,7 @@ describe("tryAutoEnrichStack()", () => {
   });
 
   it("returns null (without throwing) when the page request fails — and logs a warning with the url/status", async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 404 });
+    fetchMock.mockResolvedValue(pageResponse("", 404));
     await expect(tryAutoEnrichStack(BOOTSTRAP_USER_ID, "https://jobs.dou.ua/companies/acme/vacancies/2/")).resolves.toBeNull();
     expect(mockLog.warn).toHaveBeenCalledWith(
       expect.objectContaining({ url: "https://jobs.dou.ua/companies/acme/vacancies/2/" }),
@@ -106,7 +164,7 @@ describe("tryAutoEnrichStack()", () => {
   });
 
   it("returns null for a too-short/empty page — and logs a warning explaining why", async () => {
-    fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve("<html><body>404</body></html>") });
+    fetchMock.mockResolvedValue(pageResponse("<html><body>404</body></html>"));
     expect(await tryAutoEnrichStack(BOOTSTRAP_USER_ID, "https://jobs.dou.ua/companies/acme/vacancies/4/")).toBeNull();
     expect(mockLog.warn).toHaveBeenCalledWith(
       expect.objectContaining({ textLength: expect.any(Number) }),
@@ -146,7 +204,7 @@ describe("fetchVacancyDetails()", () => {
   });
 
   it("pre-fills company from a dou.ua url's own slug even when the page can't be fetched", async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 404 });
+    fetchMock.mockResolvedValue(pageResponse("", 404));
     const details = await fetchVacancyDetails(BOOTSTRAP_USER_ID, "https://jobs.dou.ua/companies/acme/vacancies/1/");
     // toMatchObject (not toEqual) — only asserts the fields this test is actually about; the
     // full VacancyDetails shape has grown other best-effort fields (salary/notes/company* facts)
@@ -156,7 +214,7 @@ describe("fetchVacancyDetails()", () => {
 
   it("fills stack/level/fit from the fetched page for a non-dou.ua url, leaving company/position blank offline", async () => {
     const html = `<html><body>${"Looking for a Senior React TypeScript developer, Docker will be a plus. ".repeat(5)}</body></html>`;
-    fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(html) });
+    fetchMock.mockResolvedValue(pageResponse(html));
     const details = await fetchVacancyDetails(BOOTSTRAP_USER_ID, "https://www.linkedin.com/jobs/view/123456/");
     expect(details.company).toBe("");
     expect(details.position).toBe("");
@@ -165,7 +223,7 @@ describe("fetchVacancyDetails()", () => {
 
   it("reads the salary straight off the page even offline, ignoring unrelated numbers", async () => {
     const html = `<html><body>${"Senior React developer wanted. ".repeat(10)} We have 1000+ engineers. Salary $2000-3000 per month.</body></html>`;
-    fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(html) });
+    fetchMock.mockResolvedValue(pageResponse(html));
     const details = await fetchVacancyDetails(BOOTSTRAP_USER_ID, "https://www.linkedin.com/jobs/view/123456/");
     expect(details.salary).toBe("$2000-3000");
     expect(details.notes).toBe("");
@@ -184,7 +242,7 @@ describe("fetchVacancyDetails() with an LLM available", () => {
   beforeEach(() => {
     fetchMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
-    fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(PAGE) });
+    fetchMock.mockResolvedValue(pageResponse(PAGE));
     vi.mocked(llmAvailable).mockReturnValue(true);
     vi.mocked(chatJson).mockImplementation(async (_userId, system: string) => {
       if (system.includes("structured facts")) {
@@ -239,7 +297,7 @@ describe("fetchVacancyDetails() with an LLM available", () => {
 
   it("prefers the salary read verbatim off the page over the model's version", async () => {
     const withSalary = PAGE.replace("</article>", "Salary $2000-3000 per month.</article>");
-    fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(withSalary) });
+    fetchMock.mockResolvedValue(pageResponse(withSalary));
     const details = await fetchVacancyDetails(BOOTSTRAP_USER_ID, "https://www.linkedin.com/jobs/view/123456/");
     expect(details.salary).toBe("$2000-3000");
   });
