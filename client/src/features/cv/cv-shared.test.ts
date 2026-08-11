@@ -39,9 +39,17 @@ describe("exportPdf", () => {
 
   function openStub() {
     const write = vi.fn();
-    const win = { document: { write, close: vi.fn() }, focus: vi.fn(), print: vi.fn() };
+    // No `adoptedStyleSheets` on this stub, so applyCvCss takes its <style>-element fallback
+    // path — createElement/head are what that path needs.
+    const style: { textContent?: string } = {};
+    const appendChild = vi.fn();
+    const win = {
+      document: { write, close: vi.fn(), createElement: vi.fn(() => style), head: { appendChild } },
+      focus: vi.fn(),
+      print: vi.fn(),
+    };
     vi.spyOn(window, "open").mockReturnValue(win as unknown as Window);
-    return { win, write };
+    return { win, write, style, appendChild };
   }
 
   it("strips the light markdown an LLM-generated letter may contain", () => {
@@ -63,6 +71,17 @@ describe("exportPdf", () => {
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
     expect(html).toContain("1 &lt; 2 &amp; 3 &gt; 2");
+  });
+
+  it("applies the print styles to the popup document instead of inlining a <style> the CSP blocks", () => {
+    // The popup inherits this app's CSP, whose style-src-elem has no 'unsafe-inline'
+    // (server/src/app.ts) — an inline <style> in the written markup is dropped outright and the
+    // PDF prints in the browser's default serif, which is exactly what happened in production.
+    const { write, style, appendChild } = openStub();
+    exportPdf("Cover Letter", "body");
+    expect(write.mock.calls[0]![0] as string).not.toContain("<style");
+    expect(style.textContent).toContain("@page{margin:0}");
+    expect(appendChild).toHaveBeenCalledOnce();
   });
 
   it("warns instead of throwing when the popup is blocked", () => {

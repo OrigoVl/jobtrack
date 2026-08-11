@@ -56,7 +56,18 @@ export function themeOf(doc: CvDoc): CvTheme {
   return { ...DEFAULT_THEME, ...(doc.theme || {}) };
 }
 
-export function buildCvHtml(doc: CvDoc): string {
+/**
+ * Renders a CV document as markup + its stylesheet, deliberately kept as TWO separate strings
+ * instead of one HTML string with an inline `<style>` in its `<head>`.
+ *
+ * Every consumer of this (the preview iframe, the public share iframe, the print popup) is a
+ * `srcdoc`/`about:blank` document, and those INHERIT the app's CSP — whose `style-src-elem` has
+ * no `'unsafe-inline'` on purpose (see server/src/app.ts). An inline `<style>` inside them is
+ * therefore silently dropped in production and the CV renders as unstyled Times New Roman. The
+ * CSS goes in via `applyCvCss()` (CSSOM, not a `<style>` element) at each call site instead —
+ * see the comment there.
+ */
+export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
   const t = themeOf(doc);
   const esc = (s: string) =>
     String(s ?? "")
@@ -321,7 +332,39 @@ export function buildCvHtml(doc: CvDoc): string {
     // still appears.
     `@page{margin:0}` +
     `@media print{body{margin:0;max-width:none;padding:14mm 12mm}}`;
-  return `<!doctype html><html lang="${isUk ? "uk" : "en"}"><head><meta charset="utf-8"><title>${esc(doc.name || "CV")}</title><style>${css}</style></head><body>${layout}</body></html>`;
+  return {
+    html: `<!doctype html><html lang="${isUk ? "uk" : "en"}"><head><meta charset="utf-8"><title>${esc(doc.name || "CV")}</title></head><body>${layout}</body></html>`,
+    css,
+  };
+}
+
+/**
+ * Applies a generated stylesheet to a CV document (preview iframe / public share iframe / print
+ * popup) via CSSOM rather than by appending a `<style>` element.
+ *
+ * That's the whole point: those documents inherit the app's CSP, and `style-src-elem` has no
+ * `'unsafe-inline'` (server/src/app.ts) — a `<style>` element there is blocked outright, which is
+ * exactly how the preview and the exported PDF ended up as unstyled Times New Roman in
+ * production. A constructed stylesheet isn't governed by `style-src` (the script building it
+ * already had to pass `script-src`), so the CV gets its styles back without relaxing the policy.
+ *
+ * The sheet MUST be constructed from the TARGET document's own window — a stylesheet constructed
+ * in a different document can't be adopted ("Sheet constructed in a different document cannot be
+ * adopted"), so `new CSSStyleSheet()` from the parent frame would throw.
+ */
+export function applyCvCss(target: Document, css: string): void {
+  const win = target.defaultView;
+  if (win && "adoptedStyleSheets" in target) {
+    const sheet = new win.CSSStyleSheet();
+    sheet.replaceSync(css);
+    target.adoptedStyleSheets = [sheet];
+    return;
+  }
+  // Fallback for environments without constructable stylesheets (jsdom in unit tests, browsers
+  // predating Safari 16.4) — no CSP applies in those, so a plain <style> element is fine there.
+  const el = target.createElement("style");
+  el.textContent = css;
+  target.head.appendChild(el);
 }
 
 /** `onPopupBlocked` replaces the old native `alert()` — a plain utility function has no toast
@@ -334,8 +377,13 @@ export function exportCvDoc(doc: CvDoc, onPopupBlocked: () => void): void {
     onPopupBlocked();
     return;
   }
-  w.document.write(buildCvHtml(doc));
+  const { html, css } = buildCvDocument(doc);
+  w.document.write(html);
   w.document.close();
+  // After close(), so the document is fully parsed and `head` exists for the fallback path. The
+  // popup inherits this page's CSP (it's an about:blank document opened by us), which is why the
+  // CSS can't just ride along inside `html` — see applyCvCss.
+  applyCvCss(w.document, css);
   w.focus();
   setTimeout(() => w.print(), 350);
 }

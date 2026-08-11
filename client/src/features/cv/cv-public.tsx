@@ -2,11 +2,11 @@ import { useState } from "react";
 import { useParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useCvPublic } from "../../shared/queries";
-import { buildCvHtml } from "./builder/cv-doc-utils";
+import { applyCvCss, buildCvDocument } from "./builder/cv-doc-utils";
 
 /**
  * A shareable, read-only public CV page (GET /api/cv/public/:slug, no session) — reuses
- * buildCvHtml (the same CV Builder rendering used for the live preview and PDF export) rather
+ * buildCvDocument (the same CV Builder rendering used for the live preview and PDF export) rather
  * than a bespoke renderer, so any template/theme change automatically applies here too. Just a
  * plain full-height iframe (auto-sized to its content) — no zoom/click-to-edit affordances,
  * those are CV Builder-only editor UX that doesn't belong on a public page.
@@ -16,6 +16,7 @@ export function CvPublic() {
   const { slug = "" } = useParams();
   const { data, isLoading, isError } = useCvPublic(slug);
   const [frameHeight, setFrameHeight] = useState(800);
+  const cv = data ? buildCvDocument(data.doc) : null;
 
   return (
     <div className="min-h-screen bg-bg flex flex-col">
@@ -27,11 +28,18 @@ export function CvPublic() {
             <p className="text-sm text-ink-dim mt-2">{t("publicShare.notFoundHint")}</p>
           </div>
         )}
-        {data && (
+        {cv && (
           <iframe
             title={t("publicShare.iframeTitle")}
-            srcDoc={buildCvHtml(data.doc)}
-            onLoad={(e) => setFrameHeight(e.currentTarget.contentDocument?.documentElement.scrollHeight ?? 800)}
+            srcDoc={cv.html}
+            // Styles go in here, not as a <style> inside srcDoc: this iframe inherits the app's
+            // CSP, which blocks inline <style> elements (see applyCvCss). Applied before reading
+            // scrollHeight, since an unstyled document measures a different height.
+            onLoad={(e) => {
+              const frameDoc = e.currentTarget.contentDocument;
+              if (frameDoc) applyCvCss(frameDoc, cv.css);
+              setFrameHeight(frameDoc?.documentElement.scrollHeight ?? 800);
+            }}
             style={{ width: "100%", height: frameHeight, border: 0 }}
             className="bg-white"
           />

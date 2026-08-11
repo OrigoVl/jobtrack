@@ -5,7 +5,7 @@ import { Btn, Card, Segmented } from "../../../shared/ui";
 import { useUi } from "../../../shared/ui-state";
 import { AlertTriangleIcon, ExpandIcon } from "../../../shared/icons";
 import type { CvDoc } from "../../../shared/types";
-import { buildCvHtml } from "./cv-doc-utils";
+import { applyCvCss, buildCvDocument } from "./cv-doc-utils";
 
 // Virtual "page" width of the preview in CSS px — the same as the body max-width in buildCvHtml
 // (820px of content + 2×30px padding). We render the iframe at exactly this width and scale it
@@ -47,12 +47,16 @@ function emptySectionLabels(doc: CvDoc, t: TFunction<["cv", "common"]>): string[
  */
 function ScaledFrame({
   html,
+  css,
   zoom,
   maxHeight,
   onContentHeight,
   onSectionClick,
 }: {
   html: string;
+  /** Applied on load via CSSOM instead of riding inside `html` as a `<style>` — the srcdoc
+   * document inherits the app's CSP, which blocks inline `<style>` elements (see applyCvCss). */
+  css: string;
   zoom: number;
   maxHeight: string;
   onContentHeight: (h: number) => void;
@@ -89,6 +93,10 @@ function ScaledFrame({
             srcDoc={html}
             onLoad={(e) => {
               const doc = e.currentTarget.contentDocument;
+              // Styles first, height second: an unstyled document is a different height (no
+              // max-width, no margins, default font), so measuring before this would size the
+              // frame — and the "how many pages" hint — off the wrong layout.
+              if (doc) applyCvCss(doc, css);
               const h = doc?.documentElement.scrollHeight ?? 1200;
               setContentHeight(h);
               onContentHeight(h);
@@ -186,7 +194,7 @@ export function CvPreviewPanel({
   const [zoom, setZoom] = useUi("cvbuilder.previewZoom", 1);
   const [fullscreen, setFullscreen] = useState(false);
   const [contentHeight, setContentHeight] = useState(1200);
-  const html = buildCvHtml(doc);
+  const { html, css } = buildCvDocument(doc);
   const pages = Math.max(1, Math.ceil(contentHeight / A4_PAGE_HEIGHT));
   const empties = emptySectionLabels(doc, t);
   return (
@@ -204,6 +212,7 @@ export function CvPreviewPanel({
             squeezed under other panels. */}
         <ScaledFrame
           html={html}
+          css={css}
           zoom={zoom}
           maxHeight="calc(100vh - 11rem)"
           onContentHeight={setContentHeight}
@@ -271,6 +280,7 @@ export function CvPreviewPanel({
             <PreviewToolbar pages={pages} zoom={zoom} onZoomChange={setZoom} onExport={onExport} />
             <ScaledFrame
               html={html}
+              css={css}
               zoom={zoom}
               maxHeight="calc(90vh - 96px)"
               onContentHeight={setContentHeight}

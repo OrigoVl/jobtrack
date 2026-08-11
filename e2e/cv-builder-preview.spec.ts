@@ -44,6 +44,39 @@ test("CV preview shows a page-count badge and opens/closes a real fullscreen ove
 });
 
 /**
+ * CSP regression, and one only a real browser can catch: the preview renders into a `srcdoc`
+ * iframe, and such a document INHERITS the app's CSP — whose `style-src-elem` deliberately has no
+ * `'unsafe-inline'` (server/src/app.ts). While the CV's stylesheet rode along as an inline
+ * `<style>` inside that markup, the browser dropped it silently and the preview (plus the public
+ * share page and every exported PDF) rendered as unstyled Times New Roman in production, while
+ * looking perfectly fine in `pnpm dev` — Vite's dev server sends no CSP at all. The styles now go
+ * in via CSSOM (applyCvCss in cv-doc-utils.ts). E2E runs against the real prod build served by
+ * the Express app, so the real policy is in force here; vitest/jsdom applies no CSP whatsoever.
+ */
+test("the preview iframe actually gets its stylesheet applied under the app's real CSP", async ({ page }) => {
+  await page.goto("/cvbuilder");
+  await expect(page.getByTitle(/pages when printed to PDF/)).toBeVisible();
+
+  const styling = await page.locator('iframe[title="CV preview"]').evaluate((el) => {
+    const doc = (el as HTMLIFrameElement).contentDocument!;
+    return {
+      adopted: doc.adoptedStyleSheets.length,
+      inlineStyleTags: doc.querySelectorAll("style").length,
+      fontFamily: getComputedStyle(doc.body).fontFamily,
+      maxWidth: getComputedStyle(doc.body).maxWidth,
+    };
+  });
+
+  expect(styling.adopted).toBeGreaterThan(0);
+  // The failure mode is specific and worth pinning: no stylesheet at all means the browser's
+  // default serif and no page width, which is exactly what the screenshots of the bug showed.
+  expect(styling.fontFamily).not.toMatch(/Times/i);
+  expect(styling.maxWidth).toBe("820px");
+  // A <style> element back in the markup would be blocked again the moment CSP applies.
+  expect(styling.inlineStyleTags).toBe(0);
+});
+
+/**
  * Layout regression: the preview used to be in the same sticky column AFTER the
  * Appearance/Presets panels ("preview at the bottom right" — a user complaint), so we check
  * that it's always first and visible immediately, regardless of which accordion section

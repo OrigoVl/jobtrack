@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CvDoc, CvTheme } from "../../../shared/types";
-import { DEFAULT_ORDER, DEFAULT_THEME, buildCvHtml, cvDocToText, themeOf } from "./cv-doc-utils";
+import { DEFAULT_ORDER, DEFAULT_THEME, buildCvDocument, cvDocToText, themeOf } from "./cv-doc-utils";
 
 const BASE_DOC: CvDoc = {
   name: "Michael Voloshyn",
@@ -13,39 +13,50 @@ const BASE_DOC: CvDoc = {
   projects: [],
 };
 
-describe("buildCvHtml", () => {
+describe("buildCvDocument", () => {
   it("disables the browser print header/footer (date, title, URL, page number)", () => {
     // Without `@page{margin:0}` Chrome/Edge draw a system header (document title + date) and
     // footer (URL + page number) on EVERY printed page — exactly what a user complained about
     // ("Michael Voloshin.pdf ... date and author at the top of every page"). These elements
     // render in the page margins reserved for printing, so `margin:0` leaves no room for them;
     // we set our own spacing from the paper edge via `padding` on body instead.
-    const html = buildCvHtml(BASE_DOC);
-    expect(html).toContain("@page{margin:0}");
-    expect(html).toMatch(/@media print\{body\{margin:0;max-width:none;padding:14mm 12mm\}\}/);
+    const { css } = buildCvDocument(BASE_DOC);
+    expect(css).toContain("@page{margin:0}");
+    expect(css).toMatch(/@media print\{body\{margin:0;max-width:none;padding:14mm 12mm\}\}/);
+  });
+
+  it("keeps the stylesheet OUT of the markup, so the app's CSP can't strip it", () => {
+    // Every consumer renders this into a srcdoc iframe or a window.open() popup, and those
+    // inherit the app's CSP — whose style-src-elem has no 'unsafe-inline' (server/src/app.ts).
+    // An inline <style> here is silently dropped in production and the CV renders as unstyled
+    // Times New Roman (the preview, the public share page and the exported PDF all did). The
+    // CSS is applied via applyCvCss/CSSOM instead; putting it back inline would regress that.
+    const { html, css } = buildCvDocument(BASE_DOC);
+    expect(html).not.toContain("<style");
+    expect(css).toContain("body{font-family:");
   });
 
   it("escapes HTML-sensitive characters in user input", () => {
-    const html = buildCvHtml({ ...BASE_DOC, name: "<script>alert(1)</script>" });
+    const { html } = buildCvDocument({ ...BASE_DOC, name: "<script>alert(1)</script>" });
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).toContain("&lt;script&gt;");
   });
 
   it("uses the CV owner's name as the document title (for the default 'Save as PDF' filename)", () => {
-    const html = buildCvHtml(BASE_DOC);
+    const { html } = buildCvDocument(BASE_DOC);
     expect(html).toContain("<title>Michael Voloshyn</title>");
   });
 
   it("renders every template variant without throwing, each producing non-empty markup", () => {
     const templates: CvTheme["template"][] = ["classic", "compact", "academic", "twocol", "minimal", "sidebar", "timeline"];
     for (const template of templates) {
-      const html = buildCvHtml({ ...BASE_DOC, theme: { template, accent: "#4f46e5", font: "sans", scale: 1 } });
+      const { html } = buildCvDocument({ ...BASE_DOC, theme: { template, accent: "#4f46e5", font: "sans", scale: 1 } });
       expect(html).toContain(BASE_DOC.name);
     }
   });
 
   it("tags sections and each experience entry with data-section, for the interactive preview → editor click sync", () => {
-    const html = buildCvHtml({
+    const { html } = buildCvDocument({
       ...BASE_DOC,
       experience: [
         { role: "Dev", company: "Acme", period: "2022—now", bullets: ["Shipped X"] },
@@ -68,7 +79,7 @@ describe("buildCvHtml", () => {
   };
 
   it("renders awards/publications/volunteer/references content and tags them with data-section", () => {
-    const html = buildCvHtml(WITH_NEW_SECTIONS);
+    const { html } = buildCvDocument(WITH_NEW_SECTIONS);
     expect(html).toContain("Employee of the Year");
     expect(html).toContain("Scaling Postgres");
     expect(html).toContain("Mentor");
@@ -85,13 +96,13 @@ describe("buildCvHtml", () => {
   it("renders every template variant with the new sections populated, without throwing", () => {
     const templates: CvTheme["template"][] = ["classic", "compact", "academic", "twocol", "minimal", "sidebar", "timeline"];
     for (const template of templates) {
-      const html = buildCvHtml({ ...WITH_NEW_SECTIONS, theme: { template, accent: "#4f46e5", font: "sans", scale: 1 } });
+      const { html } = buildCvDocument({ ...WITH_NEW_SECTIONS, theme: { template, accent: "#4f46e5", font: "sans", scale: 1 } });
       expect(html).toContain("Employee of the Year");
     }
   });
 
   it("uses English section headers for a Latin/English CV", () => {
-    const html = buildCvHtml(WITH_NEW_SECTIONS);
+    const { html } = buildCvDocument(WITH_NEW_SECTIONS);
     expect(html).toContain("<h2>Awards</h2>");
     expect(html).toContain("<h2>Publications</h2>");
     expect(html).toContain("<h2>Volunteer Experience</h2>");
@@ -100,7 +111,7 @@ describe("buildCvHtml", () => {
   });
 
   it("switches section headers to Ukrainian for a majority-Cyrillic CV, without an explicit language field", () => {
-    const html = buildCvHtml({
+    const { html } = buildCvDocument({
       ...BASE_DOC,
       title: "Розробник",
       summary: "Досвідчений розробник з великим досвідом роботи над складними проєктами.",
@@ -123,7 +134,7 @@ describe("themeOf", () => {
     expect(theme.template).toBe("sidebar");
     expect(theme.accent).toBe("#0f766e");
     // Untouched fields still come from the defaults rather than becoming undefined — the whole
-    // point of this helper, since every consumer (buildCvHtml, AppearancePanel) reads them
+    // point of this helper, since every consumer (buildCvDocument, AppearancePanel) reads them
     // unconditionally and a stored doc predating a new field simply won't have it.
     expect(theme.font).toBe(DEFAULT_THEME.font);
     expect(theme.scale).toBe(DEFAULT_THEME.scale);
