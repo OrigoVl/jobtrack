@@ -578,7 +578,11 @@ function Shell() {
 
       {/* Mobile top bar — identity and global switches only. The navigation itself moved to the
           bottom bar (app/mobile-nav.tsx), where a thumb can actually reach it. */}
-      <div className="flex-1 min-w-0">
+      {/* The "show sidebar" button above is `fixed`, so it's out of flow and would sit ON TOP of
+          whatever the page renders in its top-left corner (a SectionTabs tab, a PageHeader title).
+          Reserving a narrow rail's worth of left padding while collapsed keeps it clear of the
+          content — the freed width is still reclaimed by <main>'s wider max-w below. */}
+      <div className={`flex-1 min-w-0 ${sidebarCollapsed ? "lg:pl-14" : ""}`}>
         <header className="lg:hidden sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-grid">
           <div className="px-4 py-3 flex items-center gap-3">
             <Wordmark size="sm" />
