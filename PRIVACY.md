@@ -38,14 +38,15 @@ subscription. **We never see or store your card number or other payment details*
 collects and processes those directly; we only receive the identifiers above and status updates
 (e.g. "payment succeeded," "subscription renewed").
 
-**Contact enrichment data.** If you use the contact-enrichment search (Contacts page), the company
-name/domain and, optionally, a person's name you search for is sent to whichever third-party
-provider(s) are configured (Hunter.io, Apollo.io, Snov.io); results (a business contact's name,
-job title, work email, and LinkedIn URL) are cached on our servers for up to 7 days to avoid
-repeat paid lookups, and are stored longer only if you explicitly save a result as a Contact. This
-data concerns people who have not directly interacted with the Service — we only use it for the
-professional-outreach purpose you searched for, and our sub-processor table (Section 3) lists
-which providers see your search terms.
+**Contact details you extract.** The Service can read the contact details a job posting or an
+email signature already states (a name, job title, work email, Telegram handle or LinkedIn URL)
+out of text YOU provide — a posting you saved, or something you pasted. We never look these up in
+any third-party people database, and we never guess an address: only values written in your own
+text are returned. If an AI provider is configured, that text is sent to it for this (Section 3);
+otherwise the extraction runs entirely on our servers. Results are not cached — they are stored
+only if you explicitly save one as a Contact, and then they are your content. This data concerns
+people who have not directly interacted with the Service, and we use it only for the professional
+outreach you are preparing.
 
 **Usage/product analytics.** Which features you use and when (e.g. that you ran a job search),
 aggregated for product improvement. We do not sell this data or use it for advertising — we don't
@@ -60,8 +61,8 @@ headers) automatically redacted before being sent.
 - **Contract necessity** — account data, your content, and payment status: we can't provide the
   Service without them.
 - **Legitimate interest** — technical/error data, rate-limiting, abuse prevention, and contact
-  enrichment (processing a business contact's professional details you searched for, for the
-  purpose of legitimate job-search outreach; you can restrict/object to this per Section 5).
+  details you extract from your own text (processing a business contact's professional details for
+  the purpose of legitimate job-search outreach; you can restrict/object to this per Section 5).
 - **Consent** — nothing beyond the above currently requires separate consent; if that changes
   (e.g. marketing emails), we'll ask explicitly and let you opt out at any time.
 
@@ -70,7 +71,6 @@ headers) automatically redacted before being sent.
 | Who | What they receive | Why |
 |---|---|---|
 | **[OpenAI / Anthropic — whichever is configured]** | The text you submit to an AI feature (CV text, job posting text, your prompt) | To generate the AI response you requested (CV review, cover letter, mock interview scoring, etc.) |
-| **Hunter.io / Apollo.io / Snov.io (if configured)** | The company name/domain, and optionally a person's name, you search for on the Contacts page | To return publicly-listed business contact details (name, work email, title, LinkedIn URL) for professional outreach — only providers we've actually configured a key for are queried |
 | **LinkedIn** | Your name, email, and profile photo, only if you choose "Continue with LinkedIn" | Signing you in — we never receive your work history, skills, or connections |
 | **Stripe** | Your email address, and (directly from you, never through us) your payment details, if you subscribe to a paid plan | Processing payments and managing your subscription — Stripe is PCI-compliant; we never see your card details |
 | **Resend** | Your email address | Sending verification, password-reset, account-deletion-confirmation, and digest emails |
@@ -97,9 +97,7 @@ and applicable financial-recordkeeping law, independent of this deletion. We don
 Error logs and usage/product analytics are retained for [90 / 180 days — CONFIRM RETENTION
 POLICY] for debugging and product-improvement purposes, then aggregated or discarded.
 
-Contact-enrichment search results are cached for 7 days to avoid repeat paid lookups, then
-automatically expire — shorter than other caches because it holds a third party's personal data,
-not your own. A result only persists longer if you explicitly save it as a Contact, at which point
+Extracted contact details are not stored at all unless you save one as a Contact, at which point
 it's your content and follows the same retention as the rest of your account (Section 4, first
 paragraph).
 

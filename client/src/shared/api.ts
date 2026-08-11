@@ -35,8 +35,6 @@ import type {
   DigestPreferences,
   Drill,
   DrillArchiveEntry,
-  EnrichmentQueryInput,
-  EnrichmentResult,
   PostingContact,
   FetchAllJobState,
   FocusWeek,
@@ -330,15 +328,8 @@ export const api = {
   deleteContact: (id: number) => req<{ ok: boolean; deleted: number }>(`/contacts/${id}`, { method: "DELETE" }),
   contactOutreach: (id: number, kind: "intro" | "followup") =>
     req<OutreachResult>(`/contacts/${id}/outreach`, { method: "POST", body: JSON.stringify({ kind }) }),
-  enrichContacts: (q: EnrichmentQueryInput) => req<EnrichmentResult>("/contacts/enrich", { method: "POST", body: JSON.stringify(q) }),
   extractPostingContacts: (input: { vacancyId?: number; text?: string }) =>
     req<{ contacts: PostingContact[] }>("/contacts/extract", { method: "POST", body: JSON.stringify(input) }),
-  revealContactEmail: (provider: string, revealId: string) =>
-    req<{ email: string; emailStatus: "verified" | "locked" }>("/contacts/enrich/reveal", {
-      method: "POST",
-      body: JSON.stringify({ provider, revealId }),
-    }),
-
   cvShare: (profileId: number) => req<CvShare | null>(`/cv/profiles/${profileId}/share`),
   generateCvShare: (profileId: number) => req<CvShare>(`/cv/profiles/${profileId}/share`, { method: "POST" }),
   setCvShareEnabled: (profileId: number, enabled: boolean) =>

@@ -12,10 +12,10 @@
 //    the prompt-injection case where the posting text itself instructs the model to emit some
 //    other address.
 // 2. NOT CACHED. chat()'s `cache` option defaults to false and is deliberately left off: a hit
-//    would put a named recruiter's address into llm_cache, whose TTL is 90 days. The 7-day TTL on
-//    enrichment_cache exists precisely because that table holds third-party personal data (see
-//    db/enrichment-cache.ts) — routing the same class of data through the 90-day cache would
-//    quietly undo that reasoning. Extraction is cheap and runs once per vacancy on demand.
+//    would put a named recruiter's address into llm_cache, whose TTL is 90 days. Third-party
+//    personal data does not belong in a 90-day cache (the retired enrichment cache held exactly
+//    this class of data at 7 days for that reason — see db/schema/app.ts#enrichmentCache), and
+//    extraction is cheap and runs once per vacancy on demand, so there is nothing to buy here.
 import { z } from "zod";
 import { chatJson, llmAvailable, quoteUntrustedText } from "../../../llm/index.js";
 import type { UserId } from "../../../db/user-id.js";

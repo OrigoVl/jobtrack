@@ -329,35 +329,6 @@ export function parseContactInput(body: unknown, { partial = false }: { partial?
   return out;
 }
 
-// Default recruiter/hiring-contact titles used when the caller doesn't pass any — see
-// modules/contacts/enrichment/enrichment-providers.ts's EnrichmentQuery for the shape this feeds.
-const DEFAULT_ENRICHMENT_TITLES = ["recruiter", "talent acquisition", "technical recruiter", "hr"];
-const MAX_ENRICHMENT_TITLES = 5;
-
-export interface EnrichmentQuery {
-  companyName: string;
-  domain: string;
-  titles: string[];
-  personName: string;
-  limit: number;
-}
-
-/** POST /contacts/enrich body — see modules/contacts/enrichment/enrichment.service.ts's
- * enrichContacts(). `domain` accepts a full URL/bare host/email the same way CompanyInput.website
- * does (normalized via toDomain()); resolving a domain from a linked company's own `website` is
- * contacts.routes.ts's job (needs a DB lookup), not this pure parsing layer. */
-export function parseEnrichmentQuery(body: unknown): EnrichmentQuery {
-  const b = (body || {}) as Record<string, unknown>;
-  const companyName = asString(b.companyName).trim().slice(0, 200);
-  const domain = toDomain(asString(b.domain));
-  const rawTitles = toStringArray(b.titles, "titles").slice(0, MAX_ENRICHMENT_TITLES);
-  const titles = rawTitles.length ? rawTitles : DEFAULT_ENRICHMENT_TITLES;
-  const personName = asString(b.personName).trim().slice(0, 200);
-  const rawLimit = Number(b.limit);
-  const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(25, Math.floor(rawLimit))) : 10;
-  return { companyName, domain, titles, personName, limit };
-}
-
 export interface PostingContactsInput {
   /** Which tracked vacancy's own text to read. 0 = none given. */
   vacancyId: number;

@@ -8,7 +8,6 @@ import {
   parseInterviewTurnInput,
   parseCompanyInput,
   parseContactInput,
-  parseEnrichmentQuery,
   parsePostingContactsInput,
   parsePagination,
   parseDesignGenerateTaskInput,
@@ -292,36 +291,6 @@ describe("parsePostingContactsInput", () => {
 
   it("caps pasted text so an LLM endpoint can't be fed a novel", () => {
     expect(parsePostingContactsInput({ text: "x".repeat(60000) }).text).toHaveLength(40000);
-  });
-});
-
-describe("parseEnrichmentQuery", () => {
-  it("defaults titles to the recruiter/HR set when none are passed", () => {
-    const out = parseEnrichmentQuery({ companyName: "Acme" });
-    expect(out.titles).toEqual(["recruiter", "talent acquisition", "technical recruiter", "hr"]);
-  });
-
-  it("uses the caller's titles (capped at 5) when passed", () => {
-    const out = parseEnrichmentQuery({ companyName: "Acme", titles: ["a", "b", "c", "d", "e", "f"] });
-    expect(out.titles).toEqual(["a", "b", "c", "d", "e"]);
-  });
-
-  it("normalizes domain via toDomain()", () => {
-    const out = parseEnrichmentQuery({ domain: "https://www.acme.com/careers" });
-    expect(out.domain).toBe("acme.com");
-  });
-
-  it("defaults limit to 10 and clamps to 1..25", () => {
-    expect(parseEnrichmentQuery({}).limit).toBe(10);
-    expect(parseEnrichmentQuery({ limit: 0 }).limit).toBe(1);
-    expect(parseEnrichmentQuery({ limit: 999 }).limit).toBe(25);
-    expect(parseEnrichmentQuery({ limit: 5 }).limit).toBe(5);
-  });
-
-  it("trims and caps companyName/personName", () => {
-    const out = parseEnrichmentQuery({ companyName: "  Acme  ", personName: "  Jane Doe  " });
-    expect(out.companyName).toBe("Acme");
-    expect(out.personName).toBe("Jane Doe");
   });
 });
 

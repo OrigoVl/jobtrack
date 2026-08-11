@@ -217,16 +217,19 @@ export const llmCache = pgTable(
   (t) => [index("llm_cache_created_at_idx").on(t.createdAt)],
 );
 
-// Contact-enrichment cache — deliberately a SEPARATE table from `llm_cache` above, not a reuse of
-// it, even though the shape is identical: this cache holds third-party PERSONAL data (recruiter
-// names/emails/titles) fetched from paid enrichment APIs (Hunter.io/Apollo.io), which (1) needs a
-// much shorter TTL than llm_cache's 90 days — 7 days, since recruiters change jobs and GDPR
-// storage-limitation principles argue against holding third-party personal data indefinitely —
-// and (2) needs to be independently purgeable for a data-subject erasure request without touching
-// the unrelated LLM response cache. Deliberately GLOBAL (no user_id), same reasoning as
-// `llm_cache`: the key is a hash of the full, non-secret search input (domain + titles + provider
-// name), so identical input always yields the identical externally-public result — cross-tenant
-// sharing of a cache hit is safe by construction.
+// UNUSED as of the exact-only contacts switch — kept here only so the schema still describes what
+// the database actually contains. It cached third-party people-data lookups (Hunter.io/Apollo.io/
+// Snov.io); those providers are gone, and the replacement (modules/contacts/enrichment/
+// posting-contacts.ts) caches nothing at all, so nothing reads or writes this table any more.
+// Dropping it needs its own generated migration — a deliberate follow-up, not a drive-by, since a
+// deployed database still has the table and any rows left in it.
+//
+// The original reasoning, kept because it's the precedent to follow if a cache of third-party
+// personal data ever comes back: it was a SEPARATE table from `llm_cache` despite the identical
+// shape, because (1) it needed a much shorter TTL than llm_cache's 90 days — 7 days, since
+// recruiters change jobs and GDPR storage-limitation principles argue against holding third-party
+// personal data indefinitely — and (2) it needed to be independently purgeable for a data-subject
+// erasure request without touching the unrelated LLM response cache.
 export const enrichmentCache = pgTable(
   "enrichment_cache",
   {

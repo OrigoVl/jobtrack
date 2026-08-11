@@ -484,6 +484,13 @@ export interface CvTheme {
   showPhoto?: boolean;
   photoShape?: "circle" | "square";
   photoPos?: "left" | "right";
+  /** How the Skills section renders. "auto" (the default, and what every doc saved before this
+   * existed parses as) keeps the per-template behavior: an inline "A · B · C" line on the
+   * text-dense templates, chips everywhere else. */
+  skillsStyle?: "auto" | "chips" | "inline" | "list";
+  /** Chip looks — only meaningful while the skills render AS chips. */
+  skillChipShape?: "pill" | "rounded" | "square";
+  skillChipFill?: "tint" | "outline" | "solid";
 }
 
 export interface CvPreset {
@@ -779,42 +786,6 @@ export interface PostingContact {
   title: string;
   channel: PostingContactChannel;
   value: string;
-}
-
-export interface EnrichmentQueryInput {
-  companyId?: number;
-  companyName: string;
-  domain?: string;
-  titles?: string[];
-  personName?: string;
-  limit?: number;
-}
-
-export interface EnrichedPerson {
-  name: string;
-  title: string;
-  /** "" if locked/not returned. */
-  email: string;
-  emailStatus: "verified" | "unverified" | "guessed" | "locked";
-  /** "" if absent. */
-  linkedinUrl: string;
-  companyName: string;
-  /** Provider display name, e.g. "Hunter.io", "Pattern guess" — attribution, never translate. */
-  source: string;
-  /** 0..100 */
-  confidence: number;
-  /** Non-"" only for Apollo rows with emailStatus "locked" — pass to the reveal endpoint. */
-  revealId: string;
-}
-
-export interface EnrichmentResult {
-  query: { companyName: string; domain: string; titles: string[] };
-  results: EnrichedPerson[];
-  providers: { name: string; used: boolean; cached: boolean; count: number }[];
-  /** true = only the keyless pattern-guess fallback contributed. */
-  offline: boolean;
-  /** true = daily paid-lookup cap hit today, keyed providers were skipped. */
-  budgetExhausted: boolean;
 }
 
 export interface CvShare {

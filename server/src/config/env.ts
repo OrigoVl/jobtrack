@@ -162,25 +162,6 @@ const RawEnvSchema = z
     // "Continue with LinkedIn" button and only email+password/Google (if configured) is offered.
     LINKEDIN_CLIENT_ID: z.string().trim().min(1).optional(),
     LINKEDIN_CLIENT_SECRET: z.string().trim().min(1).optional(),
-
-    // Contact enrichment (optional): third-party people-data providers for recruiter/hiring-
-    // contact lookups (modules/contacts/enrichment/). OPERATOR-HELD keys, not per-user BYO — see
-    // enrichment-providers.ts's top-of-file comment for the ToS/redistribution caveat this
-    // implies. Absent — which is the standing choice, not an oversight — no provider runs at all
-    // and contact discovery is served entirely by modules/contacts/enrichment/posting-contacts.ts,
-    // which extracts only what a posting itself states. There is deliberately no guessing fallback
-    // behind these keys any more.
-    HUNTER_API_KEY: z.string().trim().min(1).optional(),
-    APOLLO_API_KEY: z.string().trim().min(1).optional(),
-    // Snov.io uses OAuth2 client-credentials (client id + secret), not a single API key — both or
-    // neither, enforced below (same shape as the GOOGLE_CLIENT_ID/LINKEDIN_CLIENT_ID pairing).
-    SNOV_CLIENT_ID: z.string().trim().min(1).optional(),
-    SNOV_CLIENT_SECRET: z.string().trim().min(1).optional(),
-    // Daily cap (per user, UTC calendar day) on paid enrichment provider calls — 0 disables it.
-    // Backed by product_events rows named "contact_enrich_paid" (telemetry/telemetry.repo.ts);
-    // once hit, further /contacts/enrich calls that day return nothing — every provider is paid,
-    // so there is no free one left to fall back to.
-    CONTACT_ENRICH_DAILY_LOOKUPS: z.coerce.number().int().nonnegative().default(25),
   })
   .superRefine((v, ctx) => {
     if (v.NODE_ENV === "production" && !v.DATABASE_URL) {
@@ -201,13 +182,6 @@ const RawEnvSchema = z
         code: "custom",
         path: ["LINKEDIN_CLIENT_ID"],
         message: "LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET must both be set, or both left unset",
-      });
-    }
-    if (!!v.SNOV_CLIENT_ID !== !!v.SNOV_CLIENT_SECRET) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["SNOV_CLIENT_ID"],
-        message: "SNOV_CLIENT_ID and SNOV_CLIENT_SECRET must both be set, or both left unset",
       });
     }
     if (!!v.TELEGRAM_BOT_TOKEN !== !!v.TELEGRAM_BOT_USERNAME) {
@@ -359,19 +333,6 @@ export const env = {
     // all (instead of "half-enabled and always broken"), and the warning below explains why.
     get isAvailable(): boolean {
       return env.llm.provider === "anthropic" ? !!env.llm.anthropicApiKey : !!env.llm.openaiApiKey;
-    },
-  },
-
-  enrichment: {
-    hunterApiKey: raw.HUNTER_API_KEY,
-    apolloApiKey: raw.APOLLO_API_KEY,
-    snov: raw.SNOV_CLIENT_ID && raw.SNOV_CLIENT_SECRET ? { clientId: raw.SNOV_CLIENT_ID, clientSecret: raw.SNOV_CLIENT_SECRET } : undefined,
-    dailyLookups: raw.CONTACT_ENRICH_DAILY_LOOKUPS,
-    // True as soon as ANY keyed provider is configured — modules/contacts/enrichment's own
-    // per-provider isAvailable() is what actually gates each individual provider; this is just
-    // the coarse "is the feature at all more than the keyless fallback" flag.
-    get isAvailable(): boolean {
-      return !!env.enrichment.hunterApiKey || !!env.enrichment.apolloApiKey || !!env.enrichment.snov;
     },
   },
 } as const;
