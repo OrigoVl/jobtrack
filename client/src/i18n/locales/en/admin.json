@@ -90,8 +90,7 @@
     "planMix": "Plan mix",
     "estimatedMrr": "Estimated MRR ({{days}}d)",
     "estimatedMrrHint": "count of active paid subscriptions × the current Pro price — a display estimate, not reconciled against Stripe",
-    "quotaExceeded": "Free quota hit ({{days}}d)",
-    "budgetExceeded": "Daily cost cap hit ({{days}}d)"
+    "quotaExceeded": "Free quota hit ({{days}}d)"
   },
   "logs": {
     "empty": {

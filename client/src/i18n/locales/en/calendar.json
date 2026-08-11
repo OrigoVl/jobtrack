@@ -25,8 +25,6 @@
     "hint": "Add an event, or check back once a vacancy step or SRS review is due."
   },
   "nextStep": "Next step",
-  "goToVacancies": "→ Vacancies",
-  "goToStudy": "→ Study",
   "flashcardsDue_one": "{{count}} flashcard due for review",
   "flashcardsDue_other": "{{count}} flashcards due for review",
   "untitledEvent": "Untitled event",

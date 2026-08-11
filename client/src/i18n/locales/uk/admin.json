@@ -90,8 +90,7 @@
     "planMix": "Розподіл за тарифами",
     "estimatedMrr": "Орієнтовний MRR ({{days}} дн)",
     "estimatedMrrHint": "кількість активних платних підписок × поточна ціна Pro — орієнтовна оцінка, не звірена зі Stripe",
-    "quotaExceeded": "Досягнуто Free-квоту ({{days}} дн)",
-    "budgetExceeded": "Досягнуто денний ліміт витрат ({{days}} дн)"
+    "quotaExceeded": "Досягнуто Free-квоту ({{days}} дн)"
   },
   "logs": {
     "empty": {

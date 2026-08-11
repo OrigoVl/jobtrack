@@ -37,12 +37,10 @@
     },
     "autosave": {
       "saved": "All changes saved",
-      "unsavedWarning": "Your CV has unsaved changes. Continue?",
       "unsaved": "Unsaved changes"
     },
     "profiles": {
       "unnamed": "Untitled CV",
-      "renameHint": "Double-click to rename",
       "switcherAria": "Current CV: {{name}} — switch or manage",
       "rename": "Rename",
       "duplicate": "Duplicate",

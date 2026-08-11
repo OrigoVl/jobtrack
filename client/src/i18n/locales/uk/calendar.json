@@ -27,8 +27,6 @@
     "hint": "Додай подію, або зазирни пізніше, коли настане крок вакансії чи повторення SRS."
   },
   "nextStep": "Наступний крок",
-  "goToVacancies": "→ Вакансії",
-  "goToStudy": "→ Практика",
   "flashcardsDue_one": "{{count}} картка на повторення",
   "flashcardsDue_few": "{{count}} картки на повторення",
   "flashcardsDue_many": "{{count}} карток на повторення",
