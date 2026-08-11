@@ -102,7 +102,7 @@ r.post(
   }),
 );
 
-// ---------- contact enrichment (Hunter.io/Apollo.io/Snov.io + keyless pattern-guess fallback) ----------
+// ---------- contact enrichment (Hunter.io/Apollo.io/Snov.io — all keyed, none configured by default) ----------
 r.post(
   "/contacts/enrich",
   aiLimiter,

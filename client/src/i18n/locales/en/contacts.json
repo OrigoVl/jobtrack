@@ -44,32 +44,6 @@
     "copy": "Copy",
     "copied": "Copied"
   },
-  "enrich": {
-    "toggleLabel": "Find contacts",
-    "companyLabel": "Company",
-    "freeformOption": "— freeform —",
-    "companyNamePlaceholder": "Company name",
-    "domainLabel": "Domain (optional)",
-    "domainPlaceholder": "e.g. acme.com",
-    "personNameLabel": "Targeting a specific person? (optional)",
-    "personNamePlaceholder": "e.g. Jane Doe",
-    "search": "Search",
-    "searching": "Searching…",
-    "noResults": "No contacts found",
-    "offlineNotice": "Only pattern-based guesses — no enrichment provider configured or all returned nothing",
-    "budgetExhaustedNotice": "Daily lookup limit reached — some providers were skipped today",
-    "saveAsContact": "Save as contact",
-    "saved": "Saved",
-    "revealEmail": "Reveal email",
-    "revealing": "Revealing…",
-    "privacyNote": "Business contact details from third-party providers, for professional outreach only.",
-    "emailStatus": {
-      "verified": "Verified",
-      "unverified": "Unverified",
-      "guessed": "Guessed",
-      "locked": "Locked"
-    }
-  },
   "posting": {
     "findInPosting": "Find contacts in the posting",
     "findInPasted": "Find contacts",
@@ -84,5 +58,12 @@
       "telegram": "Telegram",
       "linkedin": "LinkedIn"
     }
+  },
+  "signature": {
+    "toggle": "Paste an email signature",
+    "title": "Paste an email signature",
+    "placeholder": "Paste the signature from a recruiter's email — name, title, address, Telegram or LinkedIn",
+    "action": "Fill the form",
+    "none": "No contact details found in this text"
   }
 }

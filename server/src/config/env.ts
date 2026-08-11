@@ -166,9 +166,10 @@ const RawEnvSchema = z
     // Contact enrichment (optional): third-party people-data providers for recruiter/hiring-
     // contact lookups (modules/contacts/enrichment/). OPERATOR-HELD keys, not per-user BYO — see
     // enrichment-providers.ts's top-of-file comment for the ToS/redistribution caveat this
-    // implies. Absent → the feature degrades to the keyless PATTERN_GUESS provider (email-pattern
-    // guessing + a LinkedIn search deep link), same graceful-offline-fallback shape as the LLM
-    // keys above.
+    // implies. Absent — which is the standing choice, not an oversight — no provider runs at all
+    // and contact discovery is served entirely by modules/contacts/enrichment/posting-contacts.ts,
+    // which extracts only what a posting itself states. There is deliberately no guessing fallback
+    // behind these keys any more.
     HUNTER_API_KEY: z.string().trim().min(1).optional(),
     APOLLO_API_KEY: z.string().trim().min(1).optional(),
     // Snov.io uses OAuth2 client-credentials (client id + secret), not a single API key — both or
@@ -177,8 +178,8 @@ const RawEnvSchema = z
     SNOV_CLIENT_SECRET: z.string().trim().min(1).optional(),
     // Daily cap (per user, UTC calendar day) on paid enrichment provider calls — 0 disables it.
     // Backed by product_events rows named "contact_enrich_paid" (telemetry/telemetry.repo.ts);
-    // once hit, further /contacts/enrich calls that day still run, just without the keyed
-    // providers (the keyless pattern-guess fallback keeps working).
+    // once hit, further /contacts/enrich calls that day return nothing — every provider is paid,
+    // so there is no free one left to fall back to.
     CONTACT_ENRICH_DAILY_LOOKUPS: z.coerce.number().int().nonnegative().default(25),
   })
   .superRefine((v, ctx) => {

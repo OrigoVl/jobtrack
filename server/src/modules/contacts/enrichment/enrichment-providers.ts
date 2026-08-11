@@ -12,7 +12,6 @@
 import { HUNTER } from "./providers/hunter.js";
 import { APOLLO } from "./providers/apollo.js";
 import { SNOV } from "./providers/snov.js";
-import { PATTERN_GUESS } from "./providers/pattern-guess.js";
 
 export interface EnrichmentQuery {
   companyName: string;
@@ -44,12 +43,16 @@ export interface EnrichmentProvider {
   reveal?(revealId: string): Promise<{ email: string; emailStatus: EnrichedPerson["emailStatus"] }>;
 }
 
-// Order is load-bearing, not cosmetic (same reasoning as job-sources.ts's JOB_SOURCES): the
-// dedupe walk in enrichment.service.ts keys on (linkedinUrl || email || "name|title").toLowerCase()
-// and keeps the FIRST provider to contribute a given person, so this order encodes which provider
-// "wins" a duplicate. Hunter/Apollo/Snov (real paid data) come first; PATTERN_GUESS (the keyless,
-// deterministic fallback) MUST stay last so a real result always beats a guess.
-export const ENRICHMENT_PROVIDERS: EnrichmentProvider[] = [HUNTER, APOLLO, SNOV, PATTERN_GUESS];
+// Order is load-bearing, not cosmetic (same reasoning as job-sources.ts's JOB_SOURCES): the dedupe
+// walk in enrichment.service.ts keeps the FIRST provider to contribute a given person, so this
+// order encodes which provider "wins" a duplicate.
+//
+// Every entry is a paid, keyed provider, so with no key configured — the default, and this app's
+// deliberate standing choice — this registry contributes nothing at all. That is not a degraded
+// mode to fix: exact contacts come from posting-contacts.ts, which reads what a posting itself
+// states. The keyless email-pattern guesser that used to sit at the end of this list was removed
+// along with the rest of the guessing.
+export const ENRICHMENT_PROVIDERS: EnrichmentProvider[] = [HUNTER, APOLLO, SNOV];
 
 export function activeProviders(q: EnrichmentQuery): EnrichmentProvider[] {
   return ENRICHMENT_PROVIDERS.filter((p) => p.isAvailable() && (p.requires === "companyName" || !!q.domain));

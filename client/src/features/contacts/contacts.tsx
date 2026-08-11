@@ -13,7 +13,7 @@ import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, SearchSelect, S
 import { useConfirm } from "../../shared/use-confirm";
 import { DateInput } from "../../shared/date-input";
 import type { Contact, ContactInput, OutreachResult } from "../../shared/types";
-import { ContactEnrichmentPanel } from "./contact-enrichment";
+import { SignaturePaste } from "./signature-paste";
 
 /** Draft an AI outreach/follow-up message for a contact (POST /contacts/:id/outreach) and let the
  * user copy it — mirrors LinkedInOptimizerCard's generate+copy shape, scoped to one contact card
@@ -220,6 +220,7 @@ export function Contacts() {
   const updateMutation = useUpdateContact();
   const deleteMutation = useDeleteContact();
   const [modal, setModal] = useState<{ editingId: number | null; draft: ContactInput } | null>(null);
+  const [signatureOpen, setSignatureOpen] = useState(false);
 
   const companyName = (id: number | null) => (id ? (companies.find((c) => c.id === id)?.name ?? "—") : "—");
   const linkedVacancy = (id: number | null) => (id ? vacancies.find((v) => v.id === id) : undefined);
@@ -261,10 +262,26 @@ export function Contacts() {
         eyebrow={t("eyebrow")}
         title={t("title")}
         subtitle={t("subtitle")}
-        actions={<Btn onClick={openNew}>{t("addContact")}</Btn>}
+        actions={
+          <div className="flex items-center gap-1.5">
+            <Btn variant="ghost" onClick={() => setSignatureOpen((v) => !v)}>
+              {t("signature.toggle")}
+            </Btn>
+            <Btn onClick={openNew}>{t("addContact")}</Btn>
+          </div>
+        }
       />
 
-      <ContactEnrichmentPanel />
+      {signatureOpen && (
+        <SignaturePaste
+          baseDraft={EMPTY_DRAFT}
+          onClose={() => setSignatureOpen(false)}
+          onDraft={(draft) => {
+            setSignatureOpen(false);
+            setModal({ editingId: null, draft });
+          }}
+        />
+      )}
 
       {!contacts || contacts.length === 0 ? (
         <Card>

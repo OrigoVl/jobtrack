@@ -16,17 +16,16 @@ import {
   type EnrichmentProvider,
   type EnrichmentQuery,
 } from "./enrichment-providers.js";
-import { PATTERN_GUESS } from "./providers/pattern-guess.js";
 
 export interface EnrichmentResult {
   query: { companyName: string; domain: string; titles: string[] };
   results: EnrichedPerson[];
   providers: { name: string; used: boolean; cached: boolean; count: number }[];
-  /** true when NO keyed provider actually contributed a result this call (only pattern-guess did) —
-   * either because no provider is configured, or every configured provider returned nothing. */
+  /** true when no provider contributed a result this call — either none is configured (the
+   * default: this app ships with no enrichment key), or every configured one returned nothing. */
   offline: boolean;
-  /** true when today's per-user paid-lookup cap (env.enrichment.dailyLookups) blocked the keyed
-   * providers from even being tried this call — pattern-guess still ran. */
+  /** true when today's per-user paid-lookup cap (env.enrichment.dailyLookups) blocked every
+   * provider from being tried this call. */
   budgetExhausted: boolean;
 }
 
@@ -34,11 +33,9 @@ const PAID_LOOKUP_EVENT = "contact_enrich_paid";
 const MAX_TITLES = 5;
 
 /** Dedupe identity for one result row, most-to-least specific: LinkedIn profile → email →
- * name|title. A LinkedIn *search* deep link (what pattern-guess returns when it has no profile to
- * point at) describes a QUERY, not a person, so it can't act as an identity — every guessed
- * address for the same person carries the identical search URL, and keying on it collapsed all of
- * them into a single row. It stays as the last-resort key so the keyless "company only" fallback
- * row, which has nothing else, still survives the walk. */
+ * name|title. A LinkedIn *search* deep link describes a QUERY, not a person, so it never counts as
+ * an identity until nothing else can speak — several rows can legitimately share one search URL,
+ * and keying on it collapsed them into a single row back when the keyless fallback emitted those. */
 function identityKey(person: EnrichedPerson): string {
   const profileUrl = person.linkedinUrl.includes("/search/") ? "" : person.linkedinUrl;
   const nameTitle = person.name || person.title ? `${person.name}|${person.title}` : "";
@@ -71,10 +68,10 @@ export async function enrichContacts(userId: UserId, rawQuery: EnrichmentQuery):
     budgetExhausted = usedToday >= dailyCap;
   }
 
-  const candidates = activeProviders(q);
-  // Budget exhausted → skip every keyed provider entirely this call (still run pattern-guess, the
-  // zero-cost fallback).
-  const providersToRun = budgetExhausted ? candidates.filter((p) => p === PATTERN_GUESS) : candidates;
+  // Every remaining provider is a paid, keyed one — the keyless pattern-guess fallback was removed
+  // along with the rest of the guessing (posting-contacts.ts is the exact-only replacement), so a
+  // spent budget now means nothing runs at all rather than "the free one still does".
+  const providersToRun = budgetExhausted ? [] : activeProviders(q);
 
   const cacheKeyByProvider = new Map<EnrichmentProvider, string>(providersToRun.map((p) => [p, cacheKeyFor(p, q)]));
 
@@ -87,26 +84,19 @@ export async function enrichContacts(userId: UserId, rawQuery: EnrichmentQuery):
   const fetchedResults = await Promise.all(toFetch.map((p) => p.search(q)));
   const fetchedByProvider = new Map(toFetch.map((p, i) => [p, fetchedResults[i] ?? []]));
 
-  // Cache every non-empty freshly-fetched KEYED-provider result — never cache an empty array (a
-  // transient provider outage/rate-limit shouldn't get "frozen" as a 7-day-long false miss), and
-  // never cache pattern-guess (deterministic and free to recompute — caching it would only add DB
-  // load for no benefit).
+  // Cache every non-empty freshly-fetched result — never an empty array, so a transient provider
+  // outage/rate-limit doesn't get "frozen" as a 7-day-long false miss.
   await Promise.all(
-    toFetch
-      .filter((p) => p !== PATTERN_GUESS)
-      .map(async (p) => {
-        const result = fetchedByProvider.get(p) ?? [];
-        if (result.length > 0) await setEnrichmentCache(cacheKeyByProvider.get(p)!, result);
-      }),
+    toFetch.map(async (p) => {
+      const result = fetchedByProvider.get(p) ?? [];
+      if (result.length > 0) await setEnrichmentCache(cacheKeyByProvider.get(p)!, result);
+    }),
   );
 
-  // One product event per KEYED provider that actually made a live call this request — not per
-  // cache hit, not for pattern-guess. This is exactly what countProductEventsToday() above counts
-  // toward the daily budget.
+  // One product event per provider that actually made a live call this request — not per cache
+  // hit. This is exactly what countProductEventsToday() above counts toward the daily budget.
   await Promise.all(
-    toFetch
-      .filter((p) => p !== PATTERN_GUESS)
-      .map((p) => insertProductEvent(userId, PAID_LOOKUP_EVENT, { provider: p.name, domain: q.domain, companyName: q.companyName })),
+    toFetch.map((p) => insertProductEvent(userId, PAID_LOOKUP_EVENT, { provider: p.name, domain: q.domain, companyName: q.companyName })),
   );
 
   function resultsFor(p: EnrichmentProvider): EnrichedPerson[] {
@@ -136,7 +126,7 @@ export async function enrichContacts(userId: UserId, rawQuery: EnrichmentQuery):
   merged.sort((a, b) => b.confidence - a.confidence);
   const results = merged.slice(0, q.limit);
 
-  const offline = !providerSummaries.some((s) => s.name !== PATTERN_GUESS.name && s.count > 0);
+  const offline = !providerSummaries.some((s) => s.count > 0);
 
   return {
     query: { companyName: q.companyName, domain: q.domain, titles: q.titles },

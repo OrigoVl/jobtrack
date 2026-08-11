@@ -1,8 +1,7 @@
 // Unit tests for the orchestration layer — enrichment-cache.js/telemetry.repo.js/config/env.js are
-// mocked wholesale (same approach as billing.service.test.ts), and the provider registry itself
-// is replaced with two synthetic "keyed" providers plus the REAL PATTERN_GUESS (imported for real,
-// not mocked, so enrichContacts()'s `p === PATTERN_GUESS` identity check still holds) — this lets
-// every test control exactly what each provider returns without touching a real network or DB.
+// mocked wholesale (same approach as billing.service.test.ts), and the provider registry is
+// replaced with two synthetic keyed providers, letting every test control exactly what each one
+// returns without touching a real network or DB.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BOOTSTRAP_USER_ID } from "../../../db/user-id.js";
 import type { EnrichedPerson, EnrichmentProvider } from "./enrichment-providers.js";
@@ -29,9 +28,8 @@ vi.mock("../../../telemetry/telemetry.repo.js", () => ({
   insertProductEvent: vi.fn(async () => undefined),
 }));
 
-vi.mock("./enrichment-providers.js", async () => {
-  const { PATTERN_GUESS } = await import("./providers/pattern-guess.js");
-  const providers: EnrichmentProvider[] = [FAKE_A, FAKE_B, PATTERN_GUESS];
+vi.mock("./enrichment-providers.js", () => {
+  const providers: EnrichmentProvider[] = [FAKE_A, FAKE_B];
   return {
     ENRICHMENT_PROVIDERS: providers,
     activeProviders: (q: { domain: string }) => providers.filter((p) => p.isAvailable() && (p.requires === "companyName" || !!q.domain)),
@@ -81,24 +79,6 @@ describe("enrichContacts()", () => {
     const dupResults = result.results.filter((r) => r.linkedinUrl === "https://linkedin.com/in/dup");
     expect(dupResults).toHaveLength(1);
     expect(dupResults[0]!.source).toBe("Fake A");
-  });
-
-  it("keeps every guessed address for one person — a LinkedIn SEARCH url is not an identity", async () => {
-    // pattern-guess stamps the same search deep link on all three of its guesses; keying dedupe on
-    // it collapsed them into a single row.
-    const { enrichContacts } = await import("./enrichment.service.js");
-    const result = await enrichContacts(BOOTSTRAP_USER_ID, { ...BASE_QUERY, personName: "Jane Doe" });
-
-    const guessed = result.results.filter((r) => r.source === "Pattern guess");
-    expect(guessed).toHaveLength(3);
-    expect(new Set(guessed.map((r) => r.email)).size).toBe(3);
-  });
-
-  it("still keeps the keyless fallback row, whose search url is all the identity it has", async () => {
-    const { enrichContacts } = await import("./enrichment.service.js");
-    const result = await enrichContacts(BOOTSTRAP_USER_ID, { ...BASE_QUERY, domain: "" });
-
-    expect(result.results.filter((r) => r.source === "Pattern guess")).toHaveLength(1);
   });
 
   it("sorts merged results by confidence descending and slices to the query limit", async () => {
@@ -156,45 +136,6 @@ describe("enrichContacts()", () => {
     expect(cache.setEnrichmentCache).toHaveBeenCalledWith(expect.any(String), [person()]);
   });
 
-  it("fires one product event per keyed provider that actually ran a live search, never for pattern-guess", async () => {
-    fakeASearch.mockResolvedValue([person()]);
-    fakeBSearch.mockResolvedValue([]);
-    const telemetry = await import("../../../telemetry/telemetry.repo.js");
-
-    const { enrichContacts } = await import("./enrichment.service.js");
-    await enrichContacts(BOOTSTRAP_USER_ID, BASE_QUERY);
-
-    expect(telemetry.insertProductEvent).toHaveBeenCalledWith(
-      BOOTSTRAP_USER_ID,
-      "contact_enrich_paid",
-      expect.objectContaining({ provider: "Fake A" }),
-    );
-    expect(telemetry.insertProductEvent).toHaveBeenCalledWith(
-      BOOTSTRAP_USER_ID,
-      "contact_enrich_paid",
-      expect.objectContaining({ provider: "Fake B" }),
-    );
-    expect(telemetry.insertProductEvent).not.toHaveBeenCalledWith(
-      BOOTSTRAP_USER_ID,
-      "contact_enrich_paid",
-      expect.objectContaining({ provider: "Pattern guess" }),
-    );
-  });
-
-  it("skips every keyed provider (but still runs pattern-guess) once the daily budget is exhausted", async () => {
-    const telemetry = await import("../../../telemetry/telemetry.repo.js");
-    vi.mocked(telemetry.countProductEventsToday).mockResolvedValue(25);
-
-    const { enrichContacts } = await import("./enrichment.service.js");
-    const result = await enrichContacts(BOOTSTRAP_USER_ID, BASE_QUERY);
-
-    expect(fakeASearch).not.toHaveBeenCalled();
-    expect(fakeBSearch).not.toHaveBeenCalled();
-    expect(result.budgetExhausted).toBe(true);
-    expect(result.providers.map((p) => p.name)).toEqual(["Pattern guess"]);
-    expect(result.results.length).toBeGreaterThan(0); // pattern-guess still contributes its keyless fallback row
-  });
-
   it("does not check the budget at all when the daily cap is disabled (0)", async () => {
     const env = (await import("../../../config/env.js")).env as { enrichment: { dailyLookups: number } };
     env.enrichment.dailyLookups = 0;
@@ -207,7 +148,35 @@ describe("enrichContacts()", () => {
     env.enrichment.dailyLookups = 25;
   });
 
-  it("sets offline:true when only pattern-guess contributed a result", async () => {
+  it("fires one product event per provider that actually ran a live search", async () => {
+    fakeASearch.mockResolvedValue([person()]);
+    fakeBSearch.mockResolvedValue([]);
+    const telemetry = await import("../../../telemetry/telemetry.repo.js");
+
+    const { enrichContacts } = await import("./enrichment.service.js");
+    await enrichContacts(BOOTSTRAP_USER_ID, BASE_QUERY);
+
+    // Both, including the one that came back empty: the call was made and billed either way.
+    expect(telemetry.insertProductEvent).toHaveBeenCalledTimes(2);
+  });
+
+  it("runs no provider at all once the daily budget is exhausted", async () => {
+    // Every provider is paid now that the keyless fallback is gone, so a spent budget means the
+    // whole call is a no-op rather than "the free one still answers".
+    const telemetry = await import("../../../telemetry/telemetry.repo.js");
+    vi.mocked(telemetry.countProductEventsToday).mockResolvedValue(25);
+
+    const { enrichContacts } = await import("./enrichment.service.js");
+    const result = await enrichContacts(BOOTSTRAP_USER_ID, BASE_QUERY);
+
+    expect(fakeASearch).not.toHaveBeenCalled();
+    expect(fakeBSearch).not.toHaveBeenCalled();
+    expect(result.budgetExhausted).toBe(true);
+    expect(result.results).toEqual([]);
+    expect(result.providers).toEqual([]);
+  });
+
+  it("sets offline:true when no provider contributed a result", async () => {
     fakeASearch.mockResolvedValue([]);
     fakeBSearch.mockResolvedValue([]);
 
