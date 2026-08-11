@@ -83,6 +83,24 @@ describe("enrichContacts()", () => {
     expect(dupResults[0]!.source).toBe("Fake A");
   });
 
+  it("keeps every guessed address for one person — a LinkedIn SEARCH url is not an identity", async () => {
+    // pattern-guess stamps the same search deep link on all three of its guesses; keying dedupe on
+    // it collapsed them into a single row.
+    const { enrichContacts } = await import("./enrichment.service.js");
+    const result = await enrichContacts(BOOTSTRAP_USER_ID, { ...BASE_QUERY, personName: "Jane Doe" });
+
+    const guessed = result.results.filter((r) => r.source === "Pattern guess");
+    expect(guessed).toHaveLength(3);
+    expect(new Set(guessed.map((r) => r.email)).size).toBe(3);
+  });
+
+  it("still keeps the keyless fallback row, whose search url is all the identity it has", async () => {
+    const { enrichContacts } = await import("./enrichment.service.js");
+    const result = await enrichContacts(BOOTSTRAP_USER_ID, { ...BASE_QUERY, domain: "" });
+
+    expect(result.results.filter((r) => r.source === "Pattern guess")).toHaveLength(1);
+  });
+
   it("sorts merged results by confidence descending and slices to the query limit", async () => {
     fakeASearch.mockResolvedValue([
       person({ email: "low@acme.com", linkedinUrl: "", confidence: 20 }),

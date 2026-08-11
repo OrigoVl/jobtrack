@@ -33,6 +33,18 @@ export interface EnrichmentResult {
 const PAID_LOOKUP_EVENT = "contact_enrich_paid";
 const MAX_TITLES = 5;
 
+/** Dedupe identity for one result row, most-to-least specific: LinkedIn profile → email →
+ * name|title. A LinkedIn *search* deep link (what pattern-guess returns when it has no profile to
+ * point at) describes a QUERY, not a person, so it can't act as an identity — every guessed
+ * address for the same person carries the identical search URL, and keying on it collapsed all of
+ * them into a single row. It stays as the last-resort key so the keyless "company only" fallback
+ * row, which has nothing else, still survives the walk. */
+function identityKey(person: EnrichedPerson): string {
+  const profileUrl = person.linkedinUrl.includes("/search/") ? "" : person.linkedinUrl;
+  const nameTitle = person.name || person.title ? `${person.name}|${person.title}` : "";
+  return (profileUrl || person.email || nameTitle || person.linkedinUrl).toLowerCase();
+}
+
 function normalizeQuery(q: EnrichmentQuery): EnrichmentQuery {
   return {
     companyName: (q.companyName || "").trim().slice(0, 200),
@@ -108,13 +120,14 @@ export async function enrichContacts(userId: UserId, rawQuery: EnrichmentQuery):
 
   // Dedupe across providers in REGISTRY order (not providersToRun's own order) — same "first
   // occurrence wins" rule as job-sources.ts's fetchAllSourcesDetailed, walking the canonical list
-  // so the winner is always determined by ENRICHMENT_PROVIDERS' declared order.
+  // so the winner is always determined by ENRICHMENT_PROVIDERS' declared order. See identityKey()
+  // for what counts as "the same person".
   const seen = new Set<string>();
   const merged: EnrichedPerson[] = [];
   for (const p of ENRICHMENT_PROVIDERS) {
     if (!providersToRun.includes(p)) continue;
     for (const person of resultsFor(p)) {
-      const key = (person.linkedinUrl || person.email || `${person.name}|${person.title}`).toLowerCase();
+      const key = identityKey(person);
       if (!key || seen.has(key)) continue;
       seen.add(key);
       merged.push(person);

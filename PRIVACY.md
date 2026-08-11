@@ -73,7 +73,7 @@ headers) automatically redacted before being sent.
 | **Hunter.io / Apollo.io / Snov.io (if configured)** | The company name/domain, and optionally a person's name, you search for on the Contacts page | To return publicly-listed business contact details (name, work email, title, LinkedIn URL) for professional outreach — only providers we've actually configured a key for are queried |
 | **LinkedIn** | Your name, email, and profile photo, only if you choose "Continue with LinkedIn" | Signing you in — we never receive your work history, skills, or connections |
 | **Stripe** | Your email address, and (directly from you, never through us) your payment details, if you subscribe to a paid plan | Processing payments and managing your subscription — Stripe is PCI-compliant; we never see your card details |
-| **Resend** | Your email address | Sending verification, password-reset, and account-deletion-confirmation emails |
+| **Resend** | Your email address | Sending verification, password-reset, account-deletion-confirmation, and digest emails |
 | **Sentry** | Error reports (secrets redacted) | Diagnosing bugs/crashes |
 | **[Railway / hosting provider]** | Everything (it's the infrastructure your data lives on) | Hosting the database and application |
 
