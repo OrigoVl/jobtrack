@@ -25,6 +25,7 @@ import { DateInput } from "../../shared/date-input";
 import { SimilarVacanciesButton } from "./similar-vacancies-button";
 import { CvMatchPanel } from "../cv/cv";
 import { PostingContactsFinder } from "../contacts/posting-contacts";
+import { contactsAtCompany } from "../contacts/contacts-at-company";
 
 /** Composes a job-text block from the vacancy's own tracked fields (position/company/level/
  * salary/stack/notes) for the cover-letter/fit-match LLM prompts — this app never persists the
@@ -199,6 +200,10 @@ export function VacancyDetailModal({
   const jobText = vacancyJobText({ ...vacancy, ...draft });
   const linkedContacts = contacts.filter((c) => c.vacancyId === vacancy.id);
   const unlinkedContacts = contacts.filter((c) => c.vacancyId == null);
+  // People already in the user's own network at this employer — the warmest route into a company,
+  // and until now it was buried in the link picker's alphabetical list. Uses the SAVED vacancy,
+  // not the draft: an uncommitted company edit shouldn't retarget who "already knows" whom.
+  const knownAtCompany = contactsAtCompany(contacts, vacancy, companies);
   const hasCvText = !!profile?.cvText?.trim();
 
   // Generating/clearing the letter writes into the draft like any other edit to that textarea —
@@ -573,6 +578,30 @@ export function VacancyDetailModal({
                     {t("detail.addContact")}
                   </Btn>
                 </div>
+                {knownAtCompany.length > 0 && (
+                  <div className="mt-2.5">
+                    <div className="text-xs font-semibold text-ink-dim mb-1">{t("detail.knownAtCompanyLabel")}</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {knownAtCompany.map((c) => {
+                        const isLinking = linkContactMutation.isPending && linkContactMutation.variables?.id === c.id;
+                        return (
+                          <Btn
+                            key={c.id}
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            loading={isLinking}
+                            title={t("detail.knownAtCompanyLinkHint")}
+                            onClick={() => linkContactMutation.mutate({ id: c.id, patch: { vacancyId: vacancy.id } })}
+                            className="!px-2 !py-1 !text-[11px]"
+                          >
+                            {c.role ? `${c.name} · ${c.role}` : c.name}
+                          </Btn>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <PostingContactsFinder vacancyId={vacancy.id} companyId={vacancy.companyId ?? null} />
               </div>
             </div>

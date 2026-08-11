@@ -62,6 +62,42 @@ test("finds the contact stated in a vacancy's own text and saves it", async ({ p
   expect(deleteRes.ok()).toBeTruthy();
 });
 
+test("surfaces a contact already known at this company, and links them in one click", async ({ page }) => {
+  await page.goto("/vacancies");
+
+  // Two vacancies at the SAME company, and a contact attached to the first one — the case the
+  // feature exists for: someone met while applying there before.
+  const first = await addVacancy(page, { company: "Known Network Co", position: "First Role" });
+  const companies = (await (await page.request.get("/api/companies")).json()) as { id: number; name: string }[];
+  const company = companies.find((c) => c.name === "Known Network Co")!;
+  const contactRes = await page.request.post("/api/contacts", {
+    data: { name: "Olena Referral", role: "Engineering Manager", companyId: company.id, vacancyId: first.id },
+  });
+  expect(contactRes.ok()).toBeTruthy();
+  const contact = (await contactRes.json()) as { id: number };
+
+  const second = await addVacancy(page, { company: "Known Network Co", position: "Second Role" });
+  await page.reload();
+  await page.getByRole("button", { name: "Open details for Second Role at Known Network Co" }).first().click();
+
+  const dialog = detailDialog(page);
+  await expect(dialog.getByText("You already know at this company")).toBeVisible();
+
+  const [linkRes] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes(`/api/contacts/${contact.id}`) && r.request().method() === "PUT"),
+    dialog.getByRole("button", { name: /Olena Referral/ }).click(),
+  ]);
+  expect(linkRes.ok()).toBeTruthy();
+
+  // Now linked to THIS vacancy, so it moves out of the suggestion row and into linked contacts —
+  // and the suggestion row disappears entirely, having nothing left to suggest.
+  await expect(dialog.getByText("You already know at this company")).toBeHidden();
+  expect((await linkRes.json()).vacancyId).toBe(second.id);
+
+  const deleteRes = await page.request.delete(`/api/contacts/${contact.id}`);
+  expect(deleteRes.ok()).toBeTruthy();
+});
+
 test("says so plainly when the posting states no contact details", async ({ page }) => {
   await page.goto("/vacancies");
 

@@ -81,7 +81,9 @@
     "refreshFromUrl": "Refresh from link",
     "refreshFromUrlHint": "Re-read the posting and fill in whatever is still empty — nothing you have typed is overwritten",
     "refreshNothingNew": "Nothing new found — everything is already filled in",
-    "refreshFailed": "Could not read the posting behind this link"
+    "refreshFailed": "Could not read the posting behind this link",
+    "knownAtCompanyLabel": "You already know at this company",
+    "knownAtCompanyLinkHint": "Link to this vacancy"
   },
   "import": {
     "heading": "Import from pasted links",
