@@ -23,7 +23,9 @@ test("finds pattern-guessed contacts and saves one as a real contact", async ({ 
   expect(enrichRes.ok()).toBeTruthy();
   const body = (await enrichRes.json()) as { offline: boolean; results: { email: string }[] };
   expect(body.offline).toBe(true);
-  expect(body.results.length).toBeGreaterThan(0);
+  // More than one, specifically: every guess for the same person carries the same LinkedIn *search*
+  // link, which dedupe must not mistake for an identity and collapse them all into one row.
+  expect(body.results.length).toBeGreaterThan(1);
   const firstGuessedEmail = body.results[0]!.email;
   expect(firstGuessedEmail).toContain("@example.test");
 
@@ -52,4 +54,26 @@ test("finds pattern-guessed contacts and saves one as a real contact", async ({ 
     page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click(),
   ]);
   expect(deleteRes.ok()).toBeTruthy();
+});
+
+/** A named person at an unknown domain has no address to guess — the panel must still hand back the
+ * LinkedIn lead it would give for the company alone, not an empty "no contacts found". */
+test("still returns a LinkedIn lead when the domain is unknown", async ({ page }) => {
+  await page.goto("/contacts");
+
+  await page.getByRole("button", { name: "Find contacts" }).click();
+  await page.getByPlaceholder("Company name").fill("Acme Test Co");
+  await page.getByLabel("Targeting a specific person? (optional)").fill("John Roe");
+
+  const [enrichRes] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/api/contacts/enrich") && r.request().method() === "POST"),
+    page.getByRole("button", { name: "Search", exact: true }).click(),
+  ]);
+  const body = (await enrichRes.json()) as { results: { name: string; email: string; linkedinUrl: string }[] };
+  expect(body.results).toHaveLength(1);
+  expect(body.results[0]!.name).toBe("John Roe");
+  expect(body.results[0]!.linkedinUrl).toContain("linkedin.com");
+
+  await expect(page.getByText("No contacts found")).toBeHidden();
+  await expect(page.getByText("John Roe")).toBeVisible();
 });

@@ -3,7 +3,14 @@ import { LegalPage } from "./legal-page";
 /** Content adapted from PRIVACY.md at the repo root — includes the Stripe sub-processor row and
  * billing data collection now that a subscription/payment system exists (server/src/modules/
  * billing/). Everything else, including unfilled `[PLACEHOLDER]`s, is kept as-is per the source
- * draft. */
+ * draft.
+ *
+ * THIS PAGE IS THE ONE USERS ACTUALLY READ, so it has to be updated in lockstep with PRIVACY.md —
+ * it silently fell a few sections behind before (contact enrichment, the LinkedIn sign-in
+ * sub-processor), which turns a policy that covers a feature into a page that doesn't. A feature
+ * touching personal data isn't shipped until BOTH say so. Deliberately not translated: a
+ * privacy policy is a legal instrument, and a machine-translated second version would be a second
+ * set of promises nobody vetted. */
 export function Privacy() {
   return (
     <LegalPage title="Privacy Policy">
@@ -32,6 +39,14 @@ export function Privacy() {
         what's needed to show you the result; see Section 3 for what's sent to the AI provider itself.
       </p>
       <p>
+        <strong>Contact enrichment data.</strong> If you use the contact-enrichment search (Contacts page), the company name/domain and,
+        optionally, a person's name you search for is sent to whichever third-party provider(s) are configured (Hunter.io, Apollo.io,
+        Snov.io); results (a business contact's name, job title, work email, and LinkedIn URL) are cached on our servers for up to 7 days to
+        avoid repeat paid lookups, and are stored longer only if you explicitly save a result as a Contact. This data concerns people who
+        have not directly interacted with the Service — we only use it for the professional-outreach purpose you searched for, and our
+        sub-processor list (Section 3) states which providers see your search terms.
+      </p>
+      <p>
         <strong>Usage/product analytics.</strong> Which features you use and when (e.g. that you ran a job search), aggregated for product
         improvement. We do not sell this data or use it for advertising — we don't run ads.
       </p>
@@ -52,7 +67,9 @@ export function Privacy() {
           <strong>Contract necessity</strong> — account data, your content, and payment status: we can't provide the Service without them.
         </li>
         <li>
-          <strong>Legitimate interest</strong> — technical/error data, rate-limiting, abuse prevention.
+          <strong>Legitimate interest</strong> — technical/error data, rate-limiting, abuse prevention, and contact enrichment (processing a
+          business contact's professional details you searched for, for the purpose of legitimate job-search outreach; you can
+          restrict/object to this per Section 5).
         </li>
         <li>
           <strong>Consent</strong> — nothing beyond the above currently requires separate consent; if that changes (e.g. marketing emails),
@@ -65,6 +82,15 @@ export function Privacy() {
         <li>
           <strong>[OpenAI / Anthropic — whichever is configured]</strong> — receives the text you submit to an AI feature (CV text, job
           posting text, your prompt) to generate the AI response you requested (CV review, cover letter, mock interview scoring, etc.).
+        </li>
+        <li>
+          <strong>Hunter.io / Apollo.io / Snov.io (if configured)</strong> — receive the company name/domain, and optionally a person's
+          name, you search for on the Contacts page, to return publicly-listed business contact details (name, work email, title, LinkedIn
+          URL) for professional outreach. Only providers we've actually configured a key for are queried.
+        </li>
+        <li>
+          <strong>LinkedIn</strong> — receives nothing from us; it provides your name, email, and profile photo, only if you choose
+          "Continue with LinkedIn" to sign in. We never receive your work history, skills, or connections.
         </li>
         <li>
           <strong>Stripe</strong> — receives your email address, and (directly from you, never through us) your payment details, if you
@@ -104,6 +130,11 @@ export function Privacy() {
       <p>
         Error logs and usage/product analytics are retained for [90 / 180 days — CONFIRM RETENTION POLICY] for debugging and
         product-improvement purposes, then aggregated or discarded.
+      </p>
+      <p>
+        Contact-enrichment search results are cached for 7 days to avoid repeat paid lookups, then automatically expire — shorter than other
+        caches because it holds a third party's personal data, not your own. A result only persists longer if you explicitly save it as a
+        Contact, at which point it's your content and follows the same retention as the rest of your account (first paragraph above).
       </p>
 
       <h2>5. Your rights</h2>
