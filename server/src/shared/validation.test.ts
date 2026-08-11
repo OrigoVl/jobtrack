@@ -9,6 +9,7 @@ import {
   parseCompanyInput,
   parseContactInput,
   parseEnrichmentQuery,
+  parsePostingContactsInput,
   parsePagination,
   parseDesignGenerateTaskInput,
   parseDesignGradeInput,
@@ -267,6 +268,30 @@ describe("parseCompanyInput", () => {
   it("never throws for an unparseable website — falls back to ''", () => {
     const out = parseCompanyInput({ name: "Acme", notes: "", questions: [], website: "not a domain" });
     expect(out.website).toBe("");
+  });
+});
+
+describe("parsePostingContactsInput", () => {
+  it("accepts a vacancy id on its own", () => {
+    expect(parsePostingContactsInput({ vacancyId: 7 })).toEqual({ vacancyId: 7, text: "" });
+  });
+
+  it("accepts pasted text on its own", () => {
+    expect(parsePostingContactsInput({ text: "  CV: hr@acme.com  " })).toEqual({ vacancyId: 0, text: "CV: hr@acme.com" });
+  });
+
+  it("rejects a body with neither", () => {
+    expect(() => parsePostingContactsInput({})).toThrow(/vacancyId.*text/);
+    expect(() => parsePostingContactsInput({ vacancyId: 0, text: "   " })).toThrow();
+  });
+
+  it("ignores a non-positive or non-integer vacancy id rather than trusting it", () => {
+    expect(parsePostingContactsInput({ vacancyId: -3, text: "hr@acme.com" }).vacancyId).toBe(0);
+    expect(parsePostingContactsInput({ vacancyId: 1.5, text: "hr@acme.com" }).vacancyId).toBe(0);
+  });
+
+  it("caps pasted text so an LLM endpoint can't be fed a novel", () => {
+    expect(parsePostingContactsInput({ text: "x".repeat(60000) }).text).toHaveLength(40000);
   });
 });
 

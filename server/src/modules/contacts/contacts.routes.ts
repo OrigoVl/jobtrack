@@ -2,12 +2,13 @@ import express from "express";
 import { HttpError, authed } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
 import { getProfile } from "../../db/index.js";
-import { parseContactInput, parseEnrichmentQuery } from "../../shared/validation.js";
+import { parseContactInput, parseEnrichmentQuery, parsePostingContactsInput } from "../../shared/validation.js";
 import { getCompanyById } from "../companies/companies.repo.js";
 import { getVacancy } from "../vacancies/vacancies.repo.js";
 import { listContacts, getContact, createContact, updateContact, deleteContact } from "./contacts.repo.js";
 import { draftOutreachMessage, type OutreachKind } from "./contacts-outreach.service.js";
 import { enrichContacts } from "./enrichment/enrichment.service.js";
+import { extractPostingContacts } from "./enrichment/posting-contacts.js";
 import { ENRICHMENT_PROVIDERS } from "./enrichment/enrichment-providers.js";
 import type { UserId } from "../../db/user-id.js";
 
@@ -120,6 +121,24 @@ r.post(
       }
     }
     res.json(await enrichContacts(userId, q));
+  }),
+);
+
+// ---------- exact contacts stated in a posting's own text (no guessing — posting-contacts.ts) ----------
+r.post(
+  "/contacts/extract",
+  aiLimiter,
+  authed(async (userId, req, res) => {
+    const input = parsePostingContactsInput(req.body);
+    let text = input.text;
+    if (input.vacancyId) {
+      // getVacancy() is userId-scoped, so a foreign/unknown id reads as "not found" rather than
+      // leaking another account's posting text into this user's extraction.
+      const vacancy = await getVacancy(userId, input.vacancyId);
+      if (!vacancy) throw new HttpError(404, "Vacancy not found");
+      text = [vacancy.notes, vacancy.position, vacancy.company].filter(Boolean).join("\n");
+    }
+    res.json({ contacts: await extractPostingContacts(userId, text) });
   }),
 );
 

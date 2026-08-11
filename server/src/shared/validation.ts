@@ -358,6 +358,26 @@ export function parseEnrichmentQuery(body: unknown): EnrichmentQuery {
   return { companyName, domain, titles, personName, limit };
 }
 
+export interface PostingContactsInput {
+  /** Which tracked vacancy's own text to read. 0 = none given. */
+  vacancyId: number;
+  /** Text pasted directly (a posting copied from elsewhere, an email signature). "" = none. */
+  text: string;
+}
+
+/** POST /contacts/extract body — see modules/contacts/enrichment/posting-contacts.ts. Exactly one
+ * of the two inputs is required, and resolving `vacancyId` to its text is contacts.routes.ts's job
+ * (it needs an ownership-scoped DB lookup), not this pure parsing layer. The cap is well above a
+ * long posting but stops a caller pushing a novel through an LLM endpoint. */
+export function parsePostingContactsInput(body: unknown): PostingContactsInput {
+  const b = (body || {}) as Record<string, unknown>;
+  const rawId = Number(b.vacancyId ?? 0);
+  const vacancyId = Number.isInteger(rawId) && rawId > 0 ? rawId : 0;
+  const text = asString(b.text).slice(0, 40000).trim();
+  if (!vacancyId && !text) throw new HttpError(400, 'Provide either "vacancyId" or "text"');
+  return { vacancyId, text };
+}
+
 export interface DigestPreferencesInput {
   enabled: boolean;
 }
