@@ -4,7 +4,7 @@ import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useToast } from "../../shared/use-toast";
 import { useVacancies } from "../../shared/queries";
-import { Btn, Card, PageHeader, Select } from "../../shared/ui";
+import { Btn, Card, PageHeader, SearchSelect } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
 import { exportPdf, vacancyToText } from "./cv-shared";
 
@@ -65,20 +65,16 @@ export function CoverLetter() {
       <Card className="space-y-3">
         <div className="text-sm font-semibold text-ink">{t("cvPage.coverSourceHeading")}</div>
         {vacancies.length > 0 && (
-          <Select
-            value={coverVacId}
-            onChange={(e) => pickCoverVacancy(Number(e.target.value))}
+          <SearchSelect
+            value={String(coverVacId)}
+            onChange={(v) => pickCoverVacancy(Number(v))}
             aria-label={t("cvPage.coverVacancyAria")}
+            options={[
+              { value: "0", label: t("cvPage.selectVacancyFromTracker") },
+              ...vacancies.map((v) => ({ value: String(v.id), label: `${v.position}${v.company ? ` — ${v.company}` : ""}` })),
+            ]}
             className="w-full"
-          >
-            <option value={0}>{t("cvPage.selectVacancyFromTracker")}</option>
-            {vacancies.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.position}
-                {v.company ? ` — ${v.company}` : ""}
-              </option>
-            ))}
-          </Select>
+          />
         )}
         <div className="flex gap-1.5">
           <input

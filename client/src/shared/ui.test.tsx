@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { Btn, Card, PageHeader, Section, Segmented } from "./ui";
+import { Btn, Card, PageHeader, SearchSelect, Section, Segmented } from "./ui";
 
 describe("Btn", () => {
   it("renders children and handles click", () => {
@@ -102,5 +102,94 @@ describe("Segmented", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "B" }));
     expect(onChange).toHaveBeenCalledWith("b");
+  });
+});
+
+describe("SearchSelect", () => {
+  const OPTIONS = [
+    { value: "", label: "— none —" },
+    { value: "1", label: "Acme — Frontend dev" },
+    { value: "2", label: "Globex — QA engineer" },
+    { value: "3", label: "Initech — Frontend lead" },
+  ];
+
+  const renderSelect = (value = "", onChange = vi.fn()) => {
+    render(<SearchSelect value={value} options={OPTIONS} onChange={onChange} aria-label="Linked vacancy" />);
+    return { input: screen.getByRole("combobox", { name: "Linked vacancy" }), onChange };
+  };
+
+  it("shows the selected option's label, not its wire value", () => {
+    const { input } = renderSelect("2");
+    expect(input).toHaveValue("Globex — QA engineer");
+  });
+
+  it("opens the full list on click", () => {
+    const { input } = renderSelect();
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+    fireEvent.click(input);
+    expect(screen.getAllByRole("option")).toHaveLength(4);
+  });
+
+  it("filters options by what is typed, case-insensitively", () => {
+    const { input } = renderSelect();
+    fireEvent.change(input, { target: { value: "front" } });
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["Acme — Frontend dev", "Initech — Frontend lead"]);
+  });
+
+  it("reports the picked option's value and shows its label", () => {
+    const { input, onChange } = renderSelect();
+    fireEvent.change(input, { target: { value: "globex" } });
+    fireEvent.click(screen.getByRole("option", { name: "Globex — QA engineer" }));
+    expect(onChange).toHaveBeenCalledWith("2");
+    // The parent owns `value`, so the input keeps showing the (unchanged) empty selection here —
+    // what matters is that the half-typed filter is gone, not left sitting in the field.
+    expect(input).toHaveValue("— none —");
+  });
+
+  it("picks the active option with the keyboard", () => {
+    const { input, onChange } = renderSelect();
+    fireEvent.change(input, { target: { value: "front" } });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onChange).toHaveBeenCalledWith("3");
+  });
+
+  it("says so when nothing matches, instead of showing an empty panel", () => {
+    const { input } = renderSelect();
+    fireEvent.change(input, { target: { value: "zzz" } });
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+    expect(screen.getByText("No matches")).toBeInTheDocument();
+  });
+
+  it("clears the field to an empty filter when focused, so the first keystroke isn't appended to the selected label", () => {
+    const { input } = renderSelect("1");
+    fireEvent.focus(input);
+    expect(input).toHaveValue("");
+    // The selection is still readable while filtering, just as the placeholder.
+    expect(input).toHaveAttribute("placeholder", "Acme — Frontend dev");
+  });
+
+  it("keeps what has been typed when the already-open field is clicked again", () => {
+    const { input } = renderSelect("1");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "glob" } });
+    fireEvent.click(input);
+    expect(input).toHaveValue("glob");
+  });
+
+  it("drops a half-typed filter when the field is left", () => {
+    const { input, onChange } = renderSelect("1");
+    fireEvent.change(input, { target: { value: "glob" } });
+    fireEvent.blur(input);
+    expect(input).toHaveValue("Acme — Frontend dev");
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("closes and restores the selected label on Escape", () => {
+    const { input } = renderSelect("1");
+    fireEvent.change(input, { target: { value: "glob" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+    expect(input).toHaveValue("Acme — Frontend dev");
   });
 });

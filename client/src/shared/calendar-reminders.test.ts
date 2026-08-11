@@ -13,6 +13,7 @@ function event(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     endAt: null,
     type: "interview",
     vacancyId: null,
+    contactId: null,
     ...overrides,
   };
 }

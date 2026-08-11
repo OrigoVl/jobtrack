@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarPanel } from "./calendar-panel";
 import { usePopover, type PopoverCoords } from "./use-popover";
@@ -43,10 +43,14 @@ function maskDigits(raw: string): string {
  * inside a narrow, horizontally-scrolling table column (e.g. Vacancies' Applied/Next-step columns,
  * or the Kanban board). */
 function useCalendarPopover() {
-  return usePopover((rect) => {
+  // `panelHeight` is the panel's real measured height once it has rendered (0 on the first pass of
+  // an open cycle, hence the estimate as a fallback) — with it, a picker that has to flip above
+  // its field lands exactly on top of it instead of wherever the guess put it.
+  return usePopover((rect, panelHeight) => {
+    const height = panelHeight || PANEL_HEIGHT_ESTIMATE;
     const left = Math.min(Math.max(8, rect.left), window.innerWidth - PANEL_WIDTH - 8);
-    const fitsBelow = rect.bottom + PANEL_HEIGHT_ESTIMATE + 4 <= window.innerHeight;
-    const top = fitsBelow ? rect.bottom + 4 : Math.max(8, rect.top - PANEL_HEIGHT_ESTIMATE - 4);
+    const fitsBelow = rect.bottom + height + 4 <= window.innerHeight;
+    const top = fitsBelow ? rect.bottom + 4 : Math.max(8, rect.top - height - 4);
     return { top, left };
   });
 }
@@ -221,15 +225,111 @@ function maskDateTimeDigits(raw: string): string {
  * doesn't have one yet — mid-morning, a reasonable default for scheduling an interview/call. */
 const DEFAULT_PICKED_TIME = "09:00";
 
+/** The time-of-day choices offered by DateTimeInput's second picker step: every half hour of the
+ * day. Half-hour granularity keeps the list short enough to scan; an odd time (14:15) is still
+ * typeable in the field itself, which stays a plain text input. */
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
+
+/** Minutes since midnight of an "HH:mm" string, or null when it isn't one. */
+function minutesOfDay(time: string): number | null {
+  const m = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/**
+ * Step 2 of DateTimeInput's picker: a scrollable list of half-hour slots for the day already
+ * chosen in step 1. Opens scrolled to the current value (or the nearest slot to it, since a
+ * hand-typed 14:15 isn't in the list) rather than at 00:00, so the times someone actually
+ * schedules things at aren't three scrolls away.
+ *
+ * The back arrow carries `data-keep-open` (PopoverPanel closes on any click that isn't inside one)
+ * — the time buttons deliberately don't, so picking a time closes the whole popover, which is the
+ * end of the flow.
+ */
+function TimePanel({
+  dayLabel,
+  selected,
+  onBack,
+  onSelect,
+}: {
+  /** Human-readable label for the day picked in step 1, shown as the panel's header. */
+  dayLabel: string;
+  /** Currently selected "HH:mm", or "" if none. */
+  selected: string;
+  onBack: () => void;
+  onSelect: (time: string) => void;
+}) {
+  const { t } = useTranslation();
+  const listRef = useRef<HTMLDivElement>(null);
+  const initialRef = useRef<HTMLButtonElement>(null);
+  // Index to start scrolled at: the exact match if the value is on a half hour, otherwise the
+  // closest slot; with no value at all, the default the calendar step would have filled in.
+  const scrollToIndex = useMemo(() => {
+    const target = minutesOfDay(selected || DEFAULT_PICKED_TIME) ?? 0;
+    return Math.round(target / 30);
+  }, [selected]);
+
+  // ON MOUNT ONLY, and by setting the list's own scrollTop rather than via a `ref` callback +
+  // scrollIntoView. Both details are load-bearing: the panel re-renders on every scroll event
+  // (usePopover repositions on a capture-phase window scroll listener), so a ref callback would
+  // re-run and yank the list back to the initial time the instant the user scrolled it — the list
+  // looked frozen. scrollIntoView would additionally scroll the ANCESTOR page/modal behind the
+  // portaled panel, not just this list.
+  useEffect(() => {
+    const list = listRef.current;
+    const item = initialRef.current;
+    if (!list || !item) return;
+    list.scrollTop += item.getBoundingClientRect().top - list.getBoundingClientRect().top - list.clientHeight / 2 + item.offsetHeight / 2;
+  }, []);
+
+  return (
+    <div className="w-64 p-2">
+      <div className="flex items-center gap-1 mb-2">
+        <button
+          type="button"
+          data-keep-open
+          aria-label={t("dateInput.backToCalendar")}
+          onClick={onBack}
+          className="w-7 h-7 shrink-0 grid place-items-center rounded-lg text-ink-dim hover:bg-surface-2 hover:text-ink"
+        >
+          ‹
+        </button>
+        <span className="text-xs font-semibold text-ink truncate">{dayLabel}</span>
+      </div>
+      <div ref={listRef} className="grid grid-cols-3 gap-0.5 max-h-56 overflow-y-auto overscroll-contain">
+        {TIME_OPTIONS.map((time, i) => (
+          <button
+            key={time}
+            type="button"
+            ref={i === scrollToIndex ? initialRef : undefined}
+            onClick={() => onSelect(time)}
+            className={`h-7 rounded-lg text-xs ${
+              time === selected ? "bg-star text-on-signal font-semibold" : "text-ink hover:bg-surface-2"
+            }`}
+          >
+            {time}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
  * A locale-independent replacement for `<input type="datetime-local">`, for the same reason as
  * `DateInput` above (a Ukrainian-locale OS renders "дд.мм.рррр, --:--" instead of an English
  * placeholder, and `lang` on the element isn't reliably honored across browsers). Value/onChange
  * use the same local "yyyy-MM-ddTHH:mm" string a native `datetime-local` input's `value`/
  * `e.target.value` would — a drop-in replacement for call sites already using
- * `toLocalInput`/`fromLocalInput` (see `calendar-date-utils.ts`). Clicking the field (or the
- * calendar icon) opens the same month-grid popover as DateInput for picking the day visually; the
- * time-of-day is still typed.
+ * `toLocalInput`/`fromLocalInput` (see `calendar-date-utils.ts`).
+ *
+ * Clicking the field (or the calendar icon) opens a TWO-STEP popover: the same month-grid as
+ * DateInput, then — once a day is picked — a list of half-hour slots for that day, which is what
+ * closes the popover. The time used to be typed by hand while only the date was pickable, so
+ * scheduling anything meant switching from clicking to counting digits mid-flow. The day is
+ * committed as soon as it's clicked (with the existing/default time), so backing out at the time
+ * step still leaves the date change saved.
  */
 export function DateTimeInput({
   value,
@@ -242,13 +342,29 @@ export function DateTimeInput({
   "aria-label"?: string;
   className?: string;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [text, setText] = useState(() => localToDisplay(value));
   const { open, setOpen, anchorRef, panelRef, coords } = useCalendarPopover();
+  // Which step the open popover is showing, and the day it's picking a time FOR — tracked here
+  // rather than read back off `value` so the time step still works if a parent doesn't echo the
+  // day back synchronously.
+  const [step, setStep] = useState<"date" | "time">("date");
+  const [pickedDay, setPickedDay] = useState("");
+
+  const dayLabel = useMemo(
+    () => new Intl.DateTimeFormat(i18n.language, { weekday: "short", month: "long", day: "numeric" }),
+    [i18n.language],
+  );
 
   useEffect(() => {
     setText(localToDisplay(value));
   }, [value]);
+
+  // Every open starts back at the calendar — the two steps are one flow, not a remembered tab.
+  const setPickerOpen = (next: boolean) => {
+    if (next) setStep("date");
+    setOpen(next);
+  };
 
   function commit(nextText: string) {
     if (!nextText) {
@@ -270,7 +386,7 @@ export function DateTimeInput({
         value={text}
         aria-label={ariaLabel}
         className={`${className ?? ""} pr-7`}
-        onClick={openPickerOnClick(setOpen)}
+        onClick={openPickerOnClick(setPickerOpen)}
         onChange={(e) => {
           const masked = maskDateTimeDigits(e.target.value);
           setText(masked);
@@ -281,16 +397,35 @@ export function DateTimeInput({
           if (!text) commit("");
         }}
       />
-      <PickerButton open={open} setOpen={setOpen} panelRef={panelRef} coords={coords}>
-        <CalendarPanel
-          selected={value.slice(0, 10)}
-          onSelect={(day) => {
-            const time = value.slice(11) || DEFAULT_PICKED_TIME;
-            const local = `${day}T${time}`;
-            setText(localToDisplay(local));
-            onChange(local);
-          }}
-        />
+      <PickerButton open={open} setOpen={setPickerOpen} panelRef={panelRef} coords={coords}>
+        {step === "date" ? (
+          // `data-keep-open` so clicking a day advances to the time step instead of dismissing the
+          // popover the way DateInput's single-step calendar does (see PopoverPanel).
+          <div data-keep-open>
+            <CalendarPanel
+              selected={value.slice(0, 10)}
+              onSelect={(day) => {
+                const time = value.slice(11) || DEFAULT_PICKED_TIME;
+                const local = `${day}T${time}`;
+                setText(localToDisplay(local));
+                onChange(local);
+                setPickedDay(day);
+                setStep("time");
+              }}
+            />
+          </div>
+        ) : (
+          <TimePanel
+            dayLabel={dayLabel.format(new Date(`${pickedDay}T00:00:00`))}
+            selected={value.slice(0, 10) === pickedDay ? value.slice(11) : ""}
+            onBack={() => setStep("date")}
+            onSelect={(time) => {
+              const local = `${pickedDay}T${time}`;
+              setText(localToDisplay(local));
+              onChange(local);
+            }}
+          />
+        )}
       </PickerButton>
     </div>
   );

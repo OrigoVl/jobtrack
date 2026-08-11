@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAddContact, useCompanies, useEnrichContacts, useRevealContactEmail } from "../../shared/queries";
-import { Btn, Card, Chip, EmptyState, Section, Select } from "../../shared/ui";
+import { Btn, Card, Chip, EmptyState, SearchSelect, Section } from "../../shared/ui";
 import type { EnrichedPerson } from "../../shared/types";
 
 const EMAIL_STATUS_TONE: Record<EnrichedPerson["emailStatus"], "good" | "slate" | "amber"> = {
@@ -31,7 +31,12 @@ function EnrichedPersonRow({
   const [saved, setSaved] = useState(false);
 
   const isRevealing = revealMutation.isPending && revealMutation.variables?.revealId === person.revealId;
-  const isSaving = addMutation.isPending && addMutation.variables?.email === person.email;
+  // Rows for one person share a name and differ only by guessed address, so both fields are needed
+  // to scope the spinner to the row actually being saved.
+  const isSaving = addMutation.isPending && addMutation.variables?.email === person.email && addMutation.variables?.name === person.name;
+  // A name with no address is still worth keeping (the LinkedIn link is the lead) — only the
+  // anonymous "search LinkedIn for a recruiter" fallback row has nothing to save.
+  const canSave = !!person.email || !!person.name;
 
   const reveal = () => {
     revealMutation.mutate(
@@ -76,7 +81,7 @@ function EnrichedPersonRow({
             {isRevealing ? t("enrich.revealing") : t("enrich.revealEmail")}
           </Btn>
         )}
-        {person.email && (
+        {canSave && (
           <Btn size="sm" variant="ghost" loading={isSaving} disabled={saved} onClick={save}>
             {saved ? t("enrich.saved") : t("enrich.saveAsContact")}
           </Btn>
@@ -132,39 +137,40 @@ export function ContactEnrichmentPanel() {
   return (
     <Section title={t("enrich.toggleLabel")}>
       <div className="space-y-2.5">
-        <label className="block">
+        <div className="block">
           <span className="text-xs font-semibold text-ink-dim">{t("enrich.companyLabel")}</span>
-          <Select
+          <SearchSelect
             value={companySel}
-            onChange={(e) => setCompanySel(e.target.value)}
+            onChange={setCompanySel}
+            aria-label={t("enrich.companyLabel")}
+            options={[
+              { value: FREEFORM, label: t("enrich.freeformOption") },
+              ...companies.map((c) => ({ value: String(c.id), label: c.name })),
+            ]}
             className="w-full mt-0.5 bg-surface-2 focus:outline-none focus:ring-2 focus:ring-signal/50"
-          >
-            <option value={FREEFORM}>{t("enrich.freeformOption")}</option>
-            {companies.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-        </label>
+          />
+        </div>
         {companySel === FREEFORM && (
-          <div className="grid sm:grid-cols-2 gap-2">
-            <input
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder={t("enrich.companyNamePlaceholder")}
-              aria-label={t("enrich.companyLabel")}
-              className="w-full bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
-            />
-            <input
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
-              placeholder={t("enrich.domainPlaceholder")}
-              aria-label={t("enrich.domainLabel")}
-              className="w-full bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
-            />
-          </div>
+          <input
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+            placeholder={t("enrich.companyNamePlaceholder")}
+            aria-label={t("enrich.companyLabel")}
+            className="w-full bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+          />
         )}
+        {/* The domain drives everything of substance — the keyed providers all require one, and the
+            keyless fallback can't guess an address without it — so it stays available for a SAVED
+            company too, whose stored `website` the server only falls back to when this is empty. */}
+        <label className="block">
+          <span className="text-xs font-semibold text-ink-dim">{t("enrich.domainLabel")}</span>
+          <input
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+            placeholder={t("enrich.domainPlaceholder")}
+            className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+          />
+        </label>
         <label className="block">
           <span className="text-xs font-semibold text-ink-dim">{t("enrich.personNameLabel")}</span>
           <input

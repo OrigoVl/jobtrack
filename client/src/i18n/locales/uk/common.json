@@ -10,7 +10,8 @@
   },
   "state": {
     "loading": "Завантаження…",
-    "saving": "Збереження…"
+    "saving": "Збереження…",
+    "noMatches": "Нічого не знайдено"
   },
   "vacancyStatus": {
     "wantToApply": "Хочу подати заявку",
@@ -27,6 +28,7 @@
     "openCalendar": "Відкрити календар",
     "previousMonth": "Попередній місяць",
     "nextMonth": "Наступний місяць",
+    "backToCalendar": "Назад до календаря",
     "datePlaceholder": "mm/dd/yyyy",
     "dateTimePlaceholder": "mm/dd/yyyy, HH:mm"
   },

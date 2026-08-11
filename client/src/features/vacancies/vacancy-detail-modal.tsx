@@ -13,7 +13,7 @@ import {
   useUpdateVacancy,
 } from "../../shared/queries";
 import { useToast } from "../../shared/use-toast";
-import { Btn, Segmented, Select, Spinner } from "../../shared/ui";
+import { Btn, SearchSelect, Segmented, Spinner } from "../../shared/ui";
 import { StarIcon } from "../../shared/icons";
 import { useConfirm } from "../../shared/use-confirm";
 import { SkillsInput } from "../../shared/view-kit";
@@ -322,10 +322,10 @@ export function VacancyDetailModal({
                 and renaming one is the Companies page's job. */}
             <div className="flex items-center gap-1.5 pt-0.5">
               <div className="min-w-0 max-w-[65%]">
-                <Select
-                  value={draft.companyId ?? ""}
-                  onChange={(e) => {
-                    const companyId = e.target.value ? Number(e.target.value) : null;
+                <SearchSelect
+                  value={draft.companyId ? String(draft.companyId) : ""}
+                  onChange={(value) => {
+                    const companyId = value ? Number(value) : null;
                     // Linking also adopts that company's name, so `company` (used by the
                     // cover-letter prompt, the table and every aria-label) can't drift from the
                     // row it points at. Unlinking leaves the name alone — it's the only thing
@@ -334,15 +334,12 @@ export function VacancyDetailModal({
                     patchDraft({ companyId, ...(picked ? { company: picked.name } : {}) });
                   }}
                   aria-label={t("detail.companyLinkAriaLabel")}
+                  options={[
+                    { value: "", label: t("detail.companyLinkNone") },
+                    ...companies.map((c) => ({ value: String(c.id), label: c.name })),
+                  ]}
                   className="w-full !bg-surface-2 !pl-1.5 !py-1 !text-xs !text-ink-dim"
-                >
-                  <option value="">{t("detail.companyLinkNone")}</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
+                />
               </div>
               {!draft.companyId && draft.company.trim() && (
                 <Btn
@@ -535,24 +532,22 @@ export function VacancyDetailModal({
                 )}
                 <div className="flex items-center gap-1.5 mt-2">
                   <div className="min-w-0 flex-1">
-                    <Select
+                    {/* Stays on the empty value: this picker is an action ("link this contact"),
+                        not a stored field, so it resets to its placeholder after every pick. */}
+                    <SearchSelect
                       value=""
-                      onChange={(e) =>
-                        e.target.value && linkContactMutation.mutate({ id: Number(e.target.value), patch: { vacancyId: vacancy.id } })
-                      }
+                      onChange={(value) => value && linkContactMutation.mutate({ id: Number(value), patch: { vacancyId: vacancy.id } })}
                       disabled={unlinkedContacts.length === 0}
                       aria-label={t("detail.linkContactAriaLabel")}
+                      options={[
+                        {
+                          value: "",
+                          label: unlinkedContacts.length === 0 ? t("detail.noUnlinkedContacts") : t("detail.linkContactNone"),
+                        },
+                        ...unlinkedContacts.map((c) => ({ value: String(c.id), label: c.name })),
+                      ]}
                       className="w-full !bg-surface-2 !pl-1.5 !py-1 !text-[11px] !text-ink-dim"
-                    >
-                      <option value="">
-                        {unlinkedContacts.length === 0 ? t("detail.noUnlinkedContacts") : t("detail.linkContactNone")}
-                      </option>
-                      {unlinkedContacts.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </Select>
+                    />
                   </div>
                   <input
                     value={newContactName}

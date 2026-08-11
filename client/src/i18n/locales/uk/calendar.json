@@ -14,7 +14,8 @@
   },
   "legend": {
     "vacancyStep": "Крок вакансії",
-    "srsDue": "SRS до повторення"
+    "srsDue": "SRS до повторення",
+    "toggleHint": "Показати/сховати в календарі"
   },
   "dayAriaLabel_one": "{{date}}, {{count}} подія",
   "dayAriaLabel_few": "{{date}}, {{count}} події",
@@ -47,7 +48,11 @@
     "linkedVacancy": "Пов'язана вакансія (необов'язково)",
     "none": "— немає —",
     "position": "Посада",
-    "notes": "Нотатки"
+    "notes": "Нотатки",
+    "linkedContact": "Пов'язаний контакт (необов'язково)",
+    "exportLabel": "Додати у свій календар:",
+    "exportIcs": "⤓ Файл .ics",
+    "exportGoogle": "Google Календар"
   },
   "toasts": {
     "added": "Подію додано",
@@ -57,5 +62,26 @@
   "notifications": {
     "title": "Незабаром починається",
     "body": "{{title}} ({{type}}) починається о {{time}}"
+  },
+  "moreEvents_one": "+ще {{count}}",
+  "moreEvents_few": "+ще {{count}}",
+  "moreEvents_many": "+ще {{count}}",
+  "moreEvents_other": "+ще {{count}}",
+  "quickAddPlaceholder": "Швидко додати подію…",
+  "upcoming": {
+    "title": "Найближчі події",
+    "emptyTitle": "Попереду нічого не заплановано",
+    "emptyHint": "Клікніть будь-який день, щоб додати співбесіду, дзвінок чи нагадування."
+  },
+  "previousPeriod": "Попередній",
+  "nextPeriod": "Наступний",
+  "view": {
+    "month": "Місяць",
+    "week": "Тиждень",
+    "list": "Список"
+  },
+  "list": {
+    "emptyTitle": "Цього місяця нічого немає",
+    "emptyHint": "Перемкніть місяць або додайте подію у вигляді «Місяць»."
   }
 }

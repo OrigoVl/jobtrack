@@ -178,4 +178,51 @@ describe("DateTimeInput", () => {
     fireEvent.click(screen.getByRole("button", { current: "date" }));
     expect(onChange).toHaveBeenCalledWith(expect.stringMatching(/T09:00$/));
   });
+
+  it("moves on to a time list after a day is picked, instead of closing", () => {
+    render(<DateTimeInput value="2026-07-31T14:30" onChange={() => {}} aria-label="Event start" />);
+    fireEvent.click(screen.getByLabelText("Event start"));
+    fireEvent.click(screen.getByRole("button", { name: /July 15, 2026/ }));
+
+    expect(screen.queryByLabelText("Previous month")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "14:30" })).toBeInTheDocument();
+  });
+
+  it("commits the day and the clicked time, then closes", () => {
+    const onChange = vi.fn();
+    const { rerender } = render(<DateTimeInput value="2026-07-31T14:30" onChange={onChange} aria-label="Event start" />);
+    fireEvent.click(screen.getByLabelText("Open calendar"));
+    fireEvent.click(screen.getByRole("button", { name: /July 15, 2026/ }));
+    // The day commits immediately, keeping the old time — the parent echoes it back.
+    expect(onChange).toHaveBeenCalledWith("2026-07-15T14:30");
+    rerender(<DateTimeInput value="2026-07-15T14:30" onChange={onChange} aria-label="Event start" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "10:30" }));
+
+    expect(onChange).toHaveBeenLastCalledWith("2026-07-15T10:30");
+    expect(screen.getByLabelText("Event start")).toHaveValue("07/15/2026, 10:30");
+    expect(screen.queryByRole("button", { name: "10:30" })).not.toBeInTheDocument();
+  });
+
+  it("goes back to the calendar from the time step without closing", () => {
+    render(<DateTimeInput value="2026-07-31T14:30" onChange={() => {}} aria-label="Event start" />);
+    fireEvent.click(screen.getByLabelText("Open calendar"));
+    fireEvent.click(screen.getByRole("button", { name: /July 15, 2026/ }));
+
+    fireEvent.click(screen.getByLabelText("Back to calendar"));
+
+    expect(screen.getByLabelText("Previous month")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "14:30" })).not.toBeInTheDocument();
+  });
+
+  it("reopens on the calendar step, not on the time step it was left at", () => {
+    render(<DateTimeInput value="2026-07-31T14:30" onChange={() => {}} aria-label="Event start" />);
+    fireEvent.click(screen.getByLabelText("Open calendar"));
+    fireEvent.click(screen.getByRole("button", { name: /July 15, 2026/ }));
+    fireEvent.click(screen.getByRole("button", { name: "09:00" }));
+
+    fireEvent.click(screen.getByLabelText("Open calendar"));
+
+    expect(screen.getByLabelText("Previous month")).toBeInTheDocument();
+  });
 });

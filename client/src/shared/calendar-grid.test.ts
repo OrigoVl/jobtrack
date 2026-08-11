@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMonthCells, ymd } from "./calendar-grid";
+import { buildMonthCells, ymd, buildWeekCells } from "./calendar-grid";
 
 describe("ymd", () => {
   it("formats a local date as YYYY-MM-DD, zero-padded", () => {
@@ -33,5 +33,27 @@ describe("buildMonthCells", () => {
       const diffDays = (cells[i]!.date.getTime() - cells[i - 1]!.date.getTime()) / 86_400_000;
       expect(diffDays).toBe(1);
     }
+  });
+});
+
+describe("buildWeekCells", () => {
+  it("returns the Monday-Sunday week containing the given day", () => {
+    // 2026-07-15 is a Wednesday.
+    const cells = buildWeekCells("2026-07-15");
+    expect(cells).toHaveLength(7);
+    expect(cells[0]!.key).toBe("2026-07-13");
+    expect(cells[6]!.key).toBe("2026-07-19");
+  });
+
+  it("treats a day that is itself a Monday as the start of its week", () => {
+    expect(buildWeekCells("2026-07-13")[0]!.key).toBe("2026-07-13");
+  });
+
+  it("spans a month boundary, marking the days outside the anchor's month", () => {
+    // 2026-08-01 is a Saturday, so its week starts on Monday 2026-07-27.
+    const cells = buildWeekCells("2026-08-01");
+    expect(cells[0]!.key).toBe("2026-07-27");
+    expect(cells[0]!.inMonth).toBe(false);
+    expect(cells.find((c) => c.key === "2026-08-01")!.inMonth).toBe(true);
   });
 });

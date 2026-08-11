@@ -14,7 +14,9 @@ test("creates, edits, and deletes a manual calendar event, persisting across rel
   const editedTitle = "E2E Interview — Acme Corp (rescheduled)";
 
   // Create — the header's "+ Add event" opens the modal pre-filled with today (the default
-  // selected day), so the new event shows up in the day-detail list below without navigating.
+  // selected day), so the new event shows up without navigating: once inside today's grid cell,
+  // once in the "Upcoming" card below. Hence `.first()` on every by-text assertion here — the
+  // title is deliberately rendered in both places.
   await page.getByRole("button", { name: "Add event" }).click();
   await page.getByLabel("Title").fill(title);
   await page.getByLabel("Type").selectOption("interview");
@@ -26,15 +28,19 @@ test("creates, edits, and deletes a manual calendar event, persisting across rel
   expect(createRes.ok()).toBeTruthy();
   const created = (await createRes.json()) as { id: number };
 
-  await expect(page.getByText(title, { exact: true })).toBeVisible();
+  await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
 
   // Persistence — reload the real page and confirm the event survived, not just an optimistic
   // client-side update.
   await page.reload();
-  await expect(page.getByText(title, { exact: true })).toBeVisible();
+  await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
 
-  // Edit — change the title via the same modal, opened from the event row's "Edit" action.
-  await page.getByRole("button", { name: `Edit ${title}` }).click();
+  // Edit — change the title via the same modal, opened from the Upcoming row (labelled
+  // "Edit <title>", like the day popover's own edit action).
+  await page
+    .getByRole("button", { name: `Edit ${title}` })
+    .first()
+    .click();
   const titleInput = page.getByLabel("Title");
   await titleInput.fill(editedTitle);
   const [updateRes] = await Promise.all([
@@ -42,12 +48,16 @@ test("creates, edits, and deletes a manual calendar event, persisting across rel
     page.getByRole("button", { name: "Save" }).click(),
   ]);
   expect(updateRes.ok()).toBeTruthy();
-  await expect(page.getByText(editedTitle, { exact: true })).toBeVisible();
+  await expect(page.getByText(editedTitle, { exact: true }).first()).toBeVisible();
   await expect(page.getByText(title, { exact: true })).toHaveCount(0);
 
-  // Delete — the row's inline "Delete" action opens a shared confirm dialog (shared/confirm.tsx)
-  // before the mutation actually fires.
-  await page.getByRole("button", { name: `Delete ${editedTitle}` }).click();
+  // Delete — from inside the edit modal, whose Delete opens the shared confirm dialog
+  // (shared/confirm.tsx) before the mutation actually fires.
+  await page
+    .getByRole("button", { name: `Edit ${editedTitle}` })
+    .first()
+    .click();
+  await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
   const [deleteRes] = await Promise.all([
     page.waitForResponse((r) => r.url().includes(`/api/calendar/events/${created.id}`) && r.request().method() === "DELETE"),
     page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click(),
@@ -85,7 +95,10 @@ test("navigates to Vacancies from a vacancy's next-step marker on the calendar",
   await page.waitForResponse((r) => r.url().includes(`/api/vacancies/${vacancy.id}`) && r.request().method() === "PUT");
 
   await page.goto("/calendar");
-  const nextStepButton = page.getByRole("button", { name: /Next step .* → Vacancies/ });
+  // The next-step marker is listed in the "Upcoming" card (it used to be in a selected-day card
+  // below the grid); the same row also exists inside that day's popover, but this one is visible
+  // without opening anything.
+  const nextStepButton = page.getByRole("button", { name: new RegExp(`${vacancy.company}.*Next step`) });
   await expect(nextStepButton).toBeVisible();
   await nextStepButton.click();
   // Client-side (React Router) navigation, not a full page load — assert on the destination
@@ -93,4 +106,48 @@ test("navigates to Vacancies from a vacancy's next-step marker on the calendar",
   // route change never (re-)fires.
   await expect(page.getByRole("heading", { name: "Vacancies" })).toBeVisible();
   expect(page.url()).toContain("/vacancies");
+});
+
+/**
+ * The Month/Week/List switcher and the per-event export actions (features/calendar/
+ * calendar-export.ts). The export assertions are on the Google Calendar link's href rather than a
+ * download: the .ics is built in the browser from a Blob, so there's nothing to intercept, and the
+ * string building itself is unit-tested in calendar-export.test.ts.
+ */
+test("switches between month, week and list views, and offers an event for export", async ({ page }) => {
+  await page.goto("/calendar");
+
+  const title = `E2E View Switch ${Date.now()}`;
+  await page.getByRole("button", { name: "Add event" }).click();
+  await page.getByLabel("Title").fill(title);
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/api/calendar/events") && r.request().method() === "POST"),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+
+  // Week: the period label narrows from a month name to a date range (whose exact shape is
+  // Intl.formatRange's call, per locale — assert on the range dash + year, not on a layout).
+  await page.getByRole("button", { name: "Week", exact: true }).click();
+  await expect(page.getByText(/\d{1,2} – .*\d{4}/)).toBeVisible();
+  await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+
+  // List: a flat agenda of the visible month, no grid.
+  await page.getByRole("button", { name: "List", exact: true }).click();
+  const row = page.getByRole("button", { name: `Edit ${title}` });
+  await expect(row).toBeVisible();
+
+  // Export — offered from the event's own modal, prefilled from what the form currently holds.
+  await row.click();
+  await expect(page.getByRole("button", { name: /\.ics/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Google Calendar" })).toHaveAttribute(
+    "href",
+    /^https:\/\/calendar\.google\.com\/calendar\/render\?action=TEMPLATE/,
+  );
+
+  // Clean up so this spec doesn't leave a row behind for the shared e2e account.
+  await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/api/calendar/events/") && r.request().method() === "DELETE"),
+    page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click(),
+  ]);
 });

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Btn, Card, Chip, EmptyState, Select } from "../../shared/ui";
+import { Btn, Card, Chip, EmptyState, SearchSelect } from "../../shared/ui";
 import { useConfirm } from "../../shared/use-confirm";
 import { useUi } from "../../shared/ui-state";
 import { useVacancies } from "../../shared/queries";
@@ -12,15 +12,18 @@ function VacancyPicker({ vacancyId, onChange }: { vacancyId: number; onChange: (
   const { t } = useTranslation("design");
   const { data: vacancies = [] } = useVacancies();
   return (
-    <Select value={vacancyId} onChange={(e) => onChange(Number(e.target.value))} aria-label={t("task.vacancyLabel")}>
-      <option value={0}>{t("task.generalOption")}</option>
-      {vacancies.map((v) => (
-        <option key={v.id} value={v.id}>
-          {v.position}
-          {v.company ? ` — ${v.company}` : ""}
-        </option>
-      ))}
-    </Select>
+    <SearchSelect
+      value={String(vacancyId)}
+      onChange={(v) => onChange(Number(v))}
+      aria-label={t("task.vacancyLabel")}
+      options={[
+        { value: "0", label: t("task.generalOption") },
+        ...vacancies.map((v) => ({ value: String(v.id), label: `${v.position}${v.company ? ` — ${v.company}` : ""}` })),
+      ]}
+      // An explicit width: unlike a <select>, a text input doesn't size itself to the widest
+      // option, and this one sits inline in a wrapping flex row rather than filling its parent.
+      className="w-56 max-w-full bg-surface-2"
+    />
   );
 }
 

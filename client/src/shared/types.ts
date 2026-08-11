@@ -687,6 +687,8 @@ export interface CalendarEvent {
   type: CalendarEventType;
   /** Linked vacancy, or null — a plain personal event. */
   vacancyId: number | null;
+  /** Linked networking contact, or null — e.g. the recruiter this call is with. */
+  contactId: number | null;
 }
 
 export interface CalendarEventInput {
@@ -696,6 +698,7 @@ export interface CalendarEventInput {
   endAt: string | null;
   type: CalendarEventType;
   vacancyId: number | null;
+  contactId: number | null;
 }
 
 /** A vacancy's own `next` (next-step) date, surfaced read-only in the combined calendar view —

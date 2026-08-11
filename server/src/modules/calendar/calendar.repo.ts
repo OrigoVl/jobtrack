@@ -16,6 +16,7 @@ export interface CalendarEvent {
   endAt: string | null;
   type: string;
   vacancyId: number | null;
+  contactId: number | null;
 }
 
 /** `from`/`to` are inclusive ISO instants — omit either to leave that side of the range open. */
@@ -50,6 +51,7 @@ export interface NewCalendarEvent {
   endAt: string | null;
   type: string;
   vacancyId: number | null;
+  contactId: number | null;
 }
 
 export async function createCalendarEvent(userId: UserId, input: NewCalendarEvent): Promise<CalendarEvent> {

@@ -436,6 +436,7 @@ export interface CalendarEventInput {
   endAt?: string | null;
   type?: CalendarEventType;
   vacancyId?: number | null;
+  contactId?: number | null;
 }
 
 /**
@@ -464,6 +465,17 @@ export function parseCalendarEventInput(body: unknown, { partial = false }: { pa
       const n = Number(b.vacancyId);
       if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, 'Field "vacancyId" must be a positive integer');
       out.vacancyId = n;
+    }
+  }
+  // Same shape-only check as vacancyId above (and the same division of labour: ownership is the
+  // route's job) — e.g. "coffee chat with this recruiter".
+  if (!partial || has("contactId")) {
+    if (b.contactId == null || b.contactId === "") {
+      out.contactId = null;
+    } else {
+      const n = Number(b.contactId);
+      if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, 'Field "contactId" must be a positive integer');
+      out.contactId = n;
     }
   }
   return out;

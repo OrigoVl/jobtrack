@@ -49,13 +49,17 @@ async function collectPending(u: NotifiableUser, nowMs: number): Promise<Pending
   const wants = (kind: Parameters<typeof isNotificationEnabled>[1]) => isNotificationEnabled(u.prefs, kind);
   const pending: PendingNotification[] = [];
 
-  if (wants("interview")) {
+  // Interviews and everything else on the calendar are separate opt-outs but one query — asking
+  // twice for the same window would double this tick's heaviest per-user read.
+  if (wants("interview") || wants("event")) {
     const events = await listCalendarEvents(u.userId, {
       from: new Date(nowMs).toISOString(),
       to: new Date(nowMs + INTERVIEW_LOOKAHEAD_MS).toISOString(),
     });
-    const interviews = events.filter((e) => e.type === "interview").map((e) => ({ id: e.id, title: e.title, startAt: e.startAt }));
-    pending.push(...buildInterviewReminders(interviews, u.timezone, nowMs));
+    const relevant = events
+      .filter((e) => (e.type === "interview" ? wants("interview") : wants("event")))
+      .map((e) => ({ id: e.id, title: e.title, startAt: e.startAt, type: e.type }));
+    pending.push(...buildInterviewReminders(relevant, u.timezone, nowMs));
   }
 
   // One query feeding two independent rules — they need the same projection, and asking twice

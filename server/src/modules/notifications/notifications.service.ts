@@ -24,12 +24,15 @@ export interface PendingNotification {
   vacancyId?: number;
 }
 
-// ---------- interviews ----------
+// ---------- calendar events ----------
 
 export interface InterviewEvent {
   id: number;
   title: string;
   startAt: string;
+  /** The calendar event's own type. Absent means "interview" — the only kind this module handled
+   * before non-interview events were covered, kept so existing callers/tests read unchanged. */
+  type?: string;
 }
 
 /** Descending, because pickDueThreshold() below relies on scanning from least to most urgent. The
@@ -77,6 +80,25 @@ function formatTime(startAt: string, timeZone: string | null): string {
   }
 }
 
+/** How each calendar event type introduces itself in a reminder. Interviews keep the exact wording
+ * (and the `interview` notification kind) they had before other types were covered. */
+const EVENT_REMINDER_STYLE: Record<string, { emoji: string; noun: string }> = {
+  interview: { emoji: "📅", noun: "Interview" },
+  call: { emoji: "📞", noun: "Call" },
+  deadline: { emoji: "⏳", noun: "Deadline" },
+  reminder: { emoji: "🔔", noun: "Reminder" },
+  other: { emoji: "📌", noun: "Event" },
+};
+
+/**
+ * Reminders for anything on the calendar that is about to start, at the thresholds above.
+ *
+ * The dedupe key keeps the event's TYPE out of it (`interview:12:1h`, `event:12:1h`) so it stays
+ * stable across an edit that doesn't move the event — but note that re-typing an event from
+ * "call" to "interview" does re-arm it under the other key. That's the right trade: the two
+ * notification kinds are independently opt-outable, so a shared key would let a user who muted
+ * one still be silenced by a claim made under the other.
+ */
 export function buildInterviewReminders(events: InterviewEvent[], timeZone: string | null, nowMs: number): PendingNotification[] {
   const out: PendingNotification[] = [];
   for (const e of events) {
@@ -84,10 +106,13 @@ export function buildInterviewReminders(events: InterviewEvent[], timeZone: stri
     if (!Number.isFinite(startAtMs)) continue;
     const due = pickDueThreshold(startAtMs, nowMs);
     if (!due) continue;
+    const type = e.type ?? "interview";
+    const style = EVENT_REMINDER_STYLE[type] ?? EVENT_REMINDER_STYLE.other!;
+    const isInterview = type === "interview";
     out.push({
-      kind: "interview",
-      dedupeKey: `interview:${e.id}:${due.slug}`,
-      text: `📅 Interview ${due.label}: ${e.title || "(untitled)"}\n${formatTime(e.startAt, timeZone)}`,
+      kind: isInterview ? "interview" : "event",
+      dedupeKey: `${isInterview ? "interview" : "event"}:${e.id}:${due.slug}`,
+      text: `${style.emoji} ${style.noun} ${due.label}: ${e.title || "(untitled)"}\n${formatTime(e.startAt, timeZone)}`,
     });
   }
   return out;

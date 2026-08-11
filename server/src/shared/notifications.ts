@@ -9,6 +9,11 @@
 export const NOTIFICATION_KINDS = [
   /** An interview on the calendar is coming up (24h and 1h before). */
   "interview",
+  /** Any OTHER calendar event is coming up (call/deadline/reminder/other), on the same schedule.
+   * Its own kind rather than folded into `interview`: "your interview is tomorrow" and "a
+   * deadline is tomorrow" are things a user can reasonably want separately, and the existing
+   * `interview` toggle would silently change meaning if it started covering everything. */
+  "event",
   /** A vacancy's own `next` date has arrived. */
   "nextStep",
   /** An application has gone quiet past the staleness threshold. */

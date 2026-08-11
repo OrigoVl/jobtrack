@@ -1,5 +1,6 @@
-import { forwardRef, useLayoutEffect, useRef, useState } from "react";
-import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import { forwardRef, useId, useLayoutEffect, useRef, useState } from "react";
+import type { ButtonHTMLAttributes, HTMLAttributes, KeyboardEvent, ReactNode, SelectHTMLAttributes } from "react";
+import { useTranslation } from "react-i18next";
 import { usePopover } from "./use-popover";
 import { PopoverPanel } from "./popover";
 import { ChevronDownIcon } from "./icons";
@@ -86,6 +87,173 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
     </div>
   );
 });
+
+export interface SearchSelectOption {
+  /** Wire value. "" is a legitimate value — it's how a "— none —" entry is expressed. */
+  value: string;
+  label: string;
+}
+
+/**
+ * A single-select that can be TYPED INTO to filter its options — a plain `<select>` can only be
+ * jumped around by first-letter, which stops being usable once the list is long and every entry
+ * starts with the same shape ("Acme — Frontend dev", "Acme Corp — QA", …). Closed, it reads like
+ * `Select` (the selected label + a chevron); focused, it filters as you type.
+ *
+ * NOT a replacement for `Select` everywhere: use this for lists of user data that grow without
+ * bound (vacancies, companies, contacts). A short, closed union (a status, an event type) is
+ * better served by the native `<select>` above — it gets the OS's own keyboard/mobile handling for
+ * free, and there's nothing to search.
+ *
+ * The list is portaled via PopoverPanel, so it isn't clipped by a modal's `overflow-y-auto`.
+ */
+export function SearchSelect({
+  value,
+  options,
+  onChange,
+  placeholder,
+  disabled = false,
+  "aria-label": ariaLabel,
+  className = "",
+}: {
+  value: string;
+  options: SearchSelectOption[];
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  "aria-label"?: string;
+  className?: string;
+}) {
+  const { t } = useTranslation();
+  // null = "not filtering", i.e. the input mirrors the selected option's label. A non-null query
+  // (including "") means the user is typing, and the input owns its own text until they pick
+  // something or leave the field.
+  const [query, setQuery] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [panelWidth, setPanelWidth] = useState(0);
+  const listId = useId();
+
+  const { open, setOpen, anchorRef, panelRef, coords } = usePopover((rect) => {
+    setPanelWidth(rect.width);
+    return { top: rect.bottom + 4, left: Math.min(rect.left, Math.max(8, window.innerWidth - rect.width - 8)) };
+  });
+
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? "";
+  const filtered =
+    query === null || !query.trim()
+      ? options
+      : options.filter((o) => o.label.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
+
+  function choose(option: SearchSelectOption) {
+    onChange(option.value);
+    setQuery(null);
+    setOpen(false);
+  }
+
+  function openList() {
+    if (disabled) return;
+    // Clear the field down to an empty filter on the way in, keeping the current selection visible
+    // as the placeholder. Without this the input still holds the selected label and the first
+    // keystroke appends to it — "Acme — Frontend devqa", zero matches. `q ?? ""` so re-entering an
+    // already-open list (a second click, or focus after a click) doesn't wipe what's been typed.
+    setQuery((q) => q ?? "");
+    setActiveIndex(
+      Math.max(
+        0,
+        filtered.findIndex((o) => o.value === value),
+      ),
+    );
+    setOpen(true);
+  }
+
+  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault(); // don't let the caret jump to the start/end of the text while navigating
+      if (!open) return openList();
+      setActiveIndex((i) => (filtered.length === 0 ? 0 : (i + (e.key === "ArrowDown" ? 1 : filtered.length - 1)) % filtered.length));
+      return;
+    }
+    if (e.key === "Enter" && open) {
+      const option = filtered[activeIndex];
+      if (option) {
+        e.preventDefault(); // inside a form, Enter would otherwise submit rather than pick
+        choose(option);
+      }
+      return;
+    }
+    if (e.key === "Escape" && open) {
+      setQuery(null);
+      setOpen(false);
+    }
+  }
+
+  return (
+    // `data-keep-open` on both the field and the portaled list: this control is itself often
+    // rendered INSIDE another popover (the CV Builder's vacancy menu), and without the marker
+    // every click on it reads as an outside click that closes the parent — see PopoverPanel and
+    // usePopover, which both honour the attribute.
+    <div ref={anchorRef} data-keep-open className={`relative ${className.includes("w-full") ? "block w-full" : "inline-block"}`}>
+      <input
+        type="text"
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-label={ariaLabel}
+        disabled={disabled}
+        // While filtering, the current selection stays readable as the placeholder — the field is
+        // empty but you can still see what it's set to.
+        placeholder={(query !== null && selectedLabel) || placeholder}
+        value={query ?? selectedLabel}
+        // Focus, not just click, so reaching the field by Tab and typing straight away filters
+        // too instead of appending to the selected label.
+        onFocus={openList}
+        onClick={openList}
+        onKeyDown={onKeyDown}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setActiveIndex(0);
+          setOpen(true);
+        }}
+        // Leaving the field without picking anything drops the half-typed filter, so the input
+        // can never sit there showing text that isn't the actual selected value.
+        onBlur={() => setQuery(null)}
+        className={`pr-8 text-sm border border-grid rounded-lg px-3 py-2 bg-surface text-ink disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+      />
+      <ChevronDownIcon className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ink-dim" />
+      <PopoverPanel
+        open={open}
+        panelRef={panelRef}
+        coords={coords}
+        onClose={() => setOpen(false)}
+        className="p-1"
+        style={{ width: panelWidth || undefined }}
+      >
+        <div id={listId} data-keep-open role="listbox" aria-label={ariaLabel}>
+          {filtered.length === 0 && <div className="px-2 py-1.5 text-xs text-ink-dim">{t("state.noMatches")}</div>}
+          {filtered.map((option, i) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              // onMouseDown, not onClick: the input's blur fires first on a plain click, and
+              // pointer-hovering also drives activeIndex so mouse and keyboard agree on "active".
+              onMouseEnter={() => setActiveIndex(i)}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => choose(option)}
+              className={`block w-full text-left px-2 py-1.5 rounded-lg text-sm truncate ${
+                option.value === value ? "text-ink font-semibold" : "text-ink"
+              } ${i === activeIndex ? "bg-surface-2" : ""}`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </PopoverPanel>
+    </div>
+  );
+}
 
 const WORDMARK_SIZE = { sm: "text-lg", md: "text-xl", lg: "text-2xl" } as const;
 

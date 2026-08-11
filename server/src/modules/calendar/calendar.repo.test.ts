@@ -34,6 +34,7 @@ const NEW_EVENT = {
   endAt: null as string | null,
   type: "interview",
   vacancyId: null as number | null,
+  contactId: null as number | null,
 };
 
 let testDb: Awaited<ReturnType<typeof createTestDb>>;

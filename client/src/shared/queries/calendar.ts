@@ -11,11 +11,20 @@ import { queryKeys } from "./keys";
 // reusing a previous month's data. `refetchInterval` is opt-in (undefined by default, i.e. no
 // polling) — only calendar-reminder-notifier.tsx's "watch for events starting soon" use passes
 // one; the Calendar page's own month-view fetch doesn't need to poll in the background.
-export function useCombinedCalendar(range: { from?: string; to?: string }, options: { refetchInterval?: number } = {}) {
+// `keepPrevious` is what stops the Calendar page's month grid from vanishing on every ‹ / › click:
+// each month is its own query key, so without it the new key starts with no data at all, the page
+// falls into its `isLoading` branch and the whole grid is replaced by a skeleton for the duration
+// of the request. With it, the previous month stays rendered (and `isPlaceholderData` drives a
+// small spinner instead) until the new one arrives.
+export function useCombinedCalendar(
+  range: { from?: string; to?: string },
+  options: { refetchInterval?: number; keepPrevious?: boolean } = {},
+) {
   return useQuery({
     queryKey: [...queryKeys.calendarCombined, range.from, range.to],
     queryFn: () => api.calendarCombined(range),
     refetchInterval: options.refetchInterval,
+    placeholderData: options.keepPrevious ? (prev) => prev : undefined,
   });
 }
 

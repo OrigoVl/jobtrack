@@ -2,6 +2,7 @@ import express from "express";
 import { HttpError, authed } from "../../core/http.js";
 import { parseCalendarEventInput } from "../../shared/validation.js";
 import { getVacancy } from "../vacancies/vacancies.repo.js";
+import { getContact } from "../contacts/contacts.repo.js";
 import { listCalendarEvents, getCalendarEvent, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "./calendar.repo.js";
 import { getCombinedCalendar } from "./calendar.service.js";
 import type { UserId } from "../../db/user-id.js";
@@ -24,6 +25,13 @@ async function assertOwnVacancyOrNull(userId: UserId, vacancyId: number | null |
   if (!vacancy) throw new HttpError(400, `Unknown vacancy: ${vacancyId}`);
 }
 
+/** Same guarantee as assertOwnVacancyOrNull above, for the optional contact link. */
+async function assertOwnContactOrNull(userId: UserId, contactId: number | null | undefined): Promise<void> {
+  if (contactId == null) return;
+  const contact = await getContact(userId, contactId);
+  if (!contact) throw new HttpError(400, `Unknown contact: ${contactId}`);
+}
+
 // ---------- calendar: manual events ----------
 r.get(
   "/calendar/events",
@@ -37,6 +45,7 @@ r.post(
   authed(async (userId, req, res) => {
     const b = parseCalendarEventInput(req.body, { partial: false });
     await assertOwnVacancyOrNull(userId, b.vacancyId);
+    await assertOwnContactOrNull(userId, b.contactId);
     const event = await createCalendarEvent(userId, {
       title: b.title!,
       notes: b.notes!,
@@ -44,6 +53,7 @@ r.post(
       endAt: b.endAt ?? null,
       type: b.type!,
       vacancyId: b.vacancyId ?? null,
+      contactId: b.contactId ?? null,
     });
     res.status(201).json(event);
   }),
@@ -56,6 +66,7 @@ r.put(
     if (!(await getCalendarEvent(userId, id))) throw new HttpError(404, "Event not found", null, "CALENDAR_EVENT_NOT_FOUND");
     const b = parseCalendarEventInput(req.body, { partial: true });
     if (Object.prototype.hasOwnProperty.call(b, "vacancyId")) await assertOwnVacancyOrNull(userId, b.vacancyId);
+    if (Object.prototype.hasOwnProperty.call(b, "contactId")) await assertOwnContactOrNull(userId, b.contactId);
     const event = await updateCalendarEvent(userId, id, b);
     res.json(event);
   }),
