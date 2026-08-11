@@ -151,3 +151,58 @@ test("switches between month, week and list views, and offers an event for expor
     page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click(),
   ]);
 });
+
+/**
+ * The per-event video-call link (features/calendar/meeting-link.ts + join-call-link.tsx): typed
+ * once in the modal, then joinable in one click from the agenda row — and carried into the Google
+ * Calendar export as `location`, which is what makes it a join button in Google's own UI.
+ *
+ * The scheme-less form is used on purpose: it's what Meet/Zoom print in their own UI and what
+ * therefore gets pasted, and normalizing it is the difference between a saved link and a 400.
+ */
+test("saves a scheme-less call link, offers it as a join link, and exports it", async ({ page }) => {
+  await page.goto("/calendar");
+
+  const title = `E2E Call Link ${Date.now()}`;
+  await page.getByRole("button", { name: "Add event" }).click();
+  await page.getByLabel("Title").fill(title);
+  await page.getByLabel("Call link (optional)").fill("meet.google.com/jxs-ewjz-onf");
+
+  // The preview inside the modal proves the value parsed before anything is saved.
+  const joinInModal = page.getByRole("dialog").getByRole("link", { name: /Join the call on Google Meet/ });
+  await expect(joinInModal).toHaveAttribute("href", "https://meet.google.com/jxs-ewjz-onf");
+
+  // Google Calendar export carries the normalized link, not the raw typed one.
+  await expect(page.getByRole("link", { name: "Google Calendar" })).toHaveAttribute(
+    "href",
+    /location=https%3A%2F%2Fmeet\.google\.com%2Fjxs-ewjz-onf/,
+  );
+
+  const [createRes] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/api/calendar/events") && r.request().method() === "POST"),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  expect(createRes.ok()).toBeTruthy();
+  const created = (await createRes.json()) as { id: number; meetingUrl: string };
+  // Stored in its own column, normalized — not left as free text in `notes`.
+  expect(created.meetingUrl).toBe("https://meet.google.com/jxs-ewjz-onf");
+
+  // Joinable straight from the Upcoming row, without opening the event first — and it survives a
+  // real reload, so this is the persisted row rather than an optimistic cache entry.
+  await page.reload();
+  await expect(page.getByRole("link", { name: /Join the call on Google Meet/ }).first()).toHaveAttribute(
+    "href",
+    "https://meet.google.com/jxs-ewjz-onf",
+  );
+
+  // Clean up so this spec doesn't leave a row behind for the shared e2e account.
+  await page
+    .getByRole("button", { name: `Edit ${title}` })
+    .first()
+    .click();
+  await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes(`/api/calendar/events/${created.id}`) && r.request().method() === "DELETE"),
+    page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click(),
+  ]);
+});

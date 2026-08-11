@@ -364,6 +364,17 @@ export function LinkIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** A video call — camera body with the classic lens-side wedge. Used on the calendar's "join call"
+ * link, where a generic chain-link icon wouldn't say what kind of link it is. */
+export function VideoCallIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 18 18" {...strokeProps} {...props}>
+      <rect x="1.5" y="4.5" width="10" height="9" rx="1.5" />
+      <path d="M11.5 8.25 16.5 5.5v7l-5-2.75z" />
+    </svg>
+  );
+}
+
 /** Expand to fullscreen — four corner brackets. */
 export function ExpandIcon(props: SVGProps<SVGSVGElement>) {
   return (

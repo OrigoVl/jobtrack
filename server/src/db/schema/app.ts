@@ -284,6 +284,14 @@ export const calendarEvents = pgTable(
     // not a Postgres enum (matches this codebase's existing preference for text + app-level
     // validation over DB enums, e.g. vacancies.status/fit above).
     type: text().notNull().default("other"),
+    // The video-call link for this event (Meet/Zoom/Teams/whatever) — its own column rather than
+    // left buried in `notes`, because the UI has to render it as a real anchor, the .ics/Google
+    // exports carry it in their own dedicated fields, and "am I 2 minutes from a call I can join
+    // in one click" is the single most time-critical thing on this row. Empty string (like
+    // `title`/`notes` above), not NULL, so `ADD COLUMN` on the existing non-empty table needs no
+    // backfill. Validated http(s)-only at the edge (shared/validation.ts's toUrl, the same helper
+    // contacts.linkedinUrl uses) — an unvalidated value here would end up in an href.
+    meetingUrl: text("meeting_url").notNull().default(""),
     // Optional link to a tracked vacancy (e.g. "on-site interview for this vacancy"). Nullable —
     // a plain personal reminder has no vacancy at all. The composite FK below (not just a plain
     // `references(() => vacancies.id)`) is what makes it structurally impossible for a manual

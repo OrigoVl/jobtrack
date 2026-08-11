@@ -685,6 +685,9 @@ export interface CalendarEvent {
   /** ISO instant, or null — no end time set. */
   endAt: string | null;
   type: CalendarEventType;
+  /** Video-call link (Meet/Zoom/Teams/…), or "" — the server guarantees http(s), so it's safe to
+   * put straight into an href. */
+  meetingUrl: string;
   /** Linked vacancy, or null — a plain personal event. */
   vacancyId: number | null;
   /** Linked networking contact, or null — e.g. the recruiter this call is with. */
@@ -697,6 +700,7 @@ export interface CalendarEventInput {
   startAt: string;
   endAt: string | null;
   type: CalendarEventType;
+  meetingUrl: string;
   vacancyId: number | null;
   contactId: number | null;
 }

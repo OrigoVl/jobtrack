@@ -9,6 +9,7 @@ const event = (over: Partial<CalendarEvent> = {}): CalendarEvent => ({
   startAt: "2026-07-15T12:00:00.000Z",
   endAt: null,
   type: "interview",
+  meetingUrl: "",
   vacancyId: null,
   contactId: null,
   ...over,
@@ -58,6 +59,27 @@ describe("buildIcs", () => {
   it("keys the entry on the event id, so re-importing updates instead of duplicating", () => {
     expect(buildIcs(event(), now)).toContain("UID:zorya-event-42@zorya");
   });
+
+  it("carries the call link in both LOCATION and URL", () => {
+    const ics = buildIcs(event({ meetingUrl: "https://meet.google.com/jxs-ewjz-onf" }), now);
+    expect(ics).toContain("LOCATION:https://meet.google.com/jxs-ewjz-onf");
+    expect(ics).toContain("URL:https://meet.google.com/jxs-ewjz-onf");
+  });
+
+  it("normalizes a scheme-less link before exporting it", () => {
+    expect(buildIcs(event({ meetingUrl: "meet.google.com/jxs-ewjz-onf" }), now)).toContain("URL:https://meet.google.com/jxs-ewjz-onf");
+  });
+
+  it("leaves URL unescaped but escapes the LOCATION text, per their value types", () => {
+    const ics = buildIcs(event({ meetingUrl: "https://call.example.com/room?a=1,2" }), now);
+    expect(ics).toContain("URL:https://call.example.com/room?a=1,2");
+    expect(ics).toContain("LOCATION:https://call.example.com/room?a=1\\,2");
+  });
+
+  it("omits both properties when there is no call link, or it isn't a usable one", () => {
+    expect(buildIcs(event(), now)).not.toContain("LOCATION");
+    expect(buildIcs(event({ meetingUrl: "javascript:alert(1)" }), now)).not.toContain("LOCATION");
+  });
 });
 
 describe("googleCalendarUrl", () => {
@@ -71,6 +93,15 @@ describe("googleCalendarUrl", () => {
 
   it("leaves out details when there are no notes", () => {
     expect(new URL(googleCalendarUrl(event())).searchParams.has("details")).toBe(false);
+  });
+
+  it("passes the call link as `location`, which is what Google renders as a join button", () => {
+    const url = new URL(googleCalendarUrl(event({ meetingUrl: "meet.google.com/jxs-ewjz-onf" })));
+    expect(url.searchParams.get("location")).toBe("https://meet.google.com/jxs-ewjz-onf");
+  });
+
+  it("leaves out location when there is no call link", () => {
+    expect(new URL(googleCalendarUrl(event())).searchParams.has("location")).toBe(false);
   });
 });
 

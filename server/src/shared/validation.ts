@@ -455,6 +455,7 @@ export interface CalendarEventInput {
   startAt?: string;
   endAt?: string | null;
   type?: CalendarEventType;
+  meetingUrl?: string;
   vacancyId?: number | null;
   contactId?: number | null;
 }
@@ -478,6 +479,10 @@ export function parseCalendarEventInput(body: unknown, { partial = false }: { pa
     if (!CALENDAR_EVENT_TYPES.includes(type as CalendarEventType)) throw new HttpError(400, `Invalid type: "${type}"`);
     out.type = type as CalendarEventType;
   }
+  // toUrl (http(s) only, same helper as contacts.linkedinUrl) rather than a free-text field: this
+  // value is rendered as an href, so a "javascript:" or "data:" one must be rejected at the edge
+  // rather than trusted to whatever renders it. Empty means "no call link", not an error.
+  if (!partial || has("meetingUrl")) out.meetingUrl = b.meetingUrl ? toUrl(b.meetingUrl, "meetingUrl") : "";
   if (!partial || has("vacancyId")) {
     if (b.vacancyId == null || b.vacancyId === "") {
       out.vacancyId = null;

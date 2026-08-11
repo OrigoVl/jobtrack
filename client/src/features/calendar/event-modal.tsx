@@ -7,6 +7,8 @@ import { CALENDAR_EVENT_TYPES, type CalendarEventInput, type CalendarEventType }
 import { fromLocalInput, toLocalInput } from "./calendar-date-utils";
 import { contactLabel, TYPE_KEY } from "./calendar-shared";
 import { buildIcs, googleCalendarUrl, icsFileName } from "./calendar-export";
+import { normalizeMeetingUrl } from "./meeting-link";
+import { JoinCallLink } from "./join-call-link";
 
 /** The full create/edit form for a calendar event. Extracted from calendar.tsx, which now also
  * owns a grid, a day popover and an upcoming list — this is the one place a whole event (times,
@@ -35,11 +37,22 @@ export function EventModal({
   const { data: companies = [] } = useCompanies();
 
   const set = <K extends keyof CalendarEventInput>(k: K, v: CalendarEventInput[K]) => setForm((f) => ({ ...f, [k]: v }));
-  const canSave = form.title.trim().length > 0 && form.startAt.length > 0;
+  // An unusable call link blocks Save rather than being silently dropped on the way out: the
+  // server rejects anything that isn't http(s) (a 400 the user can't act on from here), and
+  // quietly saving the event without the link someone just pasted is the worse failure of the two.
+  const meetingUrlOk = form.meetingUrl.trim() === "" || normalizeMeetingUrl(form.meetingUrl) !== "";
+  const canSave = form.title.trim().length > 0 && form.startAt.length > 0 && meetingUrlOk;
 
   // Export acts on what's currently IN the form, not on the last saved row: someone who just
   // changed the time and wants it in Google Calendar means the time they can see.
-  const exportable = { id: editingId ?? 0, title: form.title, notes: form.notes, startAt: form.startAt, endAt: form.endAt };
+  const exportable = {
+    id: editingId ?? 0,
+    title: form.title,
+    notes: form.notes,
+    startAt: form.startAt,
+    endAt: form.endAt,
+    meetingUrl: form.meetingUrl,
+  };
   const downloadIcs = () => {
     const url = URL.createObjectURL(new Blob([buildIcs(exportable)], { type: "text/calendar;charset=utf-8" }));
     const a = document.createElement("a");
@@ -131,6 +144,30 @@ export function EventModal({
             className="w-full mt-0.5 bg-surface-2 focus:outline-none focus:ring-2 focus:ring-signal/50"
           />
         </div>
+        {/* The call link is its own field rather than a line in Notes: it's the thing you need one
+            click on when the interview starts in two minutes, and it has to survive into the .ics/
+            Google export as a real location, which free text can't. `type="url"` only for the
+            keyboard it brings up on mobile — the actual validation is normalizeMeetingUrl (and the
+            server's toUrl), since the browser's own would reject the scheme-less form people paste. */}
+        <label className="block">
+          <span className="text-xs font-semibold text-ink-dim">{t("modal.meetingUrl")}</span>
+          <input
+            type="url"
+            inputMode="url"
+            value={form.meetingUrl}
+            onChange={(e) => set("meetingUrl", e.target.value)}
+            placeholder={t("modal.meetingUrlPlaceholder")}
+            className="w-full mt-0.5 bg-surface-2 border border-grid rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+          />
+        </label>
+        {/* Shown as soon as something joinable is typed — it doubles as the confirmation that what
+            was pasted actually parsed, before Save. */}
+        {form.meetingUrl.trim() !== "" &&
+          (normalizeMeetingUrl(form.meetingUrl) ? (
+            <JoinCallLink url={form.meetingUrl} />
+          ) : (
+            <div className="text-[11px] text-rose-600">{t("modal.meetingUrlInvalid")}</div>
+          ))}
         <label className="block">
           <span className="text-xs font-semibold text-ink-dim">{t("modal.notes")}</span>
           <textarea
@@ -168,7 +205,15 @@ export function EventModal({
             <Btn variant="ghost" size="sm" onClick={onClose}>
               {t("common:actions.cancel")}
             </Btn>
-            <Btn size="sm" disabled={!canSave} loading={saving} onClick={() => onSave(form)}>
+            {/* Saves the NORMALIZED link ("meet.google.com/x" → "https://meet.google.com/x"), so
+                what's stored is the same http(s) form the server validates and every reader here
+                renders, rather than whatever shape it happened to be pasted in. */}
+            <Btn
+              size="sm"
+              disabled={!canSave}
+              loading={saving}
+              onClick={() => onSave({ ...form, meetingUrl: normalizeMeetingUrl(form.meetingUrl) })}
+            >
               {t("common:actions.save")}
             </Btn>
           </div>

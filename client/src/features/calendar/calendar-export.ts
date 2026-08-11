@@ -2,6 +2,7 @@
 // interchange format every calendar app imports) and a Google Calendar "add event" link. Pure
 // string building — no dependency, no server round-trip; see calendar-export.test.ts.
 import type { CalendarEvent } from "../../shared/types";
+import { normalizeMeetingUrl } from "./meeting-link";
 
 /** Default length given to an event with no end time, so an exported entry occupies a sane block
  * instead of a zero-width instant that some calendars render as an all-day item. */
@@ -35,7 +36,11 @@ function endOf(event: Pick<CalendarEvent, "startAt" | "endAt">): string {
  * `uid` ties the exported entry back to this app's row, so re-importing an edited event updates
  * the existing entry in the target calendar instead of creating a duplicate.
  */
-export function buildIcs(event: Pick<CalendarEvent, "id" | "title" | "notes" | "startAt" | "endAt">, now = new Date()): string {
+export function buildIcs(
+  event: Pick<CalendarEvent, "id" | "title" | "notes" | "startAt" | "endAt" | "meetingUrl">,
+  now = new Date(),
+): string {
+  const meetingUrl = normalizeMeetingUrl(event.meetingUrl);
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -47,6 +52,11 @@ export function buildIcs(event: Pick<CalendarEvent, "id" | "title" | "notes" | "
     `DTEND:${toIcsUtc(endOf(event))}`,
     `SUMMARY:${escapeIcsText(event.title)}`,
     ...(event.notes ? [`DESCRIPTION:${escapeIcsText(event.notes)}`] : []),
+    // The call link goes in BOTH properties on purpose: LOCATION is what calendar apps actually
+    // surface as the tappable "join" affordance on a reminder, while URL is the property RFC 5545
+    // defines for it and the one importers read back. LOCATION is TEXT (escaped), URL is a URI
+    // value — escaping the latter would corrupt a link containing a comma or semicolon.
+    ...(meetingUrl ? [`LOCATION:${escapeIcsText(meetingUrl)}`, `URL:${meetingUrl}`] : []),
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");
@@ -55,13 +65,17 @@ export function buildIcs(event: Pick<CalendarEvent, "id" | "title" | "notes" | "
 /** A "create this event" link for Google Calendar's web UI — opens their compose screen with the
  * fields pre-filled, which is what most people want when the target calendar is Google's rather
  * than a desktop app that reads .ics. */
-export function googleCalendarUrl(event: Pick<CalendarEvent, "title" | "notes" | "startAt" | "endAt">): string {
+export function googleCalendarUrl(event: Pick<CalendarEvent, "title" | "notes" | "startAt" | "endAt" | "meetingUrl">): string {
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: event.title,
     dates: `${toIcsUtc(event.startAt)}/${toIcsUtc(endOf(event))}`,
   });
   if (event.notes) params.set("details", event.notes);
+  // `location` is the field Google's own event UI renders as a join button when it holds a
+  // conferencing link — the same role LOCATION plays in the .ics above.
+  const meetingUrl = normalizeMeetingUrl(event.meetingUrl);
+  if (meetingUrl) params.set("location", meetingUrl);
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 

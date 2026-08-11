@@ -33,6 +33,7 @@ const NEW_EVENT = {
   startAt: "2026-08-10T14:00:00.000Z",
   endAt: null as string | null,
   type: "interview",
+  meetingUrl: "",
   vacancyId: null as number | null,
   contactId: null as number | null,
 };
@@ -84,6 +85,21 @@ describe("calendar.repo (PGlite)", () => {
     const rows = await repo.listCalendarEvents(USER_A, { from: "2027-01-01T00:00:00.000Z", to: "2027-01-31T23:59:59.999Z" });
     expect(rows.map((r) => r.title)).toContain("In Jan");
     expect(rows.map((r) => r.title)).not.toContain("In Feb");
+  });
+
+  it("round-trips the call link, and defaults it to '' for a row inserted without one", async () => {
+    const withUrl = await repo.createCalendarEvent(USER_A, { ...NEW_EVENT, meetingUrl: "https://meet.google.com/jxs-ewjz-onf" });
+    expect(withUrl.meetingUrl).toBe("https://meet.google.com/jxs-ewjz-onf");
+    // The column is NOT NULL DEFAULT '' (migration 0019), so a row written without it — every row
+    // that existed before that migration — reads back as "" rather than null.
+    const [bare] = await testDb.insert(calendarEvents).values({ userId: USER_A, title: "No link", startAt: NEW_EVENT.startAt }).returning();
+    expect(bare!.meetingUrl).toBe("");
+  });
+
+  it("updateCalendarEvent() can clear the call link back to empty", async () => {
+    const event = await repo.createCalendarEvent(USER_A, { ...NEW_EVENT, meetingUrl: "https://zoom.us/j/98765" });
+    const updated = await repo.updateCalendarEvent(USER_A, event.id, { meetingUrl: "" });
+    expect(updated?.meetingUrl).toBe("");
   });
 
   it("can link a manual event to the caller's own vacancy", async () => {

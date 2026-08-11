@@ -52,6 +52,7 @@ r.post(
       startAt: b.startAt!,
       endAt: b.endAt ?? null,
       type: b.type!,
+      meetingUrl: b.meetingUrl!,
       vacancyId: b.vacancyId ?? null,
       contactId: b.contactId ?? null,
     });

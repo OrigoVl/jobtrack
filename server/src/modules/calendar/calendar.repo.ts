@@ -15,6 +15,8 @@ export interface CalendarEvent {
   startAt: string;
   endAt: string | null;
   type: string;
+  /** Video-call link (Meet/Zoom/Teams/…), or "" when the event has none. */
+  meetingUrl: string;
   vacancyId: number | null;
   contactId: number | null;
 }
@@ -50,6 +52,7 @@ export interface NewCalendarEvent {
   startAt: string;
   endAt: string | null;
   type: string;
+  meetingUrl: string;
   vacancyId: number | null;
   contactId: number | null;
 }

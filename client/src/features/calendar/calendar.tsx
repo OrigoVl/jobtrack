@@ -26,7 +26,16 @@ import { DayAgenda } from "./day-agenda";
 import { UpcomingCard } from "./upcoming-card";
 import { AgendaRows } from "./agenda-rows";
 
-const EMPTY_DRAFT: CalendarEventInput = { title: "", notes: "", startAt: "", endAt: null, type: "other", vacancyId: null, contactId: null };
+const EMPTY_DRAFT: CalendarEventInput = {
+  title: "",
+  notes: "",
+  startAt: "",
+  endAt: null,
+  type: "other",
+  meetingUrl: "",
+  vacancyId: null,
+  contactId: null,
+};
 /** Time of day a new event gets when it's created from a day (the popover's quick-add, or the
  * "+ Add" buttons) rather than typed into the full form. */
 const DEFAULT_NEW_TIME = "09:00";
@@ -205,6 +214,7 @@ export function CalendarPage() {
         startAt: e.startAt,
         endAt: e.endAt,
         type: e.type,
+        meetingUrl: e.meetingUrl,
         vacancyId: e.vacancyId,
         contactId: e.contactId,
       },

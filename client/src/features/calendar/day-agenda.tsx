@@ -4,6 +4,7 @@ import { Btn, Chip, Spinner } from "../../shared/ui";
 import { CardsStackIcon } from "../../shared/icons";
 import type { CalendarEvent, CalendarVacancyStep } from "../../shared/types";
 import { TYPE_CHIP, TYPE_DOT, TYPE_KEY } from "./calendar-shared";
+import { JoinCallLink } from "./join-call-link";
 
 /**
  * Everything happening on ONE day: vacancy next-steps, SRS due-count, the day's events (each
@@ -118,6 +119,7 @@ export function DayAgenda({
                 <span aria-hidden>👤</span> {contactName(e.contactId)}
               </div>
             )}
+            {e.meetingUrl && <JoinCallLink url={e.meetingUrl} className="mt-1" />}
             {e.notes && <div className="text-[11px] text-ink-dim mt-1 whitespace-pre-wrap line-clamp-3">{e.notes}</div>}
           </div>
           <div className="flex items-center gap-0.5 shrink-0">

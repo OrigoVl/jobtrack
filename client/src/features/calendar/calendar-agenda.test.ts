@@ -11,6 +11,7 @@ const event = (over: Partial<CalendarEvent> = {}): CalendarEvent => ({
   endAt: null,
   type: "interview",
   vacancyId: null,
+  meetingUrl: "",
   contactId: null,
   ...over,
 });
