@@ -33,6 +33,8 @@ export interface InterviewEvent {
   /** The calendar event's own type. Absent means "interview" — the only kind this module handled
    * before non-interview events were covered, kept so existing callers/tests read unchanged. */
   type?: string;
+  /** The event's video-call link, when it has one — see calendar_events.meeting_url. */
+  meetingUrl?: string;
 }
 
 /** Descending, because pickDueThreshold() below relies on scanning from least to most urgent. The
@@ -91,6 +93,23 @@ const EVENT_REMINDER_STYLE: Record<string, { emoji: string; noun: string }> = {
 };
 
 /**
+ * The event's call link as its own line, or "" when there isn't a usable one.
+ *
+ * Bare URL, no markup: sendTelegramMessage sends plain text with no parse_mode (see
+ * shared/telegram.ts), and Telegram auto-links a bare URL in plain text — so this is already
+ * tappable, while an <a> tag would arrive as visible angle brackets.
+ *
+ * The http(s) check is defence in depth, not the primary guard: the column only ever gets values
+ * that passed shared/validation.ts's toUrl. It costs one comparison and means a value that somehow
+ * got in another way can't be pushed at a user as something to tap.
+ */
+export function callLine(meetingUrl: string | undefined): string {
+  const url = (meetingUrl ?? "").trim();
+  if (!url.startsWith("https://") && !url.startsWith("http://")) return "";
+  return `🔗 ${url}`;
+}
+
+/**
  * Reminders for anything on the calendar that is about to start, at the thresholds above.
  *
  * The dedupe key keeps the event's TYPE out of it (`interview:12:1h`, `event:12:1h`) so it stays
@@ -112,7 +131,13 @@ export function buildInterviewReminders(events: InterviewEvent[], timeZone: stri
     out.push({
       kind: isInterview ? "interview" : "event",
       dedupeKey: `${isInterview ? "interview" : "event"}:${e.id}:${due.slug}`,
-      text: `${style.emoji} ${style.noun} ${due.label}: ${e.title || "(untitled)"}\n${formatTime(e.startAt, timeZone)}`,
+      text: [
+        `${style.emoji} ${style.noun} ${due.label}: ${e.title || "(untitled)"}`,
+        formatTime(e.startAt, timeZone),
+        callLine(e.meetingUrl),
+      ]
+        .filter(Boolean)
+        .join("\n"),
     });
   }
   return out;

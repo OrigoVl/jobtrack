@@ -58,7 +58,7 @@ async function collectPending(u: NotifiableUser, nowMs: number): Promise<Pending
     });
     const relevant = events
       .filter((e) => (e.type === "interview" ? wants("interview") : wants("event")))
-      .map((e) => ({ id: e.id, title: e.title, startAt: e.startAt, type: e.type }));
+      .map((e) => ({ id: e.id, title: e.title, startAt: e.startAt, type: e.type, meetingUrl: e.meetingUrl }));
     pending.push(...buildInterviewReminders(relevant, u.timezone, nowMs));
   }
 

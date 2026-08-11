@@ -24,6 +24,7 @@ import {
 import { extractTitleCompany, quickAnalyze, safeFetchVacancyText } from "../vacancies/vacancy-analysis.service.js";
 import { listCalendarEvents } from "../calendar/calendar.repo.js";
 import { getNotificationSettings } from "../notifications/notifications.repo.js";
+import { callLine } from "../notifications/notifications.service.js";
 import type { VacancyStatus } from "../../shared/validation.js";
 
 /** What the bot should say back. Returning text instead of sending it keeps these functions pure
@@ -118,7 +119,12 @@ export async function handleTodayCommand(userId: UserId, nowMs = Date.now()): Pr
   const nextSteps = vacancyRows.filter((v) => v.next === today);
   if (events.length === 0 && nextSteps.length === 0) return { text: "Nothing scheduled for today. 🎉" };
   const lines = [
-    ...events.map((e) => `• ${e.title || "(untitled)"} — ${formatLocalTime(e.startAt, timezone)}`),
+    // The call link goes on its own line under the event, not appended to it: Telegram auto-links
+    // a bare URL in plain text, and a URL sitting mid-sentence after an em dash is far harder to
+    // hit with a thumb than one that owns its line.
+    ...events
+      .flatMap((e) => [`• ${e.title || "(untitled)"} — ${formatLocalTime(e.startAt, timezone)}`, callLine(e.meetingUrl)])
+      .filter(Boolean),
     ...nextSteps.map((v) => `• Next step: ${[v.position, v.company].filter(Boolean).join(" — ") || "(untitled)"}`),
   ];
   return { text: ["Today:", ...lines].join("\n") };

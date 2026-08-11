@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildInterviewReminders,
+  callLine,
   buildNextStepReminders,
   buildStaleReminders,
   buildStreakReminder,
@@ -76,6 +77,31 @@ describe("buildInterviewReminders()", () => {
 
   it("falls back to the neutral wording for a type it doesn't know", () => {
     expect(buildInterviewReminders([{ ...event, type: "no-such-type" }], "UTC", NOW)[0]?.text).toContain("📌 Event");
+  });
+
+  it("puts the call link on its own line, so the reminder is one tap from joining", () => {
+    const text = buildInterviewReminders([{ ...event, meetingUrl: "https://meet.google.com/jxs-ewjz-onf" }], "UTC", NOW)[0]?.text;
+    expect(text?.split("\n").at(-1)).toBe("🔗 https://meet.google.com/jxs-ewjz-onf");
+  });
+
+  it("adds no link line at all when the event has none, rather than a dangling emoji", () => {
+    expect(buildInterviewReminders([event], "UTC", NOW)[0]?.text).not.toContain("🔗");
+  });
+});
+
+describe("callLine()", () => {
+  it("renders a bare URL, which Telegram auto-links in a plain-text message", () => {
+    expect(callLine("https://zoom.us/j/98765")).toBe("🔗 https://zoom.us/j/98765");
+  });
+
+  it("is empty for a missing or blank link", () => {
+    expect(callLine(undefined)).toBe("");
+    expect(callLine("   ")).toBe("");
+  });
+
+  it("refuses anything that isn't http(s), so a stored oddity can't be pushed as something to tap", () => {
+    expect(callLine("javascript:alert(1)")).toBe("");
+    expect(callLine("meet.google.com/jxs-ewjz-onf")).toBe("");
   });
 });
 
