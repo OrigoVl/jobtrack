@@ -69,5 +69,20 @@
       "guessed": "Guessed",
       "locked": "Locked"
     }
+  },
+  "posting": {
+    "findInPosting": "Find contacts in the posting",
+    "findInPasted": "Find contacts",
+    "pasteToggle": "Paste an email signature",
+    "pastePlaceholder": "Paste a recruiter's email signature or any text that names a way to reach them",
+    "none": "This text states no contact details",
+    "save": "Save",
+    "saved": "Saved",
+    "exactNote": "Only addresses stated in the text — nothing is guessed.",
+    "channel": {
+      "email": "Email",
+      "telegram": "Telegram",
+      "linkedin": "LinkedIn"
+    }
   }
 }

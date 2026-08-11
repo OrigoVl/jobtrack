@@ -37,6 +37,7 @@ import type {
   DrillArchiveEntry,
   EnrichmentQueryInput,
   EnrichmentResult,
+  PostingContact,
   FetchAllJobState,
   FocusWeek,
   InterviewTurnResult,
@@ -330,6 +331,8 @@ export const api = {
   contactOutreach: (id: number, kind: "intro" | "followup") =>
     req<OutreachResult>(`/contacts/${id}/outreach`, { method: "POST", body: JSON.stringify({ kind }) }),
   enrichContacts: (q: EnrichmentQueryInput) => req<EnrichmentResult>("/contacts/enrich", { method: "POST", body: JSON.stringify(q) }),
+  extractPostingContacts: (input: { vacancyId?: number; text?: string }) =>
+    req<{ contacts: PostingContact[] }>("/contacts/extract", { method: "POST", body: JSON.stringify(input) }),
   revealContactEmail: (provider: string, revealId: string) =>
     req<{ email: string; emailStatus: "verified" | "locked" }>("/contacts/enrich/reveal", {
       method: "POST",

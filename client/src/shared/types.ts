@@ -764,6 +764,19 @@ export interface ContactInput {
   lastContactAt: string;
 }
 
+/** A contact the posting itself states — see server modules/contacts/enrichment/posting-contacts.ts.
+ * Nothing here is inferred: every `value` appears verbatim in the source text, which is why this
+ * has no confidence/status field the way EnrichedPerson does. */
+export type PostingContactChannel = "email" | "telegram" | "linkedin";
+
+export interface PostingContact {
+  /** "" when the text gives an address with no name attached. */
+  name: string;
+  title: string;
+  channel: PostingContactChannel;
+  value: string;
+}
+
 export interface EnrichmentQueryInput {
   companyId?: number;
   companyName: string;

@@ -24,6 +24,7 @@ import { STATUS_SELECT_CLASS, DEFAULT_STATUS_SELECT_CLASS } from "../../shared/s
 import { DateInput } from "../../shared/date-input";
 import { SimilarVacanciesButton } from "./similar-vacancies-button";
 import { CvMatchPanel } from "../cv/cv";
+import { PostingContactsFinder } from "../contacts/posting-contacts";
 
 /** Composes a job-text block from the vacancy's own tracked fields (position/company/level/
  * salary/stack/notes) for the cover-letter/fit-match LLM prompts — this app never persists the
@@ -572,6 +573,7 @@ export function VacancyDetailModal({
                     {t("detail.addContact")}
                   </Btn>
                 </div>
+                <PostingContactsFinder vacancyId={vacancy.id} companyId={vacancy.companyId ?? null} />
               </div>
             </div>
           )}
