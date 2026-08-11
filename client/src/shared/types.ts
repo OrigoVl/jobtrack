@@ -760,6 +760,10 @@ export interface Contact {
   email: string;
   linkedinUrl: string;
   notes: string;
+  /** Where this contact came from: "posting", "signature", "manual", or "" for rows created before
+   * the field existed. Provenance, not decoration — it's what makes "where did you get my address"
+   * answerable. */
+  source: string;
   /** ISO date (YYYY-MM-DD), or "" — not set. */
   lastContactAt: string;
 }
@@ -772,6 +776,9 @@ export interface ContactInput {
   email: string;
   linkedinUrl: string;
   notes: string;
+  /** Optional on the wire: the server stores "" for anything it doesn't recognize, so a form that
+   * doesn't set it simply records an unknown origin rather than a wrong one. */
+  source?: string;
   lastContactAt: string;
 }
 
@@ -786,6 +793,9 @@ export interface PostingContact {
   title: string;
   channel: PostingContactChannel;
   value: string;
+  /** Email rows only: whether the domain accepts mail at all. Only "no-mail" is worth surfacing —
+   * "unknown" covers every non-email row and every lookup that couldn't answer. */
+  mailDomain: "accepts-mail" | "no-mail" | "unknown";
 }
 
 export interface CvShare {

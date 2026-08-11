@@ -34,6 +34,7 @@ function FoundContactRow({ contact, vacancyId, companyId }: { contact: PostingCo
         // dropped — a dedicated column is a schema change worth making only once the Telegram
         // path proves itself in use.
         notes: contact.channel === "telegram" ? `Telegram: ${contact.value}` : "",
+        source: "posting",
         companyId,
         vacancyId,
       },
@@ -55,6 +56,15 @@ function FoundContactRow({ contact, vacancyId, companyId }: { contact: PostingCo
         </a>
         {(contact.name || contact.title) && (
           <div className="text-[11px] text-ink-dim truncate">{[contact.name, contact.title].filter(Boolean).join(" · ")}</div>
+        )}
+        {/* Only the definite negative is worth the user's attention. "unknown" means the lookup
+            couldn't answer, which is no reason to cast doubt on an address the posting stated.
+            "rose" rather than "amber": the app's amber IS the accent hue (see ui.tsx's CHIP_TONE
+            glossary), so it wouldn't read as a caution here. */}
+        {contact.mailDomain === "no-mail" && (
+          <div className="mt-0.5">
+            <Chip tone="rose">{t("posting.noMailDomain")}</Chip>
+          </div>
         )}
       </div>
       <Btn

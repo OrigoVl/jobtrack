@@ -57,7 +57,8 @@
       "email": "Email",
       "telegram": "Telegram",
       "linkedin": "LinkedIn"
-    }
+    },
+    "noMailDomain": "Цей домен не приймає пошту"
   },
   "signature": {
     "toggle": "Вставити підпис листа",
@@ -65,5 +66,10 @@
     "placeholder": "Встав підпис із листа рекрутера — ім'я, посаду, адресу, Telegram або LinkedIn",
     "action": "Заповнити форму",
     "none": "У цьому тексті контактів не знайдено"
+  },
+  "sourceLabel": {
+    "posting": "з опису",
+    "signature": "з підпису",
+    "manual": "додано вручну"
   }
 }

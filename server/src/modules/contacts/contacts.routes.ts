@@ -51,6 +51,7 @@ r.post(
       email: b.email!,
       linkedinUrl: b.linkedinUrl!,
       notes: b.notes!,
+      source: b.source!,
       lastContactAt: b.lastContactAt!,
     });
     res.status(201).json(contact);

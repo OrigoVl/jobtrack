@@ -19,6 +19,7 @@
 import { z } from "zod";
 import { chatJson, llmAvailable, quoteUntrustedText } from "../../../llm/index.js";
 import type { UserId } from "../../../db/user-id.js";
+import { checkMailDomains, mailDomainOf, type MailDomainStatus } from "./mx-check.js";
 
 export type PostingContactChannel = "email" | "telegram" | "linkedin";
 
@@ -29,6 +30,10 @@ export interface PostingContact {
   channel: PostingContactChannel;
   /** The address/handle/URL exactly as it appears in the posting. */
   value: string;
+  /** Email rows only: whether that domain accepts mail at all (mx-check.ts). "unknown" is the
+   * value for every non-email row and for any lookup that couldn't answer — only "no-mail" is
+   * worth telling the user about. */
+  mailDomain: MailDomainStatus;
 }
 
 // Deliberately conservative: a trailing dot or comma is punctuation, not part of the address, and
@@ -103,9 +108,15 @@ export function findContactsInText(text: string): PostingContact[] {
   const realTelegrams = telegrams.filter((h) => !emailBlob.includes(h.slice(1).toLowerCase()));
 
   return dedupeByValue([
-    ...emails.map((value) => ({ name: isRoleAddress(value) ? "" : soleName, title: "", channel: "email" as const, value })),
-    ...realTelegrams.map((value) => ({ name: soleName, title: "", channel: "telegram" as const, value })),
-    ...linkedins.map((value) => ({ name: soleName, title: "", channel: "linkedin" as const, value })),
+    ...emails.map((value) => ({
+      name: isRoleAddress(value) ? "" : soleName,
+      title: "",
+      channel: "email" as const,
+      value,
+      mailDomain: "unknown" as const,
+    })),
+    ...realTelegrams.map((value) => ({ name: soleName, title: "", channel: "telegram" as const, value, mailDomain: "unknown" as const })),
+    ...linkedins.map((value) => ({ name: soleName, title: "", channel: "linkedin" as const, value, mailDomain: "unknown" as const })),
   ]);
 }
 
@@ -153,7 +164,7 @@ const SYSTEM =
 export async function extractPostingContacts(userId: UserId, text: string): Promise<PostingContact[]> {
   const src = String(text ?? "");
   const offline = findContactsInText(src);
-  if (!llmAvailable() || src.trim().length < 30) return offline;
+  if (!llmAvailable() || src.trim().length < 30) return withMailDomainStatus(offline);
 
   const out = await chatJson(
     userId,
@@ -170,8 +181,19 @@ export async function extractPostingContacts(userId: UserId, text: string): Prom
       title: c.title.trim().slice(0, 160),
       channel: c.channel,
       value: c.value.trim(),
+      mailDomain: "unknown" as const,
     })),
     src,
   );
-  return dedupeByValue([...fromLlm, ...offline]);
+  return withMailDomainStatus(dedupeByValue([...fromLlm, ...offline]));
+}
+
+/** Annotates the email rows with whether their domain can receive mail at all. Best-effort by
+ * design: a DNS failure leaves "unknown" and the address is still returned — the posting stated it,
+ * and a resolver problem is no reason to hide it. */
+async function withMailDomainStatus(contacts: PostingContact[]): Promise<PostingContact[]> {
+  const emails = contacts.filter((c) => c.channel === "email").map((c) => c.value);
+  if (emails.length === 0) return contacts;
+  const byDomain = await checkMailDomains(emails);
+  return contacts.map((c) => (c.channel === "email" ? { ...c, mailDomain: byDomain.get(mailDomainOf(c.value)) ?? "unknown" } : c));
 }

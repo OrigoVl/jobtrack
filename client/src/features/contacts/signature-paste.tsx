@@ -20,6 +20,7 @@ function draftFrom(found: PostingContact[], base: ContactInput): ContactInput {
     linkedinUrl: linkedin?.value || "",
     // `contacts` has no Telegram column — same call as the vacancy flow's row save.
     notes: telegram ? `Telegram: ${telegram.value}` : "",
+    source: "signature",
   };
 }
 

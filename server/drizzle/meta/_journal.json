@@ -141,6 +141,13 @@
       "when": 1786457821477,
       "tag": "0019_abandoned_wolfsbane",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1786479735165,
+      "tag": "0020_clumsy_miracleman",
+      "breakpoints": true
     }
   ]
 }

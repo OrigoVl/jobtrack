@@ -339,6 +339,9 @@ export function Contacts() {
                     </a>
                   )}
                   {c.lastContactAt && <span className="text-ink-dim">{t("lastContact", { date: c.lastContactAt })}</span>}
+                  {/* Provenance. Only rendered for a known origin: "" means the row predates the
+                      field, and inventing "added by hand" for it would be a fact we don't have. */}
+                  {c.source && <span className="text-ink-dim/70">{t(`sourceLabel.${c.source}` as "sourceLabel.manual")}</span>}
                 </div>
                 {c.notes && <p className="text-xs text-ink-dim mt-2 whitespace-pre-wrap">{c.notes}</p>}
                 <ContactOutreachPanel contact={c} />

@@ -4,7 +4,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BOOTSTRAP_USER_ID } from "../../../db/user-id.js";
 
-const { chatJson, llmAvailable } = vi.hoisted(() => ({ chatJson: vi.fn(), llmAvailable: vi.fn(() => false) }));
+const { chatJson, llmAvailable, checkMailDomains } = vi.hoisted(() => ({
+  chatJson: vi.fn(),
+  llmAvailable: vi.fn(() => false),
+  checkMailDomains: vi.fn(async () => new Map<string, string>()),
+}));
+
+// Mocked so the suite never touches a real resolver — mx-check.ts has its own tests for the
+// lookup logic, and a unit test that depends on DNS is a flaky test.
+vi.mock("./mx-check.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./mx-check.js")>()),
+  checkMailDomains,
+}));
 
 vi.mock("../../../llm/index.js", () => ({
   chatJson,
@@ -73,6 +84,7 @@ describe("extractPostingContacts()", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     llmAvailable.mockReturnValue(false);
+    checkMailDomains.mockResolvedValue(new Map());
   });
 
   it("falls back to the deterministic pass when no LLM key is configured", async () => {
@@ -124,6 +136,25 @@ describe("extractPostingContacts()", () => {
     const found = await extractPostingContacts(BOOTSTRAP_USER_ID, "Шукаємо розробника. Подавайтесь через форму.");
 
     expect(found).toEqual([]);
+  });
+
+  it("annotates an email row with whether its domain accepts mail, leaving other channels alone", async () => {
+    checkMailDomains.mockResolvedValue(new Map([["acme.example", "no-mail"]]));
+
+    const { extractPostingContacts } = await import("./posting-contacts.js");
+    const found = await extractPostingContacts(BOOTSTRAP_USER_ID, "Пишіть на hr@acme.example або @some_handle");
+
+    expect(found.find((c) => c.channel === "email")!.mailDomain).toBe("no-mail");
+    expect(found.find((c) => c.channel === "telegram")!.mailDomain).toBe("unknown");
+  });
+
+  it("leaves the status 'unknown' when the lookup could not answer", async () => {
+    checkMailDomains.mockResolvedValue(new Map());
+
+    const { extractPostingContacts } = await import("./posting-contacts.js");
+    const found = await extractPostingContacts(BOOTSTRAP_USER_ID, "Пишіть на hr@acme.example");
+
+    expect(found[0]!.mailDomain).toBe("unknown");
   });
 
   it("survives the LLM being unavailable mid-call (chatJson returning null)", async () => {

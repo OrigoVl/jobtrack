@@ -12,6 +12,7 @@ function contact(overrides: Partial<Contact> = {}): Contact {
     email: "",
     linkedinUrl: "",
     notes: "",
+    source: "manual",
     lastContactAt: "",
     ...overrides,
   };

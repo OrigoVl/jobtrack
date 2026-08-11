@@ -151,6 +151,18 @@ export const contacts = pgTable(
     email: text(),
     linkedinUrl: text("linkedin_url"),
     notes: text().notNull().default(""),
+    // Where this contact came from: "posting" / "signature" (extracted from text the user gave us,
+    // see modules/contacts/enrichment/posting-contacts.ts) or "manual". Plain text with an app-side
+    // union rather than a pg enum — the set is expected to grow as new sources land, and an enum
+    // would need a migration per value. "" is the honest value for every row that predates this
+    // column: their origin genuinely isn't known, and defaulting them to "manual" would invent a
+    // fact. That empty default is also what makes this safe to ADD COLUMN against a populated
+    // table (see cv_shares.profileId's comment for the case where that isn't possible).
+    //
+    // Not decoration: it's what makes an erasure request from a person who is not a user
+    // answerable ("where did you get my address") and what lets dedupe prefer a stated address
+    // over a hand-typed one.
+    source: text().notNull().default(""),
     lastContactAt: date("last_contact_at", { mode: "string" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -215,29 +227,6 @@ export const llmCache = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("llm_cache_created_at_idx").on(t.createdAt)],
-);
-
-// UNUSED as of the exact-only contacts switch — kept here only so the schema still describes what
-// the database actually contains. It cached third-party people-data lookups (Hunter.io/Apollo.io/
-// Snov.io); those providers are gone, and the replacement (modules/contacts/enrichment/
-// posting-contacts.ts) caches nothing at all, so nothing reads or writes this table any more.
-// Dropping it needs its own generated migration — a deliberate follow-up, not a drive-by, since a
-// deployed database still has the table and any rows left in it.
-//
-// The original reasoning, kept because it's the precedent to follow if a cache of third-party
-// personal data ever comes back: it was a SEPARATE table from `llm_cache` despite the identical
-// shape, because (1) it needed a much shorter TTL than llm_cache's 90 days — 7 days, since
-// recruiters change jobs and GDPR storage-limitation principles argue against holding third-party
-// personal data indefinitely — and (2) it needed to be independently purgeable for a data-subject
-// erasure request without touching the unrelated LLM response cache.
-export const enrichmentCache = pgTable(
-  "enrichment_cache",
-  {
-    k: text().primaryKey(),
-    v: jsonb().notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [index("enrichment_cache_created_at_idx").on(t.createdAt)],
 );
 
 export const vacancyStatusHistory = pgTable(

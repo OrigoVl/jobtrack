@@ -284,6 +284,13 @@ export function parseCompanyInput(body: unknown): CompanyInput {
   };
 }
 
+/** Where a contact came from. Closed on purpose: this is a provenance record, so an arbitrary
+ * client-supplied string would make it worthless as an answer to "where did you get my address".
+ * Anything unrecognized is stored as "" (unknown) rather than rejected — provenance is metadata,
+ * and a bad value here must never fail an otherwise valid save. */
+export const CONTACT_SOURCES = ["manual", "posting", "signature"] as const;
+export type ContactSource = (typeof CONTACT_SOURCES)[number];
+
 export interface ContactInput {
   name?: string;
   role?: string;
@@ -292,6 +299,7 @@ export interface ContactInput {
   email?: string;
   linkedinUrl?: string;
   notes?: string;
+  source?: string;
   lastContactAt?: string;
 }
 
@@ -325,6 +333,10 @@ export function parseContactInput(body: unknown, { partial = false }: { partial?
   if (!partial || has("email")) out.email = asString(b.email).trim().slice(0, 200);
   if (!partial || has("linkedinUrl")) out.linkedinUrl = b.linkedinUrl ? toUrl(b.linkedinUrl, "linkedinUrl") : "";
   if (!partial || has("notes")) out.notes = asString(b.notes).slice(0, 5000);
+  if (!partial || has("source")) {
+    const source = asString(b.source).trim();
+    out.source = CONTACT_SOURCES.includes(source as ContactSource) ? source : "";
+  }
   if (!partial || has("lastContactAt")) out.lastContactAt = toDateOrEmpty(b.lastContactAt, "lastContactAt");
   return out;
 }

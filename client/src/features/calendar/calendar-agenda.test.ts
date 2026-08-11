@@ -102,6 +102,7 @@ describe("contactLabel", () => {
     email: "",
     linkedinUrl: "",
     notes: "",
+    source: "",
     lastContactAt: "",
     ...over,
   });

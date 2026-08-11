@@ -16,6 +16,9 @@ export interface Contact {
   email: string;
   linkedinUrl: string;
   notes: string;
+  /** Where this contact came from — "posting", "signature", "manual", or "" for rows created
+   * before the column existed. See the schema comment; the client renders it as a small label. */
+  source: string;
   /** ISO date (YYYY-MM-DD), or "" — not set. Same tri-state-via-empty-string convention the API
    * already uses for vacancies.applied/next (shared/validation.ts#toDateOrEmpty), even though the
    * DB column itself is a real nullable `date` (NULL, not ''), unlike vacancies' text column. */
@@ -35,6 +38,7 @@ function toContact(row: typeof contacts.$inferSelect): Contact {
     email: row.email ?? "",
     linkedinUrl: row.linkedinUrl ?? "",
     notes: row.notes,
+    source: row.source,
     lastContactAt: row.lastContactAt ?? "",
   };
 }
@@ -67,6 +71,7 @@ export interface NewContact {
   email: string;
   linkedinUrl: string;
   notes: string;
+  source: string;
   lastContactAt: string;
 }
 

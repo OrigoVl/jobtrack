@@ -17,6 +17,7 @@ const NEW_CONTACT = {
   email: "ada@example.test",
   linkedinUrl: "https://www.linkedin.com/in/ada",
   notes: "Met at a meetup",
+  source: "manual",
   lastContactAt: "",
 };
 

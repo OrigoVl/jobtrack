@@ -25,6 +25,7 @@ const contact: Contact = {
   email: "ada@example.test",
   linkedinUrl: "",
   notes: "Met at a meetup",
+  source: "manual",
   lastContactAt: "",
 };
 
