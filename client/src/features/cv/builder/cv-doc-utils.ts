@@ -362,10 +362,21 @@ export function applyCvCss(target: Document, css: string): void {
   }
   // Fallback for environments without constructable stylesheets (jsdom in unit tests, browsers
   // predating Safari 16.4) — no CSP applies in those, so a plain <style> element is fine there.
+  // Reused per document rather than appended afresh: the live preview re-applies on every theme
+  // edit (see cv-preview-panel.tsx), which would otherwise pile up a <style> per keystroke of the
+  // accent/scale controls. Keyed by document, so a reloaded srcdoc iframe (a NEW Document object,
+  // whose old element is gone with the old document) correctly gets its own element again.
+  const existing = FALLBACK_STYLE_EL.get(target);
+  if (existing) {
+    existing.textContent = css;
+    return;
+  }
   const el = target.createElement("style");
   el.textContent = css;
   target.head.appendChild(el);
+  FALLBACK_STYLE_EL.set(target, el);
 }
+const FALLBACK_STYLE_EL = new WeakMap<Document, HTMLStyleElement>();
 
 /** `onPopupBlocked` replaces the old native `alert()` — a plain utility function has no toast
  * context of its own, so the call site (which does) supplies how to surface the failure,

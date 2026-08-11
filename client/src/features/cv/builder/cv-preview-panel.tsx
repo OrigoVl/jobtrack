@@ -68,6 +68,7 @@ function ScaledFrame({
 }) {
   const { t } = useTranslation(["cv", "common"]);
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const frameRef = useRef<HTMLIFrameElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(PAGE_WIDTH);
   const [contentHeight, setContentHeight] = useState(1200);
   useEffect(() => {
@@ -80,6 +81,24 @@ function ScaledFrame({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  // The markup the currently-loaded document was built from. Lets the effect below tell "only the
+  // stylesheet changed" (act now) from "the document itself changed" (a reload is already on its
+  // way — leave it to `onLoad`, so we never style the outgoing document with the incoming CSS).
+  const loadedHtmlRef = useRef<string | null>(null);
+  // Most appearance edits change ONLY `css`, leaving `html` byte-identical: the accent color, the
+  // font, the scale, the skill chip looks — and the classic/minimal/timeline templates, which
+  // share exactly the same markup and differ purely in CSS (compact/academic too, on a CV with no
+  // skills). React re-mounts the srcdoc document only when `srcDoc` (= `html`) changes, so
+  // `onLoad` never fires for any of those and the preview kept showing the previous stylesheet —
+  // switching e.g. Classic → Minimal appeared to do nothing at all.
+  useEffect(() => {
+    const frameDoc = frameRef.current?.contentDocument;
+    if (!frameDoc || loadedHtmlRef.current !== html) return;
+    applyCvCss(frameDoc, css);
+    const h = frameDoc.documentElement.scrollHeight;
+    setContentHeight(h);
+    onContentHeight(h);
+  }, [css, html, onContentHeight]);
   const scale = (containerWidth / PAGE_WIDTH) * zoom;
   return (
     <div ref={viewportRef} className="overflow-auto bg-surface-2" style={{ maxHeight }}>
@@ -89,10 +108,12 @@ function ScaledFrame({
           className="shadow-xl ring-1 ring-ink/5 shrink-0 rounded-sm"
         >
           <iframe
+            ref={frameRef}
             title={t("preview.iframeTitlePreview")}
             srcDoc={html}
             onLoad={(e) => {
               const doc = e.currentTarget.contentDocument;
+              loadedHtmlRef.current = html;
               // Styles first, height second: an unstyled document is a different height (no
               // max-width, no margins, default font), so measuring before this would size the
               // frame — and the "how many pages" hint — off the wrong layout.
