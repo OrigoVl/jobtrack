@@ -25,7 +25,26 @@ describe("CvThemeSchema", () => {
       showPhoto: true,
       photoShape: "circle",
       photoPos: "left",
+      // These three have to default to the behavior chips ALREADY had before they were
+      // configurable ("auto" = the template decides, 6px corners, accent tint): a theme saved
+      // before they existed simply has no such key, so it parses through these defaults — any
+      // other value here would restyle every stored CV the next time it's saved.
+      skillsStyle: "auto",
+      skillChipShape: "rounded",
+      skillChipFill: "tint",
     });
+  });
+
+  it("keeps a chosen skills style/shape/fill and falls back on garbage", () => {
+    const out = CvThemeSchema.parse({ skillsStyle: "list", skillChipShape: "pill", skillChipFill: "solid" });
+    expect(out.skillsStyle).toBe("list");
+    expect(out.skillChipShape).toBe("pill");
+    expect(out.skillChipFill).toBe("solid");
+
+    const bad = CvThemeSchema.parse({ skillsStyle: "hexagons", skillChipShape: 7, skillChipFill: null });
+    expect(bad.skillsStyle).toBe("auto");
+    expect(bad.skillChipShape).toBe("rounded");
+    expect(bad.skillChipFill).toBe("tint");
   });
 
   it("keeps valid values untouched", () => {

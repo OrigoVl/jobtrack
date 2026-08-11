@@ -137,7 +137,8 @@
       "skills": {
         "title": "Skills",
         "searchPlaceholder": "Search skill…",
-        "addHint": "+ add skills"
+        "addHint": "+ add skills",
+        "reorderHint": "Drag a skill, or focus one and use ← → — the CV prints them in this order."
       },
       "projects": {
         "title": "Projects",
@@ -359,6 +360,23 @@
       "accent": "Accent",
       "font": "Font",
       "textScale": "Text scale"
+    },
+    "skills": {
+      "title": "Skills",
+      "style": "Style",
+      "auto": "Auto",
+      "chips": "Chips",
+      "inline": "Inline",
+      "list": "List",
+      "shape": "Shape",
+      "rounded": "Rounded",
+      "pill": "Pill",
+      "square": "Square",
+      "fill": "Fill",
+      "tint": "Tint",
+      "outline": "Outline",
+      "solid": "Solid",
+      "chipsOnlyHint": "Shape and fill apply to the chips style."
     },
     "photo": {
       "title": "Photo",

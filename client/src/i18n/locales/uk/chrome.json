@@ -8,7 +8,9 @@
   "skillsInput": {
     "removeSkill": "Видалити {{skill}}",
     "searchPlaceholder": "Пошук навички…",
-    "suggestions": "Пропозиції"
+    "suggestions": "Пропозиції",
+    "reorderSkill": "{{skill}} — позиція {{position}} з {{total}}. Пересунь стрілками ← → або перетягни.",
+    "reorderHint": "Перетягни або пересунь стрілками ← →"
   },
   "commandPalette": {
     "placeholder": "Перейти на сторінку або виконати дію… (Дашборд, Вакансії, Вийти…)",

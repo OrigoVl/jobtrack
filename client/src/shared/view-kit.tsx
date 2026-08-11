@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { SKILL_SUGGESTIONS } from "./skill-suggestions";
@@ -50,6 +50,7 @@ export function SkillsInput({
   onChange,
   placeholder,
   hideLabel = false,
+  reorderable = false,
 }: {
   label: string;
   skills: string[];
@@ -57,10 +58,15 @@ export function SkillsInput({
   placeholder?: string;
   /** Omit the label — used when the parent already shows a title (e.g. an accordion header). */
   hideLabel?: boolean;
+  /** Opt-in drag/arrow-key reordering. Off by default: in a vacancy's stack the order carries no
+   * meaning, so the affordance would be noise. On a CV it's the opposite — the first few skills
+   * are the ones a recruiter actually reads, and they render in exactly this order. */
+  reorderable?: boolean;
 }) {
   const { t } = useTranslation(["chrome", "common"]);
   const [draft, setDraft] = useState("");
   const [focused, setFocused] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   const selectedLower = new Set(skills.map((s) => s.toLowerCase()));
   const q = draft.trim().toLowerCase();
@@ -88,6 +94,26 @@ export function SkillsInput({
   };
 
   const removeAt = (i: number) => onChange(skills.filter((_, idx) => idx !== i));
+
+  // Moving a chip re-renders the list with the same index-keyed DOM nodes, so the browser would
+  // leave focus on the position rather than on the chip that moved — i.e. every further arrow
+  // press would grab a different skill. Refocus the chip at its new index instead.
+  const chipRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [pendingFocus, setPendingFocus] = useState<number | null>(null);
+  useEffect(() => {
+    if (pendingFocus === null) return;
+    chipRefs.current[pendingFocus]?.focus();
+    setPendingFocus(null);
+  }, [pendingFocus]);
+
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= skills.length || from === to) return;
+    const next = [...skills];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item!);
+    onChange(next);
+    setPendingFocus(to);
+  };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || e.key === ",") {
@@ -121,9 +147,45 @@ export function SkillsInput({
         {skills.map((s, i) => (
           <span
             key={`${s}-${i}`}
-            className="inline-flex items-center gap-1 text-xs font-medium pl-2 pr-1 py-0.5 rounded-full bg-signal/10 text-signal border border-signal/30"
+            onDragOver={reorderable ? (e) => e.preventDefault() : undefined}
+            onDrop={
+              reorderable
+                ? () => {
+                    if (dragIdx !== null) move(dragIdx, i);
+                    setDragIdx(null);
+                  }
+                : undefined
+            }
+            className={`inline-flex items-center gap-1 text-xs font-medium pl-2 pr-1 py-0.5 rounded-full bg-signal/10 text-signal border transition-colors ${
+              dragIdx === i ? "border-signal ring-1 ring-signal/50" : "border-signal/30"
+            }`}
           >
-            {s}
+            {reorderable ? (
+              // The chip's own text is the drag handle and the keyboard control — a separate ⠿
+              // grip next to 25 chips would double the width of every one of them. Arrow keys
+              // are what makes this reachable without a mouse at all (drag-and-drop isn't).
+              <button
+                type="button"
+                ref={(el) => {
+                  chipRefs.current[i] = el;
+                }}
+                draggable
+                onDragStart={() => setDragIdx(i)}
+                onDragEnd={() => setDragIdx(null)}
+                onKeyDown={(e) => {
+                  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+                  e.preventDefault();
+                  move(i, e.key === "ArrowLeft" ? i - 1 : i + 1);
+                }}
+                aria-label={t("skillsInput.reorderSkill", { skill: s, position: i + 1, total: skills.length })}
+                title={t("skillsInput.reorderHint")}
+                className="cursor-grab active:cursor-grabbing select-none rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/70"
+              >
+                {s}
+              </button>
+            ) : (
+              s
+            )}
             <button
               type="button"
               onClick={() => removeAt(i)}

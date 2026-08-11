@@ -1,9 +1,11 @@
 import { useState } from "react";
+import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { Btn, Segmented, Section } from "../../../shared/ui";
 import { useToast } from "../../../shared/use-toast";
 import { UserIcon } from "../../../shared/icons";
 import type { CvDoc, CvTheme } from "../../../shared/types";
+import { effectiveSkillsStyle } from "./cv-doc-utils";
 import { PhotoCropper } from "./photo-cropper";
 
 const TEMPLATE_KEYS: [
@@ -164,6 +166,28 @@ const ACCENT_PRESETS = ["#4f46e5", "#1e3a8a", "#0f766e", "#15803d", "#9f1239", "
 // interleaved. Single-column templates don't have this failure mode at all.
 const ATS_RISK_TEMPLATES = new Set<CvTheme["template"]>(["twocol", "sidebar"]);
 
+const SKILLS_STYLE_KEYS: Record<NonNullable<CvTheme["skillsStyle"]>, `appearance.skills.${"auto" | "chips" | "inline" | "list"}`> = {
+  auto: "appearance.skills.auto",
+  chips: "appearance.skills.chips",
+  inline: "appearance.skills.inline",
+  list: "appearance.skills.list",
+};
+
+// Deliberately NOT translated and not read from the user's own skills: this is a rendering
+// sample, and three short latin words keep every chip the same size in both locales so the shape/
+// fill difference is what changes between clicks — while a real skill list would reflow instead.
+const SAMPLE_CHIPS = ["React", "Node.js", "SQL"];
+
+/** The sample chips above, styled exactly the way buildCvDocument's `.chip` rule will render
+ * them — same three fills, same three radii — so what's shown here is what prints. */
+function chipSampleStyle(theme: CvTheme): CSSProperties {
+  const radius = theme.skillChipShape === "pill" ? "999px" : theme.skillChipShape === "square" ? "0" : "6px";
+  const fill = theme.skillChipFill ?? "tint";
+  if (fill === "solid") return { borderRadius: radius, background: theme.accent, color: "#fff", borderColor: theme.accent };
+  if (fill === "outline") return { borderRadius: radius, background: "transparent", color: theme.accent, borderColor: `${theme.accent}66` };
+  return { borderRadius: radius, background: `${theme.accent}14`, color: theme.accent, borderColor: `${theme.accent}33` };
+}
+
 interface AppearancePanelProps {
   doc: CvDoc;
   theme: CvTheme;
@@ -267,6 +291,59 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             className="w-full mt-1 accent-signal"
           />
         </label>
+      </Section>
+      <Section title={t("appearance.skills.title")} hint={t(SKILLS_STYLE_KEYS[theme.skillsStyle ?? "auto"])}>
+        <div className="flex items-center justify-between gap-2 text-xs text-ink-dim">
+          <span>{t("appearance.skills.style")}</span>
+          <Segmented
+            value={theme.skillsStyle ?? "auto"}
+            onChange={(v) => onSetTheme({ skillsStyle: v })}
+            options={(["auto", "chips", "inline", "list"] as const).map((v) => ({ value: v, label: t(SKILLS_STYLE_KEYS[v]) }))}
+          />
+        </div>
+        {/* Shape/fill only style the chips, so they'd be dead controls under the other two
+            styles — and under "auto" that depends on the chosen template, which is why the
+            generator's own rule is reused here instead of re-deriving it (effectiveSkillsStyle). */}
+        {effectiveSkillsStyle(theme) === "chips" ? (
+          <>
+            <div className="flex items-center justify-between gap-2 text-xs text-ink-dim">
+              <span>{t("appearance.skills.shape")}</span>
+              <Segmented
+                value={theme.skillChipShape ?? "rounded"}
+                onChange={(v) => onSetTheme({ skillChipShape: v })}
+                options={[
+                  { value: "rounded", label: t("appearance.skills.rounded") },
+                  { value: "pill", label: t("appearance.skills.pill") },
+                  { value: "square", label: t("appearance.skills.square") },
+                ]}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2 text-xs text-ink-dim">
+              <span>{t("appearance.skills.fill")}</span>
+              <Segmented
+                value={theme.skillChipFill ?? "tint"}
+                onChange={(v) => onSetTheme({ skillChipFill: v })}
+                options={[
+                  { value: "tint", label: t("appearance.skills.tint") },
+                  { value: "outline", label: t("appearance.skills.outline") },
+                  { value: "solid", label: t("appearance.skills.solid") },
+                ]}
+              />
+            </div>
+            {/* A sample of the real thing on a white "paper" background: the accent-on-white
+                combination a chip actually prints as reads very differently on this dark editor
+                surface, and the live preview may well be scrolled somewhere else entirely. */}
+            <div className="flex flex-wrap items-center gap-1.5 rounded-lg bg-white p-2">
+              {SAMPLE_CHIPS.map((s) => (
+                <span key={s} style={chipSampleStyle(theme)} className="text-[11px] font-medium px-2 py-0.5 border leading-relaxed">
+                  {s}
+                </span>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="text-[11px] text-ink-dim">{t("appearance.skills.chipsOnlyHint")}</div>
+        )}
       </Section>
       <Section
         title={t("appearance.photo.title")}

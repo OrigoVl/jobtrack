@@ -8,7 +8,9 @@
   "skillsInput": {
     "removeSkill": "Remove {{skill}}",
     "searchPlaceholder": "Search skill…",
-    "suggestions": "Suggestions"
+    "suggestions": "Suggestions",
+    "reorderSkill": "{{skill}} — position {{position}} of {{total}}. Use the left/right arrow keys to move it, or drag it.",
+    "reorderHint": "Drag, or use ← → to move"
   },
   "commandPalette": {
     "placeholder": "Jump to a page or run an action… (Dashboard, Vacancies, Log out…)",

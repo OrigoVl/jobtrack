@@ -83,6 +83,15 @@ export const CvThemeSchema = z.preprocess(
       .transform((v) => v !== false),
     photoShape: z.enum(["circle", "square"]).catch("circle"),
     photoPos: z.enum(["left", "right"]).catch("left"),
+    // Skills rendering. "auto" is what a doc saved before these existed parses as (the key is
+    // simply missing, so `.catch` supplies it), and it means "whatever this template does by
+    // default" — so adding these three can't change how any existing CV looks.
+    skillsStyle: z.enum(["auto", "chips", "inline", "list"]).catch("auto"),
+    // "rounded" (6px), not "pill": these defaults are what a doc saved before the setting existed
+    // parses as, so they have to be the look chips ALREADY had — anything else silently restyles
+    // every CV in the database the first time it's saved again.
+    skillChipShape: z.enum(["pill", "rounded", "square"]).catch("rounded"),
+    skillChipFill: z.enum(["tint", "outline", "solid"]).catch("tint"),
   }),
 );
 export type CvTheme = z.infer<typeof CvThemeSchema>;

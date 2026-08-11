@@ -57,6 +57,18 @@ export function themeOf(doc: CvDoc): CvTheme {
 }
 
 /**
+ * Resolves `theme.skillsStyle`'s "auto" (the default, and what every CV saved before the setting
+ * existed parses as) to what the Skills section actually renders as: the two text-dense templates
+ * run the skills as one inline "A · B · C" line, everything else uses chips. Exported because the
+ * Appearance panel needs the same answer — it only offers the chip-specific controls while chips
+ * are what's on screen, and duplicating the rule there would let the two drift apart.
+ */
+export function effectiveSkillsStyle(theme: CvTheme): "chips" | "inline" | "list" {
+  if (theme.skillsStyle && theme.skillsStyle !== "auto") return theme.skillsStyle;
+  return theme.template === "compact" || theme.template === "academic" ? "inline" : "chips";
+}
+
+/**
  * Renders a CV document as markup + its stylesheet, deliberately kept as TWO separate strings
  * instead of one HTML string with an inline `<style>` in its `<head>`.
  *
@@ -204,14 +216,17 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
   const photoImg = doc.photo && t.showPhoto !== false ? `<img class="photo" src="${doc.photo}" alt="Photo"/>` : "";
   const hmeta = `<div class="hmeta" data-section="general"><h1>${esc(doc.name)}</h1><div class="title">${esc(doc.title)}</div><div class="contact">${esc(doc.contact)}${doc.contact.trim() && linksLine ? " · " : ""}${linksLine}</div></div>`;
   const langs = (doc.languages || []).filter((l) => l && l.name);
-  const useInline = t.template === "compact" || t.template === "academic";
-  const secSkillsChips = doc.skills.length
-    ? `${H("skills")}<div class="chips">${doc.skills.map((s) => `<span class="chip">${esc(s)}</span>`).join("")}</div>`
-    : "";
-  const secSkillsInline = doc.skills.length ? `${H("skills")}<p>${doc.skills.map(esc).join(" · ")}</p>` : "";
+  const skillsStyle = effectiveSkillsStyle(t);
+  const secSkills = !doc.skills.length
+    ? ""
+    : skillsStyle === "inline"
+      ? `${H("skills")}<p>${doc.skills.map(esc).join(" · ")}</p>`
+      : skillsStyle === "list"
+        ? `${H("skills")}<ul class="skill-list">${doc.skills.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`
+        : `${H("skills")}<div class="chips">${doc.skills.map((s) => `<span class="chip">${esc(s)}</span>`).join("")}</div>`;
   const sec: Record<string, string> = {
     summary: wrap("summary", doc.summary ? `${H("summary")}<p>${esc(doc.summary)}</p>` : ""),
-    skills: wrap("skills", useInline ? secSkillsInline : secSkillsChips),
+    skills: wrap("skills", secSkills),
     experience: doc.experience.length ? `${H("experience")}${exp}` : "",
     projects: wrap("projects", projEntries ? `${H("projects")}${projEntries}` : ""),
     education: wrap("education", eduEntries ? `${H("education")}${eduEntries}` : ""),
@@ -241,6 +256,16 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
   const compact = t.template === "compact";
   const gap = compact ? "9px" : "16px";
   const px = (n: number) => `${n.toFixed(1)}px`;
+  // Chip looks. The defaults reproduce exactly what chips looked like before they were
+  // configurable (6px corners, accent-tinted), so an existing CV renders unchanged.
+  const chipFill = t.skillChipFill ?? "tint";
+  const chipRadius = t.skillChipShape === "pill" ? "999px" : t.skillChipShape === "square" ? "0" : "6px";
+  const chipSkin =
+    chipFill === "solid"
+      ? `background:${t.accent};color:#fff;border:1px solid ${t.accent}`
+      : chipFill === "outline"
+        ? `background:transparent;color:${t.accent};border:1px solid ${t.accent}66`
+        : `background:${t.accent}14;color:${t.accent};border:1px solid ${t.accent}33`;
   let layout = "";
   let extraCss = "";
   const headerRow = `<header class="hrow" data-section="general">${photoImg}${hmeta}</header>`;
@@ -289,7 +314,10 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
     extraCss =
       `h1{font-weight:600}.title{color:#475569;font-weight:500}` +
       `h2{color:#94a3b8;border-bottom:1px solid #e2e8f0;font-weight:600;letter-spacing:.08em}` +
-      `.chip{background:#f8fafc;color:#334155;border-color:#e2e8f0}` +
+      // Only while the chips are on their default tint: this quiets the accent down to greys to
+      // fit the template, but an explicitly chosen outline/solid fill is a deliberate decision
+      // and shouldn't be silently overridden by picking this template.
+      (chipFill === "tint" ? `.chip{background:#f8fafc;color:#334155;border-color:#e2e8f0}` : "") +
       `.photo{border-color:#e2e8f0}`;
   } else if (t.template === "timeline") {
     // Same layout as classic, but experience entries sit on a vertical rail with dot markers —
@@ -315,7 +343,10 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
     `.row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}` +
     `.role{font-weight:700;color:#0f172a}.period{color:#94a3b8;font-size:${px(fs * 0.85)};white-space:nowrap}` +
     `.company{color:#64748b;font-size:${px(fs * 0.9)}}ul{margin:4px 0;padding-left:18px}li{margin:2px 0}` +
-    `.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{background:${t.accent}14;color:${t.accent};border:1px solid ${t.accent}33;border-radius:6px;padding:2px 8px;font-size:${px(fs * 0.85)}}` +
+    `.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{${chipSkin};border-radius:${chipRadius};padding:2px 8px;font-size:${px(fs * 0.85)}}` +
+    // Two columns so a 25-skill list doesn't eat half a page — but back to one inside the narrow
+    // aside of the two-column/sidebar templates, where two columns would be a few characters wide.
+    `.skill-list{columns:2;column-gap:22px}aside .skill-list,.side-panel .skill-list{columns:1}` +
     // Clickable-in-preview affordance for the interactive preview → editor sync — cursor +
     // hover outline on anything carrying data-section (whole sections, or one experience
     // entry). @media print strips it back off so it never shows up in the exported PDF.

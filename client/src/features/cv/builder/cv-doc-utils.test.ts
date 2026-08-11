@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CvDoc, CvTheme } from "../../../shared/types";
-import { DEFAULT_ORDER, DEFAULT_THEME, buildCvDocument, cvDocToText, themeOf } from "./cv-doc-utils";
+import { DEFAULT_ORDER, DEFAULT_THEME, buildCvDocument, cvDocToText, effectiveSkillsStyle, themeOf } from "./cv-doc-utils";
 
 const BASE_DOC: CvDoc = {
   name: "Michael Voloshyn",
@@ -34,6 +34,51 @@ describe("buildCvDocument", () => {
     const { html, css } = buildCvDocument(BASE_DOC);
     expect(html).not.toContain("<style");
     expect(css).toContain("body{font-family:");
+  });
+
+  describe("skills rendering", () => {
+    const THREE_SKILLS: CvDoc = { ...BASE_DOC, skills: ["TypeScript", "Node.js", "SQL"] };
+    const withTheme = (theme: Partial<CvTheme>) => buildCvDocument({ ...THREE_SKILLS, theme: { ...DEFAULT_THEME, ...theme } });
+
+    it("renders them in the doc's own order — the editor's reordering is what decides the CV's order", () => {
+      const { html } = buildCvDocument({ ...THREE_SKILLS, skills: ["SQL", "TypeScript", "Node.js"] });
+      expect(html.indexOf("SQL")).toBeLessThan(html.indexOf("TypeScript"));
+      expect(html.indexOf("TypeScript")).toBeLessThan(html.indexOf("Node.js"));
+    });
+
+    it("keeps each template's established default under 'auto', so no existing CV changes look", () => {
+      // The two text-dense templates always ran the skills as one inline line, the rest as chips.
+      expect(effectiveSkillsStyle({ ...DEFAULT_THEME, template: "compact" })).toBe("inline");
+      expect(effectiveSkillsStyle({ ...DEFAULT_THEME, template: "academic" })).toBe("inline");
+      expect(effectiveSkillsStyle({ ...DEFAULT_THEME, template: "classic" })).toBe("chips");
+      // A doc saved before the setting existed has no `skillsStyle` key at all.
+      expect(effectiveSkillsStyle({ ...DEFAULT_THEME, skillsStyle: undefined, template: "sidebar" })).toBe("chips");
+    });
+
+    it("lets an explicit style override the template default in both directions", () => {
+      expect(withTheme({ template: "compact", skillsStyle: "chips" }).html).toContain('<span class="chip">TypeScript</span>');
+      expect(withTheme({ template: "classic", skillsStyle: "inline" }).html).toContain("<p>TypeScript · Node.js · SQL</p>");
+      expect(withTheme({ template: "classic", skillsStyle: "list" }).html).toContain('<ul class="skill-list"><li>TypeScript</li>');
+    });
+
+    it("reproduces the pre-setting chip look by default, and applies shape/fill when chosen", () => {
+      // Defaults: 6px corners, accent-tinted background — exactly what chips looked like before
+      // any of this was configurable.
+      expect(withTheme({ accent: "#4f46e5" }).css).toContain(
+        "background:#4f46e514;color:#4f46e5;border:1px solid #4f46e533;border-radius:6px",
+      );
+      expect(withTheme({ skillChipShape: "pill" }).css).toContain("border-radius:999px");
+      expect(withTheme({ skillChipShape: "square" }).css).toContain("border-radius:0");
+      expect(withTheme({ accent: "#4f46e5", skillChipFill: "solid" }).css).toContain("background:#4f46e5;color:#fff");
+      expect(withTheme({ accent: "#4f46e5", skillChipFill: "outline" }).css).toContain("background:transparent;color:#4f46e5");
+    });
+
+    it("stops the minimal template greying out a fill the user explicitly picked", () => {
+      // Minimal quiets the accent down to greys on purpose — but only as a default. Choosing a
+      // fill is a deliberate decision, and used to be silently overridden by that rule.
+      expect(withTheme({ template: "minimal" }).css).toContain(".chip{background:#f8fafc");
+      expect(withTheme({ template: "minimal", skillChipFill: "solid" }).css).not.toContain(".chip{background:#f8fafc");
+    });
   });
 
   it("escapes HTML-sensitive characters in user input", () => {

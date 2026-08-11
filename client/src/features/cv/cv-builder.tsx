@@ -966,13 +966,19 @@ export function CvBuilder({ llm }: { llm: boolean }) {
                 "",
                 t("builder.sections.skills.title"),
                 doc.skills.length ? t("builder.sections.addedCount", { count: doc.skills.length }) : t("builder.sections.skills.addHint"),
-                <SkillsInput
-                  label={t("builder.sections.skills.title")}
-                  hideLabel
-                  skills={doc.skills}
-                  onChange={(skills) => set({ skills })}
-                  placeholder={t("builder.sections.skills.searchPlaceholder")}
-                />,
+                <div className="space-y-1.5">
+                  <SkillsInput
+                    label={t("builder.sections.skills.title")}
+                    hideLabel
+                    skills={doc.skills}
+                    onChange={(skills) => set({ skills })}
+                    placeholder={t("builder.sections.skills.searchPlaceholder")}
+                    // The CV prints them in exactly this order, and "Tailor CV" reorders them by
+                    // relevance to a vacancy — so the order is worth being able to fix by hand.
+                    reorderable
+                  />
+                  <div className="text-[11px] text-ink-dim">{t("builder.sections.skills.reorderHint")}</div>
+                </div>,
               )}
               {accordion(
                 "projects",
