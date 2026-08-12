@@ -105,10 +105,17 @@ export function parseLinkedInArchive(buffer: Buffer): ParsedLinkedInCv {
     summary: profile.Summary || "",
     photo: "",
     skills: skillRows.map((s) => s.Name).filter((n): n is string => Boolean(n)),
+    // LinkedIn exports skills as one flat list with no categories of its own; grouping them is a
+    // deliberate editorial choice, so this stays empty rather than inventing buckets.
+    skillGroups: [],
     experience: positions.map((p) => ({
       role: p.Title || "",
       company: p["Company Name"] || "",
       period: formatPeriod(p["Started On"], p["Finished On"]),
+      // A LinkedIn export carries neither of these — they're the builder's own optional extras,
+      // left empty here for the user to fill in rather than guessed at from the description.
+      note: "",
+      metrics: [],
       bullets: toBullets(p.Description),
     })),
     education: eduRows

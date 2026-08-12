@@ -14,7 +14,8 @@
     "twocol": "Two columns",
     "minimal": "Minimal",
     "sidebar": "Sidebar",
-    "timeline": "Timeline"
+    "timeline": "Timeline",
+    "technical": "Technical"
   },
   "builder": {
     "header": {
@@ -249,7 +250,17 @@
     "undoTitle": "Revert to the text before the AI rewrite",
     "moveBulletUp": "Move bullet up",
     "moveBulletDown": "Move bullet down",
-    "bulletPlaceholder": "Describe a specific result…"
+    "bulletPlaceholder": "Describe a specific result…",
+    "note": "One-line context",
+    "notePlaceholder": "What the product or team was",
+    "metrics": "Headline figures",
+    "metricsHint": "Optional — up to four numbers printed as a strip above the bullets.",
+    "addMetric": "+ Figure",
+    "metricValuePlaceholder": "940+",
+    "metricLabelPlaceholder": "merged pull requests",
+    "metricValueAria": "Figure",
+    "metricLabelAria": "What the figure counts",
+    "removeMetricAria": "Remove figure"
   },
   "extraSections": {
     "projects": {
@@ -357,7 +368,14 @@
       "sans": "Sans",
       "accent": "Accent",
       "font": "Font",
-      "textScale": "Text scale"
+      "textScale": "Text scale",
+      "metaFont": "Meta text",
+      "metaAuto": "Auto",
+      "metaBody": "Body font",
+      "metaMono": "Mono",
+      "metaFontHint": "Applies to the contact line, section headings, dates and metric figures.",
+      "richText": "Markdown in text",
+      "richTextHint": "Renders **bold** and `code` inside bullets and the summary."
     },
     "skills": {
       "title": "Skills",
@@ -374,7 +392,10 @@
       "tint": "Tint",
       "outline": "Outline",
       "solid": "Solid",
-      "chipsOnlyHint": "Shape and fill apply to the chips style."
+      "chipsOnlyHint": "Shape and fill apply to the chips style.",
+      "grouped": "Grouped",
+      "groupedHint": "Groups are edited under Skills on the Content tab.",
+      "groupedEmptyHint": "No groups yet — add them under Skills on the Content tab. Until then the flat list is printed."
     },
     "photo": {
       "title": "Photo",
@@ -580,5 +601,18 @@
     "notFoundHint": "Double-check the link, or ask its owner for a fresh one.",
     "footer": "Built with Zorya — track your own job search free",
     "iframeTitle": "CV"
+  },
+  "skillGroups": {
+    "title": "Categories (optional)",
+    "empty": "No categories. Add one to print skills as “Frontend — TypeScript, Vue, …” instead of a single list.",
+    "add": "+ Category",
+    "namePlaceholder": "Frontend",
+    "nameAria": "Category name",
+    "skillsPlaceholder": "Add a skill",
+    "skillsAria": "Skills in this category",
+    "moveUp": "Move up",
+    "removeAria": "Remove category",
+    "maxReached": "Maximum of {{max}} categories reached.",
+    "ungrouped": "Not in any category yet: {{skills}}"
   }
 }

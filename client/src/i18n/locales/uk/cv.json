@@ -14,7 +14,8 @@
     "twocol": "Дві колонки",
     "minimal": "Мінімалістична",
     "sidebar": "Бічна панель",
-    "timeline": "Хронологія"
+    "timeline": "Хронологія",
+    "technical": "Технічна"
   },
   "builder": {
     "header": {
@@ -259,7 +260,17 @@
     "undoTitle": "Повернути текст, який був до AI-редагування",
     "moveBulletUp": "Перемістити пункт вгору",
     "moveBulletDown": "Перемістити пункт вниз",
-    "bulletPlaceholder": "Опиши конкретний результат…"
+    "bulletPlaceholder": "Опиши конкретний результат…",
+    "note": "Рядок контексту",
+    "notePlaceholder": "Чим був продукт або команда",
+    "metrics": "Ключові цифри",
+    "metricsHint": "Необов’язково — до чотирьох цифр смугою над пунктами.",
+    "addMetric": "+ Цифра",
+    "metricValuePlaceholder": "940+",
+    "metricLabelPlaceholder": "змержених pull request’ів",
+    "metricValueAria": "Цифра",
+    "metricLabelAria": "Що рахує цифра",
+    "removeMetricAria": "Видалити цифру"
   },
   "extraSections": {
     "projects": {
@@ -367,7 +378,14 @@
       "sans": "Без засічок",
       "accent": "Акцент",
       "font": "Шрифт",
-      "textScale": "Масштаб тексту"
+      "textScale": "Масштаб тексту",
+      "metaFont": "Дрібний текст",
+      "metaAuto": "Авто",
+      "metaBody": "Як основний",
+      "metaMono": "Моно",
+      "metaFontHint": "Стосується рядка контактів, заголовків секцій, дат і цифр метрик.",
+      "richText": "Markdown у тексті",
+      "richTextHint": "Показує **жирний** і `код` усередині пунктів та підсумку."
     },
     "skills": {
       "title": "Навички",
@@ -384,7 +402,10 @@
       "tint": "Відтінок",
       "outline": "Контур",
       "solid": "Суцільна",
-      "chipsOnlyHint": "Форма та заливка стосуються вигляду «Чіпи»."
+      "chipsOnlyHint": "Форма та заливка стосуються вигляду «Чіпи».",
+      "grouped": "Групи",
+      "groupedHint": "Групи редагуються в «Навички» на вкладці «Вміст».",
+      "groupedEmptyHint": "Груп ще немає — додайте їх у «Навички» на вкладці «Вміст». Доти друкується звичайний список."
     },
     "photo": {
       "title": "Фото",
@@ -592,5 +613,18 @@
     "notFoundHint": "Перевір посилання ще раз або запитай у власника нове.",
     "footer": "Створено на Zorya — веди свій пошук роботи безкоштовно",
     "iframeTitle": "Резюме"
+  },
+  "skillGroups": {
+    "title": "Категорії (необов’язково)",
+    "empty": "Категорій немає. Додайте, щоб навички друкувались як «Frontend — TypeScript, Vue, …», а не одним списком.",
+    "add": "+ Категорія",
+    "namePlaceholder": "Frontend",
+    "nameAria": "Назва категорії",
+    "skillsPlaceholder": "Додати навичку",
+    "skillsAria": "Навички цієї категорії",
+    "moveUp": "Вгору",
+    "removeAria": "Видалити категорію",
+    "maxReached": "Досягнуто максимум — {{max}} категорій.",
+    "ungrouped": "Ще не в жодній категорії: {{skills}}"
   }
 }

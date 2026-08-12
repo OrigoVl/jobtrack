@@ -88,7 +88,16 @@ describe("parseLinkedInArchive()", () => {
     expect(doc.links).toEqual([{ label: "Website", url: "https://ada.dev" }]); // not joined into contact
     expect(doc.skills).toEqual(["TypeScript", "PostgreSQL"]);
     expect(doc.experience).toEqual([
-      { role: "Backend Engineer", company: "Acme", period: "Jan 2020 – Dec 2022", bullets: ["Built APIs", "Shipped features"] },
+      // note/metrics are the builder's own optional extras — a LinkedIn archive carries neither,
+      // so they come through empty rather than guessed at from the description.
+      {
+        role: "Backend Engineer",
+        company: "Acme",
+        period: "Jan 2020 – Dec 2022",
+        note: "",
+        metrics: [],
+        bullets: ["Built APIs", "Shipped features"],
+      },
     ]);
     expect(doc.education).toEqual([{ school: "Kyiv Polytechnic", degree: "BSc Computer Science", period: "2016 – 2020" }]);
     expect(doc.projects).toEqual([{ title: "Side Project", description: "A thing I built", tech: [], link: "" }]);

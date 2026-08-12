@@ -3,7 +3,7 @@
 // any garbage is silently coerced to safe default values.
 import { z } from "zod";
 
-export const CV_TEMPLATES = ["classic", "compact", "academic", "twocol", "minimal", "sidebar", "timeline"] as const;
+export const CV_TEMPLATES = ["classic", "compact", "academic", "twocol", "minimal", "sidebar", "timeline", "technical"] as const;
 export const CV_FONTS = ["sans", "serif"] as const;
 export const CV_SECTIONS = [
   "summary",
@@ -86,12 +86,26 @@ export const CvThemeSchema = z.preprocess(
     // Skills rendering. "auto" is what a doc saved before these existed parses as (the key is
     // simply missing, so `.catch` supplies it), and it means "whatever this template does by
     // default" — so adding these three can't change how any existing CV looks.
-    skillsStyle: z.enum(["auto", "chips", "inline", "list"]).catch("auto"),
+    // "grouped" renders doc.skillGroups as a category/list grid and falls back to the flat list
+    // when the doc has no groups yet, so choosing it can never blank the section out.
+    skillsStyle: z.enum(["auto", "chips", "inline", "list", "grouped"]).catch("auto"),
     // "rounded" (6px), not "pill": these defaults are what a doc saved before the setting existed
     // parses as, so they have to be the look chips ALREADY had — anything else silently restyles
     // every CV in the database the first time it's saved again.
     skillChipShape: z.enum(["pill", "rounded", "square"]).catch("rounded"),
     skillChipFill: z.enum(["tint", "outline", "solid"]).catch("tint"),
+    // Typeface for the small meta text (contact line, section labels, dates, metric figures).
+    // "auto" means "whatever the template picked", which is a monospace only on `technical` —
+    // every other template resolves it to "body", i.e. exactly what it renders today. "body"
+    // rather than "sans" because it follows whatever `font` is, serif included.
+    metaFont: z.enum(["auto", "body", "mono"]).catch("auto"),
+    // Opt-in `**bold**` / `` `code` `` inside bullets and the summary. Off unless explicitly
+    // enabled: a CV whose text happens to contain ** must keep printing those asterisks
+    // literally rather than silently reflowing the moment this shipped.
+    richText: z
+      .any()
+      .optional()
+      .transform((v) => v === true),
   }),
 );
 export type CvTheme = z.infer<typeof CvThemeSchema>;
@@ -120,18 +134,45 @@ export const CvLanguagesSchema = z
       : [],
   );
 
+export interface CvMetric {
+  value: string;
+  label: string;
+}
+
+// Capped at four because that is what fits one printed row of the strip at any text scale — a
+// fifth wraps onto a second row of one and reads as a mistake rather than as a figure.
+const CvMetricsSchema = z.any().transform((v): CvMetric[] =>
+  Array.isArray(v)
+    ? v
+        .slice(0, 4)
+        .map((m) => ({
+          value: typeof m?.value === "string" ? m.value.slice(0, 20) : "",
+          label: typeof m?.label === "string" ? m.label.slice(0, 60) : "",
+        }))
+        .filter((m) => m.value || m.label)
+    : [],
+);
+
 export interface CvExperienceItem {
   role: string;
   company: string;
   period: string;
+  /** One line of context under the job head — what the product or team actually was. Empty on
+   * every entry saved before this existed, and an empty note renders nothing at all. */
+  note: string;
   bullets: string[];
+  /** Headline figures for this job, rendered as a small strip above the bullets. Same story as
+   * `note`: absent on existing entries, and an empty list renders nothing. */
+  metrics: CvMetric[];
 }
 
 const CvExperienceItemSchema = z.any().transform((e): CvExperienceItem => ({
   role: typeof e?.role === "string" ? e.role.slice(0, 160) : "",
   company: typeof e?.company === "string" ? e.company.slice(0, 160) : "",
   period: typeof e?.period === "string" ? e.period.slice(0, 60) : "",
+  note: typeof e?.note === "string" ? e.note.slice(0, 300) : "",
   bullets: strArr(12).parse(e?.bullets),
+  metrics: CvMetricsSchema.parse(e?.metrics),
 }));
 
 export const CvExperienceSchema = z
@@ -361,6 +402,36 @@ export const CvContactLinksSchema = z
       : [],
   );
 
+export interface CvSkillGroup {
+  name: string;
+  skills: string[];
+}
+
+/**
+ * Categorized skills ("AI / LLM", "Frontend", …), rendered by `skillsStyle: "grouped"`.
+ *
+ * Deliberately ADDITIVE to the flat `skills` array rather than a replacement for it. `skills`
+ * stays the single canonical list that everything non-visual reads — cvDocToText and so every
+ * LLM prompt, the tailor/match reports, the ATS-facing plain text — while groups only ever
+ * affect how the section is laid out. Collapsing the two would mean either losing the ordering
+ * "Tailor CV" produces or teaching every consumer about a second shape, for a purely
+ * presentational feature.
+ */
+export const CvSkillGroupsSchema = z
+  .any()
+  .optional()
+  .transform((v): CvSkillGroup[] =>
+    Array.isArray(v)
+      ? v
+          .slice(0, 12)
+          .map((g) => ({
+            name: typeof g?.name === "string" ? g.name.slice(0, 60) : "",
+            skills: strArr(40, 60).parse(g?.skills),
+          }))
+          .filter((g) => g.name || g.skills.length)
+      : [],
+  );
+
 export const CvDocSchema = z.preprocess(
   asObject,
   z.object({
@@ -371,6 +442,7 @@ export const CvDocSchema = z.preprocess(
     summary: str(1500),
     photo: CvPhotoSchema,
     skills: strArr(60),
+    skillGroups: CvSkillGroupsSchema,
     experience: CvExperienceSchema,
     education: CvEducationSchema,
     projects: CvProjectsSchema,

@@ -168,6 +168,72 @@ export function ExperienceCard({
                     maxLength={60}
                   />
                 </div>
+                {/* Both of the following are optional and print nothing when left empty, so an
+                    entry that ignores them renders exactly as it did before they existed. */}
+                <Field
+                  label={t("experienceCard.note")}
+                  value={e.note ?? ""}
+                  onChange={(v) => onSet(i, { note: v })}
+                  placeholder={t("experienceCard.notePlaceholder")}
+                  maxLength={300}
+                />
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-ink-dim">{t("experienceCard.metrics")}</span>
+                    {/* Four is the cap the renderer enforces too (one printed row) — hiding the
+                        button at the limit beats letting someone type a fifth that never prints. */}
+                    {(e.metrics ?? []).length < 4 && (
+                      <Btn
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onSet(i, { metrics: [...(e.metrics ?? []), { value: "", label: "" }] })}
+                      >
+                        {t("experienceCard.addMetric")}
+                      </Btn>
+                    )}
+                  </div>
+                  {(e.metrics ?? []).length === 0 ? (
+                    <div className="text-[11px] text-ink-dim">{t("experienceCard.metricsHint")}</div>
+                  ) : (
+                    (e.metrics ?? []).map((m, mi) => (
+                      <div key={mi} className="flex items-start gap-1">
+                        <input
+                          value={m.value}
+                          onChange={(ev) =>
+                            onSet(i, {
+                              metrics: (e.metrics ?? []).map((x, idx) => (idx === mi ? { ...x, value: ev.target.value } : x)),
+                            })
+                          }
+                          placeholder={t("experienceCard.metricValuePlaceholder")}
+                          aria-label={t("experienceCard.metricValueAria")}
+                          maxLength={20}
+                          className="w-24 shrink-0 bg-surface-2 border border-grid rounded-lg p-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+                        />
+                        <input
+                          value={m.label}
+                          onChange={(ev) =>
+                            onSet(i, {
+                              metrics: (e.metrics ?? []).map((x, idx) => (idx === mi ? { ...x, label: ev.target.value } : x)),
+                            })
+                          }
+                          placeholder={t("experienceCard.metricLabelPlaceholder")}
+                          aria-label={t("experienceCard.metricLabelAria")}
+                          maxLength={60}
+                          className="flex-1 min-w-0 bg-surface-2 border border-grid rounded-lg p-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+                        />
+                        <Btn
+                          size="sm"
+                          variant="danger"
+                          onClick={() => onSet(i, { metrics: (e.metrics ?? []).filter((_, idx) => idx !== mi) })}
+                          aria-label={t("experienceCard.removeMetricAria")}
+                          title={t("experienceCard.removeMetricAria")}
+                        >
+                          ✕
+                        </Btn>
+                      </div>
+                    ))
+                  )}
+                </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-ink-dim">{t("experienceCard.achievements")}</span>

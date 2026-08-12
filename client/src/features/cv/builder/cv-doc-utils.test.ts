@@ -261,3 +261,108 @@ describe("cvDocToText", () => {
     expect(cvDocToText(legacy)).toContain("Full-Stack Developer");
   });
 });
+
+/** Everything added as an opt-in extension: the "technical" template, per-job note/metrics,
+ * categorized skills, monospace meta text and `**bold**`/`` `code` `` markup. The governing rule
+ * for all of them is that a document which uses none renders exactly as it did before they
+ * existed, so most of what's asserted here is what does NOT appear. */
+describe("buildCvDocument — optional extensions", () => {
+  const JOB = { role: "Fullstack Developer", company: "Ascendix", period: "2021 – Present", bullets: ["Shipped a thing"] };
+  const withTheme = (patch: Partial<CvTheme>, doc: CvDoc = BASE_DOC): CvDoc => ({ ...doc, theme: { ...DEFAULT_THEME, ...patch } });
+
+  it("leaves a document that uses none of them completely untouched", () => {
+    const { html, css } = buildCvDocument({ ...BASE_DOC, experience: [JOB] });
+    for (const marker of ["job-note", "metrics", "skill-groups", "<strong>", "<code>"]) expect(html).not.toContain(marker);
+    // CSS for a block the markup never emits would be dead weight, and its absence is what makes
+    // the "byte-identical output" claim true rather than merely "looks the same".
+    for (const rule of [".job-note{", ".metrics{", ".skill-groups{", "code{", "ui-monospace"]) expect(css).not.toContain(rule);
+  });
+
+  it("prints the job note and metric strip only once they have content", () => {
+    const bare = buildCvDocument({ ...BASE_DOC, experience: [{ ...JOB, note: "   ", metrics: [{ value: " ", label: " " }] }] });
+    expect(bare.html).not.toContain("job-note");
+    expect(bare.html).not.toContain("metrics");
+
+    const filled = buildCvDocument({
+      ...BASE_DOC,
+      experience: [{ ...JOB, note: "Composer Online — a document platform", metrics: [{ value: "940+", label: "merged PRs" }] }],
+    });
+    expect(filled.html).toContain('<div class="job-note">Composer Online — a document platform</div>');
+    expect(filled.html).toContain('<div class="metric-value">940+</div><div class="metric-label">merged PRs</div>');
+    expect(filled.css).toContain(".metrics{");
+  });
+
+  it("renders categorized skills as a definition grid, and falls back to the flat list with no groups", () => {
+    const grouped = buildCvDocument(
+      withTheme({ skillsStyle: "grouped" }, { ...BASE_DOC, skillGroups: [{ name: "Frontend", skills: ["TypeScript", "Vue"] }] }),
+    );
+    expect(grouped.html).toContain('<dl class="skill-groups"><dt>Frontend</dt><dd>TypeScript, Vue</dd></dl>');
+    expect(grouped.css).toContain(".skill-groups{");
+
+    // Choosing "grouped" before creating any group must not blank the section out — it degrades
+    // to whatever the template would have rendered anyway.
+    const noGroups = buildCvDocument(withTheme({ skillsStyle: "grouped" }));
+    expect(noGroups.html).not.toContain("skill-groups");
+    expect(noGroups.html).toContain('<span class="chip">TypeScript</span>');
+  });
+
+  it("switches the meta text to a monospace only when asked, on any template", () => {
+    expect(buildCvDocument(BASE_DOC).css).not.toContain("ui-monospace");
+    expect(buildCvDocument(withTheme({ metaFont: "mono" })).css).toContain(".contact,h2,.period");
+    // "technical" is the one template that asks for it by default...
+    expect(buildCvDocument(withTheme({ template: "technical" })).css).toContain("ui-monospace");
+    // ...and an explicit "body" overrides that back off again.
+    expect(buildCvDocument(withTheme({ template: "technical", metaFont: "body" })).css).not.toContain("ui-monospace");
+  });
+
+  it("gives the technical template its masthead rule, trailing-hairline labels and company-first head", () => {
+    const { html, css } = buildCvDocument(withTheme({ template: "technical" }, { ...BASE_DOC, experience: [JOB] }));
+    expect(css).toContain("header.hrow{border-bottom:2px solid #15171c");
+    expect(css).toContain('h2::after{content:"";flex:1');
+    // Employer first, role in the accent — the reading order this template is built around.
+    expect(html).toContain('<span class="role">Ascendix — <span class="co">Fullstack Developer</span></span>');
+    // Every other template keeps the original bold-role-then-muted-company markup.
+    expect(buildCvDocument({ ...BASE_DOC, experience: [JOB] }).html).toContain('<div class="company">Ascendix</div>');
+  });
+
+  it("prints ** and ` literally unless rich text is switched on", () => {
+    const doc = { ...BASE_DOC, summary: "I am **very** interested in `TypeScript`" };
+    expect(buildCvDocument(doc).html).toContain("I am **very** interested in `TypeScript`");
+    const rich = buildCvDocument(withTheme({ richText: true }, doc));
+    expect(rich.html).toContain("I am <strong>very</strong> interested in <code>TypeScript</code>");
+    expect(rich.css).toContain("code{");
+  });
+
+  it("cannot be used to inject HTML through the rich-text markup", () => {
+    // The safety argument for `rich()` is that it runs strictly AFTER esc(), so by then every
+    // angle bracket is already an entity and the only tags it can produce are its own two. This
+    // matters beyond the preview: the same string is served to anonymous visitors on the public
+    // share page.
+    const nasty = "**<img src=x onerror=alert(1)>** and `</style><script>alert(2)</script>`";
+    const { html } = buildCvDocument(withTheme({ richText: true }, { ...BASE_DOC, summary: nasty }));
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+    // The delimiters still did their job around the neutralised text.
+    expect(html).toContain("<strong>&lt;img");
+  });
+
+  it("leaves an unpaired delimiter alone instead of swallowing the rest of the line", () => {
+    const doc = { ...BASE_DOC, summary: "5 ** 2 is 25, and a lone ` backtick" };
+    expect(buildCvDocument(withTheme({ richText: true }, doc)).html).toContain("5 ** 2 is 25, and a lone ` backtick");
+  });
+
+  it("hands the note, metrics and categories to the LLM along with everything else", () => {
+    const text = cvDocToText({
+      ...BASE_DOC,
+      skillGroups: [{ name: "Frontend", skills: ["Vue"] }],
+      experience: [{ ...JOB, note: "A document platform", metrics: [{ value: "940+", label: "merged PRs" }] }],
+    });
+    expect(text).toContain("Skills by category:\nFrontend: Vue");
+    expect(text).toContain("A document platform");
+    expect(text).toContain("940+ merged PRs");
+    // The flat list stays the canonical one — categories are stated in addition to it, never
+    // instead of it.
+    expect(text).toContain("Skills: TypeScript");
+  });
+});

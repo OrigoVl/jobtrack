@@ -18,6 +18,7 @@ const TEMPLATE_KEYS: [
     | "templates.minimal"
     | "templates.sidebar"
     | "templates.timeline"
+    | "templates.technical"
   ),
 ][] = [
   ["classic", "templates.classic"],
@@ -27,6 +28,7 @@ const TEMPLATE_KEYS: [
   ["minimal", "templates.minimal"],
   ["sidebar", "templates.sidebar"],
   ["timeline", "templates.timeline"],
+  ["technical", "templates.technical"],
 ];
 
 /**
@@ -74,6 +76,29 @@ function TemplateThumb({ template, accent }: { template: CvTheme["template"]; ac
             <rect x="18" y="29" width="12" height="2" fill={accent} />
             <rect x="18" y="34" width="17" height="1.5" fill={line} />
             <rect x="18" y="38" width="14" height="1.5" fill={line} />
+          </>
+        );
+      case "technical":
+        // The two devices that identify this template at thumbnail size: a rule closing the
+        // masthead, and section labels that are a short accent bar trailed by a hairline out to
+        // the margin — plus dot-marked bullets instead of a solid block of lines.
+        return (
+          <>
+            <rect x="5" y="5" width="21" height="3" fill={accent} />
+            <rect x="5" y="10.5" width="14" height="1.3" fill={line} />
+            <rect x="5" y="15" width="30" height="1.2" fill={accent} />
+            <rect x="5" y="20" width="8" height="1.6" fill={accent} />
+            <rect x="14.5" y="20.5" width="20.5" height="0.6" fill={line} />
+            <circle cx="6" cy="25.5" r="0.9" fill={accent} />
+            <rect x="9" y="24.8" width="26" height="1.3" fill={line} />
+            <circle cx="6" cy="29.5" r="0.9" fill={accent} />
+            <rect x="9" y="28.8" width="23" height="1.3" fill={line} />
+            <rect x="5" y="34" width="8" height="1.6" fill={accent} />
+            <rect x="14.5" y="34.5" width="20.5" height="0.6" fill={line} />
+            <circle cx="6" cy="39.5" r="0.9" fill={accent} />
+            <rect x="9" y="38.8" width="26" height="1.3" fill={line} />
+            <circle cx="6" cy="43.5" r="0.9" fill={accent} />
+            <rect x="9" y="42.8" width="21" height="1.3" fill={line} />
           </>
         );
       case "timeline":
@@ -166,11 +191,15 @@ const ACCENT_PRESETS = ["#4f46e5", "#1e3a8a", "#0f766e", "#15803d", "#9f1239", "
 // interleaved. Single-column templates don't have this failure mode at all.
 const ATS_RISK_TEMPLATES = new Set<CvTheme["template"]>(["twocol", "sidebar"]);
 
-const SKILLS_STYLE_KEYS: Record<NonNullable<CvTheme["skillsStyle"]>, `appearance.skills.${"auto" | "chips" | "inline" | "list"}`> = {
+const SKILLS_STYLE_KEYS: Record<
+  NonNullable<CvTheme["skillsStyle"]>,
+  `appearance.skills.${"auto" | "chips" | "inline" | "list" | "grouped"}`
+> = {
   auto: "appearance.skills.auto",
   chips: "appearance.skills.chips",
   inline: "appearance.skills.inline",
   list: "appearance.skills.list",
+  grouped: "appearance.skills.grouped",
 };
 
 // Deliberately NOT translated and not read from the user's own skills: this is a rendering
@@ -291,6 +320,31 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             className="w-full mt-1 accent-signal"
           />
         </label>
+        <div className="flex items-center justify-between gap-2 text-xs text-ink-dim">
+          <span>{t("appearance.style.metaFont")}</span>
+          <Segmented
+            value={theme.metaFont ?? "auto"}
+            onChange={(v) => onSetTheme({ metaFont: v })}
+            options={[
+              { value: "auto", label: t("appearance.style.metaAuto") },
+              { value: "body", label: t("appearance.style.metaBody") },
+              { value: "mono", label: t("appearance.style.metaMono") },
+            ]}
+          />
+        </div>
+        <div className="text-[11px] text-ink-dim">{t("appearance.style.metaFontHint")}</div>
+        <label className="flex items-start gap-1.5 text-xs text-ink-dim cursor-pointer">
+          <input
+            type="checkbox"
+            checked={theme.richText === true}
+            onChange={(e) => onSetTheme({ richText: e.target.checked })}
+            className="accent-signal mt-0.5"
+          />
+          <span>
+            {t("appearance.style.richText")}
+            <span className="block text-[11px] text-ink-dim">{t("appearance.style.richTextHint")}</span>
+          </span>
+        </label>
       </Section>
       <Section title={t("appearance.skills.title")} hint={t(SKILLS_STYLE_KEYS[theme.skillsStyle ?? "auto"])}>
         <div className="flex items-center justify-between gap-2 text-xs text-ink-dim">
@@ -298,9 +352,17 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
           <Segmented
             value={theme.skillsStyle ?? "auto"}
             onChange={(v) => onSetTheme({ skillsStyle: v })}
-            options={(["auto", "chips", "inline", "list"] as const).map((v) => ({ value: v, label: t(SKILLS_STYLE_KEYS[v]) }))}
+            options={(["auto", "chips", "inline", "list", "grouped"] as const).map((v) => ({ value: v, label: t(SKILLS_STYLE_KEYS[v]) }))}
           />
         </div>
+        {/* "Grouped" is the one style that needs data the doc may not have yet, and it silently
+            falls back to the flat list when there are no groups (see buildCvDocument). Saying so
+            here is the difference between "this style does nothing" and "add the groups first". */}
+        {effectiveSkillsStyle(theme) === "grouped" && (
+          <div className="text-[11px] text-ink-dim">
+            {doc.skillGroups?.length ? t("appearance.skills.groupedHint") : t("appearance.skills.groupedEmptyHint")}
+          </div>
+        )}
         {/* Shape/fill only style the chips, so they'd be dead controls under the other two
             styles — and under "auto" that depends on the chosen template, which is why the
             generator's own rule is reused here instead of re-deriving it (effectiveSkillsStyle). */}
@@ -342,7 +404,11 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             </div>
           </>
         ) : (
-          <div className="text-[11px] text-ink-dim">{t("appearance.skills.chipsOnlyHint")}</div>
+          // Suppressed under "grouped", which already printed its own more specific hint above —
+          // two stacked explanations of the same control read as noise.
+          effectiveSkillsStyle(theme) !== "grouped" && (
+            <div className="text-[11px] text-ink-dim">{t("appearance.skills.chipsOnlyHint")}</div>
+          )
         )}
       </Section>
       <Section

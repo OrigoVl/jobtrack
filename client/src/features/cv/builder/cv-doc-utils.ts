@@ -56,6 +56,9 @@ export function themeOf(doc: CvDoc): CvTheme {
   return { ...DEFAULT_THEME, ...(doc.theme || {}) };
 }
 
+/** Used for the meta text under `metaFont: "mono"` and for `code` spans under `richText`. */
+const MONO_STACK = `ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace`;
+
 /**
  * Resolves `theme.skillsStyle`'s "auto" (the default, and what every CV saved before the setting
  * existed parses as) to what the Skills section actually renders as: the two text-dense templates
@@ -63,8 +66,17 @@ export function themeOf(doc: CvDoc): CvTheme {
  * Appearance panel needs the same answer — it only offers the chip-specific controls while chips
  * are what's on screen, and duplicating the rule there would let the two drift apart.
  */
-export function effectiveSkillsStyle(theme: CvTheme): "chips" | "inline" | "list" {
+export function effectiveSkillsStyle(theme: CvTheme): "chips" | "inline" | "list" | "grouped" {
   if (theme.skillsStyle && theme.skillsStyle !== "auto") return theme.skillsStyle;
+  if (theme.template === "technical") return "grouped";
+  return theme.template === "compact" || theme.template === "academic" ? "inline" : "chips";
+}
+
+/** What the Skills section falls back to when "grouped" is asked for but the doc has no groups —
+ * the answer "auto" would have given on this template, never "grouped" again. */
+function flatSkillsStyle(theme: CvTheme): "chips" | "inline" | "list" {
+  const style = effectiveSkillsStyle(theme);
+  if (style !== "grouped") return style;
   return theme.template === "compact" || theme.template === "academic" ? "inline" : "chips";
 }
 
@@ -86,13 +98,29 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
+  /**
+   * `**bold**` and `` `code` `` inside prose, opt-in via `theme.richText`.
+   *
+   * Runs strictly AFTER esc(), never instead of it — and that ordering is the entire safety
+   * argument. By the time this sees the string, every `<`, `>` and `&` the user typed is already
+   * an entity, so the only tags in the result are the two produced here; there is no input that
+   * can smuggle a third one through. That matters more than usual because this exact string is
+   * rendered into the preview iframe, the print popup AND the public share page, which serves
+   * one user's document to anonymous visitors.
+   *
+   * The character classes exclude the delimiter itself, so an unpaired `**` is left alone rather
+   * than swallowing the rest of the line.
+   */
+  const rich = (escaped: string) =>
+    t.richText ? escaped.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>") : escaped;
+  const escRich = (s: string) => rich(esc(s));
   // `.trim()`, not `filter(Boolean)`: a bullet the user cleared down to spaces is still truthy,
   // and would print as a visible empty bullet point on the exported PDF. ResumeCompleteness
   // already judges "has this entry got any content" the same way.
   const list = (arr: string[]) =>
     arr
       .filter((x) => x.trim())
-      .map((x) => `<li>${esc(x)}</li>`)
+      .map((x) => `<li>${escRich(x)}</li>`)
       .join("");
   const isUk = isCyrillicDoc(doc);
   const label = (key: CvSection) => (isUk ? UK_SECTION_LABELS[key] : EN_SECTION_LABELS[key]);
@@ -102,11 +130,36 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
   // `contentDocument`, no injected <script>/CSP concerns) and reports it back so clicking
   // "Experience #2" in the live preview can open exactly that entry in the editor.
   const wrap = (key: string, html: string) => (html ? `<div class="sec-block" data-section="${key}">${html}</div>` : "");
+  // Optional per-entry extras (see CvExperience in shared/types.ts). Both render nothing at all
+  // when absent, which is every entry saved before they existed — so adding them leaves the
+  // markup of an existing CV byte-identical rather than merely visually similar.
+  const jobNote = (e: CvDoc["experience"][number]) => (e.note?.trim() ? `<div class="job-note">${escRich(e.note)}</div>` : "");
+  // grid-auto-flow:column (in the CSS below) rather than a fixed column count, so two metrics
+  // split the width in half and four split it in quarters without the markup knowing how many
+  // there are.
+  const metricStrip = (e: CvDoc["experience"][number]) => {
+    const ms = (e.metrics ?? []).filter((m) => m.value.trim() || m.label.trim());
+    if (!ms.length) return "";
+    const cells = ms
+      .map(
+        (m) => `<div class="metric"><div class="metric-value">${esc(m.value)}</div><div class="metric-label">${esc(m.label)}</div></div>`,
+      )
+      .join("");
+    return `<div class="metrics">${cells}</div>`;
+  };
+  // "technical" states the employer first and puts the ROLE in the accent colour, on one line —
+  // the reading order that template is built around. Every other template keeps the original
+  // markup exactly (bold role + period, then the company on its own muted line).
+  const techHead = t.template === "technical";
+  const expHead = (e: CvDoc["experience"][number]) =>
+    techHead
+      ? `<div class="row"><span class="role">${esc(e.company)}${e.company.trim() && e.role.trim() ? " — " : ""}<span class="co">${esc(e.role)}</span></span><span class="period">${esc(e.period)}</span></div>`
+      : `<div class="row"><span class="role">${esc(e.role)}</span><span class="period">${esc(e.period)}</span></div><div class="company">${esc(e.company)}</div>`;
   const exp = doc.experience
     .map(
       (e, i) =>
-        `<div class="exp" data-section="experience-${i}"><div class="row"><span class="role">${esc(e.role)}</span><span class="period">${esc(e.period)}</span></div>` +
-        `<div class="company">${esc(e.company)}</div>${e.bullets.some((b) => b.trim()) ? `<ul>${list(e.bullets)}</ul>` : ""}</div>`,
+        `<div class="exp" data-section="experience-${i}">${expHead(e)}` +
+        `${jobNote(e)}${metricStrip(e)}${e.bullets.some((b) => b.trim()) ? `<ul>${list(e.bullets)}</ul>` : ""}</div>`,
     )
     .join("");
   // Reuses the `.exp`/`.row`/`.period`/`.company` classes Experience entries already style —
@@ -216,16 +269,31 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
   const photoImg = doc.photo && t.showPhoto !== false ? `<img class="photo" src="${doc.photo}" alt="Photo"/>` : "";
   const hmeta = `<div class="hmeta" data-section="general"><h1>${esc(doc.name)}</h1><div class="title">${esc(doc.title)}</div><div class="contact">${esc(doc.contact)}${doc.contact.trim() && linksLine ? " · " : ""}${linksLine}</div></div>`;
   const langs = (doc.languages || []).filter((l) => l && l.name);
-  const skillsStyle = effectiveSkillsStyle(t);
-  const secSkills = !doc.skills.length
-    ? ""
-    : skillsStyle === "inline"
-      ? `${H("skills")}<p>${doc.skills.map(esc).join(" · ")}</p>`
-      : skillsStyle === "list"
-        ? `${H("skills")}<ul class="skill-list">${doc.skills.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`
-        : `${H("skills")}<div class="chips">${doc.skills.map((s) => `<span class="chip">${esc(s)}</span>`).join("")}</div>`;
+  const skillGroups = (doc.skillGroups ?? []).filter((g) => g.skills.some((s) => s.trim()) || g.name.trim());
+  // "grouped" degrades to the flat list rather than to nothing when the doc has no groups yet:
+  // the style is choosable before any group has been created, and a Skills section that vanishes
+  // on selecting it would read as a bug rather than as "there is nothing to group".
+  const skillsStyle = effectiveSkillsStyle(t) === "grouped" && skillGroups.length ? "grouped" : flatSkillsStyle(t);
+  const secSkills =
+    skillsStyle === "grouped"
+      ? `${H("skills")}<dl class="skill-groups">${skillGroups
+          .map(
+            (g) =>
+              `<dt>${esc(g.name)}</dt><dd>${g.skills
+                .filter((s) => s.trim())
+                .map(esc)
+                .join(", ")}</dd>`,
+          )
+          .join("")}</dl>`
+      : !doc.skills.length
+        ? ""
+        : skillsStyle === "inline"
+          ? `${H("skills")}<p>${doc.skills.map(esc).join(" · ")}</p>`
+          : skillsStyle === "list"
+            ? `${H("skills")}<ul class="skill-list">${doc.skills.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`
+            : `${H("skills")}<div class="chips">${doc.skills.map((s) => `<span class="chip">${esc(s)}</span>`).join("")}</div>`;
   const sec: Record<string, string> = {
-    summary: wrap("summary", doc.summary ? `${H("summary")}<p>${esc(doc.summary)}</p>` : ""),
+    summary: wrap("summary", doc.summary ? `${H("summary")}<p>${escRich(doc.summary)}</p>` : ""),
     skills: wrap("skills", secSkills),
     experience: doc.experience.length ? `${H("experience")}${exp}` : "",
     projects: wrap("projects", projEntries ? `${H("projects")}${projEntries}` : ""),
@@ -256,6 +324,41 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
   const compact = t.template === "compact";
   const gap = compact ? "9px" : "16px";
   const px = (n: number) => `${n.toFixed(1)}px`;
+  // "auto" — what every doc saved before the setting existed parses as — means "whatever the
+  // template wants", and only `technical` wants a monospace. Every other template resolves to
+  // "body", and the declarations below are then omitted entirely rather than emitted as a
+  // redundant `font-family: <the body font>`, so an untouched CV keeps byte-identical CSS.
+  const metaMono = (t.metaFont && t.metaFont !== "auto" ? t.metaFont : t.template === "technical" ? "mono" : "body") === "mono";
+  const metaCss = metaMono
+    ? `.contact,h2,.period,.metric-value,.skill-groups dt{font-family:${MONO_STACK}}.period,.metric-value{font-variant-numeric:tabular-nums}`
+    : "";
+  // CSS for the optional blocks is emitted only when the document actually contains one, for the
+  // same reason: a CV that uses none of them is styled by exactly the rules it was before.
+  const anyNotes = doc.experience.some((e) => e.note?.trim());
+  const anyMetrics = doc.experience.some((e) => (e.metrics ?? []).some((m) => m.value.trim() || m.label.trim()));
+  const optionalCss =
+    (anyNotes ? `.job-note{color:#64748b;font-size:${px(fs * 0.88)};margin:1px 0 6px}` : "") +
+    (anyMetrics
+      ? // grid-auto-flow:column divides the row evenly however many cells there are; the 1px gap
+        // over a tinted background is what draws the hairlines between them.
+        `.metrics{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:1px;background:#e2e8f0;border:1px solid #e2e8f0;margin:8px 0}` +
+        `.metric{background:#fff;padding:7px 9px}` +
+        `.metric-value{font-weight:700;color:${t.accent};font-size:${px(fs * 1.05)};letter-spacing:-.02em}` +
+        `.metric-label{color:#94a3b8;font-size:${px(fs * 0.72)};line-height:1.35}` +
+        `@media print{.metrics{break-inside:avoid}}`
+      : "") +
+    (skillsStyle === "grouped"
+      ? `.skill-groups{display:grid;grid-template-columns:minmax(7em,9em) 1fr;gap:7px 16px;align-items:baseline;margin:0}` +
+        `.skill-groups dt{font-weight:700;color:${t.accent};font-size:${px(fs * 0.8)};text-transform:uppercase;letter-spacing:.05em}` +
+        `.skill-groups dd{margin:0;color:#64748b;font-size:${px(fs * 0.92)}}` +
+        // One column inside the narrow aside of twocol/sidebar, where a 9em label column would
+        // leave the skills themselves a few characters wide.
+        `aside .skill-groups,.side-panel .skill-groups{grid-template-columns:1fr;gap:0}` +
+        `aside .skill-groups dd,.side-panel .skill-groups dd{margin-bottom:6px}`
+      : "") +
+    (t.richText
+      ? `code{font-family:${MONO_STACK};font-size:.88em;background:#f1f5f9;padding:.05em .32em;border-radius:3px}strong{color:#0f172a}`
+      : "");
   // Chip looks. The defaults reproduce exactly what chips looked like before they were
   // configurable (6px corners, accent-tinted), so an existing CV renders unchanged.
   const chipFill = t.skillChipFill ?? "tint";
@@ -319,6 +422,28 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
       // and shouldn't be silently overridden by picking this template.
       (chipFill === "tint" ? `.chip{background:#f8fafc;color:#334155;border-color:#e2e8f0}` : "") +
       `.photo{border-color:#e2e8f0}`;
+  } else if (t.template === "technical") {
+    // An engineering-résumé look built entirely out of typography: a rule under the masthead
+    // instead of a coloured heading bar, section labels reduced to small tracked-out capitals
+    // with a hairline running out to the margin, the employer stated before the role, and dot
+    // markers drawn by CSS. Single-column on purpose — nothing here splits the page into
+    // regions, so unlike twocol/sidebar it stays safe for text extraction (ATS_RISK_TEMPLATES).
+    layout = `${headerRow}${pick(order)}`;
+    extraCss =
+      `header.hrow{border-bottom:2px solid #15171c;padding-bottom:${gap}}` +
+      `h1{font-weight:650;letter-spacing:-.028em}` +
+      `.title{font-weight:500;font-size:${px(fs * 1.02)}}` +
+      // The rule fills whatever width the label leaves instead of underlining it — the device
+      // that gives this template its editorial feel.
+      `h2{display:flex;align-items:center;gap:12px;border-bottom:none;padding-bottom:0;color:#878d9b;font-weight:600;letter-spacing:.14em;font-size:${px(fs * 0.76)}}` +
+      `h2::after{content:"";flex:1;height:1px;background:#e2e3df}` +
+      `.role{font-weight:600;color:#15171c}.role .co{color:${t.accent}}` +
+      // Accent-coloured dot against muted text: what makes a dense bullet list scannable.
+      `ul{list-style:none;padding-left:0;margin:6px 0}` +
+      `li{position:relative;padding-left:15px;color:#5c6373}` +
+      `li::before{content:"";position:absolute;left:0;top:.62em;width:5px;height:5px;border-radius:50%;background:${t.accent}99}` +
+      `.sec-block p{color:#5c6373}` +
+      `@media print{.exp{break-inside:avoid}}`;
   } else if (t.template === "timeline") {
     // Same layout as classic, but experience entries sit on a vertical rail with dot markers —
     // a more visual "career progression" read for the Experience section specifically.
@@ -352,6 +477,8 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
     // entry). @media print strips it back off so it never shows up in the exported PDF.
     `[data-section]{cursor:pointer}[data-section]:hover{outline:1px dashed ${t.accent}66;outline-offset:2px;border-radius:6px}` +
     `@media print{[data-section]:hover{outline:none}}` +
+    optionalCss +
+    metaCss +
     extraCss +
     // `@page{margin:0}` — removes the browser's system header/footer (date, document title,
     // URL, page number) on every printed page: in Chrome/Edge they render in the page margins
@@ -439,10 +566,21 @@ export function cvDocToText(doc: CvDoc): string {
   if (links.length) lines.push(links.map((l) => [l.label, l.url].filter(Boolean).join(": ")).join(" · "));
   if (doc.summary) lines.push(`\nProfile:\n${doc.summary}`);
   if (doc.skills.length) lines.push(`\nSkills: ${doc.skills.join(", ")}`);
+  // Categories are additive to the flat list above, so they're stated as their own line rather
+  // than replacing it — the grouping itself is signal about how the candidate frames their stack.
+  const skillGroups = (doc.skillGroups ?? []).filter((g) => g.name.trim() && g.skills.some((s) => s.trim()));
+  if (skillGroups.length) {
+    lines.push(`\nSkills by category:\n${skillGroups.map((g) => `${g.name}: ${g.skills.filter((s) => s.trim()).join(", ")}`).join("\n")}`);
+  }
   if (doc.experience.length) {
     lines.push("\nExperience:");
     doc.experience.forEach((e) => {
       lines.push(`${e.role} — ${e.company} (${e.period})`);
+      if (e.note?.trim()) lines.push(e.note.trim());
+      // Real, quantified achievements — the single most useful thing a rewrite/match prompt can
+      // see about this job, so they'd be a strange omission from the text handed to the model.
+      const metrics = (e.metrics ?? []).filter((m) => m.value.trim() || m.label.trim());
+      if (metrics.length) lines.push(metrics.map((m) => [m.value.trim(), m.label.trim()].filter(Boolean).join(" ")).join(" · "));
       // Whitespace-only bullets would otherwise reach the LLM as an empty "- " line.
       e.bullets.filter((b) => b.trim()).forEach((b) => lines.push(`- ${b}`));
     });

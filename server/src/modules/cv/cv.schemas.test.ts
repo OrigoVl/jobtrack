@@ -8,6 +8,7 @@ import {
   CvProjectsSchema,
   CvPublicationsSchema,
   CvReferencesSchema,
+  CvSkillGroupsSchema,
   CvThemeSchema,
   CvPresetsSchema,
   CvVolunteerSchema,
@@ -32,7 +33,27 @@ describe("CvThemeSchema", () => {
       skillsStyle: "auto",
       skillChipShape: "rounded",
       skillChipFill: "tint",
+      // Same reasoning for these two: "auto" resolves to the body font on every template that
+      // existed before it, and rich text stays off so a CV containing literal ** keeps printing
+      // the asterisks instead of silently turning them into bold.
+      metaFont: "auto",
+      richText: false,
     });
+  });
+
+  it("keeps a chosen meta font / rich text and falls back on garbage", () => {
+    const out = CvThemeSchema.parse({ metaFont: "mono", richText: true });
+    expect(out.metaFont).toBe("mono");
+    expect(out.richText).toBe(true);
+
+    const bad = CvThemeSchema.parse({ metaFont: "cursive", richText: "yes" });
+    expect(bad.metaFont).toBe("auto");
+    // Anything that isn't literally `true` is off — "yes" is a string, not consent.
+    expect(bad.richText).toBe(false);
+  });
+
+  it("accepts the grouped skills style alongside the existing ones", () => {
+    expect(CvThemeSchema.parse({ skillsStyle: "grouped" }).skillsStyle).toBe("grouped");
   });
 
   it("keeps a chosen skills style/shape/fill and falls back on garbage", () => {
@@ -164,6 +185,78 @@ describe("CvDocSchema", () => {
     expect(() => CvDocSchema.parse(null)).not.toThrow();
     expect(() => CvDocSchema.parse("not-an-object")).not.toThrow();
     expect(() => CvDocSchema.parse(42)).not.toThrow();
+  });
+});
+
+describe("CvSkillGroupsSchema", () => {
+  it("keeps named groups and their skills, capping both lists", () => {
+    const out = CvSkillGroupsSchema.parse([
+      { name: "Frontend", skills: ["TypeScript", "Vue"] },
+      { name: "Backend", skills: ["NestJS"] },
+    ]);
+    expect(out).toEqual([
+      { name: "Frontend", skills: ["TypeScript", "Vue"] },
+      { name: "Backend", skills: ["NestJS"] },
+    ]);
+    expect(CvSkillGroupsSchema.parse(Array.from({ length: 30 }, () => ({ name: "G", skills: ["x"] })))).toHaveLength(12);
+    expect(CvSkillGroupsSchema.parse([{ name: "G", skills: Array.from({ length: 99 }, () => "x") }])[0]?.skills).toHaveLength(40);
+  });
+
+  it("drops fully blank groups and never throws on garbage", () => {
+    expect(CvSkillGroupsSchema.parse([{ name: "", skills: [] }, { name: "Keep", skills: [] }, 7, null])).toEqual([
+      { name: "Keep", skills: [] },
+    ]);
+    expect(CvSkillGroupsSchema.parse("not an array")).toEqual([]);
+    expect(CvSkillGroupsSchema.parse(undefined)).toEqual([]);
+  });
+
+  it("is absent from a doc saved before it existed, rather than inventing groups from `skills`", () => {
+    // The whole back-compat claim in one assertion: the flat list is untouched and no grouping
+    // is fabricated, so such a doc renders exactly as it did.
+    const doc = CvDocSchema.parse({ skills: ["TypeScript", "Vue"] });
+    expect(doc.skills).toEqual(["TypeScript", "Vue"]);
+    expect(doc.skillGroups).toEqual([]);
+  });
+});
+
+describe("CvExperienceSchema — optional note/metrics", () => {
+  it("defaults both to empty on an entry saved before they existed", () => {
+    const [entry] = CvDocSchema.parse({ experience: [{ role: "Dev", company: "Acme", period: "2024", bullets: ["Shipped"] }] }).experience;
+    expect(entry?.note).toBe("");
+    expect(entry?.metrics).toEqual([]);
+  });
+
+  it("keeps a note and up to four metrics, dropping blank ones", () => {
+    const [entry] = CvDocSchema.parse({
+      experience: [
+        {
+          role: "Dev",
+          note: "Composer Online — a document platform",
+          metrics: [
+            { value: "940+", label: "merged pull requests" },
+            { value: "", label: "" },
+            { value: "570+", label: "tickets" },
+            { value: "1", label: "a" },
+            { value: "2", label: "b" },
+            { value: "3", label: "c" },
+          ],
+        },
+      ],
+    }).experience;
+    expect(entry?.note).toBe("Composer Online — a document platform");
+    // Sliced to four BEFORE the blank is dropped, so this is three — the cap is on what was
+    // stored, not on what survives filtering.
+    expect(entry?.metrics).toEqual([
+      { value: "940+", label: "merged pull requests" },
+      { value: "570+", label: "tickets" },
+      { value: "1", label: "a" },
+    ]);
+  });
+
+  it("never throws on a garbage note/metrics shape", () => {
+    const [entry] = CvDocSchema.parse({ experience: [{ role: "Dev", note: 42, metrics: "lots" }] }).experience;
+    expect(entry?.note).toBe("");
+    expect(entry?.metrics).toEqual([]);
   });
 });
 

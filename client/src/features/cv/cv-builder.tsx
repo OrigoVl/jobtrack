@@ -35,6 +35,7 @@ import {
   VolunteerSection,
 } from "./builder/extra-sections-cards";
 import { AppearancePanel } from "./builder/appearance-panel";
+import { SkillGroupsEditor } from "./builder/skill-groups-editor";
 import { LayoutPresetsPanel } from "./builder/layout-presets-panel";
 import { CvPreviewPanel } from "./builder/cv-preview-panel";
 import { ResumeCompleteness } from "./builder/resume-completeness";
@@ -978,6 +979,22 @@ export function CvBuilder({ llm }: { llm: boolean }) {
                     reorderable
                   />
                   <div className="text-[11px] text-ink-dim">{t("builder.sections.skills.reorderHint")}</div>
+                  {/* The optional categorized overlay. It lives under the flat list rather than
+                      replacing it because only the "Grouped" skills style reads it — everything
+                      else, including every LLM prompt, still reads `skills`. */}
+                  <details className="pt-1">
+                    <summary className="text-xs font-semibold text-ink-dim cursor-pointer select-none">
+                      {t("skillGroups.title")}
+                      {doc.skillGroups?.length ? ` · ${t("builder.sections.itemsCount", { count: doc.skillGroups.length })}` : ""}
+                    </summary>
+                    <div className="pt-2">
+                      <SkillGroupsEditor
+                        groups={doc.skillGroups ?? []}
+                        skills={doc.skills}
+                        onChange={(skillGroups) => set({ skillGroups })}
+                      />
+                    </div>
+                  </details>
                 </div>,
               )}
               {accordion(

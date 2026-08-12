@@ -455,11 +455,29 @@ export interface CvMatch {
   semanticFit: number | null;
 }
 
+export interface CvMetric {
+  value: string;
+  label: string;
+}
+
 export interface CvExperience {
   role: string;
   company: string;
   period: string;
+  /** One line of context under the job head — what the product or team actually was. Optional:
+   * every entry saved before this existed simply has no note, and renders exactly as it did. */
+  note?: string;
   bullets: string[];
+  /** Headline figures shown as a small strip above the bullets (max 4 — one printed row). */
+  metrics?: CvMetric[];
+}
+
+/** Categorized skills ("Frontend" → TypeScript, Vue, …), rendered by `skillsStyle: "grouped"`.
+ * Additive to the flat `skills` array, which stays canonical for everything non-visual — see the
+ * server's CvSkillGroupsSchema for why the two are not merged. */
+export interface CvSkillGroup {
+  name: string;
+  skills: string[];
 }
 
 export type CvSection =
@@ -476,7 +494,7 @@ export type CvSection =
   | "references";
 
 export interface CvTheme {
-  template: "classic" | "compact" | "academic" | "twocol" | "minimal" | "sidebar" | "timeline";
+  template: "classic" | "compact" | "academic" | "twocol" | "minimal" | "sidebar" | "timeline" | "technical";
   accent: string;
   font: "sans" | "serif";
   scale: number;
@@ -487,10 +505,16 @@ export interface CvTheme {
   /** How the Skills section renders. "auto" (the default, and what every doc saved before this
    * existed parses as) keeps the per-template behavior: an inline "A · B · C" line on the
    * text-dense templates, chips everywhere else. */
-  skillsStyle?: "auto" | "chips" | "inline" | "list";
+  skillsStyle?: "auto" | "chips" | "inline" | "list" | "grouped";
   /** Chip looks — only meaningful while the skills render AS chips. */
   skillChipShape?: "pill" | "rounded" | "square";
   skillChipFill?: "tint" | "outline" | "solid";
+  /** Typeface for the small meta text (contact, section labels, dates, metric figures). "auto"
+   * defers to the template, which means a monospace only on `technical`. */
+  metaFont?: "auto" | "body" | "mono";
+  /** Opt-in `**bold**` / `` `code` `` inside bullets and the summary. Off by default so a CV
+   * containing literal asterisks keeps printing them. */
+  richText?: boolean;
 }
 
 export interface CvPreset {
@@ -566,6 +590,7 @@ export interface CvDoc {
   summary: string;
   photo?: string;
   skills: string[];
+  skillGroups?: CvSkillGroup[];
   experience: CvExperience[];
   education: CvEducationEntry[];
   projects: CvProjectEntry[];

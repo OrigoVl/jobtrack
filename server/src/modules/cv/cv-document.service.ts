@@ -13,6 +13,7 @@ export async function emptyCvDoc(userId: UserId): Promise<CvDoc> {
     contact: "",
     links: [],
     summary: "",
+    skillGroups: [],
     photo: "",
     skills: p.skills || [],
     experience: [],
