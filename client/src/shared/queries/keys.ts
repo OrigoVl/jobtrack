@@ -29,6 +29,7 @@ export const queryKeys = {
   // Parameterized: spread with the profile id, e.g. [...queryKeys.cvDoc, profileId] (same
   // convention as similarVacancies above) — a CV Builder tab's own doc/share.
   cvShare: ["cvShare"] as const,
+  linkedinSaved: ["linkedinSaved"] as const,
   digestPreferences: ["digestPreferences"] as const,
   fetchAllStatus: ["fetchAllStatus"] as const,
   cvDoc: ["cvDoc"] as const,
