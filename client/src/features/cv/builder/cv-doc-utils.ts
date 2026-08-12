@@ -337,7 +337,12 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
   const anyNotes = doc.experience.some((e) => e.note?.trim());
   const anyMetrics = doc.experience.some((e) => (e.metrics ?? []).some((m) => m.value.trim() || m.label.trim()));
   const optionalCss =
-    (anyNotes ? `.job-note{color:#64748b;font-size:${px(fs * 0.88)};margin:1px 0 6px}` : "") +
+    (anyNotes
+      ? `.job-note{color:#64748b;font-size:${px(fs * 0.88)};margin:1px 0 6px}` +
+        // Sits between the entry's title row and its bullets, so it takes the same "don't get
+        // stranded at the foot of a page" treatment the row itself has.
+        `@media print{.job-note{break-after:avoid}}`
+      : "") +
     (anyMetrics
       ? // grid-auto-flow:column divides the row evenly however many cells there are; the 1px gap
         // over a tinted background is what draws the hairlines between them.
@@ -345,7 +350,7 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
         `.metric{background:#fff;padding:7px 9px}` +
         `.metric-value{font-weight:700;color:${t.accent};font-size:${px(fs * 1.05)};letter-spacing:-.02em}` +
         `.metric-label{color:#94a3b8;font-size:${px(fs * 0.72)};line-height:1.35}` +
-        `@media print{.metrics{break-inside:avoid}}`
+        `@media print{.metrics{break-inside:avoid;break-after:avoid}}`
       : "") +
     (skillsStyle === "grouped"
       ? `.skill-groups{display:grid;grid-template-columns:minmax(7em,9em) 1fr;gap:7px 16px;align-items:baseline;margin:0}` +
@@ -442,8 +447,7 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
       `ul{list-style:none;padding-left:0;margin:6px 0}` +
       `li{position:relative;padding-left:15px;color:#5c6373}` +
       `li::before{content:"";position:absolute;left:0;top:.62em;width:5px;height:5px;border-radius:50%;background:${t.accent}99}` +
-      `.sec-block p{color:#5c6373}` +
-      `@media print{.exp{break-inside:avoid}}`;
+      `.sec-block p{color:#5c6373}`;
   } else if (t.template === "timeline") {
     // Same layout as classic, but experience entries sit on a vertical rail with dot markers —
     // a more visual "career progression" read for the Experience section specifically.
@@ -477,6 +481,24 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
     // entry). @media print strips it back off so it never shows up in the exported PDF.
     `[data-section]{cursor:pointer}[data-section]:hover{outline:1px dashed ${t.accent}66;outline-offset:2px;border-radius:6px}` +
     `@media print{[data-section]:hover{outline:none}}` +
+    // Page-break behaviour, deliberately "keep things TOGETHER at the seam" rather than "never
+    // split this block". The technical template used to carry `.exp{break-inside:avoid}`, which
+    // reads as sensible and isn't: a job with a dozen bullets is taller than whatever space is
+    // left at the bottom of a page, so the whole entry jumps to the next one and leaves a
+    // half-page of white behind it — the exact "huge gaps" this is fixing. An entry may split;
+    // what must never happen is a heading, or an entry's title line, stranded alone at the foot
+    // of a page away from the content it introduces.
+    `@media print{` +
+    `h2{break-after:avoid}` +
+    // An entry's title line belongs with the first bullet under it. (The optional note/metric
+    // strip gets the same treatment, but only where those rules are already emitted — see
+    // optionalCss, which deliberately says nothing about a block the markup never renders.)
+    `.exp .row{break-after:avoid}` +
+    // A single bullet splitting across two pages is never worth it; a list of them is.
+    `li{break-inside:avoid}` +
+    // No lone first/last line of a paragraph left behind at a page boundary.
+    `p,li{orphans:2;widows:2}` +
+    `}` +
     optionalCss +
     metaCss +
     extraCss +

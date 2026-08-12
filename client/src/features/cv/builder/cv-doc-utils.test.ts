@@ -25,6 +25,44 @@ describe("buildCvDocument", () => {
     expect(css).toMatch(/@media print\{body\{margin:0;max-width:none;padding:14mm 12mm\}\}/);
   });
 
+  describe("page breaks in the exported PDF", () => {
+    // A user's 3-page export had EXPERIENCE alone at the foot of page 1 and LANGUAGES alone at
+    // the foot of page 2, each with half a page of white under it.
+    it("keeps a section heading with the content it introduces", () => {
+      expect(buildCvDocument(BASE_DOC).css).toMatch(/@media print\{[^}]*h2\{break-after:avoid\}/);
+    });
+
+    it("keeps an entry's title row with the first bullet", () => {
+      expect(buildCvDocument(BASE_DOC).css).toContain(".exp .row{break-after:avoid}");
+    });
+
+    it("gives the optional note/metric strip the same treatment, but only when it renders one", () => {
+      // Same "no CSS for markup that isn't there" rule the optional-extensions suite below pins.
+      const withNote = buildCvDocument({
+        ...BASE_DOC,
+        experience: [{ role: "Dev", company: "Acme", period: "2021", bullets: ["Shipped"], note: "A note" }],
+      });
+      expect(withNote.css).toContain("@media print{.job-note{break-after:avoid}}");
+      expect(buildCvDocument(BASE_DOC).css).not.toContain(".job-note{");
+    });
+
+    it("never splits a single bullet, and leaves no orphan/widow line at a page boundary", () => {
+      const { css } = buildCvDocument(BASE_DOC);
+      expect(css).toContain("li{break-inside:avoid}");
+      expect(css).toContain("p,li{orphans:2;widows:2}");
+    });
+
+    it("does NOT keep a whole experience entry unbreakable, in any template", () => {
+      // `.exp{break-inside:avoid}` (which the technical template used to set) pushes a job with a
+      // dozen bullets wholesale onto the next page rather than letting it split, leaving the gap
+      // this whole block exists to prevent. Entries may split; only their seams are protected.
+      for (const template of ["classic", "technical", "timeline", "compact"] as const) {
+        const { css } = buildCvDocument({ ...BASE_DOC, theme: { ...DEFAULT_THEME, template } });
+        expect(css).not.toContain(".exp{break-inside:avoid}");
+      }
+    });
+  });
+
   it("keeps the stylesheet OUT of the markup, so the app's CSP can't strip it", () => {
     // Every consumer renders this into a srcdoc iframe or a window.open() popup, and those
     // inherit the app's CSP — whose style-src-elem has no 'unsafe-inline' (server/src/app.ts).
