@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 /**
  * End-to-end test of the Companies feature: add a company, edit its name/notes/questions via the

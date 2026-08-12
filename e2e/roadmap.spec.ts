@@ -1,4 +1,27 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
+import type { Page } from "@playwright/test";
+
+/**
+ * Undo steps for the persistent state these tests change. The fixture import above removes rows
+ * they CREATE, but a roadmap status and a manual skill level are edits to `user_kv` on the shared
+ * account, not new rows — nothing else would put them back. The level test in particular breaks
+ * on its own leftovers: with the override already at 90 the slider never becomes dirty, so no
+ * Save fires and the test times out waiting for a PUT that will not happen.
+ */
+const undoSteps: (() => Promise<void>)[] = [];
+
+test.afterEach(async () => {
+  for (const undo of undoSteps.splice(0).reverse()) await undo();
+});
+
+/** The API's own view of one node, so a restore writes back a real status value rather than the
+ * display label the DOM carries. */
+async function nodeStatus(page: Page, tech: string): Promise<string | null> {
+  const res = await page.request.get("/api/roadmap");
+  if (!res.ok()) return null;
+  const { groups } = (await res.json()) as { groups: { nodes: { tech: string; status: string }[] }[] };
+  return groups.flatMap((g) => g.nodes).find((n) => n.tech === tech)?.status ?? null;
+}
 import { addVacancy } from "./helpers";
 
 // The roadmap's node set is profile.skills ∪ demand-from-tracked-vacancies (see
@@ -37,6 +60,12 @@ test("toggles a roadmap node status and persists it across reload", async ({ pag
   // "" to "" for two of the three transitions. Its aria-label carries the actual status label.
   const statusButton = nodeCard.locator('button[title^="Click to change status"]');
   const before = await statusButton.getAttribute("aria-label");
+  const originalStatus = await nodeStatus(page, techName);
+  if (originalStatus) {
+    undoSteps.push(async () => {
+      await page.request.put("/api/roadmap/progress", { data: { tech: techName, status: originalStatus } });
+    });
+  }
   // The mutation is optimistic (the UI updates instantly, before the server responds) — we
   // wait for the actual network response to PUT /api/roadmap/progress, otherwise the reload()
   // below could interrupt a request that hasn't finished yet, and the server would never save
@@ -74,6 +103,12 @@ test("sets a manual skill level override and persists it across reload", async (
 
   const slider = nodeCard.getByRole("slider");
   await expect(slider).toBeVisible();
+  // `level: null` drops the override and puts the node back on its computed level — see
+  // parseSkillLevelInput. Registered before the change, so it runs even if an assertion below
+  // fails partway.
+  undoSteps.push(async () => {
+    await page.request.put("/api/roadmap/level", { data: { tech: techName, level: null } });
+  });
   await slider.fill("90");
 
   const saveButton = nodeCard.getByRole("button", { name: "Save" });

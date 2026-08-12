@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
 /**
@@ -27,9 +27,10 @@ const JOB = {
   bullets: ["Owned the **AI condition engine** end to end"],
 };
 
-/** Creates this spec's own profile with `doc` in it and opens the builder on it. Idempotent
- * across local re-runs against a DB that wasn't reset — the account caps at 5 profiles
- * (MAX_CV_PROFILES), so leftovers would eventually fail the create rather than just pile up. */
+/** Creates this spec's own profile with `doc` in it and opens the builder on it. The fixture
+ * import removes it again afterwards; the delete-by-name below is for the profile a run that
+ * crashed mid-test left behind, since the account caps at 5 (MAX_CV_PROFILES) and would
+ * eventually fail the create rather than just accumulate. */
 async function openOwnProfile(page: Page, doc: Record<string, unknown>) {
   const existing = await page.request.get("/api/cv/profiles");
   expect(existing.ok()).toBeTruthy();

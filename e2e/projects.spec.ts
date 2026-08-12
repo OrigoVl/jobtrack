@@ -1,6 +1,21 @@
 import { test, expect } from "@playwright/test";
 
 /**
+ * The item this test ticked, so it can be unticked again. Progress lives in `user_kv` against the
+ * shared e2e account and the suite runs on a persistent database, so without this the very first
+ * assertion below — that the item starts UNticked — is true exactly once per fresh DB, and every
+ * later local run fails on it. Taken from the PUT's own request body rather than from the DOM:
+ * the checkbox carries no id the test could read.
+ */
+let tickedItemId: string | null = null;
+
+test.afterEach(async ({ page }) => {
+  if (!tickedItemId) return;
+  await page.request.put("/api/projects/progress", { data: { itemId: tickedItemId, done: false } });
+  tickedItemId = null;
+});
+
+/**
  * End-to-end test of the pet-projects ladder (features/projects/projects.tsx ->
  * GET/PUT /api/projects). E2E always runs with the LLM offline (see playwright.config.ts), so
  * this exercises the static-ladder fallback (projects.service.ts's getDynamicProjects() returning
@@ -22,6 +37,7 @@ test("marks a pet-project DoD item as done and persists it across reload", async
     checkbox.click(),
   ]);
   expect(response.ok()).toBeTruthy();
+  tickedItemId = (response.request().postDataJSON() as { itemId: string }).itemId;
   await expect(checkbox).toBeChecked();
 
   await page.reload();

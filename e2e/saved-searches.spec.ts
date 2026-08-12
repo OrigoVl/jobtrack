@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 /**
  * End-to-end test of job alerts (saved searches) — features/jobs/jobs.tsx's "Alert me"

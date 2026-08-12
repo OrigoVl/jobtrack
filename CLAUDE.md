@@ -171,6 +171,16 @@ Don't declare a task finished on the basis of "it should work" — actually run 
 
 ### E2E specifics
 
+- **A spec that creates rows must `import { test, expect } from "./fixtures"`**, not from
+  `@playwright/test`. The suite runs against a PERSISTENT database on an account shared by every
+  spec file, so anything left behind is waiting for the next local run; `e2e/fixtures.ts` diffs the
+  account's vacancies/CV profiles/contacts/saved searches/calendar events around each test and
+  deletes whatever appeared. Getting this wrong doesn't look like state — a second run turns
+  `getByRole("option", { name: /Frontend Developer/ })` into a strict-mode violation over three
+  identical options, and which spec fails moves as specs are added. CI never sees it (always a
+  fresh DB), so it only ever bites locally. A spec that EDITS existing state instead of creating
+  rows (a roadmap status, a ticked plan/project item) has to undo that itself — see the
+  `afterEach` in `roadmap.spec.ts`/`projects.spec.ts`/`plan21.spec.ts`.
 - **Use `e2e/helpers.ts`'s `addVacancy()`** in any spec that just needs a vacancy to exist before
   testing something else. "+ Add vacancy" opens a create form that only saves on an explicit Save
   (it used to POST a placeholder row immediately), so clicking the button and waiting for

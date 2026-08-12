@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 /**
  * End-to-end test of importing vacancies from an external JSON file (job-tracker.json-shaped

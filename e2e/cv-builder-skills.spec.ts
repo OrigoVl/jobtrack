@@ -23,7 +23,12 @@ async function seedSkills(page: import("@playwright/test").Page, skills: string[
   expect(seedRes.ok()).toBeTruthy();
 }
 
-/** The skills as the PREVIEW renders them, in order — i.e. what the PDF will say. */
+/** The skills as the PREVIEW renders them, in order — i.e. what the PDF will say.
+ *
+ * Always read through `expect.poll`, never `expect(previewSkills(page)).resolves`: the latter
+ * awaits the promise exactly once with no retry, so it raced the iframe and reported an empty
+ * list whenever the preview had not finished loading — an intermittent failure that got likelier
+ * as the page got busier. */
 async function previewSkills(page: import("@playwright/test").Page): Promise<string[]> {
   return page
     .locator('iframe[title="CV preview"]')
@@ -39,22 +44,22 @@ test("reordering a skill with the keyboard changes the order the CV renders them
   await page.goto("/cvbuilder");
 
   await page.getByRole("button", { name: /^Skills/ }).click();
-  await expect(previewSkills(page)).resolves.toEqual(["React", "Node.js", "SQL"]);
+  await expect.poll(() => previewSkills(page)).toEqual(["React", "Node.js", "SQL"]);
 
   // Arrow keys, not drag-and-drop: this is the path that works without a mouse at all, and the
   // one that has to keep focus on the chip that moved so a second press moves the SAME skill.
   const sql = page.getByRole("button", { name: /^SQL — position 3 of 3/ });
   await sql.focus();
   await page.keyboard.press("ArrowLeft");
-  await expect(previewSkills(page)).resolves.toEqual(["React", "SQL", "Node.js"]);
+  await expect.poll(() => previewSkills(page)).toEqual(["React", "SQL", "Node.js"]);
 
   await page.keyboard.press("ArrowLeft");
-  await expect(previewSkills(page)).resolves.toEqual(["SQL", "React", "Node.js"]);
+  await expect.poll(() => previewSkills(page)).toEqual(["SQL", "React", "Node.js"]);
 
   // The reorder is a normal doc edit, so it survives a save/reload like any other.
   await page.getByRole("button", { name: "Save" }).click();
   await page.reload();
-  await expect(previewSkills(page)).resolves.toEqual(["SQL", "React", "Node.js"]);
+  await expect.poll(() => previewSkills(page)).toEqual(["SQL", "React", "Node.js"]);
 });
 
 test("the Appearance panel switches how skills render, and restyles the chips", async ({ page }) => {
@@ -70,14 +75,14 @@ test("the Appearance panel switches how skills render, and restyles the chips", 
     });
 
   // Default: the 6px corners chips have always had.
-  await expect(chipStyle()).resolves.toBe("6px");
+  await expect.poll(() => chipStyle()).toBe("6px");
   await page.getByRole("button", { name: "Pill", exact: true }).click();
-  await expect(chipStyle()).resolves.toBe("999px");
+  await expect.poll(() => chipStyle()).toBe("999px");
 
   // Switching the style away from chips changes the markup, not just the CSS — the skills come
   // out as a real <ul>, and the chip-only controls step aside.
   await page.getByRole("button", { name: "List", exact: true }).click();
-  await expect(chipStyle()).resolves.toBeNull();
-  await expect(previewSkills(page)).resolves.toEqual(["React", "Node.js", "SQL"]);
+  await expect.poll(() => chipStyle()).toBeNull();
+  await expect.poll(() => previewSkills(page)).toEqual(["React", "Node.js", "SQL"]);
   await expect(page.getByRole("button", { name: "Pill", exact: true })).toBeHidden();
 });

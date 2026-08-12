@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 /**
  * End-to-end test of the dashboard's "system-design interview coming up" suggestion

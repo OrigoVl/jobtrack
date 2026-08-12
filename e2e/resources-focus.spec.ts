@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 // The focus note is normally derived (profile skills + gaps from tracked vacancies — see
 // server/src/modules/resources/resources.service.ts), so this spec seeds a vacancy with a stack

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 const BLANK_CV_NAME = "E2E Blank CV";
 
@@ -27,6 +27,15 @@ test("a brand-new CV opens on the start card, and 'fill it in manually' reveals 
   const createRes = await page.request.post("/api/cv/profiles", { data: { name: BLANK_CV_NAME } });
   expect(createRes.status()).toBe(201);
   const blank = (await createRes.json()) as { id: number };
+
+  // A new profile is NOT reliably blank: emptyCvDoc() seeds its title from the account profile's
+  // `domain`, which other specs in the run fill in (a CV upload applies the extracted domain).
+  // On a persistent database that survives into the next run, so the profile arrives with a title
+  // already typed and the start card — the entire subject of this test — never appears. Writing
+  // an empty doc makes the precondition this test needs its own responsibility rather than a
+  // property of whatever else ran first.
+  const blankRes = await page.request.put(`/api/cv/profiles/${blank.id}/doc`, { data: {} });
+  expect(blankRes.ok()).toBeTruthy();
 
   await page.goto("/cvbuilder");
 
