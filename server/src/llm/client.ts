@@ -8,7 +8,7 @@ import { env } from "../config/env.js";
 import { insertLlmUsage, getUserCostUsdSince, type LlmUsageOutcome } from "../telemetry/telemetry.repo.js";
 import { getLocale, markAiQuotaExceeded } from "../core/request-context.js";
 import { getAiQuotaState } from "../modules/billing/entitlements.js";
-import type { AppLocale } from "../shared/locale.js";
+import { LANGUAGE_NAME } from "../shared/locale.js";
 
 export type LlmTier = "fast" | "smart";
 type LlmProvider = "openai" | "anthropic";
@@ -61,8 +61,6 @@ export interface ChatOptions {
    */
   effort?: LlmEffort;
 }
-
-const LANGUAGE_NAME: Record<AppLocale, string> = { en: "English", uk: "Ukrainian" };
 
 /** Prepends a language instruction to `system` when the caller opted in via `outputLocale:
  * "app"` and the current request's locale isn't English — folded into BOTH the cache-key hash

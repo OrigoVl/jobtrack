@@ -147,8 +147,8 @@ describe("cvAnalysis()", () => {
     // unknown techs (a 1/4 share each), while AWS is the sole missing piece in all 4 of its own
     // vacancies — gapPriority should rank AWS first even though raw demand favors Docker.
     vi.mocked(vacancyStackRows).mockResolvedValue([
-      ...Array.from({ length: 5 }, () => ({ stack: ["Docker", "Kubernetes", "Terraform", "Helm"], created: today })),
-      ...Array.from({ length: 4 }, () => ({ stack: ["AWS"], created: today })),
+      ...Array.from({ length: 5 }, () => ({ stack: ["Docker", "Kubernetes", "Terraform", "Helm"], created: today, position: "" })),
+      ...Array.from({ length: 4 }, () => ({ stack: ["AWS"], created: today, position: "" })),
     ]);
 
     const result = await cvAnalysis(BOOTSTRAP_USER_ID, "");
@@ -161,7 +161,7 @@ describe("cvAnalysis()", () => {
 
   it("folds techs extracted from the pasted CV text into 'known', not just profile.skills", async () => {
     vi.mocked(getProfile).mockResolvedValue({ skills: [], cvText: "", domain: "Backend" });
-    vi.mocked(vacancyStackRows).mockResolvedValue([{ stack: ["React"], created: "2026-01-01" }]);
+    vi.mocked(vacancyStackRows).mockResolvedValue([{ stack: ["React"], created: "2026-01-01", position: "" }]);
 
     const result = await cvAnalysis(BOOTSTRAP_USER_ID, "Five years of professional React development.");
 

@@ -1,5 +1,5 @@
 import express from "express";
-import { getProfile, setProfile } from "../../db/index.js";
+import { getKvJson, getProfile, setKvJson, setProfile } from "../../db/index.js";
 import { parseLinkedInArchive } from "./linkedin-import.service.js";
 import { extractSkills, detectDomain } from "../../shared/skill-extraction.js";
 import { chat, llmAvailable } from "../../llm/index.js";
@@ -13,8 +13,12 @@ import { cvAnalysis, reviewCv, matchCv, strs } from "./cv-analysis.service.js";
 import { startCvReviewJob, getCvReviewJob } from "./cv-review-job.js";
 import { tailorCv } from "./cv-tailor.service.js";
 import { parseCvDocFromText } from "./cv-document.service.js";
-import { optimizeLinkedInProfile } from "./cv-linkedin.service.js";
-import { getProfileFull, updateProfileDoc, updateProfilePresets } from "./cv-profiles.repo.js";
+import { LINKEDIN_SAVED_KEY, optimizeLinkedInProfile, parseSavedLinkedInProfile } from "./cv-linkedin.service.js";
+import { isAppLocale } from "../../shared/locale.js";
+import { getLocale } from "../../core/request-context.js";
+import { getProfileFull, listProfiles, updateProfileDoc, updateProfilePresets } from "./cv-profiles.repo.js";
+import { buildMarketContext } from "./linkedin-market.js";
+import { computeDemand, vacancyStackRows } from "../../shared/demand.js";
 import { ensureProfiles, createNewProfile, duplicateProfile, renameProfileById, deleteProfileById } from "./cv-profiles.service.js";
 import type { UserId } from "../../db/user-id.js";
 
@@ -104,8 +108,57 @@ r.post(
 r.post(
   "/cv/linkedin-optimize",
   aiLimiter,
+  authed(async (userId, req, res) => {
+    // Explicit target language, chosen in the UI — see optimizeLinkedInProfile's own comment for
+    // why this isn't just the UI locale. That locale is only the DEFAULT (the best first guess)
+    // for a caller that doesn't pass one.
+    const requested = String(req.body?.language || "");
+    const language = isAppLocale(requested) ? requested : getLocale();
+    // The profile the candidate has on LinkedIn TODAY, pasted by hand. Optional: with it the
+    // response carries an audit and the rewrite builds on what's already there; without it this
+    // stays a from-scratch generator. Pasted rather than read from LinkedIn because there's no API
+    // access here (see cv-linkedin.service.ts's header).
+    const currentHeadline = String(req.body?.current?.headline || "").slice(0, 1000);
+    const currentAbout = String(req.body?.current?.about || "").slice(0, 5000);
+    const current = currentHeadline.trim() || currentAbout.trim() ? { headline: currentHeadline, about: currentAbout } : null;
+
+    const profile = await getProfile(userId);
+    const rows = await vacancyStackRows(userId);
+    const context = buildMarketContext(
+      profile.skills,
+      computeDemand(rows),
+      rows.map((r) => r.position),
+    );
+    // The CV Builder document is only a FALLBACK source of prose (see cvSourceText) — read it just
+    // for the users whose résumé lives there instead of in profile.cvText. listProfiles (not
+    // ensureProfiles) on purpose: this is a read path, it shouldn't create a CV profile as a side
+    // effect. The first profile is the default one, same position ordering the Builder's tabs use.
+    let doc = null;
+    if (!profile.cvText.trim()) {
+      const first = (await listProfiles(userId))[0];
+      doc = first ? ((await getProfileFull(userId, first.id))?.doc ?? null) : null;
+    }
+
+    const result = await optimizeLinkedInProfile(userId, profile, language, context, { doc, current });
+    // Persisted so the work survives navigating away — both the generated text and, more usefully,
+    // the profile the user pasted in, which they'd otherwise have to fetch from LinkedIn and paste
+    // again on every visit. The audit isn't stored: it's derived, and re-deriving it from a stale
+    // market context would show a score that no longer matches the tracker.
+    await setKvJson(userId, LINKEDIN_SAVED_KEY, {
+      current: current ?? { headline: "", about: "" },
+      headline: result.headline,
+      about: result.about,
+      savedAt: new Date().toISOString(),
+    });
+    res.json(result);
+  }),
+);
+
+// The last generated/pasted profile, so the card comes back filled in rather than blank.
+r.get(
+  "/cv/linkedin-profile",
   authed(async (userId, _req, res) => {
-    res.json(await optimizeLinkedInProfile(userId, await getProfile(userId)));
+    res.json(parseSavedLinkedInProfile(await getKvJson(userId, LINKEDIN_SAVED_KEY)));
   }),
 );
 

@@ -56,6 +56,7 @@ import type {
   ResourcesData,
   RoadmapData,
   RoadmapStatus,
+  SavedLinkedInProfile,
   SavedSearch,
   SavedSearchInput,
   SimilarVacancy,
@@ -63,6 +64,7 @@ import type {
   Vacancy,
   VacancyDetails,
 } from "./types";
+import type { AppLocale } from "../i18n/locales";
 import i18n from "../i18n";
 
 const base = "/api";
@@ -341,7 +343,11 @@ export const api = {
   // goes through the same `req()` helper (nothing about it depends on a cookie being present).
   cvPublic: (slug: string) => req<{ doc: CvDoc }>(`/cv/public/${encodeURIComponent(slug)}`),
 
-  linkedinOptimize: () => req<LinkedInOptimizeResult>("/cv/linkedin-optimize", { method: "POST", body: "{}" }),
+  /** `current` is the profile the user already has on LinkedIn, pasted by hand — with it the
+   * response also carries a scored audit and the rewrite builds on what's there. */
+  linkedinSaved: () => req<SavedLinkedInProfile | null>("/cv/linkedin-profile"),
+  linkedinOptimize: (language: AppLocale, current?: { headline: string; about: string }) =>
+    req<LinkedInOptimizeResult>("/cv/linkedin-optimize", { method: "POST", body: JSON.stringify({ language, current }) }),
 
   digestPreferences: () => req<DigestPreferences>("/digest/preferences"),
   setDigestEnabled: (enabled: boolean) =>

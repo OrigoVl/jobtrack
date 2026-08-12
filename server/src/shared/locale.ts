@@ -10,6 +10,12 @@ export function isAppLocale(value: string): value is AppLocale {
   return (SUPPORTED_LOCALES as readonly string[]).includes(value);
 }
 
+/** The English NAME of each locale's language, for interpolating into an LLM prompt ("Respond in
+ * Ukrainian."). Lives here rather than in llm/client.ts because two call sites now need it: that
+ * file's withLocaleInstruction() (the implicit, UI-locale-driven path) and cv-linkedin.service.ts
+ * (an explicit, user-chosen target language that deliberately ISN'T the UI locale). */
+export const LANGUAGE_NAME: Record<AppLocale, string> = { en: "English", uk: "Ukrainian" };
+
 /** Slavic 1/2-4/5+ plural rule (11-14 are always the "many" form even though they end in a digit
  * that would otherwise read as "few") — same algorithm i18next applies to uk_one/_few/_many
  * client-side, hand-rolled here for server-generated template text (not an i18next key). Used by

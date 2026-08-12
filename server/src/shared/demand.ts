@@ -50,10 +50,25 @@ export interface VacancyStackRow {
   created: string;
 }
 
-/** Reads every vacancy row (stack + created) for a user — the shared input to computeDemand()/
- * computeGapPriority() below, so both can be derived from a single query per request. */
-export async function vacancyStackRows(userId: UserId): Promise<VacancyStackRow[]> {
-  return db.select({ stack: vacancies.stack, created: vacancies.created }).from(vacancies).where(eq(vacancies.userId, userId));
+/** What the query below actually returns: a VacancyStackRow plus the posting's job title. The
+ * title is deliberately NOT part of VacancyStackRow itself — the demand math only counts
+ * technologies, and widening its input type would force a `position` into every fixture in
+ * demand.test.ts/cv-analysis.service.test.ts for a field those functions never read. It rides
+ * along on the query because the LinkedIn optimizer needs "which roles is this candidate applying
+ * to?" from exactly the same rows, and a second near-identical query for one more column of the
+ * same table would be worse. */
+export interface VacancyRoleRow extends VacancyStackRow {
+  position: string;
+}
+
+/** Reads every vacancy row (stack + created + position) for a user — the shared input to
+ * computeDemand()/computeGapPriority() below, so both can be derived from a single query per
+ * request. */
+export async function vacancyStackRows(userId: UserId): Promise<VacancyRoleRow[]> {
+  return db
+    .select({ stack: vacancies.stack, created: vacancies.created, position: vacancies.position })
+    .from(vacancies)
+    .where(eq(vacancies.userId, userId));
 }
 
 /** Convenience wrapper: reads every vacancy row and delegates the math to computeDemand(). */

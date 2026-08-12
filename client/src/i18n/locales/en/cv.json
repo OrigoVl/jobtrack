@@ -551,11 +551,29 @@
   },
   "linkedin": {
     "title": "LinkedIn profile optimizer",
-    "description": "Generates a headline + \"About\" section from your profile/CV — copy it straight into LinkedIn. No LinkedIn account access needed or used.",
+    "description": "Rewrites your headline + \"About\", ranks your Skills section and suggests \"Open to work\" titles — aimed at the vacancies you're actually tracking. No LinkedIn account access needed or used.",
     "regenerate": "↻ Regenerate",
     "offlineNotice": "Offline template — enable LLM in server/.env for a personalized version",
     "headlineLabel": "Headline",
-    "aboutLabel": "About"
+    "aboutLabel": "About",
+    "currentSummary": "Already have a LinkedIn profile? Paste it to get it scored",
+    "currentHeadlinePlaceholder": "Your current headline",
+    "currentAboutPlaceholder": "Your current \"About\" section",
+    "auditTitle": "Your current profile",
+    "skillsLabel": "Skills section order",
+    "skillsHint": "Ordered by what your tracked vacancies ask for — LinkedIn shows the top ones first.",
+    "noMarketHint": "Add vacancies to the tracker and this list gets ordered by what they actually ask for.",
+    "rolesLabel": "\"Open to work\" titles",
+    "rolesHint": "The roles you're applying to most often in the tracker.",
+    "checks": {
+      "headlinePresent": "Headline is filled in",
+      "headlineWithinLimit": "Headline fits LinkedIn's 220-character limit",
+      "headlineHasKeyword": "Headline names a role or technology your vacancies ask for",
+      "aboutPresent": "\"About\" is filled in",
+      "aboutLongEnough": "\"About\" is long enough to be worth reading",
+      "aboutWithinLimit": "\"About\" fits LinkedIn's 2600-character limit",
+      "aboutHasKeywords": "\"About\" mentions at least two of your key skills"
+    }
   },
   "publicShare": {
     "notFoundTitle": "This CV link doesn't exist or has been disabled",

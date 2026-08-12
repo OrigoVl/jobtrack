@@ -1035,9 +1035,47 @@ export interface DesignDefenseTurnResult {
   maxTurns: number;
 }
 
+/** Stable identifiers, not display text — linkedin-optimizer-card.tsx maps each to its own i18n
+ * key, the same way fit-tone.ts handles Fit. Mirrors linkedin-market.ts's LinkedInAuditCheckId. */
+export type LinkedInAuditCheckId =
+  | "headlinePresent"
+  | "headlineWithinLimit"
+  | "headlineHasKeyword"
+  | "aboutPresent"
+  | "aboutLongEnough"
+  | "aboutWithinLimit"
+  | "aboutHasKeywords";
+
+export interface LinkedInAuditCheck {
+  id: LinkedInAuditCheckId;
+  ok: boolean;
+}
+
+export interface LinkedInAudit {
+  score: number;
+  checks: LinkedInAuditCheck[];
+}
+
+/** The last generated/pasted profile, persisted server-side (a `user_kv` blob) so the card comes
+ * back filled in. The audit isn't part of it — it's derived from the tracker, which moves. */
+export interface SavedLinkedInProfile {
+  current: { headline: string; about: string };
+  headline: string;
+  about: string;
+  savedAt: string;
+}
+
 export interface LinkedInOptimizeResult {
   headline: string;
   about: string;
+  /** The candidate's skills ordered for LinkedIn's Skills section by tracked-vacancy demand. */
+  skills: string[];
+  /** Job titles for LinkedIn's "Open to work", taken from the vacancies actually being tracked. */
+  targetRoles: string[];
+  /** Present only when the user pasted the profile they already have. */
+  audit: LinkedInAudit | null;
+  /** False when the tracker is empty — `skills`/`targetRoles` are then just profile data. */
+  marketAware: boolean;
   offline: boolean;
 }
 
