@@ -498,6 +498,15 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
     `li{break-inside:avoid}` +
     // No lone first/last line of a paragraph left behind at a page boundary.
     `p,li{orphans:2;widows:2}` +
+    // Chrome/Edge drop every background when "Background graphics" is unchecked, which is the
+    // DEFAULT in the print dialog — and several things here are drawn as backgrounds rather than
+    // text or borders: the technical template's bullet dots and the hairline beside its section
+    // headings, the timeline template's rail dots, the skill chips' tint, and the metric strip
+    // (whose separators are a tinted parent showing through 1px gaps). Without this the exported
+    // PDF silently loses all of them while the on-screen preview keeps them — reported as
+    // "the preview has bullet points, the PDF doesn't". `exact` opts back in; it's inherited, so
+    // declaring it on body covers descendants and their pseudo-elements.
+    `body{-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
     `}` +
     optionalCss +
     metaCss +

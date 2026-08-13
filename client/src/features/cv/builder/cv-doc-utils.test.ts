@@ -52,6 +52,14 @@ describe("buildCvDocument", () => {
       expect(css).toContain("p,li{orphans:2;widows:2}");
     });
 
+    it("opts into printing backgrounds, so decorations drawn as backgrounds survive the export", () => {
+      // The bullet dots and heading hairline of the technical template, the timeline rail dots,
+      // the chip tints and the metric-strip separators are all backgrounds — and Chrome's print
+      // dialog drops backgrounds by default, so without this they vanish from the PDF while the
+      // preview still shows them.
+      expect(buildCvDocument(BASE_DOC).css).toContain("print-color-adjust:exact");
+    });
+
     it("does NOT keep a whole experience entry unbreakable, in any template", () => {
       // `.exp{break-inside:avoid}` (which the technical template used to set) pushes a job with a
       // dozen bullets wholesale onto the next page rather than letting it split, leaving the gap
