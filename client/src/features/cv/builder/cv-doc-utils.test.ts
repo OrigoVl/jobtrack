@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CvDoc, CvTheme } from "../../../shared/types";
-import { DEFAULT_ORDER, DEFAULT_THEME, buildCvDocument, cvDocToText, effectiveSkillsStyle, themeOf } from "./cv-doc-utils";
+import { DEFAULT_ORDER, DEFAULT_THEME, buildCvDocument, cvDocToText, effectiveSkillsStyle, telegramContact, themeOf } from "./cv-doc-utils";
 
 const BASE_DOC: CvDoc = {
   name: "Michael Voloshyn",
@@ -410,5 +410,55 @@ describe("buildCvDocument — optional extensions", () => {
     // The flat list stays the canonical one — categories are stated in addition to it, never
     // instead of it.
     expect(text).toContain("Skills: TypeScript");
+  });
+});
+
+describe("telegramContact", () => {
+  it("accepts every shape a candidate actually pastes", () => {
+    for (const raw of ["@OrigoVl", "OrigoVl", "t.me/OrigoVl", "https://t.me/OrigoVl", "  telegram.me/OrigoVl  "]) {
+      expect(telegramContact(raw)).toEqual({ label: "@OrigoVl", href: "https://t.me/OrigoVl" });
+    }
+  });
+
+  it("drops the query/fragment a shared link carries", () => {
+    expect(telegramContact("https://t.me/OrigoVl?start=hi")?.label).toBe("@OrigoVl");
+  });
+
+  it("returns null for empty or non-handle input, so no stray separator is printed", () => {
+    for (const raw of ["", "   ", "+380956626836", "not a handle"]) expect(telegramContact(raw)).toBeNull();
+  });
+});
+
+describe("phone and Telegram as their own fields", () => {
+  const DOC: CvDoc = { ...BASE_DOC, contact: "me@example.com", phone: "+380 95 662 68 36", telegram: "@OrigoVl" };
+
+  it("prints them on the contact line, separated from the freeform contact text", () => {
+    const { html } = buildCvDocument(DOC);
+    expect(html).toContain("me@example.com · +380 95 662 68 36 · ");
+  });
+
+  it("links the handle to t.me — a handle typed into a link row used to produce https://@name", () => {
+    expect(buildCvDocument(DOC).html).toContain('href="https://t.me/OrigoVl"');
+    expect(buildCvDocument(DOC).html).toContain(">@OrigoVl</a>");
+  });
+
+  it("leaves the phone as plain text, since anchors print underlined here", () => {
+    expect(buildCvDocument(DOC).html).not.toContain("tel:");
+  });
+
+  it("omits a part that is empty instead of printing a stray separator", () => {
+    const { html } = buildCvDocument({ ...BASE_DOC, contact: "me@example.com", phone: "", telegram: "" });
+    expect(html).toContain(">me@example.com</div>");
+  });
+
+  it("renders a document saved before these fields existed exactly as before", () => {
+    const legacy: CvDoc = { ...BASE_DOC, contact: "me@example.com / +380956626836" };
+    expect(buildCvDocument(legacy).html).toContain(">me@example.com / +380956626836</div>");
+  });
+
+  it("includes both in the plain-text form the AI review reads", () => {
+    const text = cvDocToText(DOC);
+    expect(text).toContain("+380 95 662 68 36");
+    expect(text).toContain("@OrigoVl");
   });
 });

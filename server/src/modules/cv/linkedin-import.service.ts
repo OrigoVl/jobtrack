@@ -93,11 +93,17 @@ export function parseLinkedInArchive(buffer: Buffer): ParsedLinkedInCv {
   const emailRows = readCsv("Email Addresses.csv");
   const email =
     emailRows.find((r) => (r.Primary || "").toLowerCase() === "yes")?.["Email Address"] || emailRows[0]?.["Email Address"] || "";
+  // Location joins the freeform line; the phone gets its own field (see CvDoc.phone) rather than
+  // being appended here, which is the whole point of that field existing.
   const contact = [email, profile["Geo Location"]].filter(Boolean).join(" · ");
+  const phoneRows = readCsv("PhoneNumbers.csv");
   return {
     name: [profile["First Name"], profile["Last Name"]].filter(Boolean).join(" "),
     title: profile.Headline || "",
     contact,
+    phone: phoneRows[0]?.Number || "",
+    // LinkedIn's export has no equivalent — the field stays empty for the user to fill in.
+    telegram: "",
     // LinkedIn's own profile "Websites" column is a real URL — a structured link, not a plain
     // contact line, so it goes to `links` instead of getting joined into `contact` like the rest
     // (it used to be, before this field existed).

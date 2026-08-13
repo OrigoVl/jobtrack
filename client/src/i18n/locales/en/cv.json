@@ -210,7 +210,11 @@
     "roleTitle": "Role / title",
     "rolePlaceholder": "Full-Stack Developer",
     "contacts": "Contacts",
-    "contactsPlaceholder": "email · phone · location",
+    "contactsPlaceholder": "email · location",
+    "phone": "Phone",
+    "phonePlaceholder": "+380 95 123 45 67",
+    "telegram": "Telegram",
+    "telegramPlaceholder": "@username",
     "links": {
       "title": "Links",
       "addEntry": "+ Add link",

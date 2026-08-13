@@ -11,6 +11,8 @@ export async function emptyCvDoc(userId: UserId): Promise<CvDoc> {
     name: "",
     title: p.domain || "",
     contact: "",
+    phone: "",
+    telegram: "",
     links: [],
     summary: "",
     skillGroups: [],

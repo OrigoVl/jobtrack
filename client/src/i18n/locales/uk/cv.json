@@ -220,7 +220,11 @@
     "roleTitle": "Посада / роль",
     "rolePlaceholder": "Full-Stack Developer",
     "contacts": "Контакти",
-    "contactsPlaceholder": "email · телефон · місто",
+    "contactsPlaceholder": "email · місто",
+    "phone": "Телефон",
+    "phonePlaceholder": "+380 95 123 45 67",
+    "telegram": "Telegram",
+    "telegramPlaceholder": "@username",
     "links": {
       "title": "Посилання",
       "addEntry": "+ Додати посилання",

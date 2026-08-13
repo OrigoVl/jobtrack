@@ -118,6 +118,26 @@ export function GeneralSection({ doc, onChange, llm, busyStyle, onImproveSummary
         placeholder={t("generalSection.contactsPlaceholder")}
         maxLength={400}
       />
+      {/* Own fields rather than more text in "Contacts" above, so the CV can format them and give
+          Telegram a real t.me link. A document filled in before these existed keeps its phone in
+          the freeform line — nothing moves it automatically, since splitting that apart reliably
+          isn't possible (see CvDoc.phone). */}
+      <div className="grid grid-cols-2 gap-2">
+        <Field
+          label={t("generalSection.phone")}
+          value={doc.phone ?? ""}
+          onChange={(v) => onChange({ phone: v })}
+          placeholder={t("generalSection.phonePlaceholder")}
+          maxLength={60}
+        />
+        <Field
+          label={t("generalSection.telegram")}
+          value={doc.telegram ?? ""}
+          onChange={(v) => onChange({ telegram: v })}
+          placeholder={t("generalSection.telegramPlaceholder")}
+          maxLength={120}
+        />
+      </div>
       <ContactLinksEditor links={doc.links ?? []} onChange={(links) => onChange({ links })} />
       <label className="block">
         <span className="text-xs font-semibold text-ink-dim">{t("generalSection.summary")}</span>

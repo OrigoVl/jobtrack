@@ -407,3 +407,26 @@ describe("CvPresetsSchema", () => {
     expect(out[0]?.theme.accent).toBe("#0000ff");
   });
 });
+
+describe("CvDocSchema — phone and Telegram", () => {
+  it("defaults both to empty for a document saved before they existed", () => {
+    const doc = CvDocSchema.parse({ name: "A", contact: "me@example.com / +380956626836" });
+    expect(doc.phone).toBe("");
+    expect(doc.telegram).toBe("");
+    // The legacy freeform line is left exactly as it was — nothing tries to split the phone out
+    // of it, because doing that reliably isn't possible.
+    expect(doc.contact).toBe("me@example.com / +380956626836");
+  });
+
+  it("keeps and caps what it is given", () => {
+    const doc = CvDocSchema.parse({ phone: "x".repeat(80), telegram: "y".repeat(200) });
+    expect(doc.phone).toHaveLength(60);
+    expect(doc.telegram).toHaveLength(120);
+  });
+
+  it("coerces non-strings to empty rather than throwing", () => {
+    const doc = CvDocSchema.parse({ phone: 380956626836, telegram: { handle: "x" } });
+    expect(doc.phone).toBe("");
+    expect(doc.telegram).toBe("");
+  });
+});

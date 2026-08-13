@@ -438,6 +438,12 @@ export const CvDocSchema = z.preprocess(
     name: str(120),
     title: str(160),
     contact: str(400),
+    // Own fields rather than more free text inside `contact`: the renderer formats them (and
+    // builds a tel:/t.me href) instead of printing whatever was typed. A document written before
+    // these existed simply parses them as "" — its phone stays inside `contact`, which is the
+    // honest outcome, since splitting a freeform contact line back apart would be guesswork.
+    phone: str(60),
+    telegram: str(120),
     links: CvContactLinksSchema,
     summary: str(1500),
     photo: CvPhotoSchema,
