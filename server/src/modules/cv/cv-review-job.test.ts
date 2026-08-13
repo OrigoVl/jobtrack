@@ -30,6 +30,7 @@ const REVIEW_RESULT = {
   issues: [],
   keywords: ["React"],
   rewrites: [],
+  positioning: { detectedRole: "", suggestedTitle: "", rationale: "" },
 };
 
 describe("cv-review-job", () => {

@@ -12,6 +12,7 @@ import { CvDocSchema, CvPresetsSchema } from "./cv.schemas.js";
 import { cvAnalysis, reviewCv, matchCv, strs } from "./cv-analysis.service.js";
 import { startCvReviewJob, getCvReviewJob } from "./cv-review-job.js";
 import { tailorCv } from "./cv-tailor.service.js";
+import { auditCv } from "./cv-audit.service.js";
 import { parseCvDocFromText } from "./cv-document.service.js";
 import { LINKEDIN_SAVED_KEY, optimizeLinkedInProfile, parseSavedLinkedInProfile } from "./cv-linkedin.service.js";
 import { isAppLocale } from "../../shared/locale.js";
@@ -180,7 +181,13 @@ r.post(
   authed(async (userId, req, res) => {
     const cvText = String(req.body?.cvText || (await getProfile(userId)).cvText || "").slice(0, 8000);
     if (cvText.trim().length < 30) throw new HttpError(400, "Not enough CV text to review", null, "CV_TEXT_TOO_SHORT");
-    res.status(202).json(await startCvReviewJob(userId, cvText));
+    // Mechanical findings the CV Builder already computed and is already showing — sent so the
+    // review doesn't spend its answer repeating them. Capped/truncated rather than trusted: this
+    // is user-controllable text heading into a prompt.
+    const checks = strs(req.body?.checks)
+      .slice(0, 30)
+      .map((c) => c.slice(0, 200));
+    res.status(202).json(await startCvReviewJob(userId, cvText, checks));
   }),
 );
 // Polled by the client (~every second) while a review job is running — deliberately NOT behind
@@ -203,6 +210,23 @@ r.post(
     if (cvText.trim().length < 30) throw new HttpError(400, "Not enough CV text to compare", null, "CV_TEXT_TOO_SHORT");
     if (!jobTitle.trim() && !jobText.trim()) throw new HttpError(400, "No vacancy data to compare against", null, "CV_NO_VACANCY_DATA");
     res.json(await matchCv(userId, cvText, jobTitle, jobText));
+  }),
+);
+
+// ---------- line-by-line audit of the structured CV Builder doc ----------
+r.post(
+  "/cv/audit",
+  aiLimiter,
+  authed(async (userId, req, res) => {
+    const doc = CvDocSchema.parse(req.body?.doc);
+    if (!doc.summary.trim() && !doc.experience.length) throw new HttpError(400, "Fill in the CV first", null, "CV_FILL_IN_FIRST");
+    // The mechanical findings the client already computed and is already showing with a one-click
+    // fix — passed in purely so the model doesn't spend its output repeating them. Capped and
+    // truncated here rather than trusted: this is user-controllable text going into a prompt.
+    const known = strs(req.body?.known)
+      .slice(0, 30)
+      .map((k) => k.slice(0, 200));
+    res.json(await auditCv(userId, doc, known));
   }),
 );
 
@@ -327,14 +351,30 @@ r.post(
 // Summary rewrite "flavors" for the AI action chips in the builder's General section — same
 // endpoint/model, just a different instruction. Keys are also validated client-side but never
 // trusted here: an unknown/missing style silently falls back to the plain "improve" guide.
+// The banned openers are the ones that show up in every résumé template and carry no information —
+// the first three words of a summary are the most valuable space on the page, and an external audit
+// of this app's own output found "Results-driven" sitting in exactly that spot. The client's audit
+// rule flags them after the fact; this stops the app from GENERATING one in the first place.
+const NO_CLICHE =
+  'Never open with "Results-driven", "Motivated", "Passionate", "Hard-working", "Detail-oriented", "Dynamic", "Self-starter" or any similar generic adjective. Open with the role itself.';
+
 const SUMMARY_STYLE_GUIDES: Record<string, string> = {
-  improve: "Rewrite this resume summary (2-3 sentences): engaging, with a focus on results and key skills.",
+  improve:
+    "Rewrite this resume summary in 2-3 sentences. It must state, in this order: the role and seniority, years of experience, the primary stack, and the scope owned end-to-end. " +
+    "Every sentence must carry a fact — no sentence may consist only of qualities or intentions. If the original contains a concrete, quantified achievement, keep it; never invent one.",
   shorter: "Rewrite this resume summary in 1-2 concise sentences — cut all filler, keep only the strongest points.",
   ats: "Rewrite this resume summary to maximize ATS (resume-scanner) keyword match for the role — dense with relevant hard-skill keywords, still natural to read, 2-3 sentences.",
   technical:
     "Rewrite this resume summary with a stronger technical/engineering focus — name concrete technologies, architecture decisions, and scale (2-3 sentences).",
   leadership:
     "Rewrite this resume summary with a stronger leadership/ownership focus — mentoring, decision-making, cross-team impact (2-3 sentences).",
+  // Deliberately reframes rather than rewords. A CV whose strongest evidence sits in one specialty
+  // gets classified as that specialist, which costs the candidate every broader role they apply
+  // for — so this leads with the broad identity and presents the specialty as depth on top of it,
+  // without dropping any of the specialist evidence that makes the CV strong.
+  positioning:
+    "Rewrite this resume summary to lead with the BROAD role the experience supports, presenting the candidate's strongest specialty as exceptional depth ON TOP of that foundation rather than as their identity. " +
+    "Keep every concrete achievement; change the framing and the order, not the facts. 2-3 sentences.",
 };
 r.post(
   "/cv/improve",
@@ -348,8 +388,12 @@ r.post(
     const role = (await getProfile(userId)).domain || "specialist";
     const guide =
       kind === "summary"
-        ? (SUMMARY_STYLE_GUIDES[style] ?? SUMMARY_STYLE_GUIDES.improve)
-        : 'Rewrite this experience bullet using the formula "strong verb → what you did → technology → measurable result". One sentence, no fluff.';
+        ? `${SUMMARY_STYLE_GUIDES[style] ?? SUMMARY_STYLE_GUIDES.improve} ${NO_CLICHE}`
+        : 'Rewrite this experience bullet using the formula "strong verb → what you did → technology → measurable result". One sentence, no fluff. ' +
+          // Same anti-fabrication rule reviewCv already carries. Without it the "measurable result"
+          // instruction is an active invitation to invent a percentage, and a made-up number on a
+          // résumé is worse than no number — it discredits the real ones next to it.
+          "Never invent a number, a technology or an outcome that is not in the original. If the bullet would only be strong with a metric the candidate hasn't given, rewrite it without one rather than inventing it.";
     // No outputLocale here — deliberately follows the resume's OWN language (instructed below),
     // not the UI's, same as cv-skills-update above.
     const out = await chat(

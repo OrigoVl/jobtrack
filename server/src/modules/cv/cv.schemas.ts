@@ -99,6 +99,12 @@ export const CvThemeSchema = z.preprocess(
     // every other template resolves it to "body", i.e. exactly what it renders today. "body"
     // rather than "sans" because it follows whatever `font` is, serif included.
     metaFont: z.enum(["auto", "body", "mono"]).catch("auto"),
+    // How a contact link prints. "label" — the anchor text only ("LinkedIn"), which is what every
+    // document saved before this existed parses as and therefore the only safe default. It is also
+    // the option that loses the URL: in the exported PDF the address survives ONLY as a link
+    // annotation, so a parser reading just the text layer sees the word "LinkedIn" and no address
+    // at all. "url" prints the shortened address as the visible text, "both" prints "Label: url".
+    linkStyle: z.enum(["label", "url", "both"]).catch("label"),
     // Opt-in `**bold**` / `` `code` `` inside bullets and the summary. Off unless explicitly
     // enabled: a CV whose text happens to contain ** must keep printing those asterisks
     // literally rather than silently reflowing the moment this shipped.
@@ -444,6 +450,12 @@ export const CvDocSchema = z.preprocess(
     // honest outcome, since splitting a freeform contact line back apart would be guesswork.
     phone: str(60),
     telegram: str(120),
+    // Where the candidate is (and whether they're open to remote). Its own field rather than more
+    // free text inside `contact` because it's the one contact detail that gets FILTERED on: an ATS
+    // geo-filter and a recruiter's first question both need it, and a résumé that never states it
+    // is silently excluded from location-scoped searches. Parses as "" on every document written
+    // before this existed, exactly like `phone`/`telegram` above.
+    location: str(120),
     links: CvContactLinksSchema,
     summary: str(1500),
     photo: CvPhotoSchema,

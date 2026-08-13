@@ -60,6 +60,53 @@ export function themeOf(doc: CvDoc): CvTheme {
 const MONO_STACK = `ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace`;
 
 /**
+ * Absolute origin for the webfont URLs below.
+ *
+ * Every consumer of this stylesheet is a document whose own base URL is `about:blank` (the print
+ * popup) or `about:srcdoc` (the preview and public-share iframes), against which a relative
+ * `/fonts/...` resolves to nothing at all. The app's own origin is the right base and CSP already
+ * allows it (`fontSrc: ["'self'", …]`, server/src/app.ts). Guarded for the jsdom/SSR-less case so
+ * importing this module never depends on a `location` existing.
+ */
+const ASSET_ORIGIN = typeof location !== "undefined" ? location.origin : "";
+
+/**
+ * Self-hosted Inter, embedded in every generated CV stylesheet.
+ *
+ * This is not cosmetic — it's what makes the exported PDF machine-readable. The body stack has
+ * always NAMED Inter first, but nothing ever loaded it, so it fell through to `system-ui`: on
+ * macOS that's SF Pro, a VARIABLE font, and Chrome can only embed a variable font into a PDF as a
+ * **Type 3** font with a custom encoding. Type 3 is both a known failure point for older ATS
+ * parsers and — much worse — it loses the word spacing entirely: an exported CV extracted with
+ * `pdftotext -raw` came out as "Results-drivenFullStackDeveloperwith7yearsofexperience". Static
+ * instances (one file per weight, NOT the variable `Inter[opsz,wght].woff2`) embed as ordinary
+ * TrueType, and the spaces survive.
+ *
+ * The weights are exactly the ones the templates below declare — 400 body, 500 `minimal`'s title,
+ * 600 headings, 700 roles/name — and each has a Cyrillic sibling, since a CV written in Ukrainian
+ * has to render in the same face rather than silently falling back to the system font (which would
+ * reintroduce Type 3 for exactly those glyphs).
+ *
+ * `font-display: block`, not `swap`: a swapped fallback is what would end up printed into the PDF.
+ * These rules live here rather than in the app's index.css because the CV documents are separate
+ * `srcdoc`/`about:blank` documents that never load the app's stylesheet — and keeping them here
+ * costs the app shell nothing.
+ */
+const CV_LATIN_RANGE = `U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD`;
+const CV_CYRILLIC_RANGE = `U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116`;
+const FONT_FACE_CSS = [400, 500, 600, 700]
+  .flatMap((weight) => [
+    { file: `inter-${weight}.woff2`, range: CV_LATIN_RANGE, weight },
+    { file: `inter-cyrillic-${weight}.woff2`, range: CV_CYRILLIC_RANGE, weight },
+  ])
+  .map(
+    ({ file, range, weight }) =>
+      `@font-face{font-family:"Inter";font-style:normal;font-weight:${weight};font-display:block;` +
+      `src:url("${ASSET_ORIGIN}/fonts/${file}") format("woff2");unicode-range:${range}}`,
+  )
+  .join("");
+
+/**
  * Resolves `theme.skillsStyle`'s "auto" (the default, and what every CV saved before the setting
  * existed parses as) to what the Skills section actually renders as: the two text-dense templates
  * run the skills as one inline "A · B · C" line, everything else uses chips. Exported because the
@@ -138,7 +185,26 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
    */
   const rich = (escaped: string) =>
     t.richText ? escaped.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>") : escaped;
-  const escRich = (s: string) => rich(esc(s));
+  /**
+   * Keeps a short hyphenated compound ("prompt-relevance", "end-to-end", "fan-out/fan-in") on one
+   * line, inside otherwise freely-wrapping prose.
+   *
+   * `hyphens:none` is not enough on its own: it suppresses the browser's AUTOMATIC hyphenation,
+   * but a line is still allowed to break after a hyphen the author actually typed. When it does,
+   * the hyphen is lost from the extracted text — the audited export turned "prompt-relevance" into
+   * "promptrelevance", so a recruiter searching that exact term would never match this résumé.
+   *
+   * Only compounds up to 30 characters are wrapped, so making one unbreakable can never push a
+   * line wide enough to overflow the column. Runs AFTER esc()/rich(), and the pattern deliberately
+   * matches letters/digits around a hyphen only — the sole tags that can be present at this point
+   * are the `<strong>`/`<code>` pairs rich() just produced, and neither contains a hyphen, so
+   * there is nothing here for it to corrupt.
+   */
+  const nbHyphens = (escaped: string) =>
+    escaped.replace(/[\p{L}\p{N}]+(?:[-/][\p{L}\p{N}]+)+/gu, (m) => (m.length <= 30 ? `<span class="nb">${m}</span>` : m));
+  const escRich = (s: string) => nbHyphens(rich(esc(s)));
+  /** One skill token, kept unbreakable — see `.nb` in the stylesheet below. */
+  const nb = (s: string) => `<span class="nb">${esc(s)}</span>`;
   // `.trim()`, not `filter(Boolean)`: a bullet the user cleared down to spaces is still truthy,
   // and would print as a visible empty bullet point on the exported PDF. ResumeCompleteness
   // already judges "has this entry got any content" the same way.
@@ -288,7 +354,18 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
       const label = l.label.trim() || url;
       if (!url) return esc(label);
       const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
-      return `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(label)}</a>`;
+      // What the reader (and, crucially, a text-layer parser) actually sees. Under the default
+      // "label" the address exists in the PDF only as a link annotation, so a parser that reads
+      // just the text finds the word "LinkedIn" and no URL at all — the audit's finding. "url"
+      // and "both" put the address itself into the text. Shortened for display only: the href is
+      // always the full URL, and the visible text drops the scheme/`www.`/trailing slash, which is
+      // still an exact, searchable address but doesn't eat the whole contact line.
+      const short = url
+        .replace(/^https?:\/\//i, "")
+        .replace(/^www\./i, "")
+        .replace(/\/+$/, "");
+      const text = t.linkStyle === "url" ? short : t.linkStyle === "both" ? `${label}: ${short}` : label;
+      return `<a href="${esc(href)}" target="_blank" rel="noopener">${nbHyphens(esc(text))}</a>`;
     })
     .join(" · ");
   // One assembled line reused by every layout below, rather than each one re-deciding where the
@@ -298,6 +375,9 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
   // nothing.
   const tg = telegramContact(doc.telegram ?? "");
   const contactLine = [
+    // Location leads the line: it's the detail a recruiter looks for first and the one an ATS
+    // geo-filter matches on, so it shouldn't trail behind the email and phone.
+    esc((doc.location ?? "").trim()),
     esc(doc.contact.trim()),
     esc((doc.phone ?? "").trim()),
     tg ? `<a href="${esc(tg.href)}" target="_blank" rel="noopener">${esc(tg.label)}</a>` : "",
@@ -320,14 +400,14 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
             (g) =>
               `<dt>${esc(g.name)}</dt><dd>${g.skills
                 .filter((s) => s.trim())
-                .map(esc)
+                .map(nb)
                 .join(", ")}</dd>`,
           )
           .join("")}</dl>`
       : !doc.skills.length
         ? ""
         : skillsStyle === "inline"
-          ? `${H("skills")}<p>${doc.skills.map(esc).join(" · ")}</p>`
+          ? `${H("skills")}<p>${doc.skills.map(nb).join(" · ")}</p>`
           : skillsStyle === "list"
             ? `${H("skills")}<ul class="skill-list">${doc.skills.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`
             : `${H("skills")}<div class="chips">${doc.skills.map((s) => `<span class="chip">${esc(s)}</span>`).join("")}</div>`;
@@ -482,24 +562,34 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
       `h2{display:flex;align-items:center;gap:12px;border-bottom:none;padding-bottom:0;color:#878d9b;font-weight:600;letter-spacing:.14em;font-size:${px(fs * 0.76)}}` +
       `h2::after{content:"";flex:1;height:1px;background:#e2e3df}` +
       `.role{font-weight:600;color:#15171c}.role .co{color:${t.accent}}` +
-      // Accent-coloured dot against muted text: what makes a dense bullet list scannable.
-      `ul{list-style:none;padding-left:0;margin:6px 0}` +
-      `li{position:relative;padding-left:15px;color:#5c6373}` +
-      `li::before{content:"";position:absolute;left:0;top:.62em;width:5px;height:5px;border-radius:50%;background:${t.accent}99}` +
+      // Accent-coloured dot against muted text: what makes a dense bullet list scannable. Drawn
+      // with the list's OWN marker rather than an absolutely-positioned ::before — see the
+      // "no positioned boxes" note on the print rules below for why that distinction decides
+      // whether the exported PDF is machine-readable at all.
+      `ul{list-style:disc;padding-left:15px;margin:6px 0}` +
+      `li{color:#5c6373}li::marker{color:${t.accent}99;font-size:.8em}` +
       `.sec-block p{color:#5c6373}`;
   } else if (t.template === "timeline") {
     // Same layout as classic, but experience entries sit on a vertical rail with dot markers —
     // a more visual "career progression" read for the Experience section specifically.
     layout = `${headerRow}${pick(order)}`;
+    // The rail dot is painted as a background-image gradient on the entry itself rather than an
+    // absolutely-positioned ::before, for the same reason as `technical`'s bullets above: a
+    // positioned box is painted last and lands at the END of the PDF's content stream.
     extraCss =
-      `.exp{position:relative;padding-left:16px;border-left:2px solid ${t.accent}40}` +
-      `.exp::before{content:"";position:absolute;left:-5px;top:3px;width:8px;height:8px;border-radius:50%;background:${t.accent}}`;
+      `.exp{padding-left:16px;border-left:2px solid ${t.accent}40;` +
+      `background-image:radial-gradient(circle 4px at 0 7px,${t.accent} 100%,transparent 0);` +
+      `background-repeat:no-repeat}`;
   } else {
     layout = `${headerRow}${pick(order)}`;
   }
   const css =
+    FONT_FACE_CSS +
     `*{box-sizing:border-box}` +
-    `body{font-family:${font};font-size:${px(fs)};line-height:${compact ? 1.4 : 1.55};color:#1e293b;max-width:820px;margin:28px auto;padding:0 30px}` +
+    // `hyphens:none` — a soft break inside a hyphenated technical term drops the hyphen from the
+    // PDF's text layer, so "Feature-Sliced Design" extracts as "FeatureSliced" and an exact-keyword
+    // search stops finding this résumé. Nothing here should ever be hyphenated by the browser.
+    `body{font-family:${font};font-size:${px(fs)};line-height:${compact ? 1.4 : 1.55};color:#1e293b;max-width:820px;margin:28px auto;padding:0 30px;hyphens:none;-webkit-hyphens:none}` +
     `header{margin-bottom:${gap}}h1{font-size:${px(fs * 1.9)};margin:0;color:#0f172a}` +
     `.hrow{display:flex;align-items:center;gap:18px${t.photoPos === "right" ? ";flex-direction:row-reverse" : ""}}.hmeta{min-width:0}` +
     `.photo{width:${px(fs * 6.4)};height:${px(fs * 6.4)};border-radius:${t.photoShape === "square" ? px(fs * 0.85) : "50%"};object-fit:cover;border:3px solid ${t.accent}33;flex:0 0 auto}` +
@@ -511,10 +601,17 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
     `.row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}` +
     `.role{font-weight:700;color:#0f172a}.period{color:#94a3b8;font-size:${px(fs * 0.85)};white-space:nowrap}` +
     `.company{color:#64748b;font-size:${px(fs * 0.9)}}ul{margin:4px 0;padding-left:18px}li{margin:2px 0}` +
-    `.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{${chipSkin};border-radius:${chipRadius};padding:2px 8px;font-size:${px(fs * 0.85)}}` +
+    // `white-space:nowrap` on the discrete skill tokens (a chip, or one entry of an inline/grouped
+    // list): a skill is one keyword, and letting "Feature-Sliced Design" or "CI/CD" wrap mid-token
+    // splits it in the PDF's text layer. Prose deliberately still wraps normally.
+    `.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{${chipSkin};border-radius:${chipRadius};padding:2px 8px;font-size:${px(fs * 0.85)};white-space:nowrap}` +
+    `.nb{white-space:nowrap}` +
     // Two columns so a 25-skill list doesn't eat half a page — but back to one inside the narrow
     // aside of the two-column/sidebar templates, where two columns would be a few characters wide.
-    `.skill-list{columns:2;column-gap:22px}aside .skill-list,.side-panel .skill-list{columns:1}` +
+    // A GRID, not CSS `columns:2`: multi-column fragments the box and reorders the printed content
+    // stream the same way a positioned box does, whereas grid items are painted in DOM order.
+    `.skill-list{display:grid;grid-template-columns:1fr 1fr;column-gap:22px}` +
+    `aside .skill-list,.side-panel .skill-list{grid-template-columns:1fr}` +
     // Clickable-in-preview affordance for the interactive preview → editor sync — cursor +
     // hover outline on anything carrying data-section (whole sections, or one experience
     // entry). @media print strips it back off so it never shows up in the exported PDF.
@@ -624,13 +721,26 @@ export function exportCvDoc(doc: CvDoc, onPopupBlocked: () => void): void {
   // CSS can't just ride along inside `html` — see applyCvCss.
   applyCvCss(w.document, css);
   w.focus();
-  setTimeout(() => w.print(), 350);
+  // Print only once the webfonts have actually loaded. With a bare timeout the print dialog could
+  // open while Inter was still in flight, and what got rasterised into the PDF was the fallback —
+  // i.e. exactly the system font whose Type 3 embedding this is all here to avoid. `once` guards
+  // the race in both directions: whichever of the two fires first wins, and the safety-net timeout
+  // still prints if a font never resolves at all.
+  let printed = false;
+  const printOnce = () => {
+    if (printed || w.closed) return;
+    printed = true;
+    w.print();
+  };
+  w.document.fonts?.ready.then(printOnce).catch(printOnce);
+  setTimeout(printOnce, 1500);
 }
 
 export function cvDocToText(doc: CvDoc): string {
   const lines: string[] = [];
   if (doc.name) lines.push(doc.name);
   if (doc.title) lines.push(doc.title);
+  if (doc.location?.trim()) lines.push(doc.location.trim());
   if (doc.contact) lines.push(doc.contact);
   // Same line as the rendered CV puts them on — this text is what the AI review/match features
   // read, so a phone or Telegram handle held only in its own field shouldn't look missing to them.

@@ -118,9 +118,16 @@ function ScaledFrame({
               // max-width, no margins, default font), so measuring before this would size the
               // frame — and the "how many pages" hint — off the wrong layout.
               if (doc) applyCvCss(doc, css);
-              const h = doc?.documentElement.scrollHeight ?? 1200;
-              setContentHeight(h);
-              onContentHeight(h);
+              const measure = () => {
+                const h = doc?.documentElement.scrollHeight ?? 1200;
+                setContentHeight(h);
+                onContentHeight(h);
+              };
+              measure();
+              // Measure again once the CV's webfonts have loaded: the first pass runs against the
+              // fallback face, whose metrics differ enough to put the "how many pages" badge (and
+              // the page-fill hint that reads the same number) a whole page out on a full CV.
+              doc?.fonts?.ready.then(measure).catch(() => {});
               if (doc && onSectionClick) {
                 doc.addEventListener("click", (ev) => {
                   const el = (ev.target as HTMLElement).closest("[data-section]");
@@ -206,10 +213,14 @@ export function CvPreviewPanel({
   doc,
   onExport,
   onSectionClick,
+  onPagesChange,
 }: {
   doc: CvDoc;
   onExport: () => void;
   onSectionClick?: (section: string) => void;
+  /** Reports the estimated page count upward — the export confirmation shows the same number
+   * rather than measuring the document a second time. */
+  onPagesChange?: (pages: number) => void;
 }) {
   const { t } = useTranslation(["cv", "common"]);
   const [zoom, setZoom] = useUi("cvbuilder.previewZoom", 1);
@@ -217,6 +228,7 @@ export function CvPreviewPanel({
   const [contentHeight, setContentHeight] = useState(1200);
   const { html, css } = buildCvDocument(doc);
   const pages = Math.max(1, Math.ceil(contentHeight / A4_PAGE_HEIGHT));
+  useEffect(() => onPagesChange?.(pages), [pages, onPagesChange]);
   const empties = emptySectionLabels(doc, t);
   return (
     <>

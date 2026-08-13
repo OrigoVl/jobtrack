@@ -1,0 +1,201 @@
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { Btn, Card, Chip, Spinner } from "../../../shared/ui";
+import type { AuditFinding, AuditJumpTarget, AuditRule, AuditSeverity } from "./cv-audit";
+import { isMechanical, jumpTargetFor } from "./cv-audit";
+
+const SEVERITY_TONE: Record<AuditSeverity, "rose" | "amber" | "slate"> = {
+  high: "rose",
+  medium: "amber",
+  low: "slate",
+};
+
+/** Rule ids are resolved to copy here rather than in the engine, so cv-audit.ts stays free of
+ * strings and the two locales can't drift away from the logic. */
+function ruleCopy(rule: AuditRule, t: TFunction<["cv", "common"]>): { title: string; reason: string } {
+  return {
+    title: t(`audit.rules.${rule}.title` as "audit.rules.missingLocation.title"),
+    reason: t(`audit.rules.${rule}.reason` as "audit.rules.missingLocation.reason"),
+  };
+}
+
+/** One finding: what it's about, why, and the before→after when there's something to apply. */
+function FindingCard({
+  finding,
+  onApply,
+  onDismiss,
+  onJump,
+  applying,
+}: {
+  finding: AuditFinding;
+  onApply: (f: AuditFinding) => void;
+  onDismiss: (f: AuditFinding) => void;
+  onJump: (target: AuditJumpTarget) => void;
+  applying: boolean;
+}) {
+  const { t } = useTranslation(["cv", "common"]);
+  const copy = finding.rule ? ruleCopy(finding.rule, t) : { title: finding.title ?? "", reason: finding.reason ?? "" };
+  // A finding without a replacement is diagnostic — it names a problem the candidate has to think
+  // about (a cliché opener, a job with no numbers in it). Offering an "Apply" that did nothing
+  // would be worse than offering none, so those get a jump-to-the-field button instead.
+  const canApply = finding.after !== undefined || finding.verdict === "delete";
+  return (
+    <div className="rounded-xl border border-grid bg-surface p-3 space-y-2">
+      <div className="flex items-start gap-2 flex-wrap">
+        <Chip tone={SEVERITY_TONE[finding.severity]}>{t(`audit.verdict.${finding.verdict}` as "audit.verdict.rewrite")}</Chip>
+        <span className="font-semibold text-ink text-sm flex-1 min-w-0">{copy.title}</span>
+        {finding.source === "ai" && <Chip tone="indigo">{t("audit.aiBadge")}</Chip>}
+      </div>
+      {copy.reason && <p className="text-xs text-ink-dim">{copy.reason}</p>}
+      {(finding.before || finding.after) && (
+        <div className="space-y-1 text-xs">
+          {finding.before && (
+            <div className="rounded-lg bg-rose-50 dark:bg-rose-950/40 px-2.5 py-1.5 text-ink-dim line-through decoration-rose-400/60">
+              {finding.before}
+            </div>
+          )}
+          {finding.after && <div className="rounded-lg bg-good/10 px-2.5 py-1.5 text-ink">{finding.after}</div>}
+        </div>
+      )}
+      <div className="flex items-center gap-2 flex-wrap">
+        {canApply ? (
+          <Btn size="sm" onClick={() => onApply(finding)} loading={applying}>
+            {t(finding.verdict === "delete" ? "audit.actions.remove" : "audit.actions.apply")}
+          </Btn>
+        ) : (
+          <Btn size="sm" variant="ghost" onClick={() => onJump(jumpTargetFor(finding.target))}>
+            {t("audit.actions.goFix")}
+          </Btn>
+        )}
+        <Btn size="sm" variant="ghost" onClick={() => onDismiss(finding)}>
+          {t("audit.actions.dismiss")}
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The CV Builder's "Audit" editor mode: every finding about the document, grouped by severity,
+ * each with a one-click fix.
+ *
+ * The shape deliberately mirrors how a written résumé audit reads — a verdict per line with a
+ * ready replacement — rather than the score-plus-prose of the existing AI review, because that's
+ * the form the advice can actually be ACTED on in. Two producers feed one list: the deterministic
+ * rules (instant, offline, provable) and the AI layer (positioning and judgement), distinguished
+ * by a badge so the user can tell "this is a fact about your CV" from "this is an opinion".
+ */
+export function AuditPanel({
+  findings,
+  positioning,
+  running,
+  offline,
+  hasRun,
+  onRun,
+  onApply,
+  onApplyAll,
+  onDismiss,
+  onJump,
+  applyingId,
+}: {
+  findings: AuditFinding[];
+  positioning: { detectedRole: string; suggestedTitle: string; rationale: string } | null;
+  running: boolean;
+  offline: boolean;
+  hasRun: boolean;
+  onRun: () => void;
+  onApply: (f: AuditFinding) => void;
+  onApplyAll: (fs: AuditFinding[]) => void;
+  onDismiss: (f: AuditFinding) => void;
+  onJump: (target: AuditJumpTarget) => void;
+  applyingId: string | null;
+}) {
+  const { t } = useTranslation(["cv", "common"]);
+  const high = findings.filter((f) => f.severity === "high");
+  const medium = findings.filter((f) => f.severity === "medium");
+  const low = findings.filter((f) => f.severity === "low");
+  // Only the mechanical ones are offered in bulk — a prose rewrite is a judgement the candidate
+  // should read before accepting, and "apply 20 AI rewrites at once" is how a CV stops sounding
+  // like the person who wrote it.
+  const bulk = findings.filter(isMechanical);
+
+  const groups: [string, AuditFinding[]][] = [
+    [t("audit.groups.high"), high],
+    [t("audit.groups.medium"), medium],
+    [t("audit.groups.low"), low],
+  ];
+
+  return (
+    <div className="space-y-3">
+      <Card className="!py-3.5 space-y-3">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <div className="font-semibold text-ink">{t("audit.title")}</div>
+            <p className="text-xs text-ink-dim mt-0.5">{t("audit.subtitle")}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {bulk.length > 0 && (
+              <Btn size="sm" variant="ghost" onClick={() => onApplyAll(bulk)} title={t("audit.applyAllTitle")}>
+                {t("audit.applyAll", { count: bulk.length })}
+              </Btn>
+            )}
+            <Btn size="sm" onClick={onRun} loading={running}>
+              {t(hasRun ? "audit.rerun" : "audit.run")}
+            </Btn>
+          </div>
+        </div>
+        {/* The count is the headline: "11 things to fix" is the number the user came for. */}
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          {findings.length === 0 ? (
+            <span className="text-good font-medium">{t("audit.allClear")}</span>
+          ) : (
+            <>
+              {high.length > 0 && <Chip tone="rose">{t("audit.counts.high", { count: high.length })}</Chip>}
+              {medium.length > 0 && <Chip tone="amber">{t("audit.counts.medium", { count: medium.length })}</Chip>}
+              {low.length > 0 && <Chip tone="slate">{t("audit.counts.low", { count: low.length })}</Chip>}
+            </>
+          )}
+          {offline && <Chip>{t("audit.offlineBadge")}</Chip>}
+        </div>
+        {/* Says plainly that the instant half already ran, so an empty-looking panel with no key
+            doesn't read as a broken feature. */}
+        {offline && <p className="text-[11px] text-ink-dim">{t("audit.offlineHint")}</p>}
+      </Card>
+
+      {positioning && (
+        <Card className="!py-3.5 bg-signal/10 border-signal/30 space-y-1.5">
+          <div className="font-semibold text-ink text-sm">{t("audit.positioning.title")}</div>
+          <p className="text-sm text-ink">
+            {t("audit.positioning.readsAs")} <b>{positioning.detectedRole}</b>
+            {positioning.suggestedTitle && (
+              <>
+                {" · "}
+                {t("audit.positioning.shouldBe")} <b>{positioning.suggestedTitle}</b>
+              </>
+            )}
+          </p>
+          {positioning.rationale && <p className="text-xs text-ink-dim">{positioning.rationale}</p>}
+        </Card>
+      )}
+
+      {running && findings.length === 0 && (
+        <Card className="!py-6 flex items-center justify-center gap-2 text-sm text-ink-dim">
+          <Spinner className="h-4 w-4" /> {t("audit.runningHint")}
+        </Card>
+      )}
+
+      {groups.map(([label, items]) =>
+        items.length === 0 ? null : (
+          <div key={label} className="space-y-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-dim px-1">
+              {label} · {items.length}
+            </div>
+            {items.map((f) => (
+              <FindingCard key={f.id} finding={f} onApply={onApply} onDismiss={onDismiss} onJump={onJump} applying={applyingId === f.id} />
+            ))}
+          </div>
+        ),
+      )}
+    </div>
+  );
+}

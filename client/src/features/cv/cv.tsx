@@ -44,6 +44,24 @@ export function CvReviewPanel({
         </div>
       )}
       {review.summary && <Markdown text={review.summary} className="text-sm text-ink-dim space-y-2" />}
+      {/* Positioning gets its own block above the strengths/issues lists rather than being folded
+          into them: "this reads as X, the evidence supports Y" is a statement about the WHOLE
+          résumé, and it's the finding that changes which jobs the CV should be sent to at all. */}
+      {review.positioning?.detectedRole && (
+        <div className="rounded-lg border border-signal/30 bg-signal/10 px-3 py-2 space-y-1">
+          <div className="text-xs font-semibold text-ink">{t("reports.review.positioning")}</div>
+          <p className="text-sm text-ink">
+            {t("reports.review.positioningReadsAs")} <b>{review.positioning.detectedRole}</b>
+            {review.positioning.suggestedTitle && (
+              <>
+                {" · "}
+                {t("reports.review.positioningSupports")} <b>{review.positioning.suggestedTitle}</b>
+              </>
+            )}
+          </p>
+          {review.positioning.rationale && <p className="text-xs text-ink-dim">{review.positioning.rationale}</p>}
+        </div>
+      )}
       {review.strengths.length > 0 && (
         <div>
           <div className="text-xs font-semibold text-ink mb-1">{t("reports.review.strengths")}</div>

@@ -24,6 +24,7 @@ import type {
   CvReview,
   CvReviewJobState,
   CvShare,
+  CvAuditResult,
   CvTailorResult,
   DesignArchiveEntry,
   DesignDefenseTurnResult,
@@ -160,7 +161,8 @@ export const api = {
   saveProfile: (p: Profile) => req<Profile>("/profile", { method: "PUT", body: JSON.stringify(p) }),
   analyzeCV: (cvText: string) => req<CvAnalysis>("/cv/analyze", { method: "POST", body: JSON.stringify({ cvText }) }),
   reviewCV: (cvText: string) => req<CvReview>("/cv/review", { method: "POST", body: JSON.stringify({ cvText }) }),
-  startCvReviewJob: (cvText: string) => req<CvReviewJobState>("/cv/review/start", { method: "POST", body: JSON.stringify({ cvText }) }),
+  startCvReviewJob: (cvText: string, checks: string[] = []) =>
+    req<CvReviewJobState>("/cv/review/start", { method: "POST", body: JSON.stringify({ cvText, checks }) }),
   cvReviewJobStatus: () => req<CvReviewJobState | null>("/cv/review/status"),
   cvProfiles: () => req<CvProfile[]>("/cv/profiles"),
   createCvProfile: (name: string) => req<CvProfileFull>("/cv/profiles", { method: "POST", body: JSON.stringify({ name }) }),
@@ -173,13 +175,19 @@ export const api = {
     req<CvMatch>("/cv/match", { method: "POST", body: JSON.stringify({ cvText, jobTitle, jobText }) }),
   tailorCv: (doc: CvDoc, jobTitle: string, jobText: string) =>
     req<CvTailorResult>("/cv/tailor", { method: "POST", body: JSON.stringify({ doc, jobTitle, jobText }) }),
+  /** `known` — the mechanical findings the client already computed (cv-audit.ts), sent so the AI
+   * layer doesn't spend its answer repeating what the rules already caught. */
+  auditCv: (doc: CvDoc, known: string[]) => req<CvAuditResult>("/cv/audit", { method: "POST", body: JSON.stringify({ doc, known }) }),
   cvPresets: (profileId: number) => req<{ presets: CvPreset[] }>(`/cv/profiles/${profileId}/presets`),
   saveCvPresets: (profileId: number, presets: CvPreset[]) =>
     req<{ presets: CvPreset[] }>(`/cv/profiles/${profileId}/presets`, { method: "PUT", body: JSON.stringify({ presets }) }),
   generateCvDoc: (profileId: number, cvText: string) =>
     req<{ offline?: boolean; doc: CvDoc }>(`/cv/profiles/${profileId}/doc/generate`, { method: "POST", body: JSON.stringify({ cvText }) }),
-  improveCv: (text: string, kind: "bullet" | "summary", style?: "improve" | "shorter" | "ats" | "technical" | "leadership") =>
-    req<{ text: string; offline?: boolean }>("/cv/improve", { method: "POST", body: JSON.stringify({ text, kind, style }) }),
+  improveCv: (
+    text: string,
+    kind: "bullet" | "summary",
+    style?: "improve" | "shorter" | "ats" | "technical" | "leadership" | "positioning",
+  ) => req<{ text: string; offline?: boolean }>("/cv/improve", { method: "POST", body: JSON.stringify({ text, kind, style }) }),
   searchJobs: (q: string, region = "all") => req<JobSearchResult>(`/jobs/search?q=${encodeURIComponent(q)}&region=${region}`),
   importLinkedIn: async (profileId: number, file: File) => {
     const fd = new FormData();

@@ -3,13 +3,14 @@ import { Field } from "../../../shared/view-kit";
 import { Btn, Spinner } from "../../../shared/ui";
 import type { CvContactLink, CvDoc } from "../../../shared/types";
 
-export type SummaryStyle = "improve" | "shorter" | "ats" | "technical" | "leadership";
+export type SummaryStyle = "improve" | "shorter" | "ats" | "technical" | "leadership" | "positioning";
 const SUMMARY_CHIP_KEYS: [
   SummaryStyle,
   (
     | "generalSection.summaryChips.improve"
     | "generalSection.summaryChips.shorter"
     | "generalSection.summaryChips.ats"
+    | "generalSection.summaryChips.positioning"
     | "generalSection.summaryChips.technical"
     | "generalSection.summaryChips.leadership"
   ),
@@ -17,6 +18,7 @@ const SUMMARY_CHIP_KEYS: [
   ["improve", "generalSection.summaryChips.improve"],
   ["shorter", "generalSection.summaryChips.shorter"],
   ["ats", "generalSection.summaryChips.ats"],
+  ["positioning", "generalSection.summaryChips.positioning"],
   ["technical", "generalSection.summaryChips.technical"],
   ["leadership", "generalSection.summaryChips.leadership"],
 ];
@@ -117,6 +119,17 @@ export function GeneralSection({ doc, onChange, llm, busyStyle, onImproveSummary
         onChange={(v) => onChange({ contact: v })}
         placeholder={t("generalSection.contactsPlaceholder")}
         maxLength={400}
+      />
+      {/* Its own field, and directly under Contacts, because it's the detail that gets FILTERED
+          on: a résumé that never states a location drops out of every location-scoped ATS search,
+          and it's a recruiter's first question. The placeholder shows the "city + remote" shape
+          rather than just a city, since availability is the half people forget. */}
+      <Field
+        label={t("generalSection.location")}
+        value={doc.location ?? ""}
+        onChange={(v) => onChange({ location: v })}
+        placeholder={t("generalSection.locationPlaceholder")}
+        maxLength={120}
       />
       {/* Own fields rather than more text in "Contacts" above, so the CV can format them and give
           Telegram a real t.me link. A document filled in before these existed keeps its phone in

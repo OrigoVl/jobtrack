@@ -28,13 +28,15 @@
     },
     "editorMode": {
       "content": "Content",
-      "design": "Appearance"
+      "design": "Appearance",
+      "audit": "Audit"
     },
     "start": {
       "title": "Let's build your CV",
       "subtitle": "Bring in a CV you already have and AI will split it into sections — or start from a blank one.",
       "uploadFile": "Upload a CV file",
-      "manual": "Fill it in manually →"
+      "manual": "Fill it in manually →",
+      "variantHint": "Duplicate this CV to keep a separate version aimed at a different kind of role — the tracker keeps up to 5."
     },
     "autosave": {
       "saved": "All changes saved",
@@ -48,7 +50,8 @@
       "delete": "Delete",
       "confirmDelete": "Delete “{{name}}”?",
       "addTab": "New CV",
-      "limitReached": "You can have up to {{max}} CV profiles"
+      "limitReached": "You can have up to {{max}} CV profiles",
+      "variantHint": "Tip: keep one version per kind of role you apply for."
     },
     "toolbar": {
       "fillGroup": "Fill in",
@@ -201,7 +204,11 @@
       "importError": "Import error",
       "cvUploadedParsed": "CV parsed into the builder and applied everywhere",
       "cvUploadedNoParsing": "CV uploaded (enable LLM for auto-parsing into sections)",
-      "uploadError": "Upload error"
+      "uploadError": "Upload error",
+      "auditApplied": "Applied",
+      "auditAppliedMany": "Applied {{count}} fixes",
+      "auditStale": "That line has changed since the audit ran — re-run it to refresh.",
+      "auditOfflineOnly": "Showing the checks that work without AI. Add an AI key for positioning and phrasing advice."
     }
   },
   "generalSection": {
@@ -229,8 +236,11 @@
       "shorter": "Shorter",
       "ats": "ATS",
       "technical": "Technical",
-      "leadership": "Leadership"
-    }
+      "leadership": "Leadership",
+      "positioning": "Reposition"
+    },
+    "location": "Location",
+    "locationPlaceholder": "Kyiv, Ukraine · open to remote"
   },
   "experienceCard": {
     "empty": "No experience entries yet",
@@ -364,7 +374,8 @@
   "appearance": {
     "template": {
       "title": "Template",
-      "atsRiskHint": "Two-column layouts can read out of order in some ATS/AI resume parsers — prefer a single-column template when applying through a job site."
+      "atsRiskHint": "Two-column layouts can read out of order in some ATS/AI resume parsers — prefer a single-column template when applying through a job site.",
+      "atsSafe": "ATS-safe"
     },
     "style": {
       "title": "Style",
@@ -419,6 +430,13 @@
       "right": "Right →",
       "showInPdf": "Show photo in the PDF",
       "addedToast": "Photo added"
+    },
+    "links": {
+      "title": "Links",
+      "label": "Name only",
+      "url": "Address",
+      "both": "Both",
+      "hint": "\"Name only\" keeps the address out of the PDF's text layer — it survives just as a clickable annotation, which some parsers never read. \"Address\" prints it as text."
     }
   },
   "layoutPresets": {
@@ -521,7 +539,10 @@
       "improve": "△ What to improve",
       "addKeywordsTitle": "Add keywords (ATS / LinkedIn search)",
       "rewriteStronger": "Rewrite stronger (outcome instead of process)",
-      "applyToBullet": "↳ apply to bullet"
+      "applyToBullet": "↳ apply to bullet",
+      "positioning": "Positioning",
+      "positioningReadsAs": "Reads as",
+      "positioningSupports": "evidence supports"
     },
     "match": {
       "title": "Vacancy match",
@@ -618,5 +639,107 @@
     "removeAria": "Remove category",
     "maxReached": "Maximum of {{max}} categories reached.",
     "ungrouped": "Not in any category yet: {{skills}}"
+  },
+  "audit": {
+    "title": "Line-by-line audit",
+    "subtitle": "Every line checked against ATS parsing, LLM screening and what a recruiter sees in the first eight seconds.",
+    "run": "Run audit",
+    "rerun": "Re-run audit",
+    "runningHint": "Reading your CV line by line…",
+    "allClear": "Nothing to fix — this CV reads clean.",
+    "aiBadge": "AI",
+    "offlineBadge": "Offline",
+    "offlineHint": "The AI layer is off, so you're seeing the checks that can be proven from the document itself. Positioning and phrasing advice needs an AI key.",
+    "applyAll": "Apply {{count}} mechanical fixes",
+    "applyAllTitle": "Applies only the fixes with one correct answer — dates, capitalization, link format. Wording changes stay manual.",
+    "groups": {
+      "high": "Fix first",
+      "medium": "Worth fixing",
+      "low": "Polish"
+    },
+    "counts": {
+      "high": "{{count}} critical",
+      "medium": "{{count}} important",
+      "low": "{{count}} minor"
+    },
+    "verdict": {
+      "rewrite": "Rewrite",
+      "delete": "Delete",
+      "merge": "Merge",
+      "add": "Add",
+      "keep": "Keep"
+    },
+    "actions": {
+      "apply": "Apply",
+      "remove": "Remove",
+      "dismiss": "Dismiss",
+      "goFix": "Go fix it"
+    },
+    "positioning": {
+      "title": "How this CV positions you",
+      "readsAs": "Reads as",
+      "shouldBe": "evidence supports"
+    },
+    "rules": {
+      "missingLocation": {
+        "title": "No location anywhere in the CV",
+        "reason": "An ATS geo-filter can't match you and a recruiter doesn't know your timezone — it's their first question. Add a city and whether you're open to remote."
+      },
+      "currentRoleNotPresent": {
+        "title": "Your current job looks like you've left it",
+        "reason": "The end date is this month or later, so both a recruiter and a screening model read this as a past role. \"Present\" removes the ambiguity."
+      },
+      "yearsMismatch": {
+        "title": "Your years of experience contradict your own dates",
+        "reason": "The summary claims a different number from what the job periods add up to. A model that checks dates catches this and trusts your other figures less."
+      },
+      "clicheOpener": {
+        "title": "The summary opens with a cliché",
+        "reason": "This is the most valuable line in the CV and the first words carry no information. Open with the role, the years and your strongest concrete fact."
+      },
+      "linkUrlsNotInText": {
+        "title": "Your links won't survive PDF parsing",
+        "reason": "The address exists only as a clickable annotation — a parser reading the text finds the word \"LinkedIn\" and no URL. Printing the address itself fixes it."
+      },
+      "atsRiskTemplate": {
+        "title": "This template splits the page into columns",
+        "reason": "Multi-column layouts scramble the reading order for text extraction, so bullets can end up detached from the job they belong to. A single-column template parses reliably."
+      },
+      "noSeniorityInTitle": {
+        "title": "No seniority in your title",
+        "reason": "Your own dates support a senior-level title, and without the word a screening model tends to classify the CV as mid-level."
+      },
+      "entryWithoutBullets": {
+        "title": "This job has no bullets at all",
+        "reason": "There's nothing here for an ATS to match or a recruiter to read — the role is invisible beyond its dates."
+      },
+      "unquantifiedJob": {
+        "title": "This job has no numbers in it",
+        "reason": "Not every line needs a figure, but a whole role without one gives a screener nothing concrete to hold onto."
+      },
+      "overlongBullet": {
+        "title": "This bullet is too long to scan",
+        "reason": "Past roughly 45 words a bullet stops being read in a six-second scan. Split it or cut the qualifiers."
+      },
+      "inconsistentRoleCaps": {
+        "title": "Role capitalization doesn't match your header",
+        "reason": "Your header is Title Cased and this role isn't — small, but it's the kind of inconsistency a careful reader notices."
+      },
+      "universityTypo": {
+        "title": "Misspelled university name",
+        "reason": "The official spelling is \"Polytechnic\". A typo in the name of your own university reads as carelessness if a recruiter checks it."
+      }
+    }
+  },
+  "exportDialog": {
+    "title": "Export PDF",
+    "pages": "{{count}} page",
+    "pages_other": "{{count}} pages",
+    "pagesHint": "Most recruiters expect one or two.",
+    "outstanding": "{{count}} critical issue still unfixed",
+    "outstanding_other": "{{count}} critical issues still unfixed",
+    "reviewThem": "Review them",
+    "exportNow": "Export",
+    "backgroundsHint": "In the print dialog, keep \"Background graphics\" ticked — Chrome turns it off by default, which drops the bullet dots, rules and tints from the exported file."
   }
 }

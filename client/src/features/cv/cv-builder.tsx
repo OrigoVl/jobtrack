@@ -19,7 +19,7 @@ import {
 } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Dropdown, PageHeader, SearchSelect, Section, Segmented, Spinner } from "../../shared/ui";
 import { SkillsInput } from "../../shared/view-kit";
-import type { CvDoc, CvExperience, CvMatch, CvPreset, CvReview, CvTailorResult, CvTheme, Vacancy } from "../../shared/types";
+import type { CvAuditResult, CvDoc, CvExperience, CvMatch, CvPreset, CvReview, CvTailorResult, CvTheme, Vacancy } from "../../shared/types";
 import { DEFAULT_ORDER, cvDocToText, exportCvDoc, themeOf } from "./builder/cv-doc-utils";
 import { GeneralSection } from "./builder/basic-info-card";
 import type { SummaryStyle } from "./builder/basic-info-card";
@@ -38,6 +38,9 @@ import { AppearancePanel } from "./builder/appearance-panel";
 import { SkillGroupsEditor } from "./builder/skill-groups-editor";
 import { LayoutPresetsPanel } from "./builder/layout-presets-panel";
 import { CvPreviewPanel } from "./builder/cv-preview-panel";
+import { AuditPanel } from "./builder/audit-panel";
+import { ExportDialog } from "./builder/export-dialog";
+import { applyFinding, applyFindings, resolvesAgainst, ruleFindings, type AuditFinding, type AuditJumpTarget } from "./builder/cv-audit";
 import { ResumeCompleteness } from "./builder/resume-completeness";
 import { ShareLinkCard } from "./builder/share-link-card";
 import { ReportsPanel } from "./builder/reports-panel";
@@ -63,7 +66,7 @@ type SectionKey =
 
 /** Which half of the editor column is showing: the content sections, or the appearance/layout
  * controls. Two clearly separate jobs, so they're a mode switch rather than neighbours in one list. */
-type EditorMode = "content" | "design";
+type EditorMode = "content" | "design" | "audit";
 
 /** The content sections most CVs legitimately never fill in — folded behind one "additional
  * sections" disclosure so the primary list stays short and every row in it is one the user is
@@ -145,6 +148,19 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   // user explicitly clicks "Apply to CV" in the tailor tab below, so switching vacancies to
   // compare/tailor for never risks silently overwriting what's being edited.
   const [tailored, setTailored] = useUi<CvTailorResult | null>(`cvbuilder.tailored:${profileKey}`, null);
+  // The AI half of the line-by-line audit (see the audit block further down). Stored per profile
+  // like every other report on this page — it costs a request, so it shouldn't evaporate on a tab
+  // switch. `dismissedFindings` holds the ids the user has explicitly cleared, which is why every
+  // finding carries a stable id rather than relying on its position in the list.
+  const [aiAudit, setAiAudit] = useUi<CvAuditResult | null>(`cvbuilder.audit:${profileKey}`, null);
+  const [dismissedFindings, setDismissedFindings] = useUi<string[]>(`cvbuilder.auditDismissed:${profileKey}`, []);
+  const [busyAudit, setBusyAudit] = useState(false);
+  const [applyingFindingId, setApplyingFindingId] = useState<string | null>(null);
+  // Export runs through a confirmation step (see ExportDialog) rather than straight to the print
+  // popup — the page count and any still-outstanding high-severity findings are worth one look
+  // before the file becomes the one a recruiter opens.
+  const [exportOpen, setExportOpen] = useState(false);
+  const [previewPages, setPreviewPages] = useState(1);
   const [activeReport, setActiveReport] = useUi<"review" | "match" | "tailor">(`cvbuilder.activeReport:${profileKey}`, "review");
   const [dismissedSuggest, setDismissedSuggest] = useState(false);
   // Single exclusive accordion — one section open at a time, so there's never more scrolling than
@@ -410,6 +426,75 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     setDoc(tailored.doc);
     toast(t("builder.toasts.tailorApplied"), "success");
   };
+
+  // ---------- line-by-line audit ----------
+  // The mechanical half is derived, never stored: it's cheap, and recomputing it on every render
+  // means applying one finding immediately removes it from the list (and can surface a new one)
+  // without any invalidation step.
+  const ruleAudit = ruleFindings(doc);
+  // AI findings are re-validated against the CURRENT doc on every render, not just when they
+  // arrive: the user edits between running the audit and clicking Apply, and a finding whose
+  // address no longer resolves must disappear rather than sit there offering to edit a line that
+  // has since moved. applyFinding is a no-op on a stale address anyway — this stops it being
+  // OFFERED, which is the difference between safe and confusing.
+  const aiFindings: AuditFinding[] = ((aiAudit?.findings ?? []) as AuditFinding[]).filter((f) => resolvesAgainst(f.target, doc));
+  const visibleFindings = [...ruleAudit, ...aiFindings].filter((f) => !dismissedFindings.includes(f.id));
+
+  const runAudit = async () => {
+    if (!llm) {
+      // The rule half is already on screen, so this is a "you're seeing part of it" note rather
+      // than an error — the panel's own offline badge says the same thing persistently.
+      toast(t("builder.toasts.auditOfflineOnly"), "info");
+      return;
+    }
+    setBusyAudit(true);
+    try {
+      // The mechanical findings go along as plain sentences so the model can see what's already
+      // covered and spend its budget on judgement instead of repeating them.
+      const known = ruleAudit.map((f) => `${f.rule}: ${f.before ?? ""}`.trim());
+      setAiAudit(await api.auditCv(doc, known));
+    } catch {
+      toast(t("builder.toasts.analysisError"), "error");
+    } finally {
+      setBusyAudit(false);
+    }
+  };
+
+  const applyAuditFinding = (f: AuditFinding) => {
+    setApplyingFindingId(f.id);
+    const next = applyFinding(doc, f);
+    if (next === doc) {
+      // Nothing changed: the address went stale between render and click. Say so rather than
+      // silently doing nothing and leaving the row sitting there.
+      toast(t("builder.toasts.auditStale"), "info");
+      setDismissedFindings([...dismissedFindings, f.id]);
+    } else {
+      setDoc(next);
+      // Dismissed as well as applied — a rule finding recomputes itself away, but an AI one has no
+      // way to know it's been actioned and would otherwise stay on the list.
+      setDismissedFindings([...dismissedFindings, f.id]);
+      toast(t("builder.toasts.auditApplied"), "success");
+    }
+    setApplyingFindingId(null);
+  };
+
+  const applyAuditFindings = (fs: AuditFinding[]) => {
+    const next = applyFindings(doc, fs);
+    if (next === doc) return;
+    setDoc(next);
+    setDismissedFindings([...dismissedFindings, ...fs.map((f) => f.id)]);
+    toast(t("builder.toasts.auditAppliedMany", { count: fs.length }), "success");
+  };
+
+  const dismissFinding = (f: AuditFinding) => setDismissedFindings([...dismissedFindings, f.id]);
+
+  const jumpFromAudit = (target: AuditJumpTarget) => {
+    if (target === "design") {
+      setEditorMode("design");
+      return;
+    }
+    openSection(target);
+  };
   // Runs in the background (server/src/modules/cv/cv-review-job.ts) — the completion toast/native
   // notification live in CvReviewJobNotifier (mounted once at the app shell), not here, since the
   // job may finish after the user has navigated away from CV Builder entirely.
@@ -420,7 +505,9 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       return;
     }
     setActiveReport("review");
-    startReviewJob.mutate(text);
+    // The mechanical findings ride along so the AI review doesn't spend its answer repeating what
+    // the audit already reports (and can already fix in one click) — see reviewCv's `checks`.
+    startReviewJob.mutate({ cvText: text, checks: ruleFindings(doc).map((f) => `${f.rule}: ${f.before ?? ""}`.trim()) });
   };
   const deletePreset = async (name: string) => {
     if (!(await confirm({ title: t("layoutPresets.presets.deleteConfirmTitle", { name }), tone: "danger" }))) return;
@@ -644,11 +731,7 @@ export function CvBuilder({ llm }: { llm: boolean }) {
                 {dirty ? t("builder.autosave.unsaved") : t("builder.autosave.saved")}
               </span>
             )}
-            <Btn
-              variant="ghost"
-              onClick={() => exportCvDoc(doc, () => toast(t("builder.header.exportPopupBlocked"), "error"))}
-              title={t("builder.header.exportPdfTitle")}
-            >
+            <Btn variant="ghost" onClick={() => setExportOpen(true)} title={t("builder.header.exportPdfTitle")}>
               {t("builder.header.exportPdf")}
             </Btn>
             {/* Disabled when there's nothing to save — paired with the status line above, that
@@ -850,9 +933,27 @@ export function CvBuilder({ llm }: { llm: boolean }) {
             options={[
               { value: "content", label: t("builder.editorMode.content") },
               { value: "design", label: t("builder.editorMode.design") },
+              // Reviewing the CV is its own job, distinct from writing it and from styling it —
+              // and it needs the full column width for before→after text, which is why it's a mode
+              // rather than another panel stacked above the editor.
+              { value: "audit", label: t("builder.editorMode.audit") },
             ]}
           />
-          {editorMode === "design" ? (
+          {editorMode === "audit" ? (
+            <AuditPanel
+              findings={visibleFindings}
+              positioning={aiAudit?.positioning ?? null}
+              running={busyAudit}
+              offline={!llm || !!aiAudit?.offline}
+              hasRun={aiAudit !== null}
+              onRun={runAudit}
+              onApply={applyAuditFinding}
+              onApplyAll={applyAuditFindings}
+              onDismiss={dismissFinding}
+              onJump={jumpFromAudit}
+              applyingId={applyingFindingId}
+            />
+          ) : editorMode === "design" ? (
             <div className="space-y-2.5">
               <AppearancePanel doc={doc} theme={theme} onSetTheme={setTheme} onSetPhoto={(photo) => set({ photo })} />
               <LayoutPresetsPanel
@@ -1092,11 +1193,29 @@ export function CvBuilder({ llm }: { llm: boolean }) {
         <div className="min-w-0 lg:sticky lg:top-6">
           <CvPreviewPanel
             doc={doc}
-            onExport={() => exportCvDoc(doc, () => toast(t("builder.header.exportPopupBlocked"), "error"))}
+            onExport={() => setExportOpen(true)}
             onSectionClick={onPreviewSectionClick}
+            onPagesChange={setPreviewPages}
           />
         </div>
       </div>
+      {exportOpen && (
+        <ExportDialog
+          pages={previewPages}
+          // Only the high-severity ones: this is a last check on the way out, not a second copy of
+          // the audit. Anything already dismissed stays dismissed here too.
+          findings={visibleFindings.filter((f) => f.severity === "high")}
+          onClose={() => setExportOpen(false)}
+          onReview={() => {
+            setExportOpen(false);
+            setEditorMode("audit");
+          }}
+          onExport={() => {
+            setExportOpen(false);
+            exportCvDoc(doc, () => toast(t("builder.header.exportPopupBlocked"), "error"));
+          }}
+        />
+      )}
       {/* Sharing is what you do with a FINISHED CV, so it sits after the editor rather than
           between the toolbar and the fields — it used to take a full row of prime above-the-fold
           space on a page whose whole job is editing. */}

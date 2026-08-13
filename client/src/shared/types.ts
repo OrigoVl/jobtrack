@@ -428,6 +428,10 @@ export interface CvReview {
   issues: { title: string; fix: string }[];
   keywords: string[];
   rewrites: { before: string; after: string }[];
+  /** How the résumé positions the candidate — the role and level it actually reads as, versus what
+   * the evidence supports. Optional: a review produced before this existed (or by the offline
+   * heuristic) simply has no positioning block. */
+  positioning?: { detectedRole: string; suggestedTitle: string; rationale: string };
 }
 
 export type CvReviewJobStatus = "running" | "done" | "error";
@@ -512,6 +516,11 @@ export interface CvTheme {
   /** Typeface for the small meta text (contact, section labels, dates, metric figures). "auto"
    * defers to the template, which means a monospace only on `technical`. */
   metaFont?: "auto" | "body" | "mono";
+  /** How a contact link prints. "label" (the default, and what every doc saved before this existed
+   * parses as) shows only the anchor text — which means the address survives in the exported PDF
+   * ONLY as a link annotation, invisible to a parser reading the text layer. "url" prints the
+   * shortened address as the visible text; "both" prints "Label: url". */
+  linkStyle?: "label" | "url" | "both";
   /** Opt-in `**bold**` / `` `code` `` inside bullets and the summary. Off by default so a CV
    * containing literal asterisks keeps printing them. */
   richText?: boolean;
@@ -591,6 +600,11 @@ export interface CvDoc {
    * telegramContact() (cv-doc-utils.ts). Separate from `links` because a handle isn't a URL, and
    * typing one into a link row produced a broken `https://@name` href. */
   telegram?: string;
+  /** Where the candidate is, and whether they're open to remote ("Kyiv, Ukraine · open to
+   * remote"). Its own field because it's the one contact detail that gets FILTERED on — an ATS
+   * geo-filter and a recruiter's first question both need it, and a résumé that never states it
+   * drops out of location-scoped searches entirely. */
+  location?: string;
   /** Structured, separately-editable links (LinkedIn/GitHub/portfolio/etc.) — additive alongside
    * `contact` (which stays freeform for email/location), not a replacement for it: an
    * existing account's `contact` may already have URLs typed into it as plain text, and there's
@@ -634,6 +648,26 @@ export interface CvTailorResult {
   doc: CvDoc;
   match: CvMatch;
   reordered: { skills: number; bullets: number };
+}
+
+/** Response of POST /cv/audit — the judgement half of the line-by-line audit. The findings are
+ * typed as `AuditFinding` in features/cv/builder/cv-audit.ts (where the rule engine that produces
+ * the other half lives); this stays structurally compatible with it. */
+export interface CvAuditResult {
+  findings: {
+    id: string;
+    target: Record<string, unknown> & { kind: string };
+    verdict: "rewrite" | "delete" | "merge" | "add" | "keep";
+    severity: "high" | "medium" | "low";
+    source: "ai";
+    title: string;
+    reason: string;
+    before?: string;
+    after?: string;
+    mergeWith?: number;
+  }[];
+  positioning: { detectedRole: string; suggestedTitle: string; rationale: string } | null;
+  offline: boolean;
 }
 
 export interface JobResult {

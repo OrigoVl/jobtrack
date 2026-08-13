@@ -51,21 +51,21 @@ function isJobActive(job: CvReviewJobState | null): job is CvReviewJobState {
  * double-clicked while one was still in flight — idempotent, never starts two background reviews
  * for the same user at once.
  */
-export async function startCvReviewJob(userId: UserId, cvText: string): Promise<CvReviewJobState> {
+export async function startCvReviewJob(userId: UserId, cvText: string, checks: string[] = []): Promise<CvReviewJobState> {
   const existing = await getCvReviewJob(userId);
   if (isJobActive(existing)) return existing;
 
   const startedAt = new Date().toISOString();
   const initial: CvReviewJobState = { status: "running", step: "preparing", startedAt };
   await setKvJson(userId, JOB_KV_KEY, initial);
-  void runCvReviewJob(userId, cvText, startedAt);
+  void runCvReviewJob(userId, cvText, startedAt, checks);
   return initial;
 }
 
-async function runCvReviewJob(userId: UserId, cvText: string, startedAt: string): Promise<void> {
+async function runCvReviewJob(userId: UserId, cvText: string, startedAt: string, checks: string[]): Promise<void> {
   try {
     await setKvJson(userId, JOB_KV_KEY, { status: "running", step: "generating_feedback", startedAt });
-    const result = await reviewCv(userId, cvText);
+    const result = await reviewCv(userId, cvText, checks);
     await setKvJson(userId, JOB_KV_KEY, { status: "running", step: "finalizing", startedAt });
     await setKvJson(userId, JOB_KV_KEY, {
       status: "done",
