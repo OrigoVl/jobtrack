@@ -650,8 +650,9 @@
     "aiBadge": "AI",
     "offlineBadge": "Offline",
     "offlineHint": "The AI layer is off, so you're seeing the checks that can be proven from the document itself. Positioning and phrasing advice needs an AI key.",
-    "applyAll": "Apply {{count}} mechanical fixes",
-    "applyAllTitle": "Applies only the fixes with one correct answer — dates, capitalization, link format. Wording changes stay manual.",
+    "applyAll": "Review {{count}} quick fix",
+    "applyAll_other": "Review {{count}} quick fixes",
+    "applyAllTitle": "Shows exactly what would change before anything is applied. Covers only the fixes with one correct answer — dates, capitalization, link format; wording stays yours.",
     "groups": {
       "high": "Fix first",
       "medium": "Worth fixing",
@@ -729,6 +730,12 @@
         "title": "Misspelled university name",
         "reason": "The official spelling is \"Polytechnic\". A typo in the name of your own university reads as carelessness if a recruiter checks it."
       }
+    },
+    "bulk": {
+      "badge": "1 click",
+      "previewTitle": "This {{count}} change will be applied:",
+      "previewTitle_other": "These {{count}} changes will be applied:",
+      "confirm": "Apply all {{count}}"
     }
   },
   "exportDialog": {

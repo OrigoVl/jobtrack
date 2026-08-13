@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Btn, Card, Chip, Spinner } from "../../../shared/ui";
@@ -17,6 +18,51 @@ function ruleCopy(rule: AuditRule, t: TFunction<["cv", "common"]>): { title: str
     title: t(`audit.rules.${rule}.title` as "audit.rules.missingLocation.title"),
     reason: t(`audit.rules.${rule}.reason` as "audit.rules.missingLocation.reason"),
   };
+}
+
+/** A finding's headline, whichever producer it came from. */
+function findingTitle(f: AuditFinding, t: TFunction<["cv", "common"]>): string {
+  return f.rule ? ruleCopy(f.rule, t).title : (f.title ?? "");
+}
+
+/**
+ * What "apply all" is about to do, itemised, before it does it.
+ *
+ * A bulk button labelled only with a COUNT is the problem this solves: six of nine findings were
+ * going to change the document and there was no way to tell which six, so the honest response was
+ * not to press it. Listing each one — with the actual before→after, not just its title — turns the
+ * button into a reviewable step. The panel also serves as the answer to "which rows are included",
+ * since the mechanical ones are marked in the list below too.
+ */
+function BulkPreview({ findings, onConfirm, onCancel }: { findings: AuditFinding[]; onConfirm: () => void; onCancel: () => void }) {
+  const { t } = useTranslation(["cv", "common"]);
+  return (
+    <div className="rounded-xl border border-signal/30 bg-signal/10 p-3 space-y-2">
+      <div className="text-sm font-semibold text-ink">{t("audit.bulk.previewTitle", { count: findings.length })}</div>
+      <ul className="space-y-1.5">
+        {findings.map((f) => (
+          <li key={f.id} className="text-xs">
+            <div className="font-medium text-ink">{findingTitle(f, t)}</div>
+            {(f.before || f.after) && (
+              <div className="text-ink-dim mt-0.5 flex flex-wrap items-center gap-1.5">
+                {f.before && <span className="line-through decoration-rose-400/60">{f.before}</span>}
+                {f.before && f.after && <span aria-hidden>→</span>}
+                {f.after && <span className="text-good font-medium">{f.after}</span>}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="flex gap-2 pt-0.5">
+        <Btn size="sm" onClick={onConfirm}>
+          {t("audit.bulk.confirm", { count: findings.length })}
+        </Btn>
+        <Btn size="sm" variant="ghost" onClick={onCancel}>
+          {t("common:actions.cancel")}
+        </Btn>
+      </div>
+    </div>
+  );
 }
 
 /** One finding: what it's about, why, and the before→after when there's something to apply. */
@@ -44,6 +90,9 @@ function FindingCard({
       <div className="flex items-start gap-2 flex-wrap">
         <Chip tone={SEVERITY_TONE[finding.severity]}>{t(`audit.verdict.${finding.verdict}` as "audit.verdict.rewrite")}</Chip>
         <span className="font-semibold text-ink text-sm flex-1 min-w-0">{copy.title}</span>
+        {/* Marks the rows the bulk action covers, so its count maps to something visible rather
+            than being a number the user has to take on trust. */}
+        {isMechanical(finding) && <Chip tone="good">{t("audit.bulk.badge")}</Chip>}
         {finding.source === "ai" && <Chip tone="indigo">{t("audit.aiBadge")}</Chip>}
       </div>
       {copy.reason && <p className="text-xs text-ink-dim">{copy.reason}</p>}
@@ -111,6 +160,7 @@ export function AuditPanel({
   applyingId: string | null;
 }) {
   const { t } = useTranslation(["cv", "common"]);
+  const [bulkPreview, setBulkPreview] = useState(false);
   const high = findings.filter((f) => f.severity === "high");
   const medium = findings.filter((f) => f.severity === "medium");
   const low = findings.filter((f) => f.severity === "low");
@@ -134,8 +184,9 @@ export function AuditPanel({
             <p className="text-xs text-ink-dim mt-0.5">{t("audit.subtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Opens the itemised preview rather than applying — see BulkPreview. */}
             {bulk.length > 0 && (
-              <Btn size="sm" variant="ghost" onClick={() => onApplyAll(bulk)} title={t("audit.applyAllTitle")}>
+              <Btn size="sm" variant="ghost" onClick={() => setBulkPreview((v) => !v)} title={t("audit.applyAllTitle")}>
                 {t("audit.applyAll", { count: bulk.length })}
               </Btn>
             )}
@@ -160,6 +211,16 @@ export function AuditPanel({
         {/* Says plainly that the instant half already ran, so an empty-looking panel with no key
             doesn't read as a broken feature. */}
         {offline && <p className="text-[11px] text-ink-dim">{t("audit.offlineHint")}</p>}
+        {bulkPreview && bulk.length > 0 && (
+          <BulkPreview
+            findings={bulk}
+            onCancel={() => setBulkPreview(false)}
+            onConfirm={() => {
+              setBulkPreview(false);
+              onApplyAll(bulk);
+            }}
+          />
+        )}
       </Card>
 
       {positioning && (
