@@ -84,7 +84,11 @@ describe("parseLinkedInArchive()", () => {
     expect(doc.name).toBe("Ada Lovelace");
     expect(doc.title).toBe("Engineer");
     expect(doc.summary).toBe("Builds things");
-    expect(doc.contact).toBe("new@example.com · Kyiv"); // the Primary=Yes email wins, not the first row
+    expect(doc.contact).toBe("new@example.com"); // the Primary=Yes email wins, not the first row
+    // Geo Location gets its OWN field rather than being concatenated into the freeform contact
+    // line, where nothing could filter on it — an ATS geo-filter and the audit's location check
+    // both read this field, not the blob.
+    expect(doc.location).toBe("Kyiv");
     expect(doc.links).toEqual([{ label: "Website", url: "https://ada.dev" }]); // not joined into contact
     expect(doc.skills).toEqual(["TypeScript", "PostgreSQL"]);
     expect(doc.experience).toEqual([

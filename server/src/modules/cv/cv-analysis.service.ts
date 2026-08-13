@@ -20,6 +20,12 @@ const CvReviewSchema = z.object({
   issues: z.array(TitleFixSchema).catch([]),
   keywords: z.array(z.string()).catch([]),
   rewrites: z.array(z.object({ before: z.string(), after: z.string() })).catch([]),
+  // How the résumé positions the candidate — the thing every external audit of this app's output
+  // led with, and which the old score+issues shape had nowhere to put. `.catch` supplies an empty
+  // block for a response that omits it, so an older/terser model reply still parses.
+  positioning: z
+    .object({ detectedRole: z.string().catch(""), suggestedTitle: z.string().catch(""), rationale: z.string().catch("") })
+    .catch({ detectedRole: "", suggestedTitle: "", rationale: "" }),
 });
 const CvMatchSchema = z.object({
   score: z.number(),
@@ -91,6 +97,7 @@ export interface CvReview {
   issues: CvIssue[];
   keywords: string[];
   rewrites: { before: string; after: string }[];
+  positioning: { detectedRole: string; suggestedTitle: string; rationale: string };
 }
 
 // "no-key" — the LLM isn't configured at all (llmAvailable()===false). "llm-failed" — a key
@@ -132,10 +139,19 @@ function heuristicReview(cvText: string, reason: FallbackReason = "no-key"): CvR
     issues,
     keywords: [],
     rewrites: [],
+    positioning: { detectedRole: "", suggestedTitle: "", rationale: "" },
   };
 }
 
-export async function reviewCv(userId: UserId, cvText: string): Promise<CvReview & { offline: boolean }> {
+/**
+ * `checks` — mechanical findings the CLIENT already computed against the structured CV (see
+ * client/src/features/cv/builder/cv-audit.ts) and is already showing with a one-click fix. Passed
+ * in purely so the model doesn't spend its answer re-reporting them; without it, most of a review
+ * is taken up by the missing location and the "Results-driven" opener, which the app already knows
+ * about and states more precisely. Optional — the Profile page's plain-text review has no
+ * structured doc to derive them from and simply doesn't send any.
+ */
+export async function reviewCv(userId: UserId, cvText: string, checks: string[] = []): Promise<CvReview & { offline: boolean }> {
   const profile = await getProfile(userId);
   const role = profile.domain || "specialist";
   const demand = await demandMap(userId);
@@ -148,12 +164,25 @@ export async function reviewCv(userId: UserId, cvText: string): Promise<CvReview
     `You are an experienced technical recruiter and career coach for the role "${role}". You give honest, actionable feedback on resumes. Respond with ONLY valid JSON. When writing a "rewrite", don't invent a metric or fact that isn't in the resume — if a rewrite would need one to be strong, say in the "fix" that a specific number should be added, instead of fabricating it.`,
     `Candidate's resume:\n${cvText}\n\n` +
       `Market demand (skills from job postings): ${JSON.stringify(demand)}.\n` +
+      (checks.length
+        ? `These problems have ALREADY been detected mechanically and are already shown to the user with a one-click fix. Do NOT repeat them — spend your answer on what a rule cannot judge:\n${checks.map((c) => `- ${c}`).join("\n")}\n`
+        : "") +
       `Evaluate the resume on these principles: focus on RESULTS (not process), quantitative metrics, strong verbs, ATS keywords matching demand, specifics on AI/tools (exactly what and what impact).\n` +
+      // The axes below are the ones an external audit of this app's own output spent most of its
+      // length on and which this prompt previously had no way to reach: a résumé can score well on
+      // "results and metrics" while still being classified as the wrong ROLE at the wrong LEVEL.
+      `Also judge:\n` +
+      `- POSITIONING: does the title match the seniority and breadth the content actually demonstrates? A resume whose strongest evidence all sits in one specialty gets read as that specialist, even when the candidate is aiming at a broader role.\n` +
+      `- SENIORITY SIGNALS: ownership, scope, architecture decisions, mentoring, team size.\n` +
+      `- DATE HYGIENE: a current role that doesn't read as current; a stated number of years that its own dates don't support.\n` +
+      `- METRIC CREDIBILITY: an unattributed or unverifiable percentage actively DISCOUNTS the verified numbers next to it. Say so when you see one.\n` +
+      `- KEYWORD PLACEMENT: a skill that appears only in the Skills list, never evidenced in Experience, reads as a claim rather than experience.\n` +
       `Return JSON strictly: {"score":<0-100>,"summary":"1-2 sentence overall impression",` +
       `"strengths":["3-5 strengths"],` +
       `"issues":[{"title":"problem","fix":"how to fix it concretely"}],` +
       `"keywords":["6-12 keywords/skills worth adding to match demand and ATS"],` +
-      `"rewrites":[{"before":"weak phrasing from the resume","after":"rewritten, with result and metric"}]}`,
+      `"rewrites":[{"before":"weak phrasing from the resume","after":"rewritten, with result and metric"}],` +
+      `"positioning":{"detectedRole":"what this resume reads as today","suggestedTitle":"the title the evidence best supports","rationale":"1-2 sentences"}}`,
     CvReviewSchema,
     // maxTokens 2200 (not 1200) — a review with score+summary+3-5 strengths+several issues+6-12
     // keywords+several rewrites (each: a full "before" AND "after" sentence) easily runs longer
@@ -161,7 +190,7 @@ export async function reviewCv(userId: UserId, cvText: string): Promise<CvReview
     // invalid and silently (HTTP 200, so the r.ok check above didn't catch it) falls back to the
     // offline heuristic — this is exactly what the reported bug looked like ("I click Advice
     // and get generic text").
-    { maxTokens: 2200, temperature: 0.4, cache: true, tier: "smart", feature: "cv-review", outputLocale: "app" },
+    { maxTokens: 2600, temperature: 0.4, cache: true, tier: "smart", feature: "cv-review", outputLocale: "app" },
   );
   // offline:true (NOT false) — what follows is the same offline heuristic used when the LLM is
   // disabled (llmAvailable()===false above). A false "offline:false" here meant the client (and

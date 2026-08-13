@@ -37,8 +37,18 @@ describe("CvThemeSchema", () => {
       // existed before it, and rich text stays off so a CV containing literal ** keeps printing
       // the asterisks instead of silently turning them into bold.
       metaFont: "auto",
+      // "label" is the look every existing CV already has: the anchor text only. It's also the
+      // option that keeps a link's URL out of the exported PDF's text layer, which is why the
+      // audit flags it — but defaulting to anything else would silently reflow every saved CV.
+      linkStyle: "label",
       richText: false,
     });
+  });
+
+  it("keeps a chosen link style and falls back to the existing look on garbage", () => {
+    expect(CvThemeSchema.parse({ linkStyle: "url" }).linkStyle).toBe("url");
+    expect(CvThemeSchema.parse({ linkStyle: "both" }).linkStyle).toBe("both");
+    expect(CvThemeSchema.parse({ linkStyle: "nonsense" }).linkStyle).toBe("label");
   });
 
   it("keeps a chosen meta font / rich text and falls back on garbage", () => {

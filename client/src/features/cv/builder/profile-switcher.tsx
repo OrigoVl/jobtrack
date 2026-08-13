@@ -160,6 +160,10 @@ export function ProfileSwitcher({
         >
           {t("builder.profiles.duplicate")}
         </button>
+        {/* The "keep a variant per kind of role" strategy is already fully buildable here — up to
+            five named CVs, each with its own doc and share link. Only the idea was missing, so it's
+            stated at the point of action rather than documented somewhere nobody reads. */}
+        {!atLimit && <div className="px-2 pb-1 pt-0.5 text-[11px] text-ink-dim">{t("builder.profiles.variantHint")}</div>}
         {profiles.length > 1 && (
           <button
             type="button"

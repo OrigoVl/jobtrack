@@ -263,10 +263,34 @@ export function AppearancePanel({ doc, theme, onSetTheme, onSetPhoto }: Appearan
             >
               <TemplateThumb template={id} accent={theme.accent} />
               <span className="text-[11px] font-medium leading-tight text-center">{t(labelKey)}</span>
+              {/* A positive marker on the safe ones rather than a warning only on the risky two:
+                  "which of these should I pick" is the question being asked, and a badge that
+                  appears on six of eight answers it faster than a caveat that appears on two. */}
+              {!ATS_RISK_TEMPLATES.has(id) && (
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-good/80 leading-none">
+                  {t("appearance.template.atsSafe")}
+                </span>
+              )}
             </button>
           ))}
         </div>
         {ATS_RISK_TEMPLATES.has(theme.template) && <div className="text-[11px] text-ink-dim">{t("appearance.template.atsRiskHint")}</div>}
+      </Section>
+      {/* How a contact link prints. This is an appearance control, but it's the one with a real
+          machine-readability consequence: under "label" the address exists in the exported PDF
+          only as a clickable annotation, so a parser reading the text layer finds the word
+          "LinkedIn" and no URL at all. The audit flags it; this is where it gets changed. */}
+      <Section title={t("appearance.links.title")} hint={t(`appearance.links.${theme.linkStyle ?? "label"}` as "appearance.links.label")}>
+        <Segmented
+          value={theme.linkStyle ?? "label"}
+          onChange={(v) => onSetTheme({ linkStyle: v })}
+          options={[
+            { value: "label", label: t("appearance.links.label") },
+            { value: "url", label: t("appearance.links.url") },
+            { value: "both", label: t("appearance.links.both") },
+          ]}
+        />
+        <div className="text-[11px] text-ink-dim mt-1.5">{t("appearance.links.hint")}</div>
       </Section>
       <Section title={t("appearance.style.title")} hint={`${fontLabel(theme.font)} · ${Math.round(theme.scale * 100)}%`}>
         <div className="flex items-center justify-between gap-4 flex-wrap">

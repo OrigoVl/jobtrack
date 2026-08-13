@@ -38,7 +38,7 @@ export function useStartCvReviewJob() {
   const qc = useQueryClient();
   const onError = useMutationErrorToast();
   return useMutation({
-    mutationFn: (cvText: string) => api.startCvReviewJob(cvText),
+    mutationFn: (v: { cvText: string; checks: string[] }) => api.startCvReviewJob(v.cvText, v.checks),
     onSuccess: (job) => {
       // Seed the status query immediately so polling reflects "running" right away instead of
       // waiting for the first interval tick.

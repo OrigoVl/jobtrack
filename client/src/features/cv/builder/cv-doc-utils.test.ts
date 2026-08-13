@@ -71,6 +71,124 @@ describe("buildCvDocument", () => {
     });
   });
 
+  // Everything in here defends the EXPORTED PDF's text layer rather than how the CV looks. Each
+  // rule below was traced from a real broken export (Michael_Voloshin_CV_v5.pdf): parsed with
+  // `pdftotext -raw`, page 2 came out with every bullet in the document dumped in a block after
+  // the LANGUAGES heading, and the body read "Results-drivenFullStackDeveloperwith7years" with
+  // every word space gone. Neither is visible on screen, so only these assertions catch a
+  // regression.
+  describe("machine-readability of the exported PDF", () => {
+    const ALL_TEMPLATES: CvTheme["template"][] = [
+      "classic",
+      "compact",
+      "academic",
+      "twocol",
+      "minimal",
+      "sidebar",
+      "timeline",
+      "technical",
+    ];
+
+    it("never positions a box, in any template", () => {
+      // THE root cause of the scrambled page 2. A positioned element is painted in paint-order
+      // step 8 — after every in-flow block on the page — and Chrome's Skia PDF writer emits the
+      // content stream in paint order, so an absolutely-positioned bullet marker lands at the end
+      // of the page's stream and drags its list item's text with it. The `technical` template drew
+      // its bullet dots that way and `timeline` its rail dots; both now use a marker/background
+      // instead. This is a blanket ban rather than a per-template check because any future
+      // template reaching for `position:` would reintroduce the same silent corruption.
+      for (const template of ALL_TEMPLATES) {
+        const { css } = buildCvDocument({ ...BASE_DOC, theme: { ...DEFAULT_THEME, template } });
+        expect(css, `template "${template}" positions a box`).not.toMatch(/position\s*:\s*(absolute|relative|fixed)/);
+      }
+    });
+
+    it("never fragments a box into CSS multi-column, in any template", () => {
+      // Same class of defect as positioning: multi-column reorders the printed content stream
+      // relative to the DOM. The skills list uses a grid instead, whose items paint in DOM order.
+      for (const template of ALL_TEMPLATES) {
+        const { css } = buildCvDocument({ ...BASE_DOC, skills: ["A", "B"], theme: { ...DEFAULT_THEME, template, skillsStyle: "list" } });
+        expect(css, `template "${template}" uses CSS multi-column`).not.toMatch(/(^|[;{])columns\s*:/);
+      }
+    });
+
+    it("embeds a static webfont, so Chrome can't fall back to a variable system font", () => {
+      // The stack has always NAMED Inter first but nothing loaded it, so it resolved to
+      // `system-ui` = SF Pro on macOS — a variable font, which Chrome can only embed as a Type 3
+      // font, and a Type 3 embedding is what silently dropped every word space from the text
+      // layer. Static per-weight instances embed as ordinary TrueType.
+      const { css } = buildCvDocument(BASE_DOC);
+      expect(css).toContain('@font-face{font-family:"Inter"');
+      expect(css).toContain("/fonts/inter-400.woff2");
+      expect(css).toContain("/fonts/inter-700.woff2");
+      // A Ukrainian CV must get the same face rather than falling back to the system font for
+      // exactly its Cyrillic glyphs — which would reintroduce Type 3 for that text.
+      expect(css).toContain("/fonts/inter-cyrillic-400.woff2");
+      // `block`, not `swap`: a swapped fallback is what would end up rasterised into the PDF.
+      expect(css).toContain("font-display:block");
+    });
+
+    it("never lets the browser hyphenate, and keeps each skill token unbreakable", () => {
+      // A soft break at a hyphen drops the hyphen from the text layer: "Feature-Sliced Design"
+      // extracted as "FeatureSliced" and "prompt-relevance" as "promptrelevance", so an
+      // exact-keyword search stops matching the résumé.
+      const { css } = buildCvDocument(BASE_DOC);
+      expect(css).toContain("hyphens:none");
+      expect(css).toMatch(/\.chip\{[^}]*white-space:nowrap/);
+      expect(css).toContain(".nb{white-space:nowrap}");
+    });
+
+    it("keeps a hyphenated compound in PROSE on one line, without freezing the whole bullet", () => {
+      // `hyphens:none` only suppresses AUTOMATIC hyphenation — a line may still break after a
+      // hyphen the author typed, and that break drops the hyphen from the extracted text
+      // ("prompt-relevance" came out of the audited export as "promptrelevance"). Only the
+      // compound itself is frozen; the surrounding sentence must still wrap freely, or a long
+      // bullet would overflow the page.
+      const { html } = buildCvDocument({
+        ...BASE_DOC,
+        experience: [{ role: "Dev", company: "Acme", period: "2021", bullets: ["A graph with prompt-relevance gating"] }],
+      });
+      expect(html).toContain('<span class="nb">prompt-relevance</span>');
+      expect(html).toContain("A graph with ");
+      expect(html).toContain(" gating");
+    });
+
+    it("leaves a long hyphenated run breakable, so freezing it can't overflow the column", () => {
+      const long = "supercalifragilistic-expialidocious-and-then-some-more";
+      const { html } = buildCvDocument({
+        ...BASE_DOC,
+        experience: [{ role: "Dev", company: "Acme", period: "2021", bullets: [long] }],
+      });
+      expect(html).toContain(long);
+      expect(html).not.toContain(`<span class="nb">${long}</span>`);
+    });
+
+    it("wraps each skill in an unbreakable span in the inline and grouped layouts", () => {
+      const inline = buildCvDocument({
+        ...BASE_DOC,
+        skills: ["Feature-Sliced Design"],
+        theme: { ...DEFAULT_THEME, skillsStyle: "inline" },
+      });
+      expect(inline.html).toContain('<span class="nb">Feature-Sliced Design</span>');
+      const grouped = buildCvDocument({
+        ...BASE_DOC,
+        skillGroups: [{ name: "Frontend", skills: ["Feature-Sliced Design"] }],
+        theme: { ...DEFAULT_THEME, skillsStyle: "grouped" },
+      });
+      expect(grouped.html).toContain('<span class="nb">Feature-Sliced Design</span>');
+    });
+
+    it("still escapes user input inside those unbreakable spans", () => {
+      const { html } = buildCvDocument({
+        ...BASE_DOC,
+        skills: ["<img src=x onerror=alert(1)>"],
+        theme: { ...DEFAULT_THEME, skillsStyle: "inline" },
+      });
+      expect(html).not.toContain("<img src=x");
+      expect(html).toContain("&lt;img src=x");
+    });
+  });
+
   it("keeps the stylesheet OUT of the markup, so the app's CSP can't strip it", () => {
     // Every consumer renders this into a srcdoc iframe or a window.open() popup, and those
     // inherit the app's CSP — whose style-src-elem has no 'unsafe-inline' (server/src/app.ts).
@@ -103,7 +221,10 @@ describe("buildCvDocument", () => {
 
     it("lets an explicit style override the template default in both directions", () => {
       expect(withTheme({ template: "compact", skillsStyle: "chips" }).html).toContain('<span class="chip">TypeScript</span>');
-      expect(withTheme({ template: "classic", skillsStyle: "inline" }).html).toContain("<p>TypeScript · Node.js · SQL</p>");
+      // Each skill carries the `.nb` (no-break) wrapper — see the machine-readability suite above.
+      expect(withTheme({ template: "classic", skillsStyle: "inline" }).html).toContain(
+        '<p><span class="nb">TypeScript</span> · <span class="nb">Node.js</span> · <span class="nb">SQL</span></p>',
+      );
       expect(withTheme({ template: "classic", skillsStyle: "list" }).html).toContain('<ul class="skill-list"><li>TypeScript</li>');
     });
 
@@ -342,7 +463,9 @@ describe("buildCvDocument — optional extensions", () => {
     const grouped = buildCvDocument(
       withTheme({ skillsStyle: "grouped" }, { ...BASE_DOC, skillGroups: [{ name: "Frontend", skills: ["TypeScript", "Vue"] }] }),
     );
-    expect(grouped.html).toContain('<dl class="skill-groups"><dt>Frontend</dt><dd>TypeScript, Vue</dd></dl>');
+    expect(grouped.html).toContain(
+      '<dl class="skill-groups"><dt>Frontend</dt><dd><span class="nb">TypeScript</span>, <span class="nb">Vue</span></dd></dl>',
+    );
     expect(grouped.css).toContain(".skill-groups{");
 
     // Choosing "grouped" before creating any group must not blank the section out — it degrades
