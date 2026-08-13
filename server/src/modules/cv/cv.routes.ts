@@ -9,17 +9,16 @@ import { aiLimiter } from "../../core/rate-limit.js";
 import { parseProfileInput } from "../../shared/validation.js";
 import { uploadSingle } from "../../shared/upload.js";
 import { CvDocSchema, CvPresetsSchema } from "./cv.schemas.js";
-import { cvAnalysis, reviewCv, matchCv, strs } from "./cv-analysis.service.js";
-import { startCvReviewJob, getCvReviewJob } from "./cv-review-job.js";
+import { cvAnalysis, matchCv, strs } from "./cv-analysis.service.js";
+import { startCvAuditJob, getCvAuditJob } from "./cv-audit-job.js";
 import { tailorCv } from "./cv-tailor.service.js";
-import { auditCv } from "./cv-audit.service.js";
 import { parseCvDocFromText } from "./cv-document.service.js";
 import { LINKEDIN_SAVED_KEY, optimizeLinkedInProfile, parseSavedLinkedInProfile } from "./cv-linkedin.service.js";
 import { isAppLocale } from "../../shared/locale.js";
 import { getLocale } from "../../core/request-context.js";
 import { getProfileFull, listProfiles, updateProfileDoc, updateProfilePresets } from "./cv-profiles.repo.js";
 import { buildMarketContext } from "./linkedin-market.js";
-import { computeDemand, vacancyStackRows } from "../../shared/demand.js";
+import { computeDemand, demandMap, vacancyStackRows } from "../../shared/demand.js";
 import { ensureProfiles, createNewProfile, duplicateProfile, renameProfileById, deleteProfileById } from "./cv-profiles.service.js";
 import type { UserId } from "../../db/user-id.js";
 
@@ -163,42 +162,6 @@ r.get(
   }),
 );
 
-// ---------- in-depth CV review (structured, actionable advice) ----------
-r.post(
-  "/cv/review",
-  aiLimiter,
-  authed(async (userId, req, res) => {
-    const cvText = String(req.body?.cvText || (await getProfile(userId)).cvText || "").slice(0, 8000);
-    if (cvText.trim().length < 30) throw new HttpError(400, "Not enough CV text to review", null, "CV_TEXT_TOO_SHORT");
-    res.json(await reviewCv(userId, cvText));
-  }),
-);
-
-// ---------- CV Builder's "AI Assistant" review, backgrounded (see cv-review-job.ts) ----------
-r.post(
-  "/cv/review/start",
-  aiLimiter,
-  authed(async (userId, req, res) => {
-    const cvText = String(req.body?.cvText || (await getProfile(userId)).cvText || "").slice(0, 8000);
-    if (cvText.trim().length < 30) throw new HttpError(400, "Not enough CV text to review", null, "CV_TEXT_TOO_SHORT");
-    // Mechanical findings the CV Builder already computed and is already showing — sent so the
-    // review doesn't spend its answer repeating them. Capped/truncated rather than trusted: this
-    // is user-controllable text heading into a prompt.
-    const checks = strs(req.body?.checks)
-      .slice(0, 30)
-      .map((c) => c.slice(0, 200));
-    res.status(202).json(await startCvReviewJob(userId, cvText, checks));
-  }),
-);
-// Polled by the client (~every second) while a review job is running — deliberately NOT behind
-// aiLimiter, same reasoning as GET /vacancies/fetch-all/status.
-r.get(
-  "/cv/review/status",
-  authed(async (userId, _req, res) => {
-    res.json(await getCvReviewJob(userId));
-  }),
-);
-
 // ---------- comparing a CV against a specific vacancy ----------
 r.post(
   "/cv/match",
@@ -214,8 +177,10 @@ r.post(
 );
 
 // ---------- line-by-line audit of the structured CV Builder doc ----------
+// Backgrounded (see cv-audit-job.ts): it's the longest structured LLM call in the app, so the
+// route starts the job and returns immediately rather than holding the request open.
 r.post(
-  "/cv/audit",
+  "/cv/audit/start",
   aiLimiter,
   authed(async (userId, req, res) => {
     const doc = CvDocSchema.parse(req.body?.doc);
@@ -226,7 +191,18 @@ r.post(
     const known = strs(req.body?.known)
       .slice(0, 30)
       .map((k) => k.slice(0, 200));
-    res.json(await auditCv(userId, doc, known));
+    // Same market context the CV analysis uses, so the audit's keyword suggestions are grounded in
+    // the postings this user is actually tracking rather than in generic advice.
+    const demand = await demandMap(userId);
+    res.status(202).json(await startCvAuditJob(userId, doc, known, demand));
+  }),
+);
+// Polled by the client (~every second) while an audit is running — deliberately NOT behind
+// aiLimiter, same reasoning as GET /vacancies/fetch-all/status.
+r.get(
+  "/cv/audit/status",
+  authed(async (userId, _req, res) => {
+    res.json(await getCvAuditJob(userId));
   }),
 );
 
@@ -390,7 +366,7 @@ r.post(
       kind === "summary"
         ? `${SUMMARY_STYLE_GUIDES[style] ?? SUMMARY_STYLE_GUIDES.improve} ${NO_CLICHE}`
         : 'Rewrite this experience bullet using the formula "strong verb → what you did → technology → measurable result". One sentence, no fluff. ' +
-          // Same anti-fabrication rule reviewCv already carries. Without it the "measurable result"
+          // Same anti-fabrication rule the audit prompt already carries. Without it the "measurable result"
           // instruction is an active invitation to invent a percentage, and a made-up number on a
           // résumé is worse than no number — it discredits the real ones next to it.
           "Never invent a number, a technology or an outcome that is not in the original. If the bullet would only be strong with a metric the candidate hasn't given, rewrite it without one rather than inventing it.";

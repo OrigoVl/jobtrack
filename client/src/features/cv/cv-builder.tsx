@@ -9,17 +9,17 @@ import {
   useApplyCvUpload,
   useCreateCvProfile,
   useCvProfiles,
-  useCvReviewJobStatus,
+  useCvAuditJobStatus,
   useDeleteCvProfile,
   useDuplicateCvProfile,
   useProfile,
   useRenameCvProfile,
-  useStartCvReviewJob,
+  useStartCvAuditJob,
   useVacancies,
 } from "../../shared/queries";
 import { Btn, Card, CardsSkeleton, Dropdown, PageHeader, SearchSelect, Section, Segmented, Spinner } from "../../shared/ui";
 import { SkillsInput } from "../../shared/view-kit";
-import type { CvAuditResult, CvDoc, CvExperience, CvMatch, CvPreset, CvReview, CvTailorResult, CvTheme, Vacancy } from "../../shared/types";
+import type { CvDoc, CvExperience, CvMatch, CvPreset, CvTailorResult, CvTheme, Vacancy } from "../../shared/types";
 import { DEFAULT_ORDER, cvDocToText, exportCvDoc, themeOf } from "./builder/cv-doc-utils";
 import { GeneralSection } from "./builder/basic-info-card";
 import type { SummaryStyle } from "./builder/basic-info-card";
@@ -44,7 +44,6 @@ import { applyFinding, applyFindings, resolvesAgainst, ruleFindings, type AuditF
 import { ResumeCompleteness } from "./builder/resume-completeness";
 import { ShareLinkCard } from "./builder/share-link-card";
 import { ReportsPanel } from "./builder/reports-panel";
-import { CvReviewProgress } from "./builder/cv-review-progress";
 import { ProfileSwitcher } from "./builder/profile-switcher";
 
 // Only CONTENT sections — "what's in the CV". Appearance/layout is deliberately NOT one of these
@@ -120,19 +119,12 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   // result into another's. `0` is never a real profile id (Postgres identity starts at 1) — safe
   // as the "profiles haven't loaded yet" placeholder.
   const profileKey = activeProfileId ?? 0;
-  // The review itself is no longer local state: it's derived from the backgrounded review job
-  // below (useCvReviewJobStatus) so it survives navigating away from CV Builder while the AI call
-  // is still running. `reviewDismissedAt` hides a completed review the user explicitly closed —
-  // keyed by finishedAt (not a plain boolean) so a NEW job's result isn't hidden by an old dismissal.
-  const [reviewDismissedAt, setReviewDismissedAt] = useUi<string | null>(`cvbuilder.reviewDismissedAt:${profileKey}`, null);
-  const startReviewJob = useStartCvReviewJob();
-  const { data: reviewJob } = useCvReviewJobStatus();
-  const reviewRunning = reviewJob?.status === "running";
-  const review: CvReview | null =
-    reviewJob?.status === "done" && reviewJob.result && reviewJob.finishedAt !== reviewDismissedAt ? reviewJob.result : null;
-  // ReportsPanel only ever calls this with `null` (its "hide" action) — there's no separate "set a
-  // review value" case now that the value itself is derived from the job above.
-  const setReview = (v: CvReview | null) => setReviewDismissedAt(v === null ? (reviewJob?.finishedAt ?? "dismissed") : null);
+  // The audit result is derived from a BACKGROUND job (server/src/modules/cv/cv-audit-job.ts) so
+  // it survives navigating away from CV Builder while the call is still running — it's the app's
+  // longest structured LLM call.
+  const startAuditJob = useStartCvAuditJob();
+  const { data: auditJob } = useCvAuditJobStatus();
+  const auditRunning = auditJob?.status === "running";
   const [match, setMatch] = useUi<CvMatch | null>(`cvbuilder.match:${profileKey}`, null);
   const [matchVacId, setMatchVacId] = useUi<number>(`cvbuilder.matchVac:${profileKey}`, 0);
   // Own busy flag for match (not the shared `busy` string below) — otherwise starting one while
@@ -148,20 +140,16 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   // user explicitly clicks "Apply to CV" in the tailor tab below, so switching vacancies to
   // compare/tailor for never risks silently overwriting what's being edited.
   const [tailored, setTailored] = useUi<CvTailorResult | null>(`cvbuilder.tailored:${profileKey}`, null);
-  // The AI half of the line-by-line audit (see the audit block further down). Stored per profile
-  // like every other report on this page — it costs a request, so it shouldn't evaporate on a tab
-  // switch. `dismissedFindings` holds the ids the user has explicitly cleared, which is why every
-  // finding carries a stable id rather than relying on its position in the list.
-  const [aiAudit, setAiAudit] = useUi<CvAuditResult | null>(`cvbuilder.audit:${profileKey}`, null);
+  // `dismissedFindings` holds the ids the user has explicitly cleared — which is why every finding
+  // carries a stable id rather than relying on its position in the list.
   const [dismissedFindings, setDismissedFindings] = useUi<string[]>(`cvbuilder.auditDismissed:${profileKey}`, []);
-  const [busyAudit, setBusyAudit] = useState(false);
   const [applyingFindingId, setApplyingFindingId] = useState<string | null>(null);
   // Export runs through a confirmation step (see ExportDialog) rather than straight to the print
   // popup — the page count and any still-outstanding high-severity findings are worth one look
   // before the file becomes the one a recruiter opens.
   const [exportOpen, setExportOpen] = useState(false);
   const [previewPages, setPreviewPages] = useState(1);
-  const [activeReport, setActiveReport] = useUi<"review" | "match" | "tailor">(`cvbuilder.activeReport:${profileKey}`, "review");
+  const [activeReport, setActiveReport] = useUi<"match" | "tailor">(`cvbuilder.activeReport:${profileKey}`, "match");
   const [dismissedSuggest, setDismissedSuggest] = useState(false);
   // Single exclusive accordion — one section open at a time, so there's never more scrolling than
   // one section's worth of fields.
@@ -347,40 +335,6 @@ export function CvBuilder({ llm }: { llm: boolean }) {
     set({ skills: [...doc.skills, k] });
     toast(t("builder.toasts.skillAdded", { skill: k }), "success");
   };
-  const applyRewrite = (before: string, after: string) => {
-    const norm = (s: string) =>
-      s
-        .toLowerCase()
-        .replace(/[^a-z0-9 ]/gi, " ")
-        .split(/\s+/)
-        .filter(Boolean);
-    const b = new Set(norm(before));
-    let best = { ei: -1, bi: -1, score: 0 };
-    doc.experience.forEach((e, ei) =>
-      e.bullets.forEach((bl, bi) => {
-        const t = norm(bl);
-        if (!t.length || !b.size) return;
-        const overlap = t.filter((w) => b.has(w)).length / Math.max(t.length, b.size);
-        if (overlap > best.score) best = { ei, bi, score: overlap };
-      }),
-    );
-    if (best.score >= 0.3) {
-      set({
-        experience: doc.experience.map((e, ei) =>
-          ei === best.ei ? { ...e, bullets: e.bullets.map((bl, bi) => (bi === best.bi ? after : bl)) } : e,
-        ),
-      });
-      toast(
-        t("builder.toasts.bulletUpdated", {
-          entry: doc.experience[best.ei].role || t("builder.toasts.entryFallback", { n: best.ei + 1 }),
-        }),
-        "success",
-      );
-      return;
-    }
-    navigator.clipboard?.writeText(after).catch(() => undefined);
-    toast(t("builder.toasts.bulletNotFound"), "info");
-  };
   const doMatch = async () => {
     const vac = vacancies.find((v) => v.id === matchVacId);
     if (!vac) {
@@ -437,27 +391,20 @@ export function CvBuilder({ llm }: { llm: boolean }) {
   // address no longer resolves must disappear rather than sit there offering to edit a line that
   // has since moved. applyFinding is a no-op on a stale address anyway — this stops it being
   // OFFERED, which is the difference between safe and confusing.
+  const aiAudit = auditJob?.status === "done" ? (auditJob.result ?? null) : null;
   const aiFindings: AuditFinding[] = ((aiAudit?.findings ?? []) as AuditFinding[]).filter((f) => resolvesAgainst(f.target, doc));
   const visibleFindings = [...ruleAudit, ...aiFindings].filter((f) => !dismissedFindings.includes(f.id));
 
-  const runAudit = async () => {
-    if (!llm) {
-      // The rule half is already on screen, so this is a "you're seeing part of it" note rather
-      // than an error — the panel's own offline badge says the same thing persistently.
-      toast(t("builder.toasts.auditOfflineOnly"), "info");
-      return;
-    }
-    setBusyAudit(true);
-    try {
-      // The mechanical findings go along as plain sentences so the model can see what's already
-      // covered and spend its budget on judgement instead of repeating them.
-      const known = ruleAudit.map((f) => `${f.rule}: ${f.before ?? ""}`.trim());
-      setAiAudit(await api.auditCv(doc, known));
-    } catch {
-      toast(t("builder.toasts.analysisError"), "error");
-    } finally {
-      setBusyAudit(false);
-    }
+  // Runs in the background — the completion toast/native notification live in CvAuditJobNotifier
+  // (mounted once at the app shell), not here, since the job may finish after the user has
+  // navigated away from CV Builder entirely.
+  // Started even with no AI key: auditCv returns immediately with `offline: true` and no AI
+  // findings, which is what makes the panel's offline badge truthful rather than assumed. Bailing
+  // out early instead would leave the button doing nothing observable at all.
+  const runAudit = () => {
+    // The mechanical findings ride along so the model doesn't spend its answer repeating what the
+    // rules already caught (and can already fix in one click) — see auditCv's `known`.
+    startAuditJob.mutate({ doc, known: ruleAudit.map((f) => `${f.rule}: ${f.before ?? ""}`.trim()) });
   };
 
   const applyAuditFinding = (f: AuditFinding) => {
@@ -494,20 +441,6 @@ export function CvBuilder({ llm }: { llm: boolean }) {
       return;
     }
     openSection(target);
-  };
-  // Runs in the background (server/src/modules/cv/cv-review-job.ts) — the completion toast/native
-  // notification live in CvReviewJobNotifier (mounted once at the app shell), not here, since the
-  // job may finish after the user has navigated away from CV Builder entirely.
-  const doReview = () => {
-    const text = cvDocToText(doc);
-    if (text.trim().length < 30) {
-      toast(t("builder.toasts.needMoreDetails"), "error");
-      return;
-    }
-    setActiveReport("review");
-    // The mechanical findings ride along so the AI review doesn't spend its answer repeating what
-    // the audit already reports (and can already fix in one click) — see reviewCv's `checks`.
-    startReviewJob.mutate({ cvText: text, checks: ruleFindings(doc).map((f) => `${f.rule}: ${f.before ?? ""}`.trim()) });
   };
   const deletePreset = async (name: string) => {
     if (!(await confirm({ title: t("layoutPresets.presets.deleteConfirmTitle", { name }), tone: "danger" }))) return;
@@ -856,21 +789,25 @@ export function CvBuilder({ llm }: { llm: boolean }) {
             {t("builder.tailorButton")}
           </Btn>
           <span className="mx-1 h-5 w-px bg-grid" aria-hidden />
-          <Btn size="sm" variant="ghost" onClick={doReview} loading={startReviewJob.isPending || reviewRunning} disabled={reviewRunning}>
+          {/* One AI entry point for "look at my whole CV": it switches to the Audit mode and starts
+              the run there, rather than producing a second, separate opinion in its own card. */}
+          <Btn
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setEditorMode("audit");
+              runAudit();
+            }}
+            loading={startAuditJob.isPending || auditRunning}
+            disabled={auditRunning}
+          >
             {t("builder.aiAssistantButton")}
           </Btn>
         </div>
       </div>
-      {reviewRunning && (
-        <Card>
-          <div className="text-sm font-semibold text-ink mb-1">{t("builder.aiAssistantProgress.heading")}</div>
-          <div className="text-xs text-ink-dim mb-3">{t("builder.aiAssistantProgress.hint")}</div>
-          <CvReviewProgress step={reviewJob?.step ?? null} />
-        </Card>
-      )}
-      {reviewJob?.status === "error" && (
+      {auditJob?.status === "error" && (
         <Card className="!py-3 bg-alert/10 border-alert/30">
-          <div className="text-sm text-alert">{reviewJob.error || t("builder.toasts.analysisError")}</div>
+          <div className="text-sm text-alert">{auditJob.error || t("builder.toasts.analysisError")}</div>
         </Card>
       )}
       {/* Suppressed while the first-run start card is up — that card already offers this exact
@@ -888,12 +825,10 @@ export function CvBuilder({ llm }: { llm: boolean }) {
         </Card>
       )}
       <ReportsPanel
-        review={review}
         match={match}
         tailored={tailored}
         activeReport={activeReport}
         setActiveReport={setActiveReport}
-        setReview={setReview}
         setMatch={setMatch}
         setTailored={setTailored}
         tailorVacancyLabel={tailorVac ? vacancyLabel(tailorVac) : undefined}
@@ -903,7 +838,6 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           set({ summary: s });
           toast(t("builder.reports.match.summaryUpdatedToast"), "success");
         }}
-        onApplyRewrite={applyRewrite}
       />
       {/* grid-cols-1 (not just "grid" with no columns) — important: Tailwind explicitly sets
           `minmax(0, 1fr)`, whereas "none" (the default implicit grid without any `grid-cols-*`)
@@ -943,9 +877,15 @@ export function CvBuilder({ llm }: { llm: boolean }) {
             <AuditPanel
               findings={visibleFindings}
               positioning={aiAudit?.positioning ?? null}
-              running={busyAudit}
+              score={aiAudit?.score ?? null}
+              summary={aiAudit?.summary ?? ""}
+              strengths={aiAudit?.strengths ?? []}
+              keywords={aiAudit?.keywords ?? []}
+              onAddKeyword={addSkill}
+              running={startAuditJob.isPending || auditRunning}
               offline={!llm || !!aiAudit?.offline}
               hasRun={aiAudit !== null}
+              step={auditRunning ? (auditJob?.step ?? null) : null}
               onRun={runAudit}
               onApply={applyAuditFinding}
               onApplyAll={applyAuditFindings}

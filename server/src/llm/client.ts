@@ -428,7 +428,7 @@ async function callProviderOnce(
       // Previously r.ok was not checked here: a provider that responded 401/404/429/500 with a JSON body
       // SHAPED like {"error": {...}} (rather than {"content": [...]}) silently produced text="" (d?.content?.[0]?.text
       // doesn't exist) — and callProvider returned null exactly as it would for a legitimate empty response.
-      // Callers (reviewCv/matchCv etc.) couldn't tell "provider unavailable/API error" apart
+      // Callers (matchCv/auditCv etc.) couldn't tell "provider unavailable/API error" apart
       // from "response failed to parse", and silently fell back to the offline heuristic WITHOUT any log of the reason.
       if (!r.ok) {
         const body = await r.text().catch(() => "");
@@ -593,7 +593,7 @@ function safeJson(text: string): Record<string, unknown> | null {
  * safeJson() + logging the failure reason. Previously a failed JSON-mode parse (response_format
  * json_object in OpenAI guarantees syntactic validity ONLY if the generation wasn't cut off) went
  * completely silently: HTTP 200, r.ok===true, so the error branch in callProvider never fired, and
- * callers (reviewCv/matchCv etc.) simply fell back to the offline heuristic without any log of the reason.
+ * callers (matchCv/auditCv etc.) simply fell back to the offline heuristic without any log of the reason.
  * The most common cause — generation was cut off by `maxTokens` BEFORE the JSON closed (finish_reason /
  * stop_reason === "length"/"max_tokens") — the model readily generates longer strengths/issues/rewrites
  * than the allotted token budget. We log the finishReason and the tail of the text (where the cutoff is
@@ -613,7 +613,7 @@ function parseJsonOrLog(text: string, ctx: { model: string; provider: LlmProvide
 /**
  * chat() in json mode + AUTOMATIC zod schema validation + one self-repair retry.
  *
- * Previously every caller (reviewCv, matchCv, getDynamicKnowledge, /study/*, /analytics ...)
+ * Previously every caller (matchCv, auditCv, getDynamicKnowledge, /study/*, /analytics ...)
  * manually narrowed the response type via typeof/Array.isArray/.filter — the same logic was
  * rewritten in ~11 places, each slightly differently, and none of them tried to ASK the model
  * to fix an invalid structure — they just fell back to the offline heuristic immediately. chatJson() moves

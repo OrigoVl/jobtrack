@@ -56,7 +56,7 @@ r.post(
       `You are a mentor for the role "${profile.domain || "professional"}". Be concrete and concise.`,
       `Candidate's skills: ${profile.skills.join(", ")}.\nGaps by market demand priority: ${gaps.join(", ") || "none"}.\nBuild a personal learning plan by phases/days: what to learn first, which topics, how to practice, and in what order to close the gaps.`,
       // outputLocale: "app" — this is feedback/advice shown in the user's own UI (same reasoning
-      // as reviewCv/matchCv/getDynamicKnowledge/resources' focus+actions), not resume/document
+      // as matchCv/auditCv/getDynamicKnowledge/resources' focus+actions), not resume/document
       // text that must follow the CV's own language.
       // maxTokens 3000 (not 900) — a multi-phase, multi-week markdown curriculum (see
       // learn.tsx's rendered output) runs far longer than 900 tokens; chat() (unlike chatJson)

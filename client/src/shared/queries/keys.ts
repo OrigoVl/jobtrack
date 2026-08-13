@@ -33,7 +33,7 @@ export const queryKeys = {
   digestPreferences: ["digestPreferences"] as const,
   fetchAllStatus: ["fetchAllStatus"] as const,
   cvDoc: ["cvDoc"] as const,
-  cvReviewJob: ["cvReviewJob"] as const,
+  cvAuditJob: ["cvAuditJob"] as const,
   designCurrent: ["designCurrent"] as const,
   designHistory: ["designHistory"] as const,
   designArchive: ["designArchive"] as const,

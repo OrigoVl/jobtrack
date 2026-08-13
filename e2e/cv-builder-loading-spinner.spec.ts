@@ -6,19 +6,18 @@ import { test, expect } from "@playwright/test";
  * reported not being able to tell whether anything was happening, since the text change was easy
  * to miss. Now `loading` shows an SVG icon.
  *
- * The "AI Assistant" button now starts a BACKGROUND job (POST /cv/review/start, see
- * server/src/modules/cv/cv-review-job.ts) instead of blocking on a single request — the button's
- * `loading` state is derived from the polled job status (GET /cv/review/status), not from the
- * start call itself. `useStartCvReviewJob`'s `onSuccess` seeds the job-status query with the
+ * The "AI Assistant" button starts a BACKGROUND job (POST /cv/audit/start, see
+ * server/src/modules/cv/cv-audit-job.ts) instead of blocking on a single request — the button's
+ * `loading` state is derived from the polled job status (GET /cv/audit/status), not from the
+ * start call itself. `useStartCvAuditJob`'s `onSuccess` seeds the job-status query with the
  * "running" job SYNCHRONOUSLY from the start response, and the first status poll can't land for
  * another ~1s (see queries/cv.ts's refetchInterval) — so the spinner is reliably visible for at
  * least that long, with no need to artificially delay any request via page.route().
  */
-test("AI-analysis button shows a real animated spinner while the review job is running", async ({ page }) => {
-  // The button bails with a toast (no request at all) when the CV doc has under 30 characters of
-  // text — cv-builder.tsx's doReview — and a freshly registered account's doc is empty
-  // (seed-vacancies.ts's EMPTY_PROFILE). Seeded through the real API rather than by typing in the
-  // builder, which is another spec's subject.
+test("AI-analysis button shows a real animated spinner while the audit job is running", async ({ page }) => {
+  // The audit's own guard rejects a doc with no summary AND no experience (cv.routes.ts), and a
+  // freshly registered account's doc is empty (seed-vacancies.ts's EMPTY_PROFILE). Seeded through
+  // the real API rather than by typing in the builder, which is another spec's subject.
   const profilesRes = await page.request.get("/api/cv/profiles");
   expect(profilesRes.ok()).toBeTruthy();
   const [profile] = (await profilesRes.json()) as { id: number }[];
@@ -32,14 +31,13 @@ test("AI-analysis button shows a real animated spinner while the review job is r
   expect(seedRes.ok()).toBeTruthy();
 
   await page.goto("/cvbuilder");
-  // "Tips" is the AI review result's tab label — it only exists once a report is already on
-  // screen. The action that *triggers* the review from a clean page is the header's "AI
-  // Assistant" button (see cv-builder.tsx's simplified toolbar).
+  // The action that triggers the whole-CV analysis is the toolbar's "AI Assistant" button; it
+  // switches to the Audit editor mode and starts the background run there.
   const btn = page.getByRole("button", { name: "AI Assistant" });
   await expect(btn).toBeVisible();
 
   const [startResponse] = await Promise.all([
-    page.waitForResponse((r) => r.url().includes("/api/cv/review/start") && r.request().method() === "POST"),
+    page.waitForResponse((r) => r.url().includes("/api/cv/audit/start") && r.request().method() === "POST"),
     btn.click(),
   ]);
   expect(startResponse.ok()).toBeTruthy();

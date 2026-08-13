@@ -82,7 +82,7 @@ describe("chat() / llmAvailable() offline fallback", () => {
 // Regression: a provider responding with a non-2xx status (invalid key, rate limit, temporary
 // error) was previously not checked via r.ok — callProvider would silently try to read the error body
 // as a successful response (d?.choices?.[0]?.message?.content doesn't exist → text=""), and callers
-// (reviewCv/matchCv etc.) couldn't tell "the provider returned an error" apart from "a legitimate
+// (matchCv/auditCv etc.) couldn't tell "the provider returned an error" apart from "a legitimate
 // empty response" — both cases looked like null with no log of the reason.
 describe("chat() surfaces provider failures instead of a silent null", () => {
   beforeAll(async () => {

@@ -98,7 +98,6 @@
     "reports": {
       "hide": "Hide",
       "tabs": {
-        "tips": "Tips",
         "match": "Vacancy match",
         "tailor": "Tailored CV"
       },
@@ -193,9 +192,6 @@
       "tailorError": "Tailoring error",
       "tailorApplied": "Tailored version applied to the builder — remember to Save",
       "needMoreDetails": "Fill in more CV details for analysis",
-      "reviewOffline": "Basic analysis (enable LLM for deeper analysis)",
-      "reviewReady": "Analysis ready",
-      "reviewNotificationTitle": "Your CV review is ready",
       "analysisError": "Analysis error",
       "cvSaved": "CV saved",
       "aiOffline": "AI offline — enable the key",
@@ -207,8 +203,7 @@
       "uploadError": "Upload error",
       "auditApplied": "Applied",
       "auditAppliedMany": "Applied {{count}} fixes",
-      "auditStale": "That line has changed since the audit ran — re-run it to refresh.",
-      "auditOfflineOnly": "Showing the checks that work without AI. Add an AI key for positioning and phrasing advice."
+      "auditStale": "That line has changed since the audit ran — re-run it to refresh."
     }
   },
   "generalSection": {
@@ -736,6 +731,16 @@
       "previewTitle": "This {{count}} change will be applied:",
       "previewTitle_other": "These {{count}} changes will be applied:",
       "confirm": "Apply all {{count}}"
+    },
+    "runningBackgroundHint": "This runs in the background — keep editing, we'll tell you when it's ready.",
+    "scoreLabel": "Overall",
+    "strengthsTitle": "What works",
+    "keywordsTitle": "Worth adding",
+    "keywordsHint": " — click to add to Skills",
+    "toasts": {
+      "offline": "Basic offline audit (add an AI key for positioning and phrasing)",
+      "ready": "Audit ready",
+      "notificationTitle": "CV audit is ready"
     }
   },
   "exportDialog": {

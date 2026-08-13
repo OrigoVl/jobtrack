@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Btn, Card, Chip, Spinner } from "../../../shared/ui";
+import { Btn, Card, Chip } from "../../../shared/ui";
 import type { AuditFinding, AuditJumpTarget, AuditRule, AuditSeverity } from "./cv-audit";
 import { isMechanical, jumpTargetFor } from "./cv-audit";
+import { CvAuditProgress } from "./cv-audit-progress";
+import type { CvAuditStep } from "../../../shared/types";
 
 const SEVERITY_TONE: Record<AuditSeverity, "rose" | "amber" | "slate"> = {
   high: "rose",
@@ -137,7 +139,13 @@ function FindingCard({
 export function AuditPanel({
   findings,
   positioning,
+  score,
+  summary,
+  strengths,
+  keywords,
+  onAddKeyword,
   running,
+  step,
   offline,
   hasRun,
   onRun,
@@ -149,7 +157,15 @@ export function AuditPanel({
 }: {
   findings: AuditFinding[];
   positioning: { detectedRole: string; suggestedTitle: string; rationale: string } | null;
+  /** Whole-document judgements, folded in from what used to be a separate review call. */
+  score: number | null;
+  summary: string;
+  strengths: string[];
+  keywords: string[];
+  onAddKeyword: (k: string) => void;
   running: boolean;
+  /** Coarse phase of the background job, for the progress display while it runs. */
+  step: CvAuditStep | null;
   offline: boolean;
   hasRun: boolean;
   onRun: () => void;
@@ -211,6 +227,57 @@ export function AuditPanel({
         {/* Says plainly that the instant half already ran, so an empty-looking panel with no key
             doesn't read as a broken feature. */}
         {offline && <p className="text-[11px] text-ink-dim">{t("audit.offlineHint")}</p>}
+        {/* The whole-document verdict. Folded in from what used to be a separate review card above
+            the editor, which cost a second LLM call over the same résumé and could contradict the
+            findings below it on the same line. */}
+        {score != null && (
+          <div className="space-y-1.5 pt-0.5">
+            <div className="flex items-baseline gap-2">
+              <span className="text-xs font-semibold text-ink-dim uppercase tracking-wide">{t("audit.scoreLabel")}</span>
+              <span className="ml-auto text-2xl font-extrabold text-ink">
+                {score}
+                <span className="text-xs text-ink-dim">{t("reports.per100")}</span>
+              </span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${score >= 75 ? "bg-good" : score >= 50 ? "bg-star" : "bg-rose-500"}`}
+                style={{ width: `${score}%` }}
+              />
+            </div>
+            {summary && <p className="text-sm text-ink-dim">{summary}</p>}
+          </div>
+        )}
+        {strengths.length > 0 && (
+          <div>
+            <div className="text-xs font-semibold text-ink mb-1">{t("audit.strengthsTitle")}</div>
+            <ul className="list-disc pl-5 text-sm text-ink space-y-0.5">
+              {strengths.map((x, i) => (
+                <li key={i}>{x}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {keywords.length > 0 && (
+          <div>
+            <div className="text-xs font-semibold text-ink-dim mb-1">
+              {t("audit.keywordsTitle")}
+              {t("audit.keywordsHint")}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {keywords.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => onAddKeyword(k)}
+                  className="rounded-full bg-surface-2 text-ink-dim border border-grid px-2.5 py-0.5 text-xs font-medium transition-colors hover:border-signal/40 hover:bg-signal/10 hover:text-signal"
+                >
+                  + {k}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {bulkPreview && bulk.length > 0 && (
           <BulkPreview
             findings={bulk}
@@ -239,9 +306,11 @@ export function AuditPanel({
         </Card>
       )}
 
-      {running && findings.length === 0 && (
-        <Card className="!py-6 flex items-center justify-center gap-2 text-sm text-ink-dim">
-          <Spinner className="h-4 w-4" /> {t("audit.runningHint")}
+      {running && (
+        <Card className="!py-3.5">
+          <div className="text-sm font-semibold text-ink mb-1">{t("audit.runningHint")}</div>
+          <div className="text-xs text-ink-dim mb-3">{t("audit.runningBackgroundHint")}</div>
+          <CvAuditProgress step={step} />
         </Card>
       )}
 

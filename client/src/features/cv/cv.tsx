@@ -7,7 +7,7 @@ import { useToast } from "../../shared/use-toast";
 import { useApplyCvUpload, useCvProfiles, useProfile, useSaveProfile } from "../../shared/queries";
 import { Btn, Card, Chip, PageHeader, Select, Spinner } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
-import type { CvAnalysis, CvMatch, CvReview } from "../../shared/types";
+import type { CvAnalysis, CvMatch } from "../../shared/types";
 import { Field, SkillsInput } from "../../shared/view-kit";
 import { LinkedInOptimizerCard } from "./linkedin-optimizer-card";
 import { exportPdf } from "./cv-shared";
@@ -15,121 +15,6 @@ import { TRACKS, type Track } from "../../shared/tracks";
 import { trackLabel } from "../../shared/track-labels";
 
 /* ---------- CV ---------- */
-export function CvReviewPanel({
-  review,
-  onAddKeyword,
-  onApplyRewrite,
-}: {
-  review: CvReview;
-  onAddKeyword?: (k: string) => void;
-  onApplyRewrite?: (before: string, after: string) => void;
-}) {
-  const { t } = useTranslation(["cv", "common"]);
-  const tone = review.score == null ? "bg-ink-dim" : review.score >= 75 ? "bg-good" : review.score >= 50 ? "bg-star" : "bg-rose-500";
-  return (
-    <Card className="space-y-3">
-      <div className="flex items-center gap-2">
-        <span className="font-semibold text-ink">{t("reports.review.title")}</span>
-        {review.offline && <Chip>{t("shared.offline")}</Chip>}
-        {review.score != null && (
-          <span className="ml-auto text-2xl font-extrabold text-ink">
-            {review.score}
-            <span className="text-xs text-ink-dim">{t("reports.per100")}</span>
-          </span>
-        )}
-      </div>
-      {review.score != null && (
-        <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
-          <div className={`h-full ${tone} rounded-full transition-all`} style={{ width: `${review.score}%` }} />
-        </div>
-      )}
-      {review.summary && <Markdown text={review.summary} className="text-sm text-ink-dim space-y-2" />}
-      {/* Positioning gets its own block above the strengths/issues lists rather than being folded
-          into them: "this reads as X, the evidence supports Y" is a statement about the WHOLE
-          résumé, and it's the finding that changes which jobs the CV should be sent to at all. */}
-      {review.positioning?.detectedRole && (
-        <div className="rounded-lg border border-signal/30 bg-signal/10 px-3 py-2 space-y-1">
-          <div className="text-xs font-semibold text-ink">{t("reports.review.positioning")}</div>
-          <p className="text-sm text-ink">
-            {t("reports.review.positioningReadsAs")} <b>{review.positioning.detectedRole}</b>
-            {review.positioning.suggestedTitle && (
-              <>
-                {" · "}
-                {t("reports.review.positioningSupports")} <b>{review.positioning.suggestedTitle}</b>
-              </>
-            )}
-          </p>
-          {review.positioning.rationale && <p className="text-xs text-ink-dim">{review.positioning.rationale}</p>}
-        </div>
-      )}
-      {review.strengths.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold text-ink mb-1">{t("reports.review.strengths")}</div>
-          <ul className="list-disc pl-5 text-sm text-ink space-y-0.5">
-            {review.strengths.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {review.issues.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold text-rose-600 mb-1">{t("reports.review.improve")}</div>
-          <div className="space-y-1.5">
-            {review.issues.map((it, i) => (
-              <div key={i} className="text-sm">
-                <b className="text-ink">{it.title}.</b> <span className="text-ink-dim">{it.fix}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {review.keywords.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold text-ink-dim mb-1">
-            {t("reports.review.addKeywordsTitle")}
-            {onAddKeyword && t("reports.clickToAddHint")}
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {review.keywords.map((k) =>
-              onAddKeyword ? (
-                <button
-                  key={k}
-                  onClick={() => onAddKeyword(k)}
-                  className="rounded-full bg-signal/10 text-signal border border-signal/30 px-2.5 py-0.5 text-xs font-medium hover:bg-signal/20 transition-colors"
-                >
-                  + {k}
-                </button>
-              ) : (
-                <Chip key={k} tone="indigo">
-                  {k}
-                </Chip>
-              ),
-            )}
-          </div>
-        </div>
-      )}
-      {review.rewrites.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold text-ink-dim mb-1">{t("reports.review.rewriteStronger")}</div>
-          <div className="space-y-2">
-            {review.rewrites.map((rw, i) => (
-              <div key={i} className="text-sm rounded-lg border border-grid p-2 space-y-1">
-                <div className="text-rose-600">− {rw.before}</div>
-                <div className="text-signal">+ {rw.after}</div>
-                {onApplyRewrite && (
-                  <Btn size="sm" variant="ghost" onClick={() => onApplyRewrite(rw.before, rw.after)}>
-                    {t("reports.review.applyToBullet")}
-                  </Btn>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </Card>
-  );
-}
 export function CvMatchPanel({
   match,
   onAddKeyword,

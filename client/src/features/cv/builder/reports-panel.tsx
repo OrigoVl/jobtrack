@@ -1,39 +1,38 @@
 import { useTranslation } from "react-i18next";
 import { Btn, Card, Chip, Segmented } from "../../../shared/ui";
 import { useToast } from "../../../shared/use-toast";
-import type { CvMatch, CvReview, CvTailorResult } from "../../../shared/types";
-import { CvMatchPanel, CvReviewPanel } from "../cv";
+import type { CvMatch, CvTailorResult } from "../../../shared/types";
+import { CvMatchPanel } from "../cv";
 import { exportCvDoc } from "./cv-doc-utils";
 
-type ReportKind = "review" | "match" | "tailor";
+type ReportKind = "match" | "tailor";
 
 /**
- * The single reports card rendered under the CV Builder toolbar — one of "Tips" (CvReviewPanel),
- * "Compare" (CvMatchPanel), or "Tailor" results, switchable via a tab strip when more than one is
- * available. Kept as one fixed-position card (not independently-ordered blocks) so running one
- * report after another never pushes an earlier result out of view — it's one click away, not gone.
+ * The single reports card rendered under the CV Builder toolbar — either "Compare"
+ * (CvMatchPanel) or "Tailor" results, switchable via a tab strip when both are available. Kept as
+ * one fixed-position card (not independently-ordered blocks) so running one report after another
+ * never pushes an earlier result out of view — it's one click away, not gone.
+ *
+ * Whole-document feedback deliberately does NOT live here: that's the Audit editor mode, which
+ * addresses findings to specific lines and can apply them. These two reports are per-VACANCY,
+ * which is a different question from "is my CV good".
  */
 export function ReportsPanel({
-  review,
   match,
   tailored,
   activeReport,
   setActiveReport,
-  setReview,
   setMatch,
   setTailored,
   tailorVacancyLabel,
   onAddKeyword,
   onApplyTailored,
   onApplySummary,
-  onApplyRewrite,
 }: {
-  review: CvReview | null;
   match: CvMatch | null;
   tailored: CvTailorResult | null;
   activeReport: ReportKind;
   setActiveReport: (v: ReportKind) => void;
-  setReview: (v: CvReview | null) => void;
   setMatch: (v: CvMatch | null) => void;
   setTailored: (v: CvTailorResult | null) => void;
   /** Label of the vacancy the current `tailored` result was generated for, if any. */
@@ -41,20 +40,15 @@ export function ReportsPanel({
   onAddKeyword: (k: string) => void;
   onApplyTailored: () => void;
   onApplySummary: (s: string) => void;
-  onApplyRewrite: (before: string, after: string) => void;
 }) {
   const { t } = useTranslation(["cv", "common"]);
   const { toast } = useToast();
-  if (!review && !match && !tailored) return null;
+  if (!match && !tailored) return null;
   // Which reports actually exist — falls back to whichever is available if the remembered tab
   // was hidden/cleared, so the dismiss (✕) button always acts on what's actually on screen.
-  const available: ReportKind[] = [
-    ...(review ? (["review"] as const) : []),
-    ...(match ? (["match"] as const) : []),
-    ...(tailored ? (["tailor"] as const) : []),
-  ];
+  const available: ReportKind[] = [...(match ? (["match"] as const) : []), ...(tailored ? (["tailor"] as const) : [])];
   const current = available.includes(activeReport) ? activeReport : available[0];
-  const hide = () => (current === "review" ? setReview(null) : current === "match" ? setMatch(null) : setTailored(null));
+  const hide = () => (current === "match" ? setMatch(null) : setTailored(null));
   const tailorChanged = !!tailored && (tailored.reordered.skills > 0 || tailored.reordered.bullets > 0 || !!tailored.match.tailoredSummary);
   return (
     <div className="space-y-2">
@@ -64,7 +58,6 @@ export function ReportsPanel({
           onChange={setActiveReport}
           options={(
             [
-              { value: "review", label: t("builder.reports.tabs.tips") },
               { value: "match", label: t("builder.reports.tabs.match") },
               { value: "tailor", label: t("builder.reports.tabs.tailor") },
             ] as const
@@ -114,10 +107,8 @@ export function ReportsPanel({
             </Card>
             <CvMatchPanel match={tailored.match} onAddKeyword={onAddKeyword} />
           </div>
-        ) : current === "match" && match ? (
-          <CvMatchPanel match={match} onAddKeyword={onAddKeyword} onApplySummary={onApplySummary} />
         ) : (
-          review && <CvReviewPanel review={review} onAddKeyword={onAddKeyword} onApplyRewrite={onApplyRewrite} />
+          match && <CvMatchPanel match={match} onAddKeyword={onAddKeyword} onApplySummary={onApplySummary} />
         )}
       </div>
     </div>

@@ -10,7 +10,7 @@ import { CardsSkeleton, ProgressBar, Btn, Wordmark } from "../shared/ui";
 import { useUi } from "../shared/ui-state";
 import { CelebrationOverlay } from "../shared/celebration";
 import { FetchAllJobNotifier } from "../shared/fetch-all-notifier";
-import { CvReviewJobNotifier } from "../shared/cv-review-notifier";
+import { CvAuditJobNotifier } from "../shared/cv-audit-notifier";
 import { AiQuotaNotifier } from "../shared/ai-quota-notifier";
 import { CalendarReminderNotifier } from "../features/calendar/calendar-reminder-notifier";
 import { LanguageSwitcher } from "../shared/language-switcher";
@@ -666,7 +666,7 @@ function Shell() {
       <ToastHost />
       <CelebrationOverlay />
       <FetchAllJobNotifier />
-      <CvReviewJobNotifier />
+      <CvAuditJobNotifier />
       <AiQuotaNotifier />
       <WelcomeRedirect />
       <ReferralClaimer />
