@@ -582,8 +582,17 @@ export interface CvDoc {
   name: string;
   title: string;
   contact: string;
+  /** Own field rather than more text inside `contact`, so the renderer can format it (and a
+   * `tel:` href) instead of printing whatever was typed. Optional for the same reason as `links`:
+   * every document written before it existed keeps its phone inside `contact`, and splitting that
+   * back out automatically would be guesswork. */
+  phone?: string;
+  /** Accepts `@name`, `name`, `t.me/name` or a full URL — normalized for display and href by
+   * telegramContact() (cv-doc-utils.ts). Separate from `links` because a handle isn't a URL, and
+   * typing one into a link row produced a broken `https://@name` href. */
+  telegram?: string;
   /** Structured, separately-editable links (LinkedIn/GitHub/portfolio/etc.) — additive alongside
-   * `contact` (which stays freeform for email/phone/location), not a replacement for it: an
+   * `contact` (which stays freeform for email/location), not a replacement for it: an
    * existing account's `contact` may already have URLs typed into it as plain text, and there's
    * no reliable way to split that back apart, so this only ever grows going forward. */
   links?: CvContactLink[];

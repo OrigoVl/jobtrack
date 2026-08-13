@@ -91,6 +91,31 @@ function flatSkillsStyle(theme: CvTheme): "chips" | "inline" | "list" {
  * CSS goes in via `applyCvCss()` (CSSOM, not a `<style>` element) at each call site instead —
  * see the comment there.
  */
+/**
+ * Turns whatever a candidate types for Telegram into a display handle plus a working link.
+ *
+ * Accepts `@name`, a bare `name`, `t.me/name`, `telegram.me/name` and a full `https://` URL — all
+ * four are what people actually paste. This exists because a handle is NOT a URL: typed into a
+ * link row (the only place it could go before), `@name` was turned into `https://@name`, which is
+ * a dead link in the exported PDF. Returns null for empty/garbage input so the caller can leave
+ * the separator out rather than printing a stray `·`.
+ */
+export function telegramContact(raw: string): { label: string; href: string } | null {
+  const handle = raw
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/^(www\.)?t(elegram)?\.me\//i, "")
+    .replace(/^@/, "")
+    // A pasted link can carry a query/fragment ("t.me/name?start=x"); the handle is the first path
+    // segment, everything after it is noise for display purposes.
+    .split(/[/?#]/)[0]!
+    .trim();
+  // Telegram usernames are letters/digits/underscore. Anything else is a typo or a phone-style
+  // "+380…" invite link, neither of which should be presented as a @handle.
+  if (!/^\w+$/.test(handle)) return null;
+  return { label: `@${handle}`, href: `https://t.me/${handle}` };
+}
+
 export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
   const t = themeOf(doc);
   const esc = (s: string) =>
@@ -266,8 +291,22 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
       return `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(label)}</a>`;
     })
     .join(" · ");
+  // One assembled line reused by every layout below, rather than each one re-deciding where the
+  // separators go — that logic used to be inlined twice and would now have to know about four
+  // parts instead of two. The phone is deliberately plain text, not a `tel:` anchor: anchors here
+  // print underlined (see the LinkedIn link), and underlining a phone number on a résumé buys
+  // nothing.
+  const tg = telegramContact(doc.telegram ?? "");
+  const contactLine = [
+    esc(doc.contact.trim()),
+    esc((doc.phone ?? "").trim()),
+    tg ? `<a href="${esc(tg.href)}" target="_blank" rel="noopener">${esc(tg.label)}</a>` : "",
+    linksLine,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const photoImg = doc.photo && t.showPhoto !== false ? `<img class="photo" src="${doc.photo}" alt="Photo"/>` : "";
-  const hmeta = `<div class="hmeta" data-section="general"><h1>${esc(doc.name)}</h1><div class="title">${esc(doc.title)}</div><div class="contact">${esc(doc.contact)}${doc.contact.trim() && linksLine ? " · " : ""}${linksLine}</div></div>`;
+  const hmeta = `<div class="hmeta" data-section="general"><h1>${esc(doc.name)}</h1><div class="title">${esc(doc.title)}</div><div class="contact">${contactLine}</div></div>`;
   const langs = (doc.languages || []).filter((l) => l && l.name);
   const skillGroups = (doc.skillGroups ?? []).filter((g) => g.skills.some((s) => s.trim()) || g.name.trim());
   // "grouped" degrades to the flat list rather than to nothing when the doc has no groups yet:
@@ -396,7 +435,7 @@ export function buildCvDocument(doc: CvDoc): { html: string; css: string } {
     const aside =
       `${photoImg}<div class="s-name">${esc(doc.name)}</div>` +
       `${doc.title ? `<div class="s-title">${esc(doc.title)}</div>` : ""}` +
-      `${doc.contact.trim() || linksLine ? `<div class="s-contact">${esc(doc.contact)}${doc.contact.trim() && linksLine ? " · " : ""}${linksLine}</div>` : ""}` +
+      `${contactLine ? `<div class="s-contact">${contactLine}</div>` : ""}` +
       pick(["skills", "languages", "education", "certifications", "references"]);
     const main = pick(["summary", "experience", "projects", "volunteer", "publications", "awards"]);
     layout = `<div class="cols sidebar-layout"><aside class="side-panel" data-section="general">${aside}</aside><main>${main}</main></div>`;
@@ -593,6 +632,10 @@ export function cvDocToText(doc: CvDoc): string {
   if (doc.name) lines.push(doc.name);
   if (doc.title) lines.push(doc.title);
   if (doc.contact) lines.push(doc.contact);
+  // Same line as the rendered CV puts them on — this text is what the AI review/match features
+  // read, so a phone or Telegram handle held only in its own field shouldn't look missing to them.
+  const reach = [(doc.phone ?? "").trim(), telegramContact(doc.telegram ?? "")?.label ?? ""].filter(Boolean);
+  if (reach.length) lines.push(reach.join(" · "));
   const links = (doc.links ?? []).filter((l) => l.label.trim() || l.url.trim());
   if (links.length) lines.push(links.map((l) => [l.label, l.url].filter(Boolean).join(": ")).join(" · "));
   if (doc.summary) lines.push(`\nProfile:\n${doc.summary}`);
