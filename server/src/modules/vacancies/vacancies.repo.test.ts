@@ -140,6 +140,28 @@ describe("vacancies.repo (PGlite)", () => {
       const row = await repo.getVacancy(USER_A, id);
       expect(row?.companyId).toBe(companyOfB!.id);
     });
+
+    // POST /vacancies/import used to only ever set the free-text `company` string on an imported
+    // row, never `companyId` — so an imported vacancy showed "No linked company" in the detail
+    // modal (which only renders the linked-company picker) even when the name was guessed
+    // correctly. updateVacancyImportedTitle() now accepts companyId too; this proves it actually
+    // links the row, not just the text.
+    it("updateVacancyImportedTitle() links companyId (not just the free-text company name) for an imported row", async () => {
+      await companiesRepo.upsertCompany(USER_A, { name: "Nova Digital", notes: "", questions: [] });
+      const company = await companiesRepo.findCompanyByName(USER_A, "Nova Digital");
+      const id = await repo.createVacancyMinimal(USER_A, {
+        company: "",
+        position: "(imported)",
+        url: "https://jobs.dou.ua/companies/nova-digital/vacancies/1/",
+        status: "Want to apply",
+      });
+
+      await repo.updateVacancyImportedTitle(USER_A, id, { company: "Nova Digital", companyId: company!.id });
+
+      const row = await repo.getVacancy(USER_A, id);
+      expect(row?.company).toBe("Nova Digital");
+      expect(row?.companyId).toBe(company!.id);
+    });
   });
 
   describe("getVacancyEmbedding()/updateVacancyEmbedding()/findSimilarVacancies()", () => {

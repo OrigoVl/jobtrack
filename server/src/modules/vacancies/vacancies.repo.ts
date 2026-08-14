@@ -214,19 +214,25 @@ export async function updateVacancyEnrichment(
     .where(and(eq(vacancies.userId, userId), eq(vacancies.id, numId)));
 }
 
-/** Fills in company/position guessed after the fact for a generic-link bulk import (see
+/** Fills in company/position/companyId guessed after the fact for a bulk import (see
  * vacancies.routes.ts's POST /vacancies/import and vacancy-analysis.service.ts's
- * extractTitleCompany) — unlike a DOU export, those links don't encode either field, so the row
- * is first created with placeholders and only patched here if the best-effort guess succeeded. */
+ * extractTitleCompany/companyFromDouUrl) — unlike a DOU export, a generic link doesn't encode
+ * either field, so the row is first created with placeholders and only patched here if the
+ * best-effort guess succeeded. `companyId` is separate from `company` (the free-text name) since
+ * the caller only has an id once it has actually created/found the `companies` row — imported
+ * vacancies used to get the text name but never a real link, so the detail modal (which only
+ * shows the linked-company picker, no free-text field — see VacancyDraft's own comment) displayed
+ * "No linked company" for every imported vacancy even when the name was guessed correctly. */
 export async function updateVacancyImportedTitle(
   userId: UserId,
   id: number,
-  title: { company?: string; position?: string },
+  title: { company?: string; position?: string; companyId?: number },
 ): Promise<void> {
-  if (!title.company && !title.position) return;
+  if (!title.company && !title.position && title.companyId === undefined) return;
+  const { companyId, ...rest } = title;
   await db
     .update(vacancies)
-    .set(title)
+    .set(companyId === undefined ? rest : { ...rest, companyId })
     .where(and(eq(vacancies.userId, userId), eq(vacancies.id, id)));
 }
 
