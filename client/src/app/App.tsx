@@ -226,17 +226,27 @@ function AiQuotaBadge() {
   );
 }
 
+// Was a plain <div> — read as a disconnected stat, not a link, since nothing about it looked
+// clickable (no hover state, no chevron) even though it summarizes an actual page. `hover:` +
+// an arrow glyph mark it as navigable the same way the sidebar's own nav items already do;
+// "Roadmap" is the destination's own name (see sidebarItems), so this doubles as a label for it.
 function SidebarProgress() {
   const { t } = useTranslation("nav");
   const { data: roadmap } = useRoadmap();
+  const navigate = useNavigate();
   if (!roadmap) return null;
   return (
-    <div className="rounded-xl bg-surface border border-grid p-2.5">
-      <div className="text-xs font-medium text-ink-dim mb-1">
-        {t("roadmapProgress", { done: roadmap.progress.done, total: roadmap.progress.total })}
+    <button
+      type="button"
+      onClick={() => navigate("/roadmap")}
+      className="w-full text-left rounded-xl bg-surface border border-grid p-2.5 hover:border-signal/40 hover:bg-surface-2 transition-colors"
+    >
+      <div className="flex items-center gap-1 text-xs font-medium text-ink-dim mb-1">
+        <span>{t("roadmapProgress", { done: roadmap.progress.done, total: roadmap.progress.total })}</span>
+        <span className="ml-auto text-signal">→</span>
       </div>
       <ProgressBar value={roadmap.progress.done} max={roadmap.progress.total} tone="emerald" />
-    </div>
+    </button>
   );
 }
 

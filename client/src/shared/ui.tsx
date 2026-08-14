@@ -343,16 +343,21 @@ export function NumberedMark({ n, className = "" }: { n: number; className?: str
 }
 
 // Tone keys are kept as-is (many call sites across features pass tone="indigo"/"emerald"/"amber")
-// — only the underlying palette changed. "indigo"/"emerald"/"amber" all resolve to the single
-// brand accent ("signal"/"alert" are the same value — see index.css's glossary, one accent not
-// two). "good" is the one genuinely distinct tone, for contexts that need a real third hue (e.g.
-// fit-tone.ts's "high fit" vs "medium fit") — "rose" (errors/destructive) is untouched.
+// — only the underlying palette changed. "indigo"/"emerald" resolve to the single brand accent
+// ("signal"/"alert" are the same value — see index.css's glossary, one accent not two). "good"
+// and "progress" are genuinely distinct tones for contexts that need a real third hue in a
+// stoplight (todo/in-progress/done ≈ gray/amber/green) — fit-tone.ts's "medium fit" and
+// resume-completeness's middle tier use "progress" for the same reason roadmap.tsx's own
+// mid-state does (see index.css's --progress comment); "amber" is kept as a separate alias since
+// some call sites want the alert hue specifically, not the stoplight-amber. "rose"
+// (errors/destructive) is untouched.
 const CHIP_TONE = {
   slate: "bg-surface-2 text-ink-dim border-grid",
   indigo: "bg-signal/10 text-signal border-signal/30",
   emerald: "bg-signal/10 text-signal border-signal/30",
   amber: "bg-alert/10 text-alert border-alert/30",
   good: "bg-good/10 text-good border-good/30",
+  progress: "bg-progress/10 text-progress border-progress/30",
   rose: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800",
 } as const;
 

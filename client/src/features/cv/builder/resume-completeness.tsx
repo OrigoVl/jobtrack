@@ -42,12 +42,14 @@ export function ResumeCompleteness({
   const pct = Math.round((done / checks.length) * 100);
   const missing = checks.filter(([ok]) => !ok);
   // Literal class strings (not template-interpolated) so Tailwind's static scanner picks all
-  // three variants up at build time regardless of which branch actually runs.
+  // three variants up at build time regardless of which branch actually runs. Middle tier uses
+  // the dedicated stoplight amber ("progress" — same token as roadmap.tsx's own mid-state and
+  // fit-tone.ts's "medium fit"), not the brand indigo — see ui.tsx's CHIP_TONE comment.
   const tone =
     pct >= 85
       ? { text: "text-good", bar: "bg-good" }
       : pct >= 50
-        ? { text: "text-signal", bar: "bg-star" }
+        ? { text: "text-progress", bar: "bg-progress" }
         : { text: "text-rose-600", bar: "bg-rose-500" };
   const content = (
     <>

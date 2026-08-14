@@ -14,7 +14,28 @@ describe("parseMarkdownBlocks", () => {
 
   it("parses a numbered list", () => {
     const blocks = parseMarkdownBlocks("1. First\n2. Second");
-    expect(blocks).toEqual([{ type: "ol", items: ["First", "Second"] }]);
+    expect(blocks).toEqual([
+      {
+        type: "ol",
+        items: [
+          { text: "First", subItems: [] },
+          { text: "Second", subItems: [] },
+        ],
+      },
+    ]);
+  });
+
+  it("keeps a numbered list as ONE list when each item has its own supporting bullet — the CV vs market bug (every recommendation rendering as a separate '1.' instead of counting up)", () => {
+    const blocks = parseMarkdownBlocks("1. Highlight X\n- because Y\n1. Expand Z\n- because W");
+    expect(blocks).toEqual([
+      {
+        type: "ol",
+        items: [
+          { text: "Highlight X", subItems: ["because Y"] },
+          { text: "Expand Z", subItems: ["because W"] },
+        ],
+      },
+    ]);
   });
 
   it("parses a markdown heading line (#/##)", () => {

@@ -3,8 +3,12 @@
 import i18n from "../i18n";
 import type { Fit } from "./types";
 
-export const fitTone: Record<Fit, "good" | "indigo" | "rose"> = { high: "good", med: "indigo", low: "rose" };
-export const fitText: Record<Fit, string> = { high: "text-good", med: "text-signal", low: "text-rose-600" };
+// "med" uses the dedicated stoplight amber ("progress"), not the brand indigo — see ui.tsx's
+// CHIP_TONE comment. Two different "medium" colors for the same three-way fit/completeness
+// concept (this one and resume-completeness's tier) read as inconsistent next to roadmap.tsx's
+// own mid-state, which already uses this token.
+export const fitTone: Record<Fit, "good" | "progress" | "rose"> = { high: "good", med: "progress", low: "rose" };
+export const fitText: Record<Fit, string> = { high: "text-good", med: "text-progress", low: "text-rose-600" };
 
 // A Record (not a template literal) so each value stays a literal key i18next's typed t() can
 // actually verify against common.json — a `${fit}` interpolation would collapse to a plain
