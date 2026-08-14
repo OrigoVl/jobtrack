@@ -181,7 +181,11 @@ function ToastHost() {
       {toasts.map((t) => (
         <button
           key={t.id}
-          onClick={() => dismissToast(t.id)}
+          type="button"
+          onClick={() => {
+            t.onAction?.();
+            dismissToast(t.id);
+          }}
           className={`text-left text-sm px-4 py-2.5 rounded-xl shadow-lg ${tone[t.type]} animate-[jt-fade-in_0.2s_ease-out]`}
         >
           {t.message}

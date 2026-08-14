@@ -5,7 +5,7 @@ import type { Toast, ToastType } from "./types";
 
 export interface ToastApi {
   toasts: Toast[];
-  toast: (message: string, type?: ToastType) => void;
+  toast: (message: string, type?: ToastType, onAction?: () => void) => void;
   dismissToast: (id: number) => void;
 }
 

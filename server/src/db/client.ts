@@ -24,7 +24,7 @@ const migrationsFolder = path.join(__dirname, "..", "..", "drizzle");
 
 const pool = new pg.Pool({ connectionString: env.db.url, max: env.db.poolMax });
 
-export const db = drizzle(pool, { schema });
+const db = drizzle(pool, { schema });
 export type AppDb = typeof db;
 
 if (env.db.migrateOnBoot) {

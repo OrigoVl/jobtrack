@@ -468,7 +468,7 @@ export function Vacancies() {
                                 onBlur={(e) => updateVacancyMutation.mutate({ id: row.id, patch: { url: e.target.value } })}
                                 placeholder={t("table.vacancyLinkPlaceholder")}
                                 aria-label={t("table.vacancyLinkAriaLabel", { company: row.company })}
-                                className="bg-transparent text-signal text-[11px] flex-1 min-w-0 outline-none focus:bg-surface focus:ring-1 focus:ring-signal/40 rounded px-1"
+                                className="bg-transparent text-signal text-[11px] flex-1 min-w-0 outline-none focus:bg-surface focus:ring-1 focus:ring-signal/40 rounded px-1 text-ellipsis overflow-hidden"
                               />
                               {row.url && (
                                 <a

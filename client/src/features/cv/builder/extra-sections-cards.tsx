@@ -12,7 +12,11 @@ import type {
   CvVolunteerEntry,
 } from "../../../shared/types";
 
-const LANGUAGE_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2", "Native", "Conversational"];
+// "Conversational" used to be offered here too, alongside the letter scale — dropped from the
+// picker since it roughly duplicates B1 and mixing a named tier into an otherwise all-letter
+// scale read as inconsistent. Its label mapping below stays so CVs saved with that value before
+// this change still render correctly; it just isn't offered for new entries.
+const LANGUAGE_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2", "Native"];
 // "Native"/"Conversational" are also the stored wire values (see CvLanguage.level) — only their
 // DISPLAY label is translated here, same convention as shared/status-labels.ts's statusLabel.
 const LANGUAGE_LEVEL_LABEL_KEY: Record<string, "extraSections.languages.native" | "extraSections.languages.conversational"> = {
@@ -264,7 +268,10 @@ export function LanguagesSection({ languages, onChange }: LanguagesSectionProps)
           <label className="block w-40">
             <span className="text-xs font-semibold text-ink-dim">{t("extraSections.languages.level")}</span>
             <Select value={l.level} onChange={(e) => setLang(i, { level: e.target.value })} className="w-full mt-0.5">
-              {LANGUAGE_LEVELS.map((lvl) => (
+              {/* A CV saved before "Conversational" was dropped from the picker can still have it
+                  as its stored level — keep it selectable here so the dropdown shows the real
+                  saved value instead of silently falling back to whatever option is first. */}
+              {(LANGUAGE_LEVELS.includes(l.level) ? LANGUAGE_LEVELS : [l.level, ...LANGUAGE_LEVELS]).map((lvl) => (
                 <option key={lvl} value={lvl}>
                   {LANGUAGE_LEVEL_LABEL_KEY[lvl] ? t(LANGUAGE_LEVEL_LABEL_KEY[lvl]) : lvl}
                 </option>
