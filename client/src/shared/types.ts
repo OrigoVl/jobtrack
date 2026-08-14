@@ -299,6 +299,11 @@ export interface ProjectsData {
   progress: Record<string, boolean>;
   /** True when at least one project above was actually AI-personalized (not the static ladder). */
   personalized?: boolean;
+  /** True while the server's background personalization job (see server's projects-job.ts) is
+   * still running — `projects` above is the static ladder, or a previous run's sticky result,
+   * until it flips to false. useProjects() re-polls while this is true (see
+   * shared/queries/projects.ts). */
+  generating?: boolean;
 }
 
 export interface PlanDay {

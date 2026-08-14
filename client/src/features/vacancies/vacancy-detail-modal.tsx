@@ -21,6 +21,7 @@ import { STATUSES, type CvMatch, type Fit, type Vacancy, type VacancyStatus } fr
 import { fitLabel, fitText } from "../../shared/fit-tone";
 import { statusLabel } from "../../shared/status-labels";
 import { STATUS_SELECT_CLASS, DEFAULT_STATUS_SELECT_CLASS } from "../../shared/status-tone";
+import { looksNonTechnical } from "../../shared/tracks";
 import { DateInput } from "../../shared/date-input";
 import { SimilarVacanciesButton } from "./similar-vacancies-button";
 import { CvMatchPanel } from "../cv/cv";
@@ -150,6 +151,12 @@ export function VacancyDetailModal({
   const [saving, setSaving] = useState(false);
   const dirty = DRAFT_FIELDS.some((f) => !sameFieldValue(draft[f], vacancy[f]));
   const patchDraft = (patch: Partial<VacancyDraft>) => setDraft((d) => ({ ...d, ...patch }));
+  // Same heuristic and reasoning as vacancy-create-modal.tsx: hide Tech stack for a plainly
+  // non-technical position (PM/QA/Design), never once the vacancy already has stack entries, and
+  // a manual override always wins. This modal remounts per vacancy (see class doc comment), so a
+  // plain useState resets the override correctly each time a different vacancy is opened.
+  const [stackForced, setStackForced] = useState(false);
+  const showStack = stackForced || draft.stack.length > 0 || !looksNonTechnical(draft.position);
 
   const [coverBusy, setCoverBusy] = useState(false);
   const [coverError, setCoverError] = useState(false);
@@ -506,28 +513,43 @@ export function VacancyDetailModal({
             />
           </label>
           {/* A bare date ("Next step: 15.08.2026") doesn't say what to actually do — wait for a
-              reply, prepare for an interview, follow up. Freeform, like notes/level: no fixed
-              vocabulary of "next action types" fits every stage, and forcing one would just move
-              the ambiguity into an enum. Draft-committed like notes, not immediate like the date
-              itself — it's prose someone builds up, not a one-gesture pick. */}
+              reply, prepare for an interview, follow up. Still freeform (no fixed vocabulary fits
+              every stage, and forcing one would just move the ambiguity into an enum), but a
+              native <datalist> offers common phrasings as one-click fills without taking that
+              freedom away — same "shortcut, never a constraint" spirit as resources.tsx's focus
+              suggestions, just via the browser's own autocomplete instead of a chip row, since
+              this field has no room in this compact metadata strip for one. Draft-committed like
+              notes, not immediate like the date itself — it's prose someone builds up. */}
           <input
             value={draft.nextAction}
             onChange={(e) => patchDraft({ nextAction: e.target.value })}
             placeholder={t("table.nextActionPlaceholder")}
             aria-label={t("table.nextActionAriaLabel", { company: vacancy.company })}
             maxLength={200}
+            list="next-action-suggestions"
             className="bg-surface border border-grid rounded px-2 py-1 text-xs w-36 outline-none focus:ring-1 focus:ring-signal/40"
           />
+          <datalist id="next-action-suggestions">
+            {(t("table.nextActionSuggestions", { returnObjects: true }) as string[]).map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
           <SimilarVacanciesButton vacancyId={vacancy.id} />
         </div>
 
         <div className="px-5 py-3 border-b border-surface-2">
-          <SkillsInput
-            label={t("detail.stackLabel")}
-            skills={draft.stack}
-            onChange={(stack) => patchDraft({ stack })}
-            placeholder={t("detail.stackPlaceholder")}
-          />
+          {showStack ? (
+            <SkillsInput
+              label={t("detail.stackLabel")}
+              skills={draft.stack}
+              onChange={(stack) => patchDraft({ stack })}
+              placeholder={t("detail.stackPlaceholder")}
+            />
+          ) : (
+            <button type="button" onClick={() => setStackForced(true)} className="text-xs text-ink-dim hover:text-signal hover:underline">
+              {t("create.showStackAnyway")}
+            </button>
+          )}
         </div>
 
         {/* Tabs */}

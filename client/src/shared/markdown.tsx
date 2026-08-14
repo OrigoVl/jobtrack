@@ -3,7 +3,7 @@ import { Fragment, type ReactNode } from "react";
 type Block =
   | { type: "h"; level: number; text: string }
   | { type: "ul"; items: string[] }
-  | { type: "ol"; items: string[] }
+  | { type: "ol"; items: { text: string; subItems: string[] }[] }
   | { type: "p"; lines: string[] };
 
 const BULLET_RE = /^\s*[-*•]\s+/;
@@ -42,9 +42,21 @@ export function parseMarkdownBlocks(text: string): Block[] {
       continue;
     }
     if (NUMBERED_RE.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && NUMBERED_RE.test(lines[i] ?? "")) {
-        items.push((lines[i] ?? "").replace(NUMBERED_RE, "").trim());
+      // A numbered recommendation is very often followed by its own supporting bullet(s) in real
+      // LLM output ("1. Highlight X\n   - because Y"), not just another numbered line. Treating
+      // only NUMBERED_RE as "still inside this list" (the original condition) let that bullet end
+      // the block early — so the NEXT "1." started a brand-new <ol>, restarting the counter at 1
+      // for every single recommendation instead of counting 1..N once. A bullet line only
+      // continues the list while at least one numbered item has already been seen, so a bulleted
+      // block that merely happens to start with numerals isn't misread as numbered.
+      const items: { text: string; subItems: string[] }[] = [];
+      while (i < lines.length && (NUMBERED_RE.test(lines[i] ?? "") || (items.length > 0 && BULLET_RE.test(lines[i] ?? "")))) {
+        const cur = lines[i] ?? "";
+        if (NUMBERED_RE.test(cur)) {
+          items.push({ text: cur.replace(NUMBERED_RE, "").trim(), subItems: [] });
+        } else {
+          items[items.length - 1]!.subItems.push(cur.replace(BULLET_RE, "").trim());
+        }
         i++;
       }
       blocks.push({ type: "ol", items });
@@ -116,7 +128,16 @@ export function Markdown({ text, className, inline = false }: { text: string; cl
           return (
             <ol key={idx} className="list-decimal pl-5 space-y-1">
               {b.items.map((it, i) => (
-                <li key={i}>{renderInlineText(it, `ol${idx}-${i}`)}</li>
+                <li key={i}>
+                  {renderInlineText(it.text, `ol${idx}-${i}`)}
+                  {it.subItems.length > 0 && (
+                    <ul className="list-disc pl-5 mt-1 space-y-1">
+                      {it.subItems.map((sub, si) => (
+                        <li key={si}>{renderInlineText(sub, `ol${idx}-${i}-${si}`)}</li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
               ))}
             </ol>
           );

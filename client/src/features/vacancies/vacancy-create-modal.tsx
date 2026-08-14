@@ -7,6 +7,7 @@ import { Btn, Select } from "../../shared/ui";
 import { SkillsInput } from "../../shared/view-kit";
 import { STATUSES, type Vacancy } from "../../shared/types";
 import { statusLabel } from "../../shared/status-labels";
+import { looksNonTechnical } from "../../shared/tracks";
 
 /**
  * A dedicated "new vacancy" form — unlike VacancyDetailModal (which edits an already-persisted
@@ -30,6 +31,13 @@ export function VacancyCreateModal({ onClose, onCreated }: { onClose: () => void
   const [status, setStatus] = useState<string>(STATUSES[0]);
   const [stack, setStack] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
+  // Hides the Tech stack input for a position that plainly isn't technical (PM/QA/Design — see
+  // tracks.ts's looksNonTechnical), per explicit product decision. Never hides once stack already
+  // has entries (e.g. from autofill before the position was edited into a non-technical one) —
+  // this is about not showing an irrelevant empty field, not about hiding real data — and a
+  // manual override always wins so a heuristic miss never actually blocks anyone.
+  const [stackForced, setStackForced] = useState(false);
+  const showStack = stackForced || stack.length > 0 || !looksNonTechnical(position);
   const [autofillBusy, setAutofillBusy] = useState(false);
   const [autofillEmpty, setAutofillEmpty] = useState(false);
   // What autofill read about the EMPLOYER (as opposed to the role), held until Save so nothing is
@@ -229,12 +237,18 @@ export function VacancyCreateModal({ onClose, onCreated }: { onClose: () => void
           </div>
 
           <div>
-            <SkillsInput
-              label={t("detail.stackLabel")}
-              skills={stack}
-              onChange={setStack}
-              placeholder={url ? t("create.stackPlaceholderWithUrl") : t("detail.stackPlaceholder")}
-            />
+            {showStack ? (
+              <SkillsInput
+                label={t("detail.stackLabel")}
+                skills={stack}
+                onChange={setStack}
+                placeholder={url ? t("create.stackPlaceholderWithUrl") : t("detail.stackPlaceholder")}
+              />
+            ) : (
+              <button type="button" onClick={() => setStackForced(true)} className="text-xs text-ink-dim hover:text-signal hover:underline">
+                {t("create.showStackAnyway")}
+              </button>
+            )}
           </div>
 
           <label className="space-y-1 block">

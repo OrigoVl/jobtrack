@@ -33,7 +33,7 @@ import {
 import { getFetchAllJob, startFetchAllJob } from "./fetch-all-job.js";
 import { vacancyEmbeddingText } from "./vacancy-text.js";
 import { findSimhashDuplicate } from "../jobs/job-dedupe.js";
-import { getCompanyById } from "../companies/companies.repo.js";
+import { getCompanyById, upsertCompanyEnrichment } from "../companies/companies.repo.js";
 import {
   listVacancies,
   getVacancy,
@@ -421,6 +421,13 @@ r.post(
       const existingAtCompany = existingSnapshot.find((v) => v.company.toLowerCase() === company.toLowerCase());
       const id = await createVacancyMinimal(userId, { company, position: "(imported)", url, status: "Want to apply" });
       await recordStatusChange(userId, id, "Want to apply");
+      // The slug-derived name is reliable enough to link for real, not just store as text — same
+      // non-destructive upsert the single-vacancy "Add"/"Refresh from link" flows use, so a
+      // second import for an employer the user already has notes on never overwrites them.
+      if (company) {
+        const companyRow = await upsertCompanyEnrichment(userId, { name: company, notes: "", questions: [], website: "" });
+        if (companyRow.id) await updateVacancyImportedTitle(userId, id, { companyId: companyRow.id });
+      }
       newIds.push({ id, url, hasCompany: true });
       added.push({ company, url });
       if (existingAtCompany) {
@@ -465,10 +472,17 @@ r.post(
         // for the other must never overwrite the "(imported)" placeholder with blank.
         const guess = await extractTitleCompany(userId, text);
         if (guess) {
-          const title: { company?: string; position?: string } = {};
+          const title: { company?: string; position?: string; companyId?: number } = {};
           if (guess.position) title.position = guess.position;
-          if (!hasCompany && guess.company) title.company = guess.company;
-          if (title.company || title.position) await updateVacancyImportedTitle(userId, id, title);
+          if (!hasCompany && guess.company) {
+            title.company = guess.company;
+            // Same non-destructive upsert as the DOU branch above — an LLM-guessed name is less
+            // certain than a URL-derived one, but still worth linking for real rather than leaving
+            // the detail modal's company picker permanently empty for every generic-link import.
+            const companyRow = await upsertCompanyEnrichment(userId, { name: guess.company, notes: "", questions: [], website: "" });
+            if (companyRow.id) title.companyId = companyRow.id;
+          }
+          if (title.company || title.position || title.companyId !== undefined) await updateVacancyImportedTitle(userId, id, title);
         }
       }
       await new Promise((resolve) => setTimeout(resolve, 400)); // polite pause

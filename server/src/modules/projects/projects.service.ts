@@ -64,7 +64,7 @@ export interface DynamicProjects {
   personalized: boolean;
 }
 
-interface DynamicProjectsContext {
+export interface DynamicProjectsContext {
   profile: Pick<Profile, "skills" | "domain">;
   demand: Record<string, number>;
   /** gapPriorityMap()'s output — decides WHICH gaps get a project and in what order; `demand`

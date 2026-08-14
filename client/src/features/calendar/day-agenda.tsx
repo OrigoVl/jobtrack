@@ -88,7 +88,9 @@ export function DayAgenda({
           onClick={onGoVacancies}
           className="w-full flex items-center gap-2 text-xs text-left px-2 py-1.5 rounded-lg border border-alert/30 bg-alert/10 hover:bg-alert/20 transition-colors"
         >
-          <Chip tone="amber">{t("nextStep")}</Chip>
+          <span className="shrink-0 whitespace-nowrap">
+            <Chip tone="amber">{t("nextStep")}</Chip>
+          </span>
           <span className="text-ink break-words">
             {s.company} — <span className="text-ink-dim">{s.position || t("modal.position")}</span>
           </span>
