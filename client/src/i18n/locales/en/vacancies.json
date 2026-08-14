@@ -130,6 +130,8 @@
     "status": "Status",
     "applied": "Applied",
     "nextStep": "Next step",
+    "nextActionPlaceholder": "What to do (e.g. Follow up)",
+    "nextActionAriaLabel": "Next action — {{company}}",
     "created": "Added",
     "vacancyLinkPlaceholder": "Vacancy link (from any site) → the stack fills in itself…",
     "vacancyLinkAriaLabel": "Vacancy link — {{company}}",
@@ -151,7 +153,7 @@
     "move": "Move"
   },
   "toasts": {
-    "added": "Vacancy added",
+    "added": "Vacancy added →",
     "offerCelebration": "Congratulations on the offer from {{company}}!",
     "possibleDuplicate": "Added — but this looks similar to an existing one: {{position}} at {{company}}. Worth checking if it's a duplicate.",
     "deleted": "Vacancy deleted",

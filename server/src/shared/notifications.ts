@@ -45,10 +45,6 @@ export const DEFAULT_NOTIFICATION_ENABLED = true;
 /** The kinds a user is allowed to switch off. `billing` is excluded on purpose — see above. */
 export const OPT_OUTABLE_KINDS: readonly NotificationKind[] = NOTIFICATION_KINDS.filter((k) => k !== "billing");
 
-export function isNotificationKind(value: unknown): value is NotificationKind {
-  return typeof value === "string" && (NOTIFICATION_KINDS as readonly string[]).includes(value);
-}
-
 /**
  * Whether a given kind is on for a user, against their SPARSE stored preferences (a missing key
  * means "never touched, use the default" — see the column comment in db/schema/app.ts). Pure, so

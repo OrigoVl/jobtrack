@@ -71,6 +71,7 @@ export interface VacancyInput {
   fit?: Fit;
   applied?: string;
   next?: string;
+  nextAction?: string;
   notes?: string;
   stack?: string[];
   companyId?: number | null;
@@ -100,6 +101,7 @@ export function parseVacancyInput(body: unknown, { partial = false }: { partial?
   }
   if (!partial || has("applied")) out.applied = toDateOrEmpty(b.applied, "applied");
   if (!partial || has("next")) out.next = toDateOrEmpty(b.next, "next");
+  if (!partial || has("nextAction")) out.nextAction = asString(b.nextAction).trim().slice(0, 200);
   if (!partial || has("notes")) out.notes = asString(b.notes).slice(0, 5000);
   if (!partial || has("stack")) out.stack = toStringArray(b.stack, "stack");
   if (!partial || has("companyId")) {

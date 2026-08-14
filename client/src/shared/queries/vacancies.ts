@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import type { Vacancy } from "../types";
@@ -29,6 +30,7 @@ export function useAddVacancy() {
   const { t } = useTranslation("vacancies");
   const onError = useMutationErrorToast();
   const invalidateDerived = useInvalidateDerived();
+  const navigate = useNavigate();
   return useMutation({
     mutationFn: (v: Partial<Vacancy>) => api.addVacancy(v),
     onSuccess: async ({ possibleDuplicateOf, ...row }) => {
@@ -40,7 +42,9 @@ export function useAddVacancy() {
       if (possibleDuplicateOf) {
         toast(t("toasts.possibleDuplicate", { company: possibleDuplicateOf.company, position: possibleDuplicateOf.position }), "info");
       } else {
-        toast(t("toasts.added"), "success");
+        // Clickable — added from a job search result, so there's nothing on screen pointing at
+        // where it landed; the toast itself is the only link back to the vacancies dashboard.
+        toast(t("toasts.added"), "success", () => navigate("/vacancies"));
       }
     },
     onError,

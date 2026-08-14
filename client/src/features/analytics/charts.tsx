@@ -38,6 +38,14 @@ export function Analytics() {
     .sort((x, y) => y.value - x.value)
     .slice(0, 12);
   const hasData = Object.values(analytics.demand).some(Boolean);
+  // A fixed 92px axis (this chart's old width) fit short English tech names ("React", "SQL")
+  // but clipped/overlapped longer Ukrainian labels ("організація", "комунікація") — size it to
+  // the longest label actually being shown instead, capped so one long outlier can't eat the
+  // whole chart. `demandTick` truncates anything past that cap; the full name still shows in the
+  // Tooltip on hover, so nothing is lost, just kept off the axis.
+  const DEMAND_TICK_MAX_CHARS = 16;
+  const demandAxisWidth = Math.min(160, Math.max(92, Math.max(0, ...demand.map((d) => d.name.length)) * 6.5 + 24));
+  const demandTick = (name: string) => (name.length > DEMAND_TICK_MAX_CHARS ? `${name.slice(0, DEMAND_TICK_MAX_CHARS - 1)}…` : name);
   // `avgDaysPlot` is what the Bar actually plots; `avgDays` (the real figure, possibly 0) is what
   // the Tooltip/LabelList display. Recharts doesn't just render a 0-value bar as an invisible
   // 0-width rectangle — it drops the rectangle from its internal render list ENTIRELY (confirmed
@@ -173,7 +181,13 @@ export function Analytics() {
               <ResponsiveContainer>
                 <BarChart data={demand} layout="vertical">
                   <XAxis type="number" tick={{ fill: AXIS }} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" width={92} tick={{ fill: AXIS, fontSize: 11 }} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={demandAxisWidth}
+                    tickFormatter={demandTick}
+                    tick={{ fill: AXIS, fontSize: 11 }}
+                  />
                   <Tooltip
                     cursor={{ fill: "rgb(var(--star) / 0.12)" }}
                     contentStyle={TOOLTIP}

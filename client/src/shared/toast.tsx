@@ -12,9 +12,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const idRef = useRef(0);
 
-  const toast = useCallback((message: string, type: ToastType = "info") => {
+  const toast = useCallback((message: string, type: ToastType = "info", onAction?: () => void) => {
     const id = ++idRef.current;
-    setToasts((t) => [...t, { id, message, type }]);
+    setToasts((t) => [...t, { id, message, type, onAction }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3800);
   }, []);
 

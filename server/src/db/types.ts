@@ -23,6 +23,7 @@ export interface VacancyRow {
   fit: string;
   applied: string;
   next: string;
+  nextAction: string;
   notes: string;
   stack: string[];
   created: string;

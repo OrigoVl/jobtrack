@@ -25,6 +25,7 @@ const vacancy: VacancyRow = {
   fit: "high",
   applied: "",
   next: "",
+  nextAction: "",
   notes: "Focus on performance.",
   stack: ["React", "TypeScript"],
   created: "",

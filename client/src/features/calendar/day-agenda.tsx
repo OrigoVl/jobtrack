@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Btn, Chip, Spinner } from "../../shared/ui";
 import { CardsStackIcon } from "../../shared/icons";
@@ -53,6 +53,14 @@ export function DayAgenda({
 }) {
   const { t } = useTranslation(["calendar", "common"]);
   const [quickTitle, setQuickTitle] = useState("");
+  const quickInputRef = useRef<HTMLInputElement>(null);
+
+  // Focuses the quick-add field on open without the project-banned `autoFocus` prop — same
+  // pattern as shared/confirm.tsx's confirm button. This component is remounted fresh each time
+  // a day cell's popover opens (see the class doc comment above), so mount = "day just opened".
+  useEffect(() => {
+    quickInputRef.current?.focus();
+  }, []);
 
   const submitQuick = (e: FormEvent) => {
     e.preventDefault();
@@ -149,9 +157,14 @@ export function DayAgenda({
       ))}
 
       {/* Quick-add: a title is the only thing most entries actually need, and the event lands at
-          this day's default time — the full modal stays one click away for times/type/notes. */}
+          this day's default time — the full modal stays one click away for times/type/notes.
+          Focused on open (see quickInputRef effect above) so clicking a day cell and just typing
+          (then Enter) is the whole flow — the popover open is itself already a click on the day,
+          so this doesn't cost an extra one; without it, adding an event took "click day, then
+          click into the field, then type". */}
       <form onSubmit={submitQuick} className="flex items-center gap-1.5 pt-0.5">
         <input
+          ref={quickInputRef}
           value={quickTitle}
           onChange={(ev) => setQuickTitle(ev.target.value)}
           placeholder={t("quickAddPlaceholder")}

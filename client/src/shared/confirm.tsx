@@ -49,7 +49,10 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
       {pending &&
         createPortal(
           // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
-          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => close(false)}>
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/45 backdrop-blur-sm p-4"
+            onClick={() => close(false)}
+          >
             {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
             <div
               role="alertdialog"

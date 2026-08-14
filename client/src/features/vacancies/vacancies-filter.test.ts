@@ -15,6 +15,7 @@ function vacancy(overrides: Partial<Vacancy> = {}): Vacancy {
     fit: "med",
     applied: "",
     next: "",
+    nextAction: "",
     notes: "",
     stack: [],
     favorite: false,

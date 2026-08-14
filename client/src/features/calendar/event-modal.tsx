@@ -64,7 +64,12 @@ export function EventModal({
   };
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4">
-      <button type="button" aria-label={t("common:actions.close")} onClick={onClose} className="fixed inset-0 bg-ink/50 cursor-default" />
+      <button
+        type="button"
+        aria-label={t("common:actions.close")}
+        onClick={onClose}
+        className="fixed inset-0 bg-ink/45 backdrop-blur-sm cursor-default"
+      />
       {/* role="dialog" like the vacancy detail modal: it's what makes this addressable as a
           dialog (assistive tech and e2e alike) rather than an anonymous div over the page. */}
       <Card

@@ -31,6 +31,9 @@ export interface Vacancy {
   fit: Fit;
   applied: string;
   next: string;
+  /** What to actually do about `next` (e.g. "Follow up", "Prepare for interview") — the date
+   * alone doesn't say. "" means not set, same tri-state convention as `notes`/`level`. */
+  nextAction: string;
   notes: string;
   stack: string[];
   created?: string;
@@ -354,6 +357,9 @@ export interface Toast {
   id: number;
   message: string;
   type: ToastType;
+  // Fired (in addition to the toast's own dismiss-on-click) when set — e.g. "Vacancy added" jumps
+  // to the vacancies tab instead of just confirming and vanishing.
+  onAction?: () => void;
 }
 
 export type FetchAllJobStatus = "running" | "done" | "error";
