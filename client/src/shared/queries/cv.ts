@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
+import type { CvDoc } from "../types";
 import { useMutationErrorToast } from "../use-error-toast";
 import { queryKeys } from "./keys";
 
@@ -22,27 +23,27 @@ export function useCvDoc(profileId: number | undefined) {
 // staleTime: 0 overrides the app-wide 5-minute default so polling isn't suppressed;
 // refetchInterval's function form self-stops once the job leaves "running" (same convention as
 // useFetchAllJobStatus).
-export function useCvReviewJobStatus() {
+export function useCvAuditJobStatus() {
   return useQuery({
-    queryKey: queryKeys.cvReviewJob,
-    queryFn: api.cvReviewJobStatus,
+    queryKey: queryKeys.cvAuditJob,
+    queryFn: api.cvAuditJobStatus,
     staleTime: 0,
     refetchInterval: (query) => (query.state.data?.status === "running" ? 1000 : false),
   });
 }
 
-// Just starts the job (POST returns immediately, see cv-review-job.ts) — the completion
-// toast/notification live in CvReviewJobNotifier (mounted once at the app shell), not here, since
+// Just starts the job (POST returns immediately, see cv-audit-job.ts) — the completion
+// toast/notification live in CvAuditJobNotifier (mounted once at the app shell), not here, since
 // the job may finish long after this mutation itself has settled (the user can navigate away).
-export function useStartCvReviewJob() {
+export function useStartCvAuditJob() {
   const qc = useQueryClient();
   const onError = useMutationErrorToast();
   return useMutation({
-    mutationFn: (v: { cvText: string; checks: string[] }) => api.startCvReviewJob(v.cvText, v.checks),
+    mutationFn: (v: { doc: CvDoc; known: string[] }) => api.startCvAuditJob(v.doc, v.known),
     onSuccess: (job) => {
       // Seed the status query immediately so polling reflects "running" right away instead of
       // waiting for the first interval tick.
-      qc.setQueryData(queryKeys.cvReviewJob, job);
+      qc.setQueryData(queryKeys.cvAuditJob, job);
     },
     onError,
   });

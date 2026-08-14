@@ -67,3 +67,45 @@ test("the audit finds real defects offline and applies a fix straight into the C
   const cliche = page.locator("div.rounded-xl").filter({ hasText: "The summary opens with a cliché" });
   await expect(cliche.getByRole("button", { name: "Go fix it" })).toBeVisible();
 });
+
+/**
+ * The bulk action must SHOW what it is about to change before it changes it. A button carrying
+ * only a count ("apply 6 fixes") gives no way to tell which six of the findings are included, and
+ * the honest response to that is not to press it.
+ */
+test("the bulk fix itemises every change before applying, and can be backed out of", async ({ page }) => {
+  const profilesRes = await page.request.get("/api/cv/profiles");
+  const [profile] = (await profilesRes.json()) as { id: number }[];
+  const seedRes = await page.request.put(`/api/cv/profiles/${profile!.id}/doc`, {
+    data: {
+      name: "E2E Bulk Person",
+      title: "Full Stack Developer",
+      contact: "bulk@example.com",
+      location: "Kyiv",
+      summary: "Developer building web applications.",
+      skills: ["TypeScript"],
+      experience: [{ role: "Full stack developer", company: "Acme", period: "Sep 2019 — Dec 2099", bullets: ["Shipped 4 features."] }],
+      education: [{ school: "Kharkiv Polytechnical Institute", degree: "M.Sc.", period: "2014 — 2020" }],
+    },
+  });
+  expect(seedRes.ok()).toBeTruthy();
+
+  await page.goto("/cvbuilder");
+  await page.getByRole("button", { name: /^Audit$/ }).click();
+
+  // Pressing it opens a preview rather than mutating the document.
+  await page.getByRole("button", { name: /quick fixes|quick fix/ }).click();
+  await expect(page.getByText(/change(s)? will be applied/)).toBeVisible();
+  // Each row states the actual replacement, not just the name of the problem. Scoped to the
+  // preview's own list — the same text also appears on the finding card further down the page.
+  const preview = page.getByRole("list").first();
+  await expect(preview.getByText("Sep 2019 — Present")).toBeVisible();
+  await expect(preview.getByText("Kharkiv Polytechnic Institute")).toBeVisible();
+
+  // Backing out leaves the document untouched.
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByText(/change(s)? will be applied/)).toBeHidden();
+  await page.getByRole("button", { name: /^Content$/ }).click();
+  await page.getByRole("button", { name: /^Experience/ }).click();
+  await expect(page.locator('input[value="Sep 2019 — Dec 2099"]')).toBeVisible();
+});

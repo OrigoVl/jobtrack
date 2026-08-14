@@ -7,6 +7,28 @@
     "title": "No contacts yet",
     "hint": "Add a recruiter, referral, or anyone worth following up with."
   },
+  "view": {
+    "cards": "Cards",
+    "table": "Table"
+  },
+  "filters": {
+    "searchPlaceholder": "Search by name, company, vacancy, email…",
+    "searchAriaLabel": "Search contacts",
+    "count": "{{shown}} of {{total}}",
+    "reset": "Clear",
+    "noMatches": {
+      "title": "No contacts match that search",
+      "hint": "Try another name, company or vacancy."
+    }
+  },
+  "table": {
+    "name": "Name",
+    "company": "Company",
+    "vacancy": "Vacancy",
+    "reach": "Reach",
+    "lastContact": "Last contact",
+    "openTitle": "Open contact"
+  },
   "editAriaLabel": "Edit {{name}}",
   "deleteAriaLabel": "Delete {{name}}",
   "deleteConfirmTitle": "Delete {{name}}?",

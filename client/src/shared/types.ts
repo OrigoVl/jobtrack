@@ -420,34 +420,6 @@ export interface CvAnalysis {
   advice: string;
 }
 
-export interface CvReview {
-  offline?: boolean;
-  score: number | null;
-  summary: string;
-  strengths: string[];
-  issues: { title: string; fix: string }[];
-  keywords: string[];
-  rewrites: { before: string; after: string }[];
-  /** How the résumé positions the candidate — the role and level it actually reads as, versus what
-   * the evidence supports. Optional: a review produced before this existed (or by the offline
-   * heuristic) simply has no positioning block. */
-  positioning?: { detectedRole: string; suggestedTitle: string; rationale: string };
-}
-
-export type CvReviewJobStatus = "running" | "done" | "error";
-export type CvReviewStep = "preparing" | "generating_feedback" | "finalizing";
-
-/** POST /cv/review/start + GET /cv/review/status — the backgrounded version of the CV Builder's
- * "AI Assistant" review (see server/src/modules/cv/cv-review-job.ts). */
-export interface CvReviewJobState {
-  status: CvReviewJobStatus;
-  step: CvReviewStep | null;
-  startedAt: string;
-  finishedAt?: string;
-  error?: string;
-  result?: CvReview;
-}
-
 export interface CvMatch {
   offline?: boolean;
   score: number;
@@ -667,7 +639,26 @@ export interface CvAuditResult {
     mergeWith?: number;
   }[];
   positioning: { detectedRole: string; suggestedTitle: string; rationale: string } | null;
+  /** Whole-document judgements that no line-level finding carries. These used to come from a
+   * separate "CV review" call over the same résumé — a second cost, and a second opinion that
+   * could contradict this one on the same line. */
+  score: number | null;
+  summary: string;
+  strengths: string[];
+  keywords: string[];
   offline: boolean;
+}
+
+export type CvAuditJobStatus = "running" | "done" | "error";
+export type CvAuditStep = "preparing" | "generating_feedback" | "finalizing";
+
+export interface CvAuditJobState {
+  status: CvAuditJobStatus;
+  step: CvAuditStep | null;
+  startedAt: string;
+  finishedAt?: string;
+  error?: string;
+  result?: CvAuditResult;
 }
 
 export interface JobResult {

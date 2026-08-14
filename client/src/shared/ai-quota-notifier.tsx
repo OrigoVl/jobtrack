@@ -6,7 +6,7 @@ import { useToast } from "./use-toast";
 import { queryKeys } from "./queries/keys";
 
 /**
- * Mounted once in Shell() alongside FetchAllJobNotifier/CvReviewJobNotifier/
+ * Mounted once in Shell() alongside FetchAllJobNotifier/CvAuditJobNotifier/
  * CalendarReminderNotifier — this app's established pattern for a cross-cutting background
  * notice that must keep working no matter which page the user is on. Listens for the
  * X-AI-Quota-Exceeded response header (surfaced as a DOM event by shared/api.ts's

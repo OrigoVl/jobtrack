@@ -41,7 +41,7 @@ export async function emptyCvDoc(userId: UserId): Promise<CvDoc> {
 // quota/cost cap, provider error, or twice-failed JSON validation — so the caller can fall back to
 // the previously-saved doc instead of mistaking "the LLM call failed" for "the resume parsed as
 // empty" and overwriting real content with a blank document. Same failure-signaling shape as
-// `reviewCv`'s own `if (!out)` guard in cv-analysis.service.ts.
+// `auditCv`'s own `if (!out)` guard in cv-audit.service.ts.
 export async function parseCvDocFromText(userId: UserId, cvText: string, previousTheme?: CvTheme): Promise<CvDoc | null> {
   const out = await chatJson(
     userId,
@@ -68,7 +68,7 @@ export async function parseCvDocFromText(userId: UserId, cvText: string, previou
     CvDocSchema,
     // A full resume (several jobs × several bullets + education/projects/languages) — 1500
     // tokens genuinely wasn't enough for a rich CV (the same class of JSON truncation as in
-    // reviewCv/matchCv), and generation was silently cut off by maxTokens before the JSON closed.
+    // matchCv/auditCv), and generation was silently cut off by maxTokens before the JSON closed.
     // Raised again with this prompt: the schema now also carries phone/telegram/location, skill
     // groups and per-entry note/metrics, all of which land in the same response.
     { maxTokens: 3400, temperature: 0.3, cache: true, tier: "smart", feature: "cv-doc-parse" },

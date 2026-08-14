@@ -339,7 +339,7 @@ export async function gradeDesign(userId: UserId, task: DesignTask, diagram: Des
   if (!llmAvailable()) return { offline: true, ...heuristicGrade(task, diagram) };
   // maxTokens 2600 (not 2000) — asking for a reference solution (4-8 shapes + edges) on top of
   // the existing score/criteria/strengths/missed/tip runs longer; a truncated response silently
-  // falls back to the offline heuristic (same risk cv-analysis.service.ts's reviewCv() documents).
+  // falls back to the offline heuristic (same risk cv-analysis.service.ts's matchCv() documents).
   const out = await chatJson(userId, GRADE_SYSTEM, buildGradePrompt(task, diagram), DesignGradeSchema, {
     maxTokens: 2600,
     temperature: 0.3,

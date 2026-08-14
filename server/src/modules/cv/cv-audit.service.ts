@@ -52,6 +52,15 @@ export interface CvAuditResult {
   /** Overall read of how the CV positions itself — the thing every one of the audits led with, and
    * which no single line-level finding can express. */
   positioning: { detectedRole: string; suggestedTitle: string; rationale: string } | null;
+  /** 0-100. Whole-document judgements that no line-level finding carries: these used to come from
+   * a SECOND, separate review call over the same résumé, which cost twice and — worse — gave
+   * contradictory advice, since that prompt asked for rewrites "with a metric" while this one
+   * treats an unverifiable metric as something to delete. One call, one opinion. */
+  score: number | null;
+  summary: string;
+  strengths: string[];
+  /** Keywords worth adding to match market demand — the user adds them to Skills in one click. */
+  keywords: string[];
   offline: boolean;
 }
 
@@ -163,6 +172,10 @@ const CvAuditSchema = z.object({
   positioning: z
     .object({ detectedRole: z.string().catch(""), suggestedTitle: z.string().catch(""), rationale: z.string().catch("") })
     .catch({ detectedRole: "", suggestedTitle: "", rationale: "" }),
+  score: z.number().catch(0),
+  summary: z.string().catch(""),
+  strengths: z.array(z.string()).catch([]),
+  keywords: z.array(z.string()).catch([]),
 });
 
 const SYSTEM = [
@@ -192,8 +205,14 @@ const SYSTEM = [
  * Returns `offline: true` with no findings when there's no key: the caller still has the whole
  * mechanical layer to show, so the feature degrades to "fewer findings", never to "unavailable".
  */
-export async function auditCv(userId: UserId, doc: CvDoc, known: string[] = []): Promise<CvAuditResult> {
-  if (!llmAvailable()) return { findings: [], positioning: null, offline: true };
+export async function auditCv(
+  userId: UserId,
+  doc: CvDoc,
+  known: string[] = [],
+  demand: Record<string, number> = {},
+): Promise<CvAuditResult> {
+  const empty = { findings: [], positioning: null, score: null, summary: "", strengths: [], keywords: [], offline: true };
+  if (!llmAvailable()) return empty;
 
   const out = await chatJson(
     userId,
@@ -209,8 +228,17 @@ export async function auditCv(userId: UserId, doc: CvDoc, known: string[] = []):
       `- FILLER: phrases that carry no information ("ensuring high performance", "fostering collaboration").\n` +
       `- REDUNDANCY: two bullets making the same point want merging (verdict "merge", with mergeWith set to the other bullet's id).\n` +
       `- RELEVANCE: an old, off-profile role deserves less space than the current one.\n\n` +
+      (Object.keys(demand).length
+        ? `Market demand (skills counted across the user's tracked job postings): ${JSON.stringify(demand)}.\n\n`
+        : "") +
       `Return JSON strictly: {"findings":[{"id":"<one of the bracketed ids>","verdict":"rewrite|delete|merge|add|keep","severity":"high|medium|low","title":"short label","reason":"why, one or two sentences","after":"the replacement line, or \\"\\" if there is nothing to apply","mergeWith":"<bullet id, only for merge>"}],` +
-      `"positioning":{"detectedRole":"what this resume reads as today","suggestedTitle":"the title the evidence best supports","rationale":"one or two sentences"}}\n\n` +
+      `"positioning":{"detectedRole":"what this resume reads as today","suggestedTitle":"the title the evidence best supports","rationale":"one or two sentences"},` +
+      // Whole-document judgements. These used to come from a separate review call over the same
+      // résumé; folding them in here is what removes both the duplicate cost and the chance of the
+      // two calls giving contradictory advice about the same line.
+      `"score":<0-100 overall>,"summary":"1-2 sentence overall impression",` +
+      `"strengths":["3-5 things this resume genuinely does well"],` +
+      `"keywords":["6-12 skills/keywords worth adding to match the demand above and ATS — only ones the candidate plausibly has"]}\n\n` +
       `Report at most 25 findings, strongest first. Do not report "keep" verdicts — only what should change.`,
     CvAuditSchema,
     // A line-by-line audit is the longest structured output in the app: up to 25 findings, each
@@ -218,7 +246,7 @@ export async function auditCv(userId: UserId, doc: CvDoc, known: string[] = []):
     // hit at lower limits (a cut-off response is invalid JSON and silently falls back to offline).
     { maxTokens: 4000, temperature: 0.3, cache: true, tier: "smart", feature: "cv-audit", outputLocale: "app" },
   );
-  if (!out) return { findings: [], positioning: null, offline: true };
+  if (!out) return empty;
 
   const findings: AuditFinding[] = [];
   for (const item of out.findings) {
@@ -249,6 +277,10 @@ export async function auditCv(userId: UserId, doc: CvDoc, known: string[] = []):
   return {
     findings,
     positioning: p && (p.detectedRole || p.suggestedTitle) ? p : null,
+    score: Math.max(0, Math.min(100, Math.round(out.score))),
+    summary: out.summary,
+    strengths: out.strengths,
+    keywords: out.keywords,
     offline: false,
   };
 }

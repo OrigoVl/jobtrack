@@ -3,24 +3,24 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { DateInput, DateTimeInput } from "./date-input";
 
 describe("DateInput", () => {
-  it("displays an ISO value as mm/dd/yyyy regardless of OS/browser locale", () => {
+  it("displays an ISO value as dd/mm/yyyy regardless of OS/browser locale", () => {
     render(<DateInput value="2026-07-01" onChange={() => {}} aria-label="Applied date" />);
-    expect(screen.getByLabelText("Applied date")).toHaveValue("07/01/2026");
+    expect(screen.getByLabelText("Applied date")).toHaveValue("01/07/2026");
   });
 
   it("shows an empty field (with placeholder) for an empty value", () => {
     render(<DateInput value="" onChange={() => {}} aria-label="Applied date" />);
     const input = screen.getByLabelText("Applied date") as HTMLInputElement;
     expect(input.value).toBe("");
-    expect(input.placeholder).toBe("mm/dd/yyyy");
+    expect(input.placeholder).toBe("dd/mm/yyyy");
   });
 
   it("auto-inserts slashes as digits are typed and commits once the date is complete", () => {
     const onChange = vi.fn();
     render(<DateInput value="" onChange={onChange} aria-label="Next step date" />);
     const input = screen.getByLabelText("Next step date");
-    fireEvent.change(input, { target: { value: "07012026" } });
-    expect(input).toHaveValue("07/01/2026");
+    fireEvent.change(input, { target: { value: "01072026" } });
+    expect(input).toHaveValue("01/07/2026");
     expect(onChange).toHaveBeenCalledWith("2026-07-01");
   });
 
@@ -37,7 +37,7 @@ describe("DateInput", () => {
     const input = screen.getByLabelText("Applied date");
     fireEvent.change(input, { target: { value: "0812" } });
     fireEvent.blur(input);
-    expect(input).toHaveValue("07/01/2026");
+    expect(input).toHaveValue("01/07/2026");
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -77,7 +77,7 @@ describe("DateInput", () => {
     render(<DateInput value="" onChange={onChange} aria-label="Applied date" />);
     const input = screen.getByLabelText("Applied date");
     fireEvent.click(input);
-    fireEvent.change(input, { target: { value: "07012026" } });
+    fireEvent.change(input, { target: { value: "01072026" } });
     expect(onChange).toHaveBeenCalledWith("2026-07-01");
   });
 
@@ -93,38 +93,38 @@ describe("DateInput", () => {
     fireEvent.click(screen.getByLabelText("Open calendar"));
     fireEvent.click(screen.getByRole("button", { name: /July 15, 2026/ }));
     expect(onChange).toHaveBeenCalledWith("2026-07-15");
-    expect(screen.getByLabelText("Applied date")).toHaveValue("07/15/2026");
+    expect(screen.getByLabelText("Applied date")).toHaveValue("15/07/2026");
     // Picking a day closes the popover.
     expect(screen.queryByLabelText("Previous month")).not.toBeInTheDocument();
   });
 });
 
 describe("DateTimeInput", () => {
-  it("displays a local datetime value as mm/dd/yyyy, HH:mm regardless of OS/browser locale", () => {
+  it("displays a local datetime value as dd/mm/yyyy, HH:mm regardless of OS/browser locale", () => {
     render(<DateTimeInput value="2026-07-31T09:00" onChange={() => {}} aria-label="Event start" />);
-    expect(screen.getByLabelText("Event start")).toHaveValue("07/31/2026, 09:00");
+    expect(screen.getByLabelText("Event start")).toHaveValue("31/07/2026, 09:00");
   });
 
   it("shows an empty field (with placeholder) for an empty value", () => {
     render(<DateTimeInput value="" onChange={() => {}} aria-label="Event start" />);
     const input = screen.getByLabelText("Event start") as HTMLInputElement;
     expect(input.value).toBe("");
-    expect(input.placeholder).toBe("mm/dd/yyyy, HH:mm");
+    expect(input.placeholder).toBe("dd/mm/yyyy, HH:mm");
   });
 
   it("auto-inserts separators as digits are typed and commits once the datetime is complete", () => {
     const onChange = vi.fn();
     render(<DateTimeInput value="" onChange={onChange} aria-label="Event start" />);
     const input = screen.getByLabelText("Event start");
-    fireEvent.change(input, { target: { value: "073120260900" } });
-    expect(input).toHaveValue("07/31/2026, 09:00");
+    fireEvent.change(input, { target: { value: "310720260900" } });
+    expect(input).toHaveValue("31/07/2026, 09:00");
     expect(onChange).toHaveBeenCalledWith("2026-07-31T09:00");
   });
 
   it("does not call onChange while the datetime is still incomplete", () => {
     const onChange = vi.fn();
     render(<DateTimeInput value="" onChange={onChange} aria-label="Event start" />);
-    fireEvent.change(screen.getByLabelText("Event start"), { target: { value: "0731202609" } });
+    fireEvent.change(screen.getByLabelText("Event start"), { target: { value: "3107202609" } });
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -134,7 +134,7 @@ describe("DateTimeInput", () => {
     const input = screen.getByLabelText("Event start");
     fireEvent.change(input, { target: { value: "081220261" } });
     fireEvent.blur(input);
-    expect(input).toHaveValue("07/31/2026, 09:00");
+    expect(input).toHaveValue("31/07/2026, 09:00");
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -149,7 +149,7 @@ describe("DateTimeInput", () => {
   it("rejects out-of-range hour/minute", () => {
     const onChange = vi.fn();
     render(<DateTimeInput value="" onChange={onChange} aria-label="Event start" />);
-    fireEvent.change(screen.getByLabelText("Event start"), { target: { value: "073120262565" } });
+    fireEvent.change(screen.getByLabelText("Event start"), { target: { value: "310720262565" } });
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -200,7 +200,7 @@ describe("DateTimeInput", () => {
     fireEvent.click(screen.getByRole("button", { name: "10:30" }));
 
     expect(onChange).toHaveBeenLastCalledWith("2026-07-15T10:30");
-    expect(screen.getByLabelText("Event start")).toHaveValue("07/15/2026, 10:30");
+    expect(screen.getByLabelText("Event start")).toHaveValue("15/07/2026, 10:30");
     expect(screen.queryByRole("button", { name: "10:30" })).not.toBeInTheDocument();
   });
 

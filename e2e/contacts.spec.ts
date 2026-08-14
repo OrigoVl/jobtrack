@@ -55,6 +55,52 @@ test("creates, edits, and deletes a contact, persisting across reload", async ({
 });
 
 /**
+ * Search finds a contact by the vacancy it's linked to — the case the card grid couldn't answer
+ * ("the recruiter for that role, whatever her name was") — and the table view shows the same
+ * filtered set. Two contacts are created so the assertion is that the OTHER one disappears, not
+ * merely that the match is still on screen. Linked to a vacancy rather than a company because
+ * fixtures.ts cleans vacancies up (and contacts before them); companies it does not.
+ *
+ * The view toggle also writes to localStorage, but each Playwright test gets a fresh context, so
+ * leaving this one in the table view can't leak into the specs above that expect cards.
+ */
+test("searches contacts by linked vacancy and shows the same result in the table view", async ({ page }) => {
+  const stamp = Date.now();
+  const vacancyCompany = `E2E Searchable Corp ${stamp}`;
+  const vacancyRes = await page.request.post("/api/vacancies", { data: { company: vacancyCompany, position: "Seed Role" } });
+  expect(vacancyRes.ok()).toBeTruthy();
+  const vacancy = (await vacancyRes.json()) as { id: number };
+
+  const matchName = `E2E Search Match ${stamp}`;
+  const otherName = `E2E Search Other ${stamp}`;
+  for (const data of [
+    { name: matchName, role: "Recruiter", vacancyId: vacancy.id },
+    { name: otherName, role: "Recruiter" },
+  ]) {
+    expect((await page.request.post("/api/contacts", { data })).ok()).toBeTruthy();
+  }
+
+  await page.goto("/contacts");
+  await expect(page.getByText(matchName, { exact: true })).toBeVisible();
+  await expect(page.getByText(otherName, { exact: true })).toBeVisible();
+
+  // Neither contact's own name contains the company, so this only matches via the linked vacancy.
+  await page.getByLabel("Search contacts").fill(vacancyCompany);
+  await expect(page.getByText(matchName, { exact: true })).toBeVisible();
+  await expect(page.getByText(otherName, { exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Table", exact: true }).click();
+  const row = page.getByRole("row").filter({ hasText: matchName });
+  await expect(row).toBeVisible();
+  await expect(row.getByText(`${vacancyCompany} — Seed Role`)).toBeVisible();
+  await expect(page.getByText(otherName, { exact: true })).toHaveCount(0);
+
+  // Clicking the row is the table's way into the same edit modal the cards' Edit button opens.
+  await row.click();
+  await expect(page.getByLabel("Name")).toHaveValue(matchName);
+});
+
+/**
  * A conversation that went quiet gets flagged, and the one action offered clears it. Seeded
  * through the API with a date well past the 7-day threshold, so the spec doesn't depend on how
  * long ago some other spec's fixture was written.

@@ -10,27 +10,27 @@ import { CalendarIcon } from "./icons";
 const PANEL_WIDTH = 256;
 const PANEL_HEIGHT_ESTIMATE = 280;
 
-/** Formats an ISO "yyyy-mm-dd" date as "mm/dd/yyyy" for display. Empty/invalid input → "". */
+/** Formats an ISO "yyyy-mm-dd" date as "dd/mm/yyyy" for display. Empty/invalid input → "". */
 function isoToDisplay(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   if (!m) return "";
   const [, y, mo, d] = m;
-  return `${mo}/${d}/${y}`;
+  return `${d}/${mo}/${y}`;
 }
 
-/** Parses a "mm/dd/yyyy" display string into an ISO "yyyy-mm-dd" date, or null if incomplete/invalid
- * (including out-of-range months/days — a masked text input can't stop someone from typing "13/40/2026"). */
+/** Parses a "dd/mm/yyyy" display string into an ISO "yyyy-mm-dd" date, or null if incomplete/invalid
+ * (including out-of-range months/days — a masked text input can't stop someone from typing "40/13/2026"). */
 function displayToIso(display: string): string | null {
   const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(display);
   if (!m) return null;
-  const [, mo, d, y] = m;
+  const [, d, mo, y] = m;
   const month = Number(mo);
   const day = Number(d);
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
   return `${y}-${mo}-${d}`;
 }
 
-/** Re-applies "mm/dd/yyyy" slashes as the user types/deletes digits, capping at 8 digits total. */
+/** Re-applies "dd/mm/yyyy" slashes as the user types/deletes digits, capping at 8 digits total. */
 function maskDigits(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 8);
   const parts = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)].filter(Boolean);
@@ -106,9 +106,9 @@ function PickerButton({
 
 /**
  * A locale-independent replacement for `<input type="date">`. Native date inputs render in the
- * OS/browser locale regardless of the page's language (a Ukrainian-locale OS shows dd.mm.yyyy
- * even inside this English-only UI, and `lang` on the element isn't reliably honored across
- * browsers) — this always displays and accepts "mm/dd/yyyy", matching the rest of the English UI,
+ * OS/browser locale regardless of the page's language (a US-locale OS shows mm/dd/yyyy even
+ * inside this UI, and `lang` on the element isn't reliably honored across browsers) — this
+ * always displays and accepts "dd/mm/yyyy" (day first, the order this app's users read dates in),
  * and stores/emits the value as ISO "yyyy-mm-dd" (what the API and analytics expect). Clicking
  * the field (or the calendar icon) opens a month-grid popover (CalendarPanel) for picking a day
  * visually, on top of typing.
@@ -148,7 +148,7 @@ export function DateInput({
       <input
         type="text"
         inputMode="numeric"
-        // The mm/dd/yyyy digit ORDER is deliberately locale-invariant (see the file doc-comment
+        // The dd/mm/yyyy digit ORDER is deliberately locale-invariant (see the file doc-comment
         // below) — the placeholder text is wired through i18n so it CAN differ, but both locales
         // currently keep it identical on purpose: showing a different order here without also
         // changing what maskDigits/displayToIso actually accept would mislead, not help.
@@ -186,35 +186,35 @@ export function DateInput({
 }
 
 /** Formats a local "yyyy-MM-ddTHH:mm" (the value shape `<input type="datetime-local">` uses) as
- * "mm/dd/yyyy, HH:mm" for display. Empty/invalid input → "". */
+ * "dd/mm/yyyy, HH:mm" for display. Empty/invalid input → "". */
 function localToDisplay(local: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(local);
   if (!m) return "";
   const [, y, mo, d, h, mi] = m;
-  return `${mo}/${d}/${y}, ${h}:${mi}`;
+  return `${d}/${mo}/${y}, ${h}:${mi}`;
 }
 
-/** Parses a "mm/dd/yyyy, HH:mm" display string into a local "yyyy-MM-ddTHH:mm" string, or null if
+/** Parses a "dd/mm/yyyy, HH:mm" display string into a local "yyyy-MM-ddTHH:mm" string, or null if
  * incomplete/invalid. */
 function displayToLocal(display: string): string | null {
   const m = /^(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2})$/.exec(display);
   if (!m) return null;
-  const [, mo, d, y, h, mi] = m;
+  const [, d, mo, y, h, mi] = m;
   if (Number(mo) < 1 || Number(mo) > 12 || Number(d) < 1 || Number(d) > 31 || Number(h) > 23 || Number(mi) > 59) return null;
   return `${y}-${mo}-${d}T${h}:${mi}`;
 }
 
-/** Re-applies "mm/dd/yyyy, HH:mm" separators as the user types/deletes digits, capping at 12
- * digits total (MMDDYYYYHHmm). */
+/** Re-applies "dd/mm/yyyy, HH:mm" separators as the user types/deletes digits, capping at 12
+ * digits total (DDMMYYYYHHmm). */
 function maskDateTimeDigits(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 12);
-  const mo = digits.slice(0, 2);
-  const d = digits.slice(2, 4);
+  const d = digits.slice(0, 2);
+  const mo = digits.slice(2, 4);
   const y = digits.slice(4, 8);
   const h = digits.slice(8, 10);
   const mi = digits.slice(10, 12);
-  let out = mo;
-  if (d) out += `/${d}`;
+  let out = d;
+  if (mo) out += `/${mo}`;
   if (y) out += `/${y}`;
   if (h) out += `, ${h}`;
   if (mi) out += `:${mi}`;
@@ -318,8 +318,8 @@ function TimePanel({
 
 /**
  * A locale-independent replacement for `<input type="datetime-local">`, for the same reason as
- * `DateInput` above (a Ukrainian-locale OS renders "дд.мм.рррр, --:--" instead of an English
- * placeholder, and `lang` on the element isn't reliably honored across browsers). Value/onChange
+ * `DateInput` above (the OS locale, not the page's, decides what a native field renders, and
+ * `lang` on the element isn't reliably honored across browsers). Value/onChange
  * use the same local "yyyy-MM-ddTHH:mm" string a native `datetime-local` input's `value`/
  * `e.target.value` would — a drop-in replacement for call sites already using
  * `toLocalInput`/`fromLocalInput` (see `calendar-date-utils.ts`).

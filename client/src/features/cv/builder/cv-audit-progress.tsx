@@ -1,15 +1,15 @@
 import { useTranslation } from "react-i18next";
-import type { CvReviewStep } from "../../../shared/types";
+import type { CvAuditStep } from "../../../shared/types";
 
-// Mirrors the server's CV_REVIEW_STEPS order (server/src/modules/cv/cv-review-job.ts) — kept as a
+// Mirrors the server's CV_AUDIT_STEPS order (server/src/modules/cv/cv-audit-job.ts) — kept as a
 // separate literal here (not imported) since the client can't import server code; the two must be
 // kept in sync by hand, same as every other client-side mirror of a server type in this app.
-const STEP_ORDER: CvReviewStep[] = ["preparing", "generating_feedback", "finalizing"];
+const STEP_ORDER: CvAuditStep[] = ["preparing", "generating_feedback", "finalizing"];
 
 // A Record (not a template literal built from the runtime step) so each value stays a literal key
 // i18next's typed t() can verify against cv.json — same trick as roadmap.tsx's STATUS_LABEL_KEY.
 const STEP_LABEL_KEY: Record<
-  CvReviewStep,
+  CvAuditStep,
   "builder.aiAssistantSteps.preparing" | "builder.aiAssistantSteps.generating_feedback" | "builder.aiAssistantSteps.finalizing"
 > = {
   preparing: "builder.aiAssistantSteps.preparing",
@@ -17,11 +17,11 @@ const STEP_LABEL_KEY: Record<
   finalizing: "builder.aiAssistantSteps.finalizing",
 };
 
-/** A step list + thin progress bar for the CV Builder's backgrounded "AI Assistant" review (see
- * cv-review-job.ts) — this app's first "process + steps" indicator (elsewhere only a plain
+/** A step list + thin progress bar for the CV Builder's backgrounded line-by-line audit (see
+ * cv-audit-job.ts) — this app's first "process + steps" indicator (elsewhere only a plain
  * percentage ProgressBar exists, e.g. the Analyzer's fetch-all job), so it's local to this feature
  * rather than promoted to shared/ui.tsx until a second consumer actually needs it. */
-export function CvReviewProgress({ step }: { step: CvReviewStep | null }) {
+export function CvAuditProgress({ step }: { step: CvAuditStep | null }) {
   const { t } = useTranslation("cv");
   const currentIndex = step ? STEP_ORDER.indexOf(step) : -1;
   const pct = currentIndex >= 0 ? Math.round(((currentIndex + 1) / STEP_ORDER.length) * 100) : 0;

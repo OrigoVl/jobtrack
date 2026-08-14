@@ -29,8 +29,8 @@
     "previousMonth": "Попередній місяць",
     "nextMonth": "Наступний місяць",
     "backToCalendar": "Назад до календаря",
-    "datePlaceholder": "mm/dd/yyyy",
-    "dateTimePlaceholder": "mm/dd/yyyy, HH:mm"
+    "datePlaceholder": "dd/mm/yyyy",
+    "dateTimePlaceholder": "dd/mm/yyyy, HH:mm"
   },
   "fit": {
     "high": "Високий",

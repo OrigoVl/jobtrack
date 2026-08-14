@@ -35,6 +35,19 @@ test("creates, edits, and deletes a manual calendar event, persisting across rel
   await page.reload();
   await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
 
+  // Clickable event card — inside the day popover the WHOLE card opens the event (day-agenda.tsx
+  // draws its click target behind the content so the join link stays a sibling), not just a small
+  // "Edit" link. Scoped to the popover's own `[data-keep-open]` root: the Upcoming card below the
+  // grid carries a row with the same accessible name.
+  await page.locator('[aria-current="date"]').click();
+  await page
+    .locator("[data-keep-open]")
+    .getByRole("button", { name: `Edit ${title}` })
+    .click();
+  const cardModal = page.getByRole("dialog");
+  await expect(cardModal.getByLabel("Title")).toHaveValue(title);
+  await cardModal.getByRole("button", { name: "Cancel" }).click();
+
   // Edit — change the title via the same modal, opened from the Upcoming row (labelled
   // "Edit <title>", like the day popover's own edit action).
   await page
@@ -78,11 +91,11 @@ test("navigates to Vacancies from a vacancy's next-step marker on the calendar",
   // Built from local Y/M/D (not toISOString/UTC) — must match the same "today" the calendar's
   // own local `ymd()` helper computes (see features/calendar/calendar.tsx). vacancies.tsx's
   // "Next step" field is shared/date-input.tsx's locale-independent DateInput — a masked text
-  // input, not a native `<input type="date">` — so `.fill()` needs its "mm/dd/yyyy" display
+  // input, not a native `<input type="date">` — so `.fill()` needs its "dd/mm/yyyy" display
   // format, not ISO "YYYY-MM-DD" (the value DateInput's onChange emits back to the caller).
   const now = new Date();
   const pad2 = (n: number) => String(n).padStart(2, "0");
-  const todayDisplay = `${pad2(now.getMonth() + 1)}/${pad2(now.getDate())}/${now.getFullYear()}`;
+  const todayDisplay = `${pad2(now.getDate())}/${pad2(now.getMonth() + 1)}/${now.getFullYear()}`;
 
   // addVacancy() also dismisses the detail modal the save opens, which the rest of this test needs
   // gone: it carries its own "Next step date" field with the same aria-label as the table's.

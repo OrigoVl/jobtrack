@@ -1,24 +1,24 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { useCvReviewJobStatus } from "./queries";
+import { useCvAuditJobStatus } from "./queries";
 import { useToast } from "./use-toast";
 import { notificationsEnabled } from "./notifications";
-import type { CvReviewJobStatus } from "./types";
+import type { CvAuditJobStatus } from "./types";
 
 /**
  * Mounted once in Shell() (same "always mounted, reacts to shared state from anywhere" pattern as
- * FetchAllJobNotifier/CelebrationOverlay) — so the CV Builder's "AI Assistant" review (see
- * server/src/modules/cv/cv-review-job.ts) keeps being watched even if the user navigates away from
+ * FetchAllJobNotifier/CelebrationOverlay) — so the CV Builder's line-by-line audit (see
+ * server/src/modules/cv/cv-audit-job.ts) keeps being watched even if the user navigates away from
  * CV Builder while it's running. Renders nothing itself; it's a pure side-effect watcher over the
  * same polled query the CV Builder page reads for its own progress display.
  */
-export function CvReviewJobNotifier() {
+export function CvAuditJobNotifier() {
   const { t } = useTranslation("cv");
-  const { data: job } = useCvReviewJobStatus();
+  const { data: job } = useCvAuditJobStatus();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const prevStatus = useRef<CvReviewJobStatus | undefined>(undefined);
+  const prevStatus = useRef<CvAuditJobStatus | undefined>(undefined);
 
   useEffect(() => {
     const prev = prevStatus.current;
@@ -27,10 +27,10 @@ export function CvReviewJobNotifier() {
 
     if (job.status === "done") {
       const offline = job.result?.offline;
-      const body = offline ? t("builder.toasts.reviewOffline") : t("builder.toasts.reviewReady");
+      const body = offline ? t("audit.toasts.offline") : t("audit.toasts.ready");
       toast(body, offline ? "info" : "success");
       if (notificationsEnabled()) {
-        const n = new Notification(t("builder.toasts.reviewNotificationTitle"), { body });
+        const n = new Notification(t("audit.toasts.notificationTitle"), { body });
         n.onclick = () => {
           window.focus();
           navigate("/cvbuilder");

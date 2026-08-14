@@ -9,12 +9,24 @@ import {
   useUpdateContact,
   useVacancies,
 } from "../../shared/queries";
-import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, SearchSelect, Spinner } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Chip, EmptyState, PageHeader, SearchSelect, Segmented, Spinner } from "../../shared/ui";
 import { useConfirm } from "../../shared/use-confirm";
+import { useUi } from "../../shared/ui-state";
 import { DateInput } from "../../shared/date-input";
 import type { Contact, ContactInput, OutreachResult } from "../../shared/types";
 import { SignaturePaste } from "./signature-paste";
 import { isStale, silentDays } from "./stale-contacts";
+import { filterAndSortContacts, type ContactSortKey } from "./contacts-filter";
+import { ContactsTable } from "./contacts-table";
+
+// Same split as vacancies.tsx: useUi keys are in-memory (they reset on reload), but the
+// cards/table choice is a standing preference about how this page is read, so it's mirrored to
+// localStorage on top. The search query deliberately stays session-only — reopening the app to a
+// list silently filtered by something typed yesterday looks like missing contacts.
+const VIEW_STORAGE_KEY = "jobtrack.contacts.view";
+function readStoredView(): "cards" | "table" {
+  return localStorage.getItem(VIEW_STORAGE_KEY) === "table" ? "table" : "cards";
+}
 
 /** Draft an AI outreach/follow-up message for a contact (POST /contacts/:id/outreach) and let the
  * user copy it — mirrors LinkedInOptimizerCard's generate+copy shape, scoped to one contact card
@@ -160,10 +172,10 @@ function ContactModal({
           </label>
           <label className="block">
             <span className="text-xs font-semibold text-ink-dim">{t("modal.lastContacted")}</span>
-            {/* The shared DateInput, not a native `<input type="date">` — `lang="en-US"` isn't
-                reliably honored, so a Ukrainian-locale OS rendered this one field as dd.mm.yyyy
-                while every other date in the app showed mm/dd/yyyy, and its picker only opened
-                from the native icon. Same ISO "yyyy-mm-dd" value shape either way. */}
+            {/* The shared DateInput, not a native `<input type="date">` — `lang` isn't reliably
+                honored, so this one field followed the OS locale (dd.mm.yyyy, mm/dd/yyyy, …)
+                instead of the dd/mm/yyyy every other date in the app shows, and its picker only
+                opened from the native icon. Same ISO "yyyy-mm-dd" value shape either way. */}
             <DateInput
               value={form.lastContactAt}
               onChange={(iso) => set("lastContactAt", iso)}
@@ -222,12 +234,41 @@ export function Contacts() {
   const deleteMutation = useDeleteContact();
   const [modal, setModal] = useState<{ editingId: number | null; draft: ContactInput } | null>(null);
   const [signatureOpen, setSignatureOpen] = useState(false);
+  const [view, setViewUi] = useUi<"cards" | "table">("contacts.view", readStoredView());
+  const setView = (v: "cards" | "table") => {
+    setViewUi(v);
+    localStorage.setItem(VIEW_STORAGE_KEY, v);
+  };
+  const [search, setSearch] = useUi("contacts.search", "");
+  const [sortBy, setSortBy] = useUi<ContactSortKey>("contacts.sortBy", "default");
+  const [sortDir, setSortDir] = useUi<"asc" | "desc">("contacts.sortDir", "asc");
   // Local calendar day, not UTC: "how long since I wrote" is a question about the user's own
   // calendar, and toISOString() would answer it in a different timezone.
   const todayIso = new Date().toLocaleDateString("en-CA");
 
   const companyName = (id: number | null) => (id ? (companies.find((c) => c.id === id)?.name ?? "—") : "—");
   const linkedVacancy = (id: number | null) => (id ? vacancies.find((v) => v.id === id) : undefined);
+
+  const toggleSort = (key: Exclude<ContactSortKey, "default">) => {
+    if (sortBy === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else {
+      setSortBy(key);
+      setSortDir("asc");
+    }
+  };
+  // The search resolvers return "" (not the display "—") for an unlinked contact, so a query
+  // never matches on a placeholder dash rather than on anything the user actually typed in.
+  const visibleContacts = filterAndSortContacts(
+    contacts ?? [],
+    { search, sortBy, sortDir },
+    {
+      companyName: (id) => (id ? (companies.find((c) => c.id === id)?.name ?? "") : ""),
+      vacancyLabel: (id) => {
+        const v = linkedVacancy(id);
+        return v ? `${v.company} ${v.position}` : "";
+      },
+    },
+  );
 
   const openNew = () => setModal({ editingId: null, draft: EMPTY_DRAFT });
   const openEdit = (c: Contact) =>
@@ -267,7 +308,15 @@ export function Contacts() {
         title={t("title")}
         subtitle={t("subtitle")}
         actions={
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Segmented
+              value={view}
+              onChange={setView}
+              options={[
+                { value: "cards", label: t("view.cards") },
+                { value: "table", label: t("view.table") },
+              ]}
+            />
             <Btn variant="ghost" onClick={() => setSignatureOpen((v) => !v)}>
               {t("signature.toggle")}
             </Btn>
@@ -292,82 +341,131 @@ export function Contacts() {
           <EmptyState title={t("empty.title")} hint={t("empty.hint")} />
         </Card>
       ) : (
-        <div className="grid md:grid-cols-2 gap-4">
-          {contacts.map((c) => {
-            const isDeleting = deleteMutation.isPending && deleteMutation.variables === c.id;
-            return (
-              <Card key={c.id}>
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0">
-                    <div className="font-semibold text-ink truncate">{c.name}</div>
-                    <div className="text-xs text-ink-dim truncate">
-                      {c.role || "—"}
-                      {c.companyId ? ` @ ${companyName(c.companyId)}` : ""}
+        <>
+          <Card>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("filters.searchPlaceholder")}
+                aria-label={t("filters.searchAriaLabel")}
+                className="flex-1 min-w-[180px] bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+              />
+              <span className="text-xs text-ink-dim">{t("filters.count", { shown: visibleContacts.length, total: contacts.length })}</span>
+              {search.trim() !== "" && (
+                <Btn size="sm" variant="ghost" onClick={() => setSearch("")}>
+                  {t("filters.reset")}
+                </Btn>
+              )}
+            </div>
+          </Card>
+
+          {visibleContacts.length === 0 ? (
+            <Card>
+              <EmptyState
+                title={t("filters.noMatches.title")}
+                hint={t("filters.noMatches.hint")}
+                action={
+                  <Btn size="sm" variant="ghost" onClick={() => setSearch("")}>
+                    {t("filters.reset")}
+                  </Btn>
+                }
+              />
+            </Card>
+          ) : view === "table" ? (
+            <ContactsTable
+              contacts={visibleContacts}
+              companyName={companyName}
+              linkedVacancy={linkedVacancy}
+              todayIso={todayIso}
+              sortBy={sortBy}
+              sortDir={sortDir}
+              onToggleSort={toggleSort}
+              onEdit={openEdit}
+              onDelete={async (c) => {
+                if (await confirm({ title: t("deleteConfirmTitle", { name: c.name }) })) deleteMutation.mutate(c.id);
+              }}
+              deletingId={deleteMutation.isPending ? (deleteMutation.variables ?? null) : null}
+            />
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4">
+              {visibleContacts.map((c) => {
+                const isDeleting = deleteMutation.isPending && deleteMutation.variables === c.id;
+                return (
+                  <Card key={c.id}>
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-ink truncate">{c.name}</div>
+                        <div className="text-xs text-ink-dim truncate">
+                          {c.role || "—"}
+                          {c.companyId ? ` @ ${companyName(c.companyId)}` : ""}
+                        </div>
+                      </div>
+                      <div className="ml-auto flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => openEdit(c)}
+                          className="text-xs text-ink-dim hover:text-signal px-1.5 py-1"
+                          aria-label={t("editAriaLabel", { name: c.name })}
+                        >
+                          {t("common:actions.edit")}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (await confirm({ title: t("deleteConfirmTitle", { name: c.name }) })) deleteMutation.mutate(c.id);
+                          }}
+                          disabled={isDeleting}
+                          className="text-xs text-ink-dim hover:text-rose-600 px-1.5 py-1 disabled:opacity-50"
+                          aria-label={t("deleteAriaLabel", { name: c.name })}
+                        >
+                          {isDeleting ? <Spinner className="h-3 w-3" /> : t("common:actions.delete")}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="ml-auto flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => openEdit(c)}
-                      className="text-xs text-ink-dim hover:text-signal px-1.5 py-1"
-                      aria-label={t("editAriaLabel", { name: c.name })}
-                    >
-                      {t("common:actions.edit")}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (await confirm({ title: t("deleteConfirmTitle", { name: c.name }) })) deleteMutation.mutate(c.id);
-                      }}
-                      disabled={isDeleting}
-                      className="text-xs text-ink-dim hover:text-rose-600 px-1.5 py-1 disabled:opacity-50"
-                      aria-label={t("deleteAriaLabel", { name: c.name })}
-                    >
-                      {isDeleting ? <Spinner className="h-3 w-3" /> : t("common:actions.delete")}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                  {linkedVacancy(c.vacancyId) && (
-                    <span className="px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim border border-grid">
-                      {linkedVacancy(c.vacancyId)!.company}
-                      {linkedVacancy(c.vacancyId)!.position ? ` — ${linkedVacancy(c.vacancyId)!.position}` : ""}
-                    </span>
-                  )}
-                  {c.email && (
-                    <a href={`mailto:${c.email}`} className="text-ink-dim hover:text-signal hover:underline">
-                      {c.email}
-                    </a>
-                  )}
-                  {c.linkedinUrl && (
-                    <a href={c.linkedinUrl} target="_blank" rel="noreferrer" className="text-ink-dim hover:text-signal hover:underline">
-                      {t("linkedin")}
-                    </a>
-                  )}
-                  {c.lastContactAt && <span className="text-ink-dim">{t("lastContact", { date: c.lastContactAt })}</span>}
-                  {/* A conversation that went quiet. Shown only past the threshold, and never for
+                    <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                      {linkedVacancy(c.vacancyId) && (
+                        <span className="px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim border border-grid">
+                          {linkedVacancy(c.vacancyId)!.company}
+                          {linkedVacancy(c.vacancyId)!.position ? ` — ${linkedVacancy(c.vacancyId)!.position}` : ""}
+                        </span>
+                      )}
+                      {c.email && (
+                        <a href={`mailto:${c.email}`} className="text-ink-dim hover:text-signal hover:underline">
+                          {c.email}
+                        </a>
+                      )}
+                      {c.linkedinUrl && (
+                        <a href={c.linkedinUrl} target="_blank" rel="noreferrer" className="text-ink-dim hover:text-signal hover:underline">
+                          {t("linkedin")}
+                        </a>
+                      )}
+                      {c.lastContactAt && <span className="text-ink-dim">{t("lastContact", { date: c.lastContactAt })}</span>}
+                      {/* A conversation that went quiet. Shown only past the threshold, and never for
                       someone never written to — that's "reach out", a different situation. */}
-                  {isStale(c, todayIso) && <Chip tone="rose">{t("stale.silentFor", { count: silentDays(c, todayIso) ?? 0 })}</Chip>}
-                  {/* Provenance. Only rendered for a known origin: "" means the row predates the
+                      {isStale(c, todayIso) && <Chip tone="rose">{t("stale.silentFor", { count: silentDays(c, todayIso) ?? 0 })}</Chip>}
+                      {/* Provenance. Only rendered for a known origin: "" means the row predates the
                       field, and inventing "added by hand" for it would be a fact we don't have. */}
-                  {c.source && <span className="text-ink-dim/70">{t(`sourceLabel.${c.source}` as "sourceLabel.manual")}</span>}
-                </div>
-                {isStale(c, todayIso) && (
-                  <div className="mt-2">
-                    <Btn
-                      size="sm"
-                      variant="ghost"
-                      loading={updateMutation.isPending && updateMutation.variables?.id === c.id}
-                      onClick={() => updateMutation.mutate({ id: c.id, patch: { lastContactAt: todayIso } })}
-                    >
-                      {t("stale.markContactedToday")}
-                    </Btn>
-                  </div>
-                )}
-                {c.notes && <p className="text-xs text-ink-dim mt-2 whitespace-pre-wrap">{c.notes}</p>}
-                <ContactOutreachPanel contact={c} />
-              </Card>
-            );
-          })}
-        </div>
+                      {c.source && <span className="text-ink-dim/70">{t(`sourceLabel.${c.source}` as "sourceLabel.manual")}</span>}
+                    </div>
+                    {isStale(c, todayIso) && (
+                      <div className="mt-2">
+                        <Btn
+                          size="sm"
+                          variant="ghost"
+                          loading={updateMutation.isPending && updateMutation.variables?.id === c.id}
+                          onClick={() => updateMutation.mutate({ id: c.id, patch: { lastContactAt: todayIso } })}
+                        >
+                          {t("stale.markContactedToday")}
+                        </Btn>
+                      </div>
+                    )}
+                    {c.notes && <p className="text-xs text-ink-dim mt-2 whitespace-pre-wrap">{c.notes}</p>}
+                    <ContactOutreachPanel contact={c} />
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
       {modal && (
