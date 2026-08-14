@@ -30,8 +30,16 @@ import { filterAndSortVacancies, COLUMN_LABEL_KEY, OPTIONAL_COLUMNS, type SortKe
 // specifically should stick across those too, so it's separately mirrored to localStorage here
 // (same pattern as theme.ts), while every other "vacancies.*" useUi key stays session-only.
 const VIEW_STORAGE_KEY = "jobtrack.vacancies.view";
+// Same breakpoint dashboard.tsx's own mobile check uses (Tailwind's `lg`). Only the FIRST-EVER
+// visit on a narrow screen defaults here — once anything is stored, that choice always wins,
+// even if the user later opens the app on a different-sized screen. Table's columns (Fit/Salary/
+// Status/Applied/Next-step) scroll off-screen on a phone with no visual hint they exist; Kanban
+// is already swipeable and puts status/fit right on the card.
+const DESKTOP_MIN_WIDTH = 1024;
 function readStoredView(): "table" | "board" {
-  return localStorage.getItem(VIEW_STORAGE_KEY) === "board" ? "board" : "table";
+  const stored = localStorage.getItem(VIEW_STORAGE_KEY);
+  if (stored === "board" || stored === "table") return stored;
+  return typeof window !== "undefined" && window.innerWidth < DESKTOP_MIN_WIDTH ? "board" : "table";
 }
 
 /** Triggers a browser download of a JSON file with the given data (for exporting vacancies). */

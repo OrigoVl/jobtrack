@@ -32,6 +32,7 @@
     "autofillEmpty": "Couldn't detect any details from that link — try filling them in by hand.",
     "levelPlaceholder": "e.g. Middle",
     "stackPlaceholderWithUrl": "Leave empty to auto-detect from the link once saved…",
+    "showStackAnyway": "+ Add tech stack anyway",
     "createCompanyNote": "The company \"{{company}}\" will be created and linked automatically",
     "createCompanyHint": "Its notes, website and interview questions come from this posting"
   },
@@ -132,6 +133,15 @@
     "nextStep": "Next step",
     "nextActionPlaceholder": "What to do (e.g. Follow up)",
     "nextActionAriaLabel": "Next action — {{company}}",
+    "nextActionSuggestions": [
+      "Follow up",
+      "Wait for response",
+      "Prepare for interview",
+      "Send additional documents",
+      "Confirm interview time",
+      "Send a thank-you note",
+      "Negotiate the offer"
+    ],
     "created": "Added",
     "vacancyLinkPlaceholder": "Vacancy link (from any site) → the stack fills in itself…",
     "vacancyLinkAriaLabel": "Vacancy link — {{company}}",
