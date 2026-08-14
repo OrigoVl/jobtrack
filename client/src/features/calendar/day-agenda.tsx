@@ -101,41 +101,45 @@ export function DayAgenda({
       {events.length === 0 && steps.length === 0 && srsDue === 0 && <div className="text-xs text-ink-dim py-1">{t("empty.title")}</div>}
 
       {events.map((e) => (
-        <div key={e.id} className="flex items-start gap-2 px-2 py-1.5 rounded-lg border border-grid">
-          <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${TYPE_DOT[e.type]}`} />
-          <div className="min-w-0 flex-1">
-            <div className="text-sm text-ink font-medium break-words">{e.title || t("untitledEvent")}</div>
-            <div className="text-[11px] text-ink-dim mt-0.5 flex items-center gap-1.5 flex-wrap">
-              <span>
-                {timeLabel.format(new Date(e.startAt))}
-                {e.endAt && ` – ${timeLabel.format(new Date(e.endAt))}`}
-              </span>
-              <span className={`inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${TYPE_CHIP[e.type]}`}>
-                {t(TYPE_KEY[e.type])}
-              </span>
-            </div>
-            {e.contactId != null && contactName(e.contactId) && (
-              <div className="text-[11px] text-ink-dim mt-0.5 truncate">
-                <span aria-hidden>👤</span> {contactName(e.contactId)}
+        <div key={e.id} className="relative rounded-lg border border-grid transition-colors hover:bg-surface-2">
+          {/* The whole card opens the event, via a click target that sits BEHIND the content
+            (absolute inset, like the grid's day cells in calendar.tsx) rather than wrapping it:
+            the join link and Delete have to stay real siblings, since an <a> or a <button> nested
+            in a <button> is invalid HTML and the browser resolves it by making the inner one
+            unclickable. Hence pointer-events-none on the content, re-enabled per interactive child. */}
+          <button
+            type="button"
+            onClick={() => onEdit(e)}
+            aria-label={t("editAriaLabel", { title: e.title })}
+            className="absolute inset-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
+          />
+          <div className="relative pointer-events-none flex items-start gap-2 px-2 py-1.5">
+            <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${TYPE_DOT[e.type]}`} />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm text-ink font-medium break-words">{e.title || t("untitledEvent")}</div>
+              <div className="text-[11px] text-ink-dim mt-0.5 flex items-center gap-1.5 flex-wrap">
+                <span>
+                  {timeLabel.format(new Date(e.startAt))}
+                  {e.endAt && ` – ${timeLabel.format(new Date(e.endAt))}`}
+                </span>
+                <span className={`inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${TYPE_CHIP[e.type]}`}>
+                  {t(TYPE_KEY[e.type])}
+                </span>
               </div>
-            )}
-            {e.meetingUrl && <JoinCallLink url={e.meetingUrl} className="mt-1" />}
-            {e.notes && <div className="text-[11px] text-ink-dim mt-1 whitespace-pre-wrap line-clamp-3">{e.notes}</div>}
-          </div>
-          <div className="flex items-center gap-0.5 shrink-0">
-            <button
-              type="button"
-              onClick={() => onEdit(e)}
-              className="text-[11px] text-ink-dim hover:text-signal px-1 py-0.5"
-              aria-label={t("editAriaLabel", { title: e.title })}
-            >
-              {t("common:actions.edit")}
-            </button>
+              {e.contactId != null && contactName(e.contactId) && (
+                <div className="text-[11px] text-ink-dim mt-0.5 truncate">
+                  <span aria-hidden>👤</span> {contactName(e.contactId)}
+                </div>
+              )}
+              {e.meetingUrl && <JoinCallLink url={e.meetingUrl} className="mt-1 pointer-events-auto" />}
+              {e.notes && <div className="text-[11px] text-ink-dim mt-1 whitespace-pre-wrap line-clamp-3">{e.notes}</div>}
+            </div>
+            {/* Only Delete stays as its own control — Edit would just repeat the card's own click. */}
             <button
               type="button"
               onClick={() => onDelete(e)}
               disabled={deletingId === e.id}
-              className="text-[11px] text-ink-dim hover:text-rose-600 px-1 py-0.5 disabled:opacity-50"
+              className="pointer-events-auto shrink-0 text-[11px] text-ink-dim hover:text-rose-600 px-1 py-0.5 disabled:opacity-50"
               aria-label={t("deleteAriaLabel", { title: e.title })}
             >
               {deletingId === e.id ? <Spinner className="h-3 w-3" /> : t("common:actions.delete")}

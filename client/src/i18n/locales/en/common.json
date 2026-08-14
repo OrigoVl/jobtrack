@@ -29,8 +29,8 @@
     "previousMonth": "Previous month",
     "nextMonth": "Next month",
     "backToCalendar": "Back to calendar",
-    "datePlaceholder": "mm/dd/yyyy",
-    "dateTimePlaceholder": "mm/dd/yyyy, HH:mm"
+    "datePlaceholder": "dd/mm/yyyy",
+    "dateTimePlaceholder": "dd/mm/yyyy, HH:mm"
   },
   "fit": {
     "high": "High",
