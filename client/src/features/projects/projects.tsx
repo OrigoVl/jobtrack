@@ -16,7 +16,12 @@ export function Projects() {
         eyebrow={t("eyebrow")}
         title={t("title")}
         subtitle={t("subtitle")}
-        actions={<Chip tone="emerald">{t("doneCount", { done: doneItems, total: totalItems })}</Chip>}
+        actions={
+          <div className="flex items-center gap-2">
+            {projects.generating && <Chip tone="slate">{t("personalizing")}</Chip>}
+            <Chip tone="emerald">{t("doneCount", { done: doneItems, total: totalItems })}</Chip>
+          </div>
+        }
       />
       <div className="grid lg:grid-cols-2 gap-4">
         {projects.projects.map((p) => {
