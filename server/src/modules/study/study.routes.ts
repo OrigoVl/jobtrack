@@ -1,5 +1,4 @@
 import express from "express";
-import { z } from "zod";
 import {
   getProfile,
   getDrillProgress,
@@ -13,13 +12,13 @@ import {
   recordStudyActivity,
 } from "../../db/index.js";
 import { catFor } from "../knowledge/knowledge-base.js";
-import { chatJson, llmAvailable } from "../../llm/index.js";
+import { llmAvailable } from "../../llm/index.js";
 import { HttpError, authed } from "../../core/http.js";
 import { aiLimiter } from "../../core/rate-limit.js";
 import { CARDS } from "./content.js";
 import { slugify } from "../../shared/slug.js";
 import { genDrills, allDrills, genCards, allCards, trackFor } from "./content-store.js";
-import { scheduleFsrs, type FsrsRating } from "./fsrs.js";
+import { type FsrsRating } from "./fsrs.js";
 import { effectiveTrack } from "../../shared/tracks.js";
 import {
   appendDrillArchive,
@@ -29,25 +28,18 @@ import {
   type DrillArchiveEditableFields,
   type DrillArchiveEntry,
 } from "./study-archive.js";
+import {
+  requestDrillHints,
+  buildAvoidList,
+  requestGeneratedDrills,
+  dedupeGeneratedDrills,
+  requestGeneratedCards,
+  dedupeGeneratedCards,
+  computeSrsGrade,
+} from "./study.service.js";
 
 const r = express.Router();
 const DRILL_ARCHIVE_KEY = "drillArchive";
-
-const HintsSchema = z.object({ hints: z.array(z.string()) });
-// `.catch("med")` on lvl (not a strict enum failure) — the model sometimes returns something
-// outside easy|med|hard; the old manual check also silently normalized it to "med" instead of
-// discarding the task entirely.
-const GenDrillsSchema = z.object({
-  drills: z.array(
-    z.object({
-      q: z.string().min(1),
-      lvl: z.enum(["easy", "med", "hard"]).catch("med"),
-      sol: z.string().min(1),
-      exp: z.string().catch(""),
-    }),
-  ),
-});
-const GenCardsSchema = z.object({ cards: z.array(z.object({ q: z.string().min(1), a: z.string().min(1) })) });
 
 // ---------- study: SRS + drills ----------
 r.get(
@@ -121,17 +113,8 @@ r.post(
     const track = await trackFor(userId);
     const drill = (await allDrills(userId, track)).find((d) => d.id === id);
     if (!drill) throw new HttpError(400, `Unknown task: "${id}"`);
-    if (!llmAvailable()) return res.json({ offline: true, hints: [] });
-    const out = await chatJson(
-      userId,
-      "You are a mentor. You give progressive hints for a task WITHOUT revealing the full solution right away. Respond ONLY with valid JSON.",
-      `Task (${drill.cat}, ${drill.lvl}): ${drill.q}\n` +
-        `Give 3 hints from the subtlest to the strongest (direction of thought → approach/structure → almost the solution, but without ready-made code). Format: {"hints":["...","...","..."]}`,
-      HintsSchema,
-      { maxTokens: 400, temperature: 0.3, cache: true, feature: "study-hint", outputLocale: "app" },
-    );
-    if (!out) return res.json({ offline: true, hints: [] });
-    res.json({ hints: out.hints.slice(0, 3) });
+    const result = await requestDrillHints(userId, drill);
+    res.json(result.offline ? { offline: true, hints: [] } : { hints: result.hints });
   }),
 );
 
@@ -146,58 +129,20 @@ r.post(
     if (!tech) throw new HttpError(400, "No technology specified");
     const profile = await getProfile(userId);
     const track = effectiveTrack(profile);
-    if (!llmAvailable()) return res.json({ offline: true, added: 0, drills: await allDrills(userId, track) });
     const cat = catFor(tech) || tech;
     const role = profile.domain || "specialist";
-    // Read the pool BEFORE generating, not just after: the questions the candidate already has go
-    // INTO the prompt as an exclusion list. That's what makes "generate more" actually generate
-    // more — the loop below drops any task whose `q` is already present, so without telling the
-    // model what to avoid, a second click on the same tech reliably added 0. It also keeps the
-    // cache honest: the cache key hashes the whole prompt, so a pool that has grown produces a new
-    // key, while a click that genuinely changed nothing still gets served the cached answer.
+    // Read the pool BEFORE generating, not just after — see study.service.ts's
+    // requestGeneratedDrills for why the exclusion list matters both for real dedup and for the
+    // cache key.
     const existingQ = new Set((await allDrills(userId, track)).map((d) => d.q));
-    // Capped on both axes — a task statement can run long, and 40 full ones would cost more input
-    // tokens than the 3 tasks being asked for. The opening clause is enough to recognize the topic.
-    const avoid = [...existingQ].slice(0, 40).map((q) => q.slice(0, 120));
-    const out = await chatJson(
-      userId,
-      "You are the author of practical interview tasks. Respond ONLY with valid JSON (code/identifiers/library names in fields may stay in English as is conventional for technical writing).",
-      `The candidate (${role}) knows: ${profile.skills.join(", ") || "—"}. Needs to brush up on "${tech}".\n` +
-        `Generate 3 new practical interview-level tasks specifically for "${tech}", of varying difficulty.\n` +
-        (avoid.length
-          ? `The candidate ALREADY has the tasks below — every task you return must cover different ground, ` +
-            `not a reworded version of one of these:\n${avoid.map((q) => `- ${q}`).join("\n")}\n`
-          : "") +
-        `Format strictly: {"drills":[{"q":"task statement","lvl":"easy|med|hard","sol":"short sample solution","exp":"1-2 sentence explanation"}]}`,
-      GenDrillsSchema,
-      // cache: true — llm/client.ts's cache key hashes the full prompt, which now includes the
-      // exclusion list above, so a repeat click after new tasks were added is a genuine cache MISS
-      // (different pool → different prompt) while a retry after a transient failure, or a click
-      // that added nothing, still hits — the dedupe benefit without the "generate more does
-      // nothing forever" behavior that a pool-independent key produced.
-      { maxTokens: 1200, temperature: 0.6, cache: true, tier: "smart", feature: "study-generate-drills", outputLocale: "app" },
-    );
-    if (!out) return res.json({ offline: true, added: 0, drills: await allDrills(userId, track) });
-    const items = out.drills;
+    const avoid = buildAvoidList(existingQ);
+    const { offline, items } = await requestGeneratedDrills(userId, role, profile.skills, tech, avoid);
+    if (offline) return res.json({ offline: true, added: 0, drills: await allDrills(userId, track) });
+    const newEntries = dedupeGeneratedDrills(items, existingQ, cat, tech);
     const gen = await genDrills(userId);
-    let added = 0;
-    for (const it of items.slice(0, 3)) {
-      if (existingQ.has(it.q)) continue;
-      gen.push({
-        id: `gen-${slugify(tech)}-${Date.now().toString(36)}-${added}`,
-        cat,
-        lvl: it.lvl,
-        q: it.q,
-        sol: it.sol,
-        exp: it.exp,
-        generated: true,
-        tech,
-      });
-      existingQ.add(it.q);
-      added++;
-    }
+    newEntries.forEach((entry, i) => gen.push({ id: `gen-${slugify(tech)}-${Date.now().toString(36)}-${i}`, ...entry }));
     await setKvJson(userId, "genDrills", gen);
-    res.json({ added, drills: await allDrills(userId, track) });
+    res.json({ added: newEntries.length, drills: await allDrills(userId, track) });
   }),
 );
 
@@ -215,36 +160,16 @@ r.post(
         .slice(0, 60) || role;
     if (!topic) throw new HttpError(400, "No topic specified");
     if (!llmAvailable()) return res.json({ offline: true, added: 0 });
-    // Same exclusion-list reasoning as /study/generate above — the loop below drops any card whose
-    // question already exists, so the model has to be told which ones those are.
+    // Same exclusion-list reasoning as /study/generate above — dedupeGeneratedCards drops any card
+    // whose question already exists, so the model has to be told which ones those are.
     const existingQ = new Set((await allCards(userId, track)).map((c) => c.q));
-    const avoid = [...existingQ].slice(0, 40).map((q) => q.slice(0, 120));
-    const out = await chatJson(
-      userId,
-      "You are the author of flashcards for interview prep. Respond ONLY with valid JSON.",
-      `Role/topic: "${topic}" (candidate — ${role}).\n` +
-        `Generate 5 flashcards, "question → concise accurate answer", at interview level.\n` +
-        (avoid.length
-          ? `The candidate ALREADY has the questions below — every card you return must ask about ` +
-            `something else, not a reworded version of one of these:\n${avoid.map((q) => `- ${q}`).join("\n")}\n`
-          : "") +
-        `Format strictly: {"cards":[{"q":"question","a":"answer in 2-4 sentences"}]}`,
-      GenCardsSchema,
-      // cache: true — same reasoning as study-generate-drills above: the exclusion list is part of
-      // the hashed prompt, so a grown pool misses the cache while a retry still hits.
-      { maxTokens: 900, temperature: 0.5, cache: true, tier: "fast", feature: "study-generate-cards", outputLocale: "app" },
-    );
-    const items = out?.cards ?? [];
+    const avoid = buildAvoidList(existingQ);
+    const { items } = await requestGeneratedCards(userId, role, topic, avoid);
+    const newEntries = dedupeGeneratedCards(items, existingQ, topic);
     const gen = await genCards(userId);
-    let added = 0;
-    for (const it of items.slice(0, 5)) {
-      if (existingQ.has(it.q)) continue;
-      gen.push({ id: `genc-${slugify(topic)}-${Date.now().toString(36)}-${added}`, cat: topic, q: it.q, a: it.a, generated: true });
-      existingQ.add(it.q);
-      added++;
-    }
+    newEntries.forEach((entry, i) => gen.push({ id: `genc-${slugify(topic)}-${Date.now().toString(36)}-${i}`, ...entry }));
     await setKvJson(userId, "genCards", gen);
-    res.json({ added });
+    res.json({ added: newEntries.length });
   }),
 );
 r.get(
@@ -282,19 +207,7 @@ r.post(
     const rating = grade as FsrsRating;
     const now = new Date();
     const existing = await getSrsRow(userId, cardId);
-    const prev =
-      existing?.difficulty != null && existing?.stability != null
-        ? { difficulty: existing.difficulty, stability: existing.stability }
-        : null;
-    // How many days have passed since the last review — the key input into the FSRS
-    // retrievability formula; for a new card (prev===null), elapsedDays is ignored inside scheduleFsrs.
-    const elapsedDays = existing?.lastReview
-      ? Math.max(0, Math.round((now.getTime() - new Date(existing.lastReview).getTime()) / 86400000))
-      : 0;
-    const { difficulty, stability, intervalDays } = scheduleFsrs(prev, elapsedDays, rating);
-    const reps = (existing?.reps || 0) + 1;
-    const due = new Date(now.getTime() + intervalDays * 86400000).toISOString().slice(0, 10);
-    const lastReview = now.toISOString();
+    const { difficulty, stability, intervalDays, due, reps, lastReview } = computeSrsGrade(existing, rating, now);
     await recordSrsGrade(userId, cardId, { difficulty, stability, interval: intervalDays, due, reps, lastReview });
     const streak = await recordStudyActivity(userId);
     res.json({ ok: true, due, interval: intervalDays, difficulty, stability, streak });
