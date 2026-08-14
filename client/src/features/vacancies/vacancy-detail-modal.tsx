@@ -63,7 +63,17 @@ export type Tab = "overview" | "cover" | "fit";
  */
 type VacancyDraft = Pick<
   Vacancy,
-  "position" | "url" | "level" | "salary" | "notes" | "coverLetterDetails" | "coverLetter" | "company" | "companyId" | "stack"
+  | "position"
+  | "url"
+  | "level"
+  | "salary"
+  | "notes"
+  | "nextAction"
+  | "coverLetterDetails"
+  | "coverLetter"
+  | "company"
+  | "companyId"
+  | "stack"
 >;
 
 const DRAFT_FIELDS = [
@@ -72,6 +82,7 @@ const DRAFT_FIELDS = [
   "level",
   "salary",
   "notes",
+  "nextAction",
   "coverLetterDetails",
   "coverLetter",
   "company",
@@ -85,6 +96,7 @@ const draftOf = (v: Vacancy): VacancyDraft => ({
   level: v.level,
   salary: v.salary,
   notes: v.notes,
+  nextAction: v.nextAction,
   coverLetterDetails: v.coverLetterDetails,
   coverLetter: v.coverLetter,
   // The company pair travels together: picking one in the select sets both, so the vacancy's own
@@ -301,7 +313,10 @@ export function VacancyDetailModal({
 
   return createPortal(
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
-    <div className="fixed inset-0 z-[65] flex items-center justify-center bg-ink/50 p-3 md:p-6" onClick={() => void requestClose()}>
+    <div
+      className="fixed inset-0 z-[65] flex items-center justify-center bg-ink/45 backdrop-blur-sm p-3 md:p-6"
+      onClick={() => void requestClose()}
+    >
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
       <div
         role="dialog"
@@ -490,6 +505,19 @@ export function VacancyDetailModal({
               className="bg-surface border border-grid rounded px-1.5 py-1 text-xs w-28 outline-none focus:ring-1 focus:ring-signal/40"
             />
           </label>
+          {/* A bare date ("Next step: 15.08.2026") doesn't say what to actually do — wait for a
+              reply, prepare for an interview, follow up. Freeform, like notes/level: no fixed
+              vocabulary of "next action types" fits every stage, and forcing one would just move
+              the ambiguity into an enum. Draft-committed like notes, not immediate like the date
+              itself — it's prose someone builds up, not a one-gesture pick. */}
+          <input
+            value={draft.nextAction}
+            onChange={(e) => patchDraft({ nextAction: e.target.value })}
+            placeholder={t("table.nextActionPlaceholder")}
+            aria-label={t("table.nextActionAriaLabel", { company: vacancy.company })}
+            maxLength={200}
+            className="bg-surface border border-grid rounded px-2 py-1 text-xs w-36 outline-none focus:ring-1 focus:ring-signal/40"
+          />
           <SimilarVacanciesButton vacancyId={vacancy.id} />
         </div>
 

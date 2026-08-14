@@ -24,6 +24,7 @@ const VACANCY_COLUMNS = {
   fit: vacancies.fit,
   applied: vacancies.applied,
   next: vacancies.next,
+  nextAction: vacancies.nextAction,
   notes: vacancies.notes,
   stack: vacancies.stack,
   created: vacancies.created,
@@ -92,6 +93,9 @@ export interface NewVacancy {
   fit: string;
   applied: string;
   next: string;
+  /** Optional — omitted defaults to the column's own DEFAULT '' (same reasoning as favorite
+   * below): existing call sites/tests that predate this field don't all need updating. */
+  nextAction?: string;
   notes: string;
   stack: string[];
   /** Optional — omitted defaults to NULL (the column has no other default). Optional here (unlike
@@ -157,6 +161,8 @@ export interface VacancyUpdate {
   fit: string;
   applied: string;
   next: string;
+  /** Optional — see NewVacancy's own comment on why this isn't required like VacancyRow's field. */
+  nextAction?: string;
   notes: string;
   stack: string[];
   /** Optional — see NewVacancy's own comment on why this isn't required like VacancyRow's field. */

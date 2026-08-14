@@ -219,6 +219,7 @@ function StatTile({
   tintClass = "bg-surface-2/60",
   size = "sm",
   delayMs = 0,
+  onClick,
 }: {
   icon: ReactNode;
   value: string | number;
@@ -228,16 +229,24 @@ function StatTile({
   tintClass?: string;
   size?: "sm" | "lg";
   delayMs?: number;
+  // Navigates to the tab this stat summarizes when set — every tile takes one so a click on a
+  // number always jumps you to where it came from, instead of only some tiles (e.g. the roadmap
+  // card) being interactive and the rest reading as clickable (same card-shadow-hover as every
+  // other card on this page) but doing nothing.
+  onClick?: () => void;
 }) {
   const entrance = { animation: `jt-fade-in 0.4s ease-out ${delayMs}ms backwards` };
+  const Tag = onClick ? "button" : "div";
+  const interactive = onClick ? { type: "button" as const, onClick } : {};
   if (size === "lg") {
     // A visible accent border + wash (not just bigger type) so this tile unmistakably reads as
     // the headline figure next to the smaller cluster beside it — size difference alone wasn't
     // enough to read as "asymmetric" rather than "same row, one card slightly bigger".
     return (
-      <div
+      <Tag
+        {...interactive}
         style={entrance}
-        className="h-full rounded-card card-shadow card-shadow-hover border border-signal/25 bg-gradient-to-br from-signal/[0.06] to-surface px-5 py-4 flex flex-col justify-between"
+        className="h-full w-full text-left rounded-card card-shadow card-shadow-hover border border-signal/25 bg-gradient-to-br from-signal/[0.06] to-surface px-5 py-4 flex flex-col justify-between"
       >
         {/* `mb-4` is a floor, not just a `justify-between` leftover — on a short row (row height
             set by the shorter small-tile cluster beside it) `justify-between` alone had almost no
@@ -250,13 +259,14 @@ function StatTile({
           <div className="text-sm text-ink-dim mt-1.5">{label}</div>
           <div className="text-[11px] text-ink-dim min-h-[14px]">{extra}</div>
         </div>
-      </div>
+      </Tag>
     );
   }
   return (
-    <div
+    <Tag
+      {...interactive}
       style={entrance}
-      className={`shrink-0 w-[112px] sm:w-auto rounded-card card-shadow card-shadow-hover border border-grid px-3 py-2.5 ${tintClass}`}
+      className={`shrink-0 w-[112px] sm:w-auto text-left rounded-card card-shadow card-shadow-hover border border-grid px-3 py-2.5 ${tintClass}`}
     >
       <div className={colorClass}>{icon}</div>
       <div className={`text-2xl font-bold mt-1 tabular-nums ${colorClass}`}>
@@ -264,7 +274,7 @@ function StatTile({
       </div>
       <div className="text-[11px] text-ink-dim mt-0.5">{label}</div>
       <div className="text-[11px] text-ink-dim min-h-[14px]">{extra}</div>
-    </div>
+    </Tag>
   );
 }
 
@@ -424,12 +434,18 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
 
       {vacancies.length > 0 && <FocusWeekCard llm={llm} />}
 
-      {/* Five equal tiles, no hero. There used to be an oversized "total vacancies" tile here,
+      {/* Three equal tiles, no hero. There used to be an oversized "total vacancies" tile here,
           which competed head-on with Focus of the week above for "the thing you look at first" —
           and lost the argument, since a raw count isn't an instruction. Stats are context; they
-          read better as one calm, uniform row. */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatTile icon={<BriefcaseIcon className="w-4 h-4" />} value={vacancies.length} label={t("stats.totalVacancies")} delayMs={0} />
+          read better as one calm, uniform row. Every tile navigates to the tab it summarizes. */}
+      <div className="grid grid-cols-3 gap-3">
+        <StatTile
+          icon={<BriefcaseIcon className="w-4 h-4" />}
+          value={vacancies.length}
+          label={t("stats.totalVacancies")}
+          delayMs={0}
+          onClick={() => go("vacancies")}
+        />
         <StatTile
           icon={<PlayCircleIcon className="w-4 h-4" />}
           value={active}
@@ -437,6 +453,7 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
           colorClass="text-ink"
           tintClass="bg-signal/5"
           delayMs={60}
+          onClick={() => go("vacancies")}
         />
         <StatTile
           icon={<CalendarCheckIcon className="w-4 h-4" />}
@@ -445,25 +462,38 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
           colorClass="text-alert"
           tintClass="bg-alert/5"
           delayMs={120}
+          onClick={() => go("vacancies")}
         />
-        <StatTile
-          icon={<CardsStackIcon className="w-4 h-4" />}
-          value={`${study?.learned ?? 0}/${study?.total ?? 0}`}
-          label={t("stats.cardsLearned")}
-          colorClass="text-ink"
-          tintClass="bg-signal/5"
-          extra={(study?.due.length ?? 0) > 0 ? t("stats.dueToday", { count: study?.due.length ?? 0 }) : undefined}
-          delayMs={180}
-        />
-        <StatTile
-          icon={<FlameIcon className="w-4 h-4" />}
-          value={streakCurrent}
-          label={t("stats.streak")}
-          colorClass={streakCurrent > 0 ? "text-alert" : "text-ink"}
-          tintClass={streakCurrent > 0 ? "bg-alert/5" : "bg-surface-2/60"}
-          extra={(study?.streak.longest ?? 0) > 0 ? t("stats.streakRecord", { count: study?.streak.longest ?? 0 }) : undefined}
-          delayMs={240}
-        />
+      </div>
+
+      {/* Learning stats live in their own strip, not folded into the vacancy row above — they
+          measure a different activity (study practice, not the job search itself), and sitting
+          next to "Active"/"In interviews" made them read as one more vacancy metric instead of a
+          pointer to the Study tab. */}
+      <div className="space-y-2">
+        <div className="text-xs font-medium text-ink-dim uppercase tracking-wide px-0.5">{t("stats.learningHeading")}</div>
+        <div className="grid grid-cols-2 gap-3">
+          <StatTile
+            icon={<CardsStackIcon className="w-4 h-4" />}
+            value={`${study?.learned ?? 0}/${study?.total ?? 0}`}
+            label={t("stats.cardsLearned")}
+            colorClass="text-ink"
+            tintClass="bg-signal/5"
+            extra={(study?.due.length ?? 0) > 0 ? t("stats.dueToday", { count: study?.due.length ?? 0 }) : undefined}
+            delayMs={180}
+            onClick={() => go("study")}
+          />
+          <StatTile
+            icon={<FlameIcon className="w-4 h-4" />}
+            value={streakCurrent}
+            label={t("stats.streak")}
+            colorClass={streakCurrent > 0 ? "text-alert" : "text-ink"}
+            tintClass={streakCurrent > 0 ? "bg-alert/5" : "bg-surface-2/60"}
+            extra={(study?.streak.longest ?? 0) > 0 ? t("stats.streakRecord", { count: study?.streak.longest ?? 0 }) : undefined}
+            delayMs={240}
+            onClick={() => go("study")}
+          />
+        </div>
       </div>
 
       {/* Below the stats, not above them: a streak is a measurement of what you've done, not an
@@ -497,7 +527,7 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
                   <span className="text-ink">{t(s.labelKey)}</span>
                   <button
                     onClick={() => go(s.path)}
-                    className="ml-auto text-xs font-medium text-ink-dim hover:text-signal hover:underline shrink-0"
+                    className="ml-auto text-xs font-medium text-ink-dim hover:text-signal hover:underline shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
                   >
                     {t(s.ctaKey)}
                   </button>
@@ -526,7 +556,10 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
                   <>
                     <div className="flex items-center justify-between mb-2">
                       <div className="text-sm font-semibold text-ink">{t("roadmapProgress.heading")}</div>
-                      <button onClick={() => go("roadmap")} className="text-sm text-ink-dim hover:text-signal hover:underline">
+                      <button
+                        onClick={() => go("roadmap")}
+                        className="text-sm text-ink-dim hover:text-signal hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
+                      >
                         {t("roadmapProgress.open")}
                       </button>
                     </div>
@@ -563,18 +596,32 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
                 {upcoming.length === 0 ? (
                   <div>
                     <div className="text-ink-dim text-sm">{t("upcomingSteps.empty")}</div>
-                    <button onClick={() => go("vacancies")} className="mt-1 text-sm text-ink-dim hover:text-signal hover:underline">
+                    <button
+                      onClick={() => go("vacancies")}
+                      className="mt-1 text-sm text-ink-dim hover:text-signal hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
+                    >
                       {t("upcomingSteps.emptyCta")}
                     </button>
                   </div>
                 ) : (
                   upcoming.map((u) => (
-                    <div key={u.id} className="flex justify-between text-sm py-1.5 border-b border-surface-2 last:border-0">
-                      <span>
-                        {u.company} — <span className="text-ink-dim">{statusLabel(u.status)}</span>
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => go("vacancies")}
+                      className="w-full flex justify-between items-start gap-2 text-sm py-1.5 border-b border-surface-2 last:border-0 text-left hover:text-signal"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate">
+                          {u.company} — <span className="text-ink-dim">{statusLabel(u.status)}</span>
+                        </span>
+                        {/* The date alone ("15.08.2026") doesn't say what to actually do about
+                            it — show the freeform next-action text right under it when set,
+                            same field the vacancy detail modal edits. */}
+                        {u.nextAction && <span className="block text-xs text-ink-dim truncate">{u.nextAction}</span>}
                       </span>
-                      <span className="text-alert font-medium whitespace-nowrap">{formatDay(u.next)}</span>
-                    </div>
+                      <span className="text-alert font-medium whitespace-nowrap shrink-0">{formatDay(u.next)}</span>
+                    </button>
                   ))
                 )}
                 {upcomingEvents.length > 0 && (
@@ -599,7 +646,10 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
               <Card className={staleContacts.length === 0 ? "md:col-span-2" : undefined}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="font-semibold text-ink">{t("cvCompleteness.heading")}</div>
-                  <button onClick={() => go("cv")} className="text-sm text-ink-dim hover:text-signal hover:underline">
+                  <button
+                    onClick={() => go("cv")}
+                    className="text-sm text-ink-dim hover:text-signal hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
+                  >
                     {t("cvCompleteness.open")}
                   </button>
                 </div>
@@ -610,7 +660,10 @@ export function Dashboard({ go }: { go: (t: string) => void }) {
               <Card className={!cvDoc ? "md:col-span-2" : undefined}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="font-semibold text-ink">{t("staleContacts.heading")}</div>
-                  <button onClick={() => go("contacts")} className="text-sm text-ink-dim hover:text-signal hover:underline">
+                  <button
+                    onClick={() => go("contacts")}
+                    className="text-sm text-ink-dim hover:text-signal hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
+                  >
                     {t("staleContacts.open")}
                   </button>
                 </div>

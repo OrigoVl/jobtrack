@@ -16,6 +16,7 @@ function vacancy(overrides: Partial<VacancyRow> = {}): VacancyRow {
     fit: "med",
     applied: "",
     next: "",
+    nextAction: "",
     notes: "",
     stack: [],
     created: "2026-01-01",

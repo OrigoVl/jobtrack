@@ -50,6 +50,7 @@ function vacancyRow(id: number, company: string, url: string): VacancyRow {
     fit: "med",
     applied: "",
     next: "",
+    nextAction: "",
     notes: "",
     stack: [],
     companyId: null,

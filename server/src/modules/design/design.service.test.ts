@@ -44,6 +44,7 @@ const vacancy: VacancyRow = {
   fit: "high",
   applied: "",
   next: "",
+  nextAction: "",
   notes: "High-traffic payments platform.",
   stack: ["Go", "Kafka", "PostgreSQL"],
   created: "",

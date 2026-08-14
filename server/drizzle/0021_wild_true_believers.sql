@@ -1,0 +1,1 @@
+ALTER TABLE "vacancies" ADD COLUMN "next_action" text DEFAULT '' NOT NULL;

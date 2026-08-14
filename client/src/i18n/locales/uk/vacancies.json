@@ -130,6 +130,8 @@
     "status": "Статус",
     "applied": "Подано",
     "nextStep": "Наступний крок",
+    "nextActionPlaceholder": "Що робити (напр. Follow up)",
+    "nextActionAriaLabel": "Наступна дія — {{company}}",
     "created": "Додано",
     "vacancyLinkPlaceholder": "Посилання на вакансію (з будь-якого сайту) → стек заповниться сам…",
     "vacancyLinkAriaLabel": "Посилання на вакансію — {{company}}",
@@ -155,7 +157,7 @@
     "move": "Перейти"
   },
   "toasts": {
-    "added": "Вакансію додано",
+    "added": "Вакансію додано →",
     "offerCelebration": "Вітаємо з офером від {{company}}!",
     "possibleDuplicate": "Додано — але це схоже на вже наявну вакансію: {{position}} у {{company}}. Варто перевірити, чи це не дублікат.",
     "deleted": "Вакансію видалено",

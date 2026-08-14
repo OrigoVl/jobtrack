@@ -58,6 +58,11 @@ export const vacancies = pgTable(
     // follow-up, not part of this migration.
     applied: text().notNull().default(""),
     next: text().notNull().default(""),
+    // Short freeform description of what `next` is actually a date FOR ("Follow up", "Prepare
+    // for interview") — a bare date doesn't say what to do, this pairs with it. Same tri-state
+    // convention as notes/level above: "" means "not set", NOT NULL with a default, no separate
+    // boolean flag.
+    nextAction: text("next_action").notNull().default(""),
     notes: text().notNull().default(""),
     stack: jsonb().$type<string[]>().notNull().default([]),
     // The saved/editable result of the "cover" tab's Generate button (writing.routes.ts's
