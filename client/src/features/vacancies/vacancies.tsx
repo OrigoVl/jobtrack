@@ -439,7 +439,14 @@ export function Vacancies() {
                                 aria-label={t("detail.openAriaLabel", { company: row.company, position: row.position })}
                                 className="text-ink-dim text-xs tabular-nums hover:text-signal hover:underline rounded px-1 -mx-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
                               >
-                                {i + 1}
+                                {/* Counted UP from the bottom, so the default (newest-first) order
+                                    puts the total on the newest row and 1 on the very first
+                                    vacancy ever added — "this is my 43rd application", which is
+                                    the number worth seeing. Numbering downward from the top made
+                                    the newest row a permanent "1" and quietly renumbered every
+                                    row below it on each save. It stays positional either way, so
+                                    a filter or a column sort narrows/reorders it. */}
+                                {visibleVacancies.length - i}
                               </button>
                             </div>
                           </td>
