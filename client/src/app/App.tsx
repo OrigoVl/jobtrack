@@ -243,7 +243,9 @@ function SidebarProgress() {
     >
       <div className="flex items-center gap-1 text-xs font-medium text-ink-dim mb-1">
         <span>{t("roadmapProgress", { done: roadmap.progress.done, total: roadmap.progress.total })}</span>
-        <span className="ml-auto text-signal">→</span>
+        <span className="ml-auto text-signal" aria-hidden="true">
+          →
+        </span>
       </div>
       <ProgressBar value={roadmap.progress.done} max={roadmap.progress.total} tone="emerald" />
     </button>
