@@ -6,6 +6,9 @@ import type {
   AdminUsersResult,
   Analytics,
   AnalyzeResult,
+  ApiToken,
+  ApiTokenCreated,
+  ApiTokenInput,
   ApplyProgress,
   BillingState,
   CalendarEvent,
@@ -396,4 +399,8 @@ export const api = {
   billingMe: () => req<BillingState>("/billing/me"),
   createCheckout: (plan: CheckoutPlan) => req<{ url: string }>("/billing/checkout", { method: "POST", body: JSON.stringify({ plan }) }),
   openBillingPortal: () => req<{ url: string }>("/billing/portal", { method: "POST", body: "{}" }),
+
+  apiTokens: () => req<ApiToken[]>("/mcp/tokens"),
+  createApiToken: (input: ApiTokenInput) => req<ApiTokenCreated>("/mcp/tokens", { method: "POST", body: JSON.stringify(input) }),
+  revokeApiToken: (id: number) => req<{ ok: boolean }>(`/mcp/tokens/${id}`, { method: "DELETE" }),
 };

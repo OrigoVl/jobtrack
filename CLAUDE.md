@@ -120,7 +120,10 @@ Don't declare a task finished on the basis of "it should work" — actually run 
   purely as an opaque bucketing key, never passed into business logic. `core/http.ts` imports
   `auth/auth.js` lazily (dynamic `import()` inside the function, not a static top-level one)
   specifically so modules that only need `HttpError`/`asyncHandler` — and their unit tests —
-  don't transitively open a real Postgres connection just by importing this file.
+  don't transitively open a real Postgres connection just by importing this file. A third
+  sanctioned resolver is `modules/mcp/mcp.routes.ts`'s bearer-auth verifier, which resolves a
+  `UserId` from a personal API token (`api_tokens` table) instead of a session, for MCP clients
+  that authenticate as bearer tokens rather than a browser.
 - **i18n (client)**: `react-i18next`, one namespace-per-feature JSON pair under
   `client/src/i18n/locales/{en,uk}/<namespace>.json`. A new namespace must be registered in BOTH
   `client/src/i18n/index.ts` (the `resources` object) and `client/src/i18n/i18next.d.ts` (the

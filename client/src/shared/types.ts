@@ -926,6 +926,37 @@ export interface ReferralState {
   bonusCallsPerMonth: number;
 }
 
+/** Persisted wire value — never translated directly, see shared/fit-tone.ts's Fit for the same
+ * convention. The Account page maps each to a display label via a small lookup instead. */
+export type ApiTokenScope = "read" | "read_write";
+
+/** GET /mcp/tokens — a personal API token connecting an external MCP client (e.g. Claude Desktop)
+ * to the account. Already-revoked tokens are excluded server-side, so every row here is active.
+ * The raw secret itself is never returned by this endpoint — see ApiTokenCreated below, the only
+ * response that ever carries it. */
+export interface ApiToken {
+  id: number;
+  label: string;
+  scope: ApiTokenScope;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  revokedAt: string | null;
+}
+
+export interface ApiTokenInput {
+  label: string;
+  scope: ApiTokenScope;
+  expiresAt?: string;
+}
+
+/** POST /mcp/tokens response. `token` is the raw secret value, shown/copyable exactly once — it
+ * can never be fetched again afterwards (GET /mcp/tokens only ever returns the metadata above). */
+export interface ApiTokenCreated {
+  id: number;
+  token: string;
+}
+
 /** Mirrors server/src/modules/notifications/notifications.routes.ts's GET /notifications/settings.
  *
  * `prefs` is SPARSE — only explicit opt-outs are stored, so a kind missing from it is ON (see

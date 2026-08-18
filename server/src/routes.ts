@@ -31,6 +31,8 @@ import onboarding from "./modules/onboarding/onboarding.routes.js";
 import telegram from "./modules/telegram/telegram.routes.js";
 import notifications from "./modules/notifications/notifications.routes.js";
 import referrals from "./modules/referrals/referrals.routes.js";
+import mcpTools from "./modules/mcp/mcp.routes.js";
+import mcpTokens from "./modules/mcp/api-tokens.routes.js";
 
 const r = express.Router();
 
@@ -61,5 +63,7 @@ r.use(onboarding);
 r.use(telegram);
 r.use(notifications);
 r.use(referrals);
+r.use(mcpTools);
+r.use(mcpTokens);
 
 export default r;

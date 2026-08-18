@@ -77,6 +77,43 @@
     "bonusEarned_one": "+{{count}} bonus AI call/month",
     "bonusEarned_other": "+{{count}} bonus AI calls/month"
   },
+  "apiTokens": {
+    "heading": "API tokens",
+    "description": "Personal access tokens for connecting external AI tools (like Claude Desktop) to your account over MCP.",
+    "scope": {
+      "read": "Read only",
+      "readWrite": "Read and write"
+    },
+    "list": {
+      "heading": "Active tokens",
+      "empty": "No active tokens yet.",
+      "created": "Created {{date}}",
+      "lastUsed": "Last used {{date}}",
+      "neverUsed": "Never used",
+      "expires": "Expires {{date}}"
+    },
+    "create": {
+      "heading": "Create a new token",
+      "labelField": "Label",
+      "labelPlaceholder": "e.g. Claude Desktop",
+      "expiresField": "Expiry (optional)",
+      "button": "Create token",
+      "toast": "Token created"
+    },
+    "reveal": {
+      "aria": "Your new API token",
+      "warning": "Copy this token now — you won't be able to see it again.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "done": "Done"
+    },
+    "revoke": {
+      "button": "Revoke",
+      "confirmTitle": "Revoke \"{{label}}\"?",
+      "confirmMessage": "Any tool using this token loses access immediately. This can't be undone.",
+      "toast": "Token revoked"
+    }
+  },
   "deleteAccount": {
     "heading": "Delete your account",
     "description": "Permanently deletes your account and everything in it — vacancies, companies, CV, study progress. This cannot be undone.",

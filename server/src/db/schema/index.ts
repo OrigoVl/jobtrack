@@ -1,5 +1,6 @@
 // Single schema surface handed to `drizzle()` — re-exports every table so Drizzle's relational
 // query builder and drizzle-kit's migration generator see the whole schema through one import.
+export * from "./api-tokens.js";
 export * from "./app.js";
 export * from "./auth.js";
 export * from "./billing.js";

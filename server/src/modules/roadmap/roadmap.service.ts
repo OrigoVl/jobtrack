@@ -7,7 +7,11 @@ import type { Card, DrillItem } from "../study/content.js";
 import type { SrsRow } from "../../db/types.js";
 import { computeSkillLevel, cardMaturity } from "./skill-level.js";
 import type { RoadmapStatus } from "../../shared/validation.js";
-import { DEFAULT_TRACK, type Track } from "../../shared/tracks.js";
+import { DEFAULT_TRACK, effectiveTrack, type Track } from "../../shared/tracks.js";
+import { getProfile, getRoadmapProgress, getDrillProgress, getSrsStateByCard, getSkillLevels } from "../../db/index.js";
+import type { UserId } from "../../db/user-id.js";
+import { demandMap } from "../../shared/demand.js";
+import { allDrills, allCards } from "../study/content-store.js";
 
 // group order in the roadmap (like roadmap.sh — from fundamentals to specialization). Per-track:
 // only "software" needs a hand-curated order today (every existing tech-dict cat is a dev-stack
@@ -147,4 +151,22 @@ export function buildRoadmap(input: BuildRoadmapInput): RoadmapResult {
       total: all.length,
     },
   };
+}
+
+/** Assembles one user's roadmap end to end — the same read+build sequence GET /roadmap
+ * (roadmap.routes.ts) used to inline, extracted so the MCP `get_roadmap` tool
+ * (modules/mcp/mcp-tools.ts) can reuse the exact same assembly instead of duplicating it. */
+export async function getUserRoadmap(userId: UserId): Promise<RoadmapResult> {
+  const profile = await getProfile(userId);
+  const track = effectiveTrack(profile);
+  const demand = await demandMap(userId);
+  const progress = await getRoadmapProgress(userId);
+  const drillProgress = await getDrillProgress(userId);
+  const [drills, cards, srs, levels] = await Promise.all([
+    allDrills(userId, track),
+    allCards(userId, track),
+    getSrsStateByCard(userId),
+    getSkillLevels(userId),
+  ]);
+  return buildRoadmap({ skills: profile.skills, demand, progress, drillProgress, drills, cards, srs, levels, track });
 }

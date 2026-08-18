@@ -1,24 +1,30 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
-import { Btn, Card, Chip, PageHeader, ProgressBar } from "../../shared/ui";
+import { Btn, Card, Chip, PageHeader, ProgressBar, Segmented } from "../../shared/ui";
 import { deleteUser } from "../../shared/auth-client";
 import { LanguageSwitcher } from "../../shared/language-switcher";
 import { ThemeSwitcher } from "../../shared/theme-switcher";
+import { DateInput } from "../../shared/date-input";
 import {
+  useApiTokens,
   useBilling,
+  useCreateApiToken,
   useCreateTelegramLinkToken,
   useDigestPreferences,
   useNotificationSettings,
   useOpenBillingPortal,
   useReferralState,
+  useRevokeApiToken,
   useSaveNotificationSettings,
   useSetDigestEnabled,
   useTelegramStatus,
   useUnlinkTelegram,
 } from "../../shared/queries";
 import { useToast } from "../../shared/use-toast";
+import { useConfirm } from "../../shared/use-confirm";
 import { enableNotifications, disableNotifications, notificationsEnabled, notificationsSupported } from "../../shared/notifications";
+import type { ApiToken, ApiTokenCreated, ApiTokenScope } from "../../shared/types";
 
 /** One labeled row inside a grouped settings `Card` — heading/description on the left, the
  * interactive control on the right, wrapping to stack on narrow screens. `children` renders
@@ -62,6 +68,7 @@ export function Account() {
   const { t } = useTranslation(["account", "billing", "common"]);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { data: digestPrefs } = useDigestPreferences();
   const setDigestEnabledMutation = useSetDigestEnabled();
   const { data: billing } = useBilling();
@@ -72,17 +79,59 @@ export function Account() {
   const { data: notificationSettings } = useNotificationSettings();
   const saveNotificationSettings = useSaveNotificationSettings();
   const { data: referral } = useReferralState();
+  const { data: apiTokens } = useApiTokens();
+  const createApiToken = useCreateApiToken();
+  const revokeApiToken = useRevokeApiToken();
   const [notifOn, setNotifOn] = useState(() => notificationsEnabled());
   const [deleteRequested, setDeleteRequested] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [referralCopied, setReferralCopied] = useState(false);
+  const [newTokenLabel, setNewTokenLabel] = useState("");
+  const [newTokenScope, setNewTokenScope] = useState<ApiTokenScope>("read");
+  const [newTokenExpiry, setNewTokenExpiry] = useState("");
+  // The raw token value, readable exactly once right after creation — deliberately local state,
+  // never written to the query cache (GET /mcp/tokens can never return it again). Cleared by
+  // unmounting (navigating away), the reveal panel's own "Done" button, or a fresh creation.
+  const [createdToken, setCreatedToken] = useState<ApiTokenCreated | null>(null);
+  const [tokenCopied, setTokenCopied] = useState(false);
 
   async function onCopyReferralLink() {
     if (!referral) return;
     await navigator.clipboard.writeText(`${window.location.origin}/register?ref=${referral.code}`);
     setReferralCopied(true);
     setTimeout(() => setReferralCopied(false), 2000);
+  }
+
+  async function onCopyApiToken() {
+    if (!createdToken) return;
+    await navigator.clipboard.writeText(createdToken.token);
+    setTokenCopied(true);
+    setTimeout(() => setTokenCopied(false), 2000);
+  }
+
+  function onCreateApiToken() {
+    const label = newTokenLabel.trim();
+    if (!label) return;
+    createApiToken.mutate(
+      { label, scope: newTokenScope, expiresAt: newTokenExpiry || undefined },
+      {
+        onSuccess: (created) => {
+          setCreatedToken(created);
+          setNewTokenLabel("");
+          setNewTokenScope("read");
+          setNewTokenExpiry("");
+        },
+      },
+    );
+  }
+
+  async function onRevokeApiToken(token: ApiToken) {
+    if (
+      await confirm({ title: t("apiTokens.revoke.confirmTitle", { label: token.label }), message: t("apiTokens.revoke.confirmMessage") })
+    ) {
+      revokeApiToken.mutate(token.id);
+    }
   }
 
   const onEnableNotifications = async () => {
@@ -293,6 +342,104 @@ export function Account() {
           )}
         </GroupCard>
       )}
+
+      <GroupCard title={t("apiTokens.heading")}>
+        <SettingRow heading={t("apiTokens.heading")} description={t("apiTokens.description")} />
+
+        {apiTokens && apiTokens.length > 0 ? (
+          <SettingRow heading={t("apiTokens.list.heading")}>
+            <div className="space-y-1.5">
+              {apiTokens.map((token) => {
+                const isRevoking = revokeApiToken.isPending && revokeApiToken.variables === token.id;
+                return (
+                  <div key={token.id} className="flex items-center gap-2 text-sm px-2.5 py-1.5 rounded-lg border border-grid flex-wrap">
+                    <span className="font-medium text-ink truncate">{token.label}</span>
+                    {/* scope is a persisted wire value — only its display label is translated. */}
+                    <Chip tone={token.scope === "read_write" ? "amber" : "slate"}>
+                      {token.scope === "read_write" ? t("apiTokens.scope.readWrite") : t("apiTokens.scope.read")}
+                    </Chip>
+                    <span className="text-xs text-ink-dim whitespace-nowrap">
+                      {t("apiTokens.list.created", { date: new Date(token.createdAt).toLocaleDateString() })}
+                    </span>
+                    <span className="text-xs text-ink-dim whitespace-nowrap">
+                      {token.lastUsedAt
+                        ? t("apiTokens.list.lastUsed", { date: new Date(token.lastUsedAt).toLocaleDateString() })
+                        : t("apiTokens.list.neverUsed")}
+                    </span>
+                    {token.expiresAt && (
+                      <span className="text-xs text-ink-dim whitespace-nowrap">
+                        {t("apiTokens.list.expires", { date: new Date(token.expiresAt).toLocaleDateString() })}
+                      </span>
+                    )}
+                    <Btn size="sm" variant="ghost" className="ml-auto" loading={isRevoking} onClick={() => onRevokeApiToken(token)}>
+                      {t("apiTokens.revoke.button")}
+                    </Btn>
+                  </div>
+                );
+              })}
+            </div>
+          </SettingRow>
+        ) : (
+          <SettingRow heading={t("apiTokens.list.heading")}>
+            <p className="text-xs text-ink-dim">{t("apiTokens.list.empty")}</p>
+          </SettingRow>
+        )}
+
+        <SettingRow heading={t("apiTokens.create.heading")}>
+          {createdToken ? (
+            <div className="space-y-2 max-w-md">
+              <p className="text-xs text-signal bg-signal/10 border border-signal/30 rounded-lg px-3 py-2">
+                {t("apiTokens.reveal.warning")}
+              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  readOnly
+                  value={createdToken.token}
+                  aria-label={t("apiTokens.reveal.aria")}
+                  className="flex-1 min-w-[220px] bg-surface-2 border border-grid rounded-lg px-2 py-1 text-xs font-mono text-ink"
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <Btn size="sm" variant="ghost" onClick={onCopyApiToken}>
+                  {tokenCopied ? t("apiTokens.reveal.copied") : t("apiTokens.reveal.copy")}
+                </Btn>
+              </div>
+              <Btn size="sm" variant="ghost" onClick={() => setCreatedToken(null)}>
+                {t("apiTokens.reveal.done")}
+              </Btn>
+            </div>
+          ) : (
+            <div className="space-y-2 max-w-md">
+              <input
+                type="text"
+                value={newTokenLabel}
+                onChange={(e) => setNewTokenLabel(e.target.value)}
+                placeholder={t("apiTokens.create.labelPlaceholder")}
+                aria-label={t("apiTokens.create.labelField")}
+                className="w-full bg-surface-2 border border-grid rounded-lg px-2 py-1.5 text-sm text-ink"
+              />
+              <div className="flex items-center gap-2 flex-wrap">
+                <Segmented
+                  value={newTokenScope}
+                  onChange={setNewTokenScope}
+                  options={[
+                    { value: "read", label: t("apiTokens.scope.read") },
+                    { value: "read_write", label: t("apiTokens.scope.readWrite") },
+                  ]}
+                />
+                <DateInput
+                  value={newTokenExpiry}
+                  onChange={setNewTokenExpiry}
+                  aria-label={t("apiTokens.create.expiresField")}
+                  className="w-32 bg-surface-2 border border-grid rounded-lg px-2 py-1.5 text-xs text-ink"
+                />
+                <Btn size="sm" loading={createApiToken.isPending} disabled={!newTokenLabel.trim()} onClick={onCreateApiToken}>
+                  {t("apiTokens.create.button")}
+                </Btn>
+              </div>
+            </div>
+          )}
+        </SettingRow>
+      </GroupCard>
 
       <Card>
         <div className="text-sm font-semibold text-ink">{t("export.heading")}</div>
