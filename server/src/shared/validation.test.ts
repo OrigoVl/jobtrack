@@ -13,6 +13,7 @@ import {
   parseDesignGenerateTaskInput,
   parseDesignGradeInput,
   parseDesignHelpInput,
+  parseApiTokenInput,
   assertSafeVacancyUrl,
   STATUSES,
   FITS,
@@ -477,6 +478,42 @@ describe("parseDesignGradeInput", () => {
     // just disappears — the arrow itself survives with its coordinates intact.
     expect(out.diagram.annotations[0]).toMatchObject({ id: "a1", startNodeId: "1", x1: 0, x2: 5 });
     expect(out.diagram.annotations[0]).not.toHaveProperty("endNodeId");
+  });
+});
+
+describe("parseApiTokenInput", () => {
+  it("parses a valid payload with all fields", () => {
+    const out = parseApiTokenInput({ label: "My laptop", scope: "read_write", expiresAt: "2027-01-01T00:00:00.000Z" });
+    expect(out.label).toBe("My laptop");
+    expect(out.scope).toBe("read_write");
+    expect(out.expiresAt).toEqual(new Date("2027-01-01T00:00:00.000Z"));
+  });
+
+  it("defaults scope to 'read' when omitted", () => {
+    expect(parseApiTokenInput({ label: "My laptop" }).scope).toBe("read");
+  });
+
+  it("leaves expiresAt undefined when omitted or empty", () => {
+    expect(parseApiTokenInput({ label: "My laptop" }).expiresAt).toBeUndefined();
+    expect(parseApiTokenInput({ label: "My laptop", expiresAt: "" }).expiresAt).toBeUndefined();
+  });
+
+  it("rejects an invalid scope", () => {
+    expect(() => parseApiTokenInput({ label: "My laptop", scope: "admin" })).toThrow(HttpError);
+  });
+
+  it("rejects a missing or empty label", () => {
+    expect(() => parseApiTokenInput({})).toThrow(HttpError);
+    expect(() => parseApiTokenInput({ label: "   " })).toThrow(HttpError);
+  });
+
+  it("rejects a malformed expiresAt date string", () => {
+    expect(() => parseApiTokenInput({ label: "My laptop", expiresAt: "not-a-date" })).toThrow(HttpError);
+  });
+
+  it("trims and caps an overly long label at 100 chars", () => {
+    const out = parseApiTokenInput({ label: `  ${"x".repeat(150)}  ` });
+    expect(out.label).toHaveLength(100);
   });
 });
 

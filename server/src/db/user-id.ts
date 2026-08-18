@@ -1,7 +1,10 @@
-// A branded string type for user ids — produced ONLY by `authed()` (server/src/core/http.ts).
-// This makes it a compile error to pass a loose string (a URL param, a company name, anything
-// not actually resolved from a real session) anywhere a repository expects a tenant scope. The
-// brand has no runtime cost — it's erased by TypeScript, this is purely a type-checker guardrail.
+// A branded string type for user ids — produced ONLY by `authed()`/`requireAdmin()`
+// (server/src/core/http.ts, reading a real session) or, for MCP clients, by
+// modules/mcp/mcp.routes.ts's bearer-auth verifier (reading a personal API token instead of a
+// session). This makes it a compile error to pass a loose string (a URL param, a company name,
+// anything not actually resolved one of those two sanctioned ways) anywhere a repository expects
+// a tenant scope. The brand has no runtime cost — it's erased by TypeScript, this is purely a
+// type-checker guardrail.
 export type UserId = string & { readonly __brand: "UserId" };
 
 // Phase 2 of the multi-tenant migration used this constant as every request's `userId` — there

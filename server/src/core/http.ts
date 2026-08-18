@@ -57,7 +57,10 @@ type RequestWithCachedUserId = Request & { [cachedUserIdKey]?: Promise<UserId | 
  * of per-IP (important once more than one user shares an office/VPN IP — a multi-user prerequisite).
  * Deliberately returns ONLY the id, never the full session/role, since bucketing a rate limit is
  * all it's for — every actual authorization decision still goes exclusively through
- * authed()/requireAdmin() below, and no repository or route ever receives a `userId` this way. */
+ * authed()/requireAdmin() below, and no repository or route ever receives a `userId` this way.
+ * A second, equally-deliberate resolver exists alongside this one: modules/mcp/mcp.routes.ts's
+ * bearer-auth verifier resolves a `UserId` from a personal API token (not a session) for MCP
+ * clients — same "no ad hoc userId" invariant, just a different, documented credential. */
 export async function getSessionUserIdForRateLimit(req: Request): Promise<UserId | null> {
   const cached = (req as RequestWithCachedUserId)[cachedUserIdKey];
   if (cached) return cached;

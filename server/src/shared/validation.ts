@@ -413,6 +413,34 @@ export function parseSavedSearchInput(body: unknown): SavedSearchInput {
   return { query, region: region as JobSearchRegion, label: asString(b.label).trim().slice(0, 120) };
 }
 
+export const API_TOKEN_SCOPES = ["read", "read_write"] as const;
+export type ApiTokenScope = (typeof API_TOKEN_SCOPES)[number];
+
+export interface ApiTokenInput {
+  label: string;
+  scope: ApiTokenScope;
+  expiresAt?: Date;
+}
+
+/** POST /mcp/tokens body — see modules/mcp/api-tokens.routes.ts. `scope` defaults to the least
+ * privileged option ("read") rather than throwing when omitted, since most MCP clients only ever
+ * need read access. `expiresAt`, when given, must be an ISO date/time string in the future. */
+export function parseApiTokenInput(body: unknown): ApiTokenInput {
+  const b = (body || {}) as Record<string, unknown>;
+  const label = asString(b.label).trim().slice(0, 100);
+  if (!label) throw new HttpError(400, 'Field "label" is required');
+  const scope = asString(b.scope, "read");
+  if (!API_TOKEN_SCOPES.includes(scope as ApiTokenScope)) throw new HttpError(400, `Invalid scope: "${scope}"`);
+  const out: ApiTokenInput = { label, scope: scope as ApiTokenScope };
+  if (b.expiresAt != null && b.expiresAt !== "") {
+    const raw = asString(b.expiresAt).trim();
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) throw new HttpError(400, 'Field "expiresAt" must be a valid date');
+    out.expiresAt = d;
+  }
+  return out;
+}
+
 export const CALENDAR_EVENT_TYPES = ["interview", "call", "deadline", "reminder", "other"] as const;
 export type CalendarEventType = (typeof CALENDAR_EVENT_TYPES)[number];
 
