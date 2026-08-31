@@ -75,9 +75,11 @@
       "fallback": "Vacancy",
       "compareAgainst": "Compare CV against",
       "noVacancies": "Add vacancies to the tracker first",
-      "selectPlaceholder": "— select a vacancy —"
+      "selectPlaceholder": "— select a vacancy —",
+      "scopeCaption": "Compare/Tailor score this structured CV against one vacancy you've already added to the tracker. Checking a posting you haven't saved yet? Use the <analyzerLink>Vacancy Analyzer</analyzerLink>. Want a general score with no single role in mind? Use the CV page's \"CV vs market\" (via <cvLink>the CV page</cvLink>)."
     },
     "compareButton": "Compare",
+    "compareButtonTitle": "Score against the selected tracked vacancy — reads this structured CV, not your plain-text profile",
     "tailorButton": "Tailor CV",
     "tailorButtonTitle": "Reorder skills/bullets and rewrite the summary for the selected vacancy",
     "aiAssistantButton": "AI Assistant",
@@ -560,6 +562,8 @@
     "uploadCvLabel": "CV (PDF / DOCX / TXT)",
     "aiAnalysisLabel": "AI analysis:",
     "compareMarket": "CV vs market",
+    "compareMarketTitle": "General score against your whole CV profile — not any single vacancy",
+    "compareMarketCaption": "General match against your whole CV profile, not any single role. Checking one posting you haven't saved? Try the <analyzerLink>Vacancy Analyzer</analyzerLink>. Comparing a vacancy already in your tracker? Use <builderLink>CV Builder's Compare</builderLink> for a more precise, section-aware result.",
     "deepReviewMoved": "Deep AI review → in the CV Builder",
     "howItWorksSummary": "How does this work, and how do I upload from LinkedIn?",
     "howItWorksBody": "One upload — and your CV works <b>everywhere</b>: market analysis, roadmap, learning plan, recommendations + auto-parsing into sections in <b>the CV Builder</b>. <b>LinkedIn:</b> profile → «More» → «Save to PDF» → upload it here (direct LinkedIn parsing is forbidden by its ToS).",
