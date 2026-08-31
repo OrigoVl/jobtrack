@@ -558,6 +558,8 @@
     "uploadLabel": "Upload:",
     "processing": "Processing…",
     "uploadCvLabel": "CV (PDF / DOCX / TXT)",
+    "uploadTargetLabel": "Applies to:",
+    "uploadTargetAria": "Which CV profile the upload applies to",
     "aiAnalysisLabel": "AI analysis:",
     "compareMarket": "CV vs market",
     "deepReviewMoved": "Deep AI review → in the CV Builder",
