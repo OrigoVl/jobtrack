@@ -278,14 +278,19 @@ export function Wordmark({ size = "md", className = "" }: { size?: "sm" | "md" |
 }
 
 /** `rounded-card` (18px, tailwind.config.js) + `.card-shadow` (index.css) match the landing
- * page's own `.card` rule exactly — the single reused card shape its whole design rests on. */
-export function Card({ className = "", children, ...rest }: { className?: string } & HTMLAttributes<HTMLDivElement>) {
+ * page's own `.card` rule exactly — the single reused card shape its whole design rests on.
+ * forwardRef so a caller that renders a dialog as a Card (event-modal.tsx) can attach a focus-trap
+ * container ref to it — same reasoning as Btn above. */
+export const Card = forwardRef<HTMLDivElement, { className?: string } & HTMLAttributes<HTMLDivElement>>(function Card(
+  { className = "", children, ...rest },
+  ref,
+) {
   return (
-    <div {...rest} className={`rounded-card card-shadow bg-surface border border-grid p-4 md:p-5 ${className}`}>
+    <div ref={ref} {...rest} className={`rounded-card card-shadow bg-surface border border-grid p-4 md:p-5 ${className}`}>
       {children}
     </div>
   );
-}
+});
 
 /** `eyebrow` reproduces the landing page's own section anatomy — a small uppercase mono kicker
  * line sitting directly above the heading (`.section-head .eyebrow` there) — so every page's
