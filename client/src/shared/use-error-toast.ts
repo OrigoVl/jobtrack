@@ -7,8 +7,8 @@ import { useToast } from "./use-toast";
  * themselves (e.g. `e.message` from an `HttpError`) are shown as-is UNLESS the server also sent a
  * stable `code` (`server/src/core/http.ts`'s optional 4th `HttpError` param, surfaced by
  * `client/src/shared/api.ts`'s `handleResponse`) that matches a translated `common:errors.<code>`
- * key — only the ~10 error sites a normal user can actually trigger during real use have one; the
- * rest fall back to the raw (English) `message`, same as before. */
+ * key — only the error sites a normal user can actually trigger during real use have one; sites
+ * without a `code` fall back to the raw (English) `message`, same as before. */
 export function useMutationErrorToast() {
   const { toast } = useToast();
   const { t } = useTranslation();
