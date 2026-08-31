@@ -102,6 +102,11 @@ type NavItemDef = {
    * teacher than a missing menu item, and hiding entries outright means a user never learns the
    * feature exists. */
   needs?: "vacancies" | "network";
+  /** Small pill on this row, hinting that it's a hub hiding several distinct screens rather than
+   * one page — see NAV_DEF's Growth entry, the only row that currently sets this. Static (not
+   * derived from PALETTE_DEF's length) so it names exactly what's inside rather than silently
+   * drifting if an unrelated redirect gets added to `alsoMatches`. */
+  groupCount?: number;
 };
 
 // EIGHT top-level destinations, flat and unsectioned. This used to be seventeen rows split
@@ -127,6 +132,13 @@ const NAV_DEF: NavItemDef[] = [
     icon: MapIcon,
     labelKey: "items.growth",
     alsoMatches: ["/growth", "/plan21", "/learn", "/study", "/projects", "/resources"],
+    // Nothing else in the collapsed 8-row sidebar hints that this one row actually opens seven
+    // screens (skill roadmap, radar, learning materials, 21-day plan, practice — itself hosting
+    // flashcards/drill/mock interview/design trainer as its own sub-modes —, pet projects,
+    // resources): the section tab strip and the Study page's own mode switcher only appear once
+    // you're already on this page, and ⌘K only helps someone who already knows a name to search
+    // for. A small count makes that discoverable at a glance instead of by accident.
+    groupCount: 7,
   },
   { path: "/cvbuilder", icon: FileTextIcon, labelKey: "items.cv", alsoMatches: ["/cv", "/cover-letter"] },
   { path: "/account", icon: SettingsIcon, labelKey: "items.account" },
@@ -340,7 +352,7 @@ function navItemActive(item: { path: string; alsoMatches?: string[] }, pathname:
  * because a row now stands for a whole section: /jobs and /analyzer both have to light up
  * "Vacancies" (see navItemActive). `dimHint` marks a section the account has no data for yet —
  * rendered at reduced opacity with the hint as its tooltip, but still a live link. */
-function navBtn(item: NavItem & { active: boolean; dimHint?: string }) {
+function navBtn(item: NavItem & { active: boolean; dimHint?: string; groupCount?: number; groupHint?: string }) {
   // No font-display here — the landing page's own nav uses its body font, not the display face;
   // reserve font-display for headings/wordmark. Active state fills with the vivid, theme-
   // independent `star` (never `signal` — see shared/ui.tsx's Btn-primary comment: `signal` is
@@ -355,7 +367,7 @@ function navBtn(item: NavItem & { active: boolean; dimHint?: string }) {
     <NavLink
       key={item.path}
       to={item.path}
-      title={item.dimHint}
+      title={item.dimHint ?? item.groupHint}
       aria-current={item.active ? "page" : undefined}
       className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
         item.active ? "bg-star text-on-signal" : "text-ink-dim hover:bg-surface-2"
@@ -365,6 +377,20 @@ function navBtn(item: NavItem & { active: boolean; dimHint?: string }) {
         <Icon className="w-4 h-4" />
       </span>
       {item.label}
+      {/* Hints that this one row is a hub for several screens (see NAV_DEF's groupCount comment)
+          — the same pill shape/scale as AiBadge's dot, just with a count instead of a status dot,
+          so it reads as "more inside" rather than another status indicator. Decorative: the same
+          information is in the row's own `title` tooltip (groupHint) for anyone who stops on it. */}
+      {item.groupCount != null && (
+        <span
+          aria-hidden="true"
+          className={`ml-auto shrink-0 font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+            item.active ? "bg-on-signal/20 text-on-signal" : "border border-grid text-ink-dim bg-surface-2"
+          }`}
+        >
+          {item.groupCount}
+        </span>
+      )}
     </NavLink>
   );
 }
@@ -498,6 +524,7 @@ function Shell() {
     label: t(it.labelKey),
     active: navItemActive(it, location.pathname),
     dimHint: dimHintFor(it.needs),
+    groupHint: it.groupCount ? t("growthHint") : undefined,
   });
   const adminItem = resolve(ADMIN_ITEM_DEF);
   const sidebarItems = isAdmin ? [...NAV_DEF.map(resolve), adminItem] : NAV_DEF.map(resolve);

@@ -31,6 +31,7 @@ import { ResumeCompleteness } from "../cv/builder/resume-completeness";
 import { maybeNotifyFollowUps } from "../../shared/notifications";
 import { findUpcomingDesignInterview } from "../../shared/design-reminders";
 import { focusDestination } from "./focus-destination";
+import { storeRoadmapView, type RoadmapView } from "../roadmap/roadmap-view";
 
 // How far ahead the "upcoming events" mini-list looks — matches the Analyzer/Calendar's own
 // week-ish planning horizon; long enough to be useful, short enough to stay "what's actually
@@ -61,6 +62,10 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
   // Same "study.mode" useUi key study.tsx itself reads, so landing on Practice opens the mode the
   // action was actually about (see focus-destination.ts).
   const [, setStudyMode] = useUi<"srs" | "drill" | "mock" | "design">("study.mode", "srs");
+  // Same "roadmap.view" useUi key roadmap.tsx reads, mirrored to localStorage the same way
+  // App.tsx's RoadmapViewRedirect does — otherwise a reload right after landing here would snap
+  // back to the plain skill list instead of staying on the view the action pointed at.
+  const [, setRoadmapView] = useUi<RoadmapView>("roadmap.view", "list");
   // A query error (network/auth) is treated the same as "no actions" below, same as the old
   // manual .catch(() => setData({ actions: [] })) — it's not the same thing as the server's own
   // `offline: true` (LLM unavailable, heuristic fallback still returned actions successfully).
@@ -114,6 +119,10 @@ function FocusWeekCard({ llm }: { llm: boolean }) {
                   <button
                     onClick={() => {
                       if (dest.studyMode) setStudyMode(dest.studyMode);
+                      if (dest.roadmapView) {
+                        setRoadmapView(dest.roadmapView);
+                        storeRoadmapView(dest.roadmapView);
+                      }
                       navigate(dest.path);
                     }}
                     className="w-full flex gap-3 text-left text-[15px] rounded-lg -mx-2 px-2 py-1.5 hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 transition-colors"
