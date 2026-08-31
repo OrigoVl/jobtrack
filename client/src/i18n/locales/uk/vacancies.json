@@ -164,7 +164,11 @@
     "cardStatus": "{{company}}, {{position}}. Статус: {{status}}.",
     "leftArrowHint": " Стрілка вліво — «{{status}}».",
     "rightArrowHint": " Стрілка вправо — «{{status}}».",
-    "move": "Перейти"
+    "move": "Перейти",
+    "touchHint": {
+      "text": "Перетягування тут поки не працює — натисніть картку, а потім «{{move}}», щоб змінити статус.",
+      "dismiss": "Зрозуміло"
+    }
   },
   "toasts": {
     "added": "Вакансію додано →",
