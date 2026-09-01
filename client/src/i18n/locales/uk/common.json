@@ -13,6 +13,9 @@
     "saving": "Збереження…",
     "noMatches": "Нічого не знайдено"
   },
+  "labels": {
+    "view": "Вигляд"
+  },
   "vacancyStatus": {
     "wantToApply": "Хочу подати заявку",
     "applied": "Подано",
