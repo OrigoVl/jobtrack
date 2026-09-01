@@ -18,8 +18,9 @@ test("a matching upcoming calendar event surfaces a dashboard card that deep-lin
 
   await page.getByRole("button", { name: "Practice now" }).click();
   await expect(page).toHaveURL(/\/study$/);
-  // The Practice mode switcher is the shared `Segmented` control (shared/ui.tsx), whose selected
-  // option is marked `bg-surface text-signal` — not the `bg-star` of the hand-rolled Btn row it
-  // replaced.
-  await expect(page.getByRole("button", { name: "Architecture", exact: true })).toHaveClass(/text-signal/);
+  // The Practice mode switcher is the shared `Segmented` control (shared/ui.tsx) rendered with
+  // `variant="subnav"` (it's an in-page view switch, not page-level nav — see the component's own
+  // comment for why it's intentionally styled less prominently than `SectionTabs`), whose selected
+  // option is marked `bg-surface-2 text-ink`, not the accent `text-signal` a page-level control uses.
+  await expect(page.getByRole("button", { name: "Architecture", exact: true })).toHaveClass(/bg-surface-2/);
 });
