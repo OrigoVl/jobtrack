@@ -8,6 +8,7 @@ import { SkillsInput } from "../../shared/view-kit";
 import { STATUSES, type Vacancy } from "../../shared/types";
 import { statusLabel } from "../../shared/status-labels";
 import { looksNonTechnical } from "../../shared/tracks";
+import { useFocusTrap } from "../../shared/use-focus-trap";
 
 /**
  * A dedicated "new vacancy" form — unlike VacancyDetailModal (which edits an already-persisted
@@ -44,6 +45,9 @@ export function VacancyCreateModal({ onClose, onCreated }: { onClose: () => void
   // written for a modal the user ends up cancelling. Null until an autofill actually produced a
   // company name — the company row is created either way (see save()), this only enriches it.
   const [companyEnrichment, setCompanyEnrichment] = useState<{ notes: string; website: string; questions: string[] } | null>(null);
+  // Mounted only while the modal is open, so the default `active=true` is right — trap + restore
+  // run once, on mount/unmount.
+  const dialogRef = useFocusTrap<HTMLDivElement>();
 
   // The same "any public link → company/position/stack" smart-fill the bulk "Import" textarea
   // already does for multiple links at once (see vacancy-analysis.service.ts's
@@ -128,6 +132,7 @@ export function VacancyCreateModal({ onClose, onCreated }: { onClose: () => void
     <div className="fixed inset-0 z-[65] flex items-center justify-center bg-ink/45 backdrop-blur-sm p-3 md:p-6" onClick={onClose}>
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={t("create.heading")}

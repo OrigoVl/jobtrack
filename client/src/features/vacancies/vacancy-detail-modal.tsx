@@ -16,6 +16,7 @@ import { useToast } from "../../shared/use-toast";
 import { Btn, SearchSelect, Segmented, Spinner } from "../../shared/ui";
 import { StarIcon } from "../../shared/icons";
 import { useConfirm } from "../../shared/use-confirm";
+import { useFocusTrap } from "../../shared/use-focus-trap";
 import { SkillsInput } from "../../shared/view-kit";
 import { STATUSES, type CvMatch, type Fit, type Vacancy, type VacancyStatus } from "../../shared/types";
 import { fitLabel, fitText } from "../../shared/fit-tone";
@@ -143,6 +144,9 @@ export function VacancyDetailModal({
   const addContactMutation = useAddContact();
   const confirm = useConfirm();
   const [tab, setTab] = useState<Tab>(initialTab);
+  // Mounted only while the modal is open (the caller unmounts it to close), so the default
+  // `active=true` is right — trap + restore run once, on mount/unmount.
+  const dialogRef = useFocusTrap<HTMLDivElement>();
 
   // Seeded once, on mount: this modal is remounted per vacancy (the table/Kanban render it only
   // for the open row), so there's no "the prop changed under us" case to re-sync from — and not
@@ -326,6 +330,7 @@ export function VacancyDetailModal({
     >
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`${vacancy.position || t("detail.untitled")} — ${vacancy.company}`}
