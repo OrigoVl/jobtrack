@@ -103,7 +103,10 @@ export function VacancyCreateModal({ onClose, onCreated }: { onClose: () => void
   // no longer has a free-text company field, so this is the only place the link gets established.
   // enrichCompany upserts by name and only fills blanks, so re-adding a vacancy for a company that
   // already exists links to it instead of duplicating or overwriting it.
+  const canSave = company.trim().length > 0;
+
   const save = async () => {
+    if (!canSave) return;
     let companyId: number | undefined;
     const name = company.trim();
     if (name) {
@@ -268,7 +271,7 @@ export function VacancyCreateModal({ onClose, onCreated }: { onClose: () => void
           <Btn variant="ghost" onClick={onClose} disabled={addVacancyMutation.isPending || enrichCompanyMutation.isPending}>
             {t("common:actions.cancel")}
           </Btn>
-          <Btn onClick={save} loading={addVacancyMutation.isPending || enrichCompanyMutation.isPending}>
+          <Btn onClick={save} disabled={!canSave} loading={addVacancyMutation.isPending || enrichCompanyMutation.isPending}>
             {t("common:actions.save")}
           </Btn>
         </div>
