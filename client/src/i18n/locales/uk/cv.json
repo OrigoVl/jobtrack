@@ -570,6 +570,8 @@
     "uploadLabel": "Завантажити:",
     "processing": "Обробляємо…",
     "uploadCvLabel": "Резюме (PDF / DOCX / TXT)",
+    "uploadTargetLabel": "Застосується до:",
+    "uploadTargetAria": "До якого профілю резюме буде застосовано завантаження",
     "aiAnalysisLabel": "ШІ-аналіз:",
     "compareMarket": "Резюме проти ринку",
     "deepReviewMoved": "Глибокий ШІ-аналіз → у конструкторі",
