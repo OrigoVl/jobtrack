@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
+import { Link } from "react-router";
 import { api } from "../../shared/api";
 import {
   useAddContact,
@@ -708,7 +709,7 @@ export function VacancyDetailModal({
             <div className="space-y-3">
               {/* No `loading` on the button: the analysis already has its own spinner row below,
                   and two spinners for one request read as two things happening. */}
-              <Btn size="sm" onClick={genMatch} disabled={!hasCvText || matchBusy}>
+              <Btn size="sm" onClick={genMatch} disabled={!hasCvText || matchBusy} title={t("detail.fitButtonTitle")}>
                 {match ? t("detail.regenerate") : t("detail.generateFit")}
               </Btn>
               {!hasCvText && <div className="text-xs text-ink-dim">{t("detail.noCvHint")}</div>}
@@ -719,6 +720,17 @@ export function VacancyDetailModal({
                 </div>
               )}
               {match && <CvMatchPanel match={match} />}
+              {/* This reads your plain CV text (same as the CV page's "CV vs market"), just scoped
+                  to this one vacancy. CV Builder's Compare/Tailor read the structured CV document
+                  instead — pointing at the exact section a suggestion is about, and able to
+                  reorder skills/bullets for this vacancy, not just report a gap. */}
+              <p className="text-xs text-ink-dim">
+                <Trans
+                  i18nKey="detail.fitBuilderHint"
+                  ns="vacancies"
+                  components={{ builderLink: <Link to="/cvbuilder" className="text-signal hover:underline" /> }}
+                />
+              </p>
             </div>
           )}
         </div>
