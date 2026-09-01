@@ -1,12 +1,15 @@
 import type { FocusActionKind } from "../../shared/types";
+import type { RoadmapView } from "../roadmap/roadmap-view";
 
 /** Where a "Focus of the week" action sends the user, and (for the Practice page, which hosts
- * four different modes on one route) which mode to open it in. `studyMode` matches the
- * `"study.mode"` useUi key that study.tsx reads — same trick dashboard.tsx already uses for its
- * "system-design interview coming up" reminder. */
+ * four different modes on one route, or the Roadmap page, which hosts four different views on
+ * one route) which mode/view to open it in. `studyMode` matches the `"study.mode"` useUi key
+ * that study.tsx reads — same trick dashboard.tsx already uses for its "system-design interview
+ * coming up" reminder. `roadmapView` is the same idea for `"roadmap.view"` (roadmap-view.ts). */
 export interface FocusDestination {
   path: string;
   studyMode?: "srs" | "drill" | "mock" | "design";
+  roadmapView?: RoadmapView;
 }
 
 /**
@@ -25,7 +28,11 @@ export const FOCUS_DESTINATIONS: Record<FocusActionKind, FocusDestination> = {
   // someone told to "prepare for interviews" to the flashcard deck would be a broken promise.
   interviews: { path: "/study", studyMode: "mock" },
   cards: { path: "/study", studyMode: "srs" },
-  skills: { path: "/roadmap" },
+  // The only heuristic action of this kind is "close this specific skill gap" (see
+  // heuristicFocus's "gap" code in analytics.service.ts) — the Roadmap's default list view
+  // just names the gap again without doing anything about it, while its Materials view is
+  // exactly the screen built to close gaps with concrete learning resources.
+  skills: { path: "/roadmap", roadmapView: "materials" },
   contacts: { path: "/contacts" },
   cv: { path: "/cvbuilder" },
 };

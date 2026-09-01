@@ -33,6 +33,7 @@
   "showSidebar": "Show sidebar",
   "logOut": "Log out",
   "roadmapProgress": "Roadmap: {{done}}/{{total}}",
+  "growthHint": "Also holds the skill radar, learning materials, 21-day intensive plan, mock interviews, design trainer, pet projects and resources",
   "connectionError": "Could not connect to the server",
   "openCommandPalette": "Open command palette",
   "mobile": {
