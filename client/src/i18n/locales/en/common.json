@@ -13,6 +13,9 @@
     "saving": "Saving…",
     "noMatches": "No matches"
   },
+  "labels": {
+    "view": "View"
+  },
   "vacancyStatus": {
     "wantToApply": "Want to apply",
     "applied": "Applied",
