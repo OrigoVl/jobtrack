@@ -235,7 +235,14 @@ export function CVView({ llm }: { llm: boolean }) {
             ))}
           <span className="mx-1 h-5 w-px bg-grid" aria-hidden />
           <span className="text-xs font-semibold text-ink-dim">{t("cvPage.aiAnalysisLabel")}</span>
-          <Btn size="sm" variant="ghost" onClick={analyze} loading={busyAnalysis} disabled={!cvText.trim()}>
+          <Btn
+            size="sm"
+            variant="ghost"
+            onClick={analyze}
+            loading={busyAnalysis}
+            disabled={!cvText.trim()}
+            title={t("cvPage.compareMarketTitle")}
+          >
             {t("cvPage.compareMarket")}
           </Btn>
           {/* "Deep review" used to live here as a second AI button. It ran the SAME review the CV
@@ -250,6 +257,20 @@ export function CVView({ llm }: { llm: boolean }) {
             {t("cvPage.deepReviewMoved")}
           </Link>
         </div>
+        {/* "CV vs market" above is deliberately general — it scores this whole profile, not any
+            one role. Checking a single posting has its own, more targeted tools: an unsaved one in
+            the Vacancy Analyzer, a tracked one in CV Builder's Compare/Tailor (which also reasons
+            over the structured document, not this flat text). */}
+        <p className="text-xs text-ink-dim">
+          <Trans
+            i18nKey="cvPage.compareMarketCaption"
+            ns="cv"
+            components={{
+              analyzerLink: <Link to="/analyzer" className="text-signal hover:underline" />,
+              builderLink: <Link to="/cvbuilder" className="text-signal hover:underline" />,
+            }}
+          />
+        </p>
         <details className="text-xs text-ink-dim border-t border-surface-2 pt-2.5">
           <summary className="cursor-pointer select-none hover:text-ink font-medium">{t("cvPage.howItWorksSummary")}</summary>
           <div className="mt-1.5 text-ink-dim">

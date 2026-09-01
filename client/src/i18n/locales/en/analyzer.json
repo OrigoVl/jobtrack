@@ -16,7 +16,8 @@
     "ariaLabel": "Vacancy text to analyze",
     "placeholder": "Paste the vacancy's text…",
     "analyzing": "Analyzing…",
-    "analyze": "Analyze"
+    "analyze": "Analyze",
+    "scopeCaption": "Quick, one-off check for a posting you haven't saved anywhere — no CV upload or tracked vacancy needed. For a general match against your whole CV profile, use the <cvLink>CV page's \"CV vs market\"</cvLink>; for a vacancy you've already added to the tracker, use <builderLink>CV Builder's Compare</builderLink>."
   },
   "result": {
     "fit": "Fit:",

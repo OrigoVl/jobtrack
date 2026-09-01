@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
+import { Link } from "react-router";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useAddVacancy, useFetchAllJobStatus, useStartFetchAllJob, useVacancies } from "../../shared/queries";
@@ -134,6 +135,20 @@ export function Analyzer() {
       </Card>
 
       <Card>
+        {/* This is the "haven't saved it anywhere yet" entry point — free text in, no tracker row
+            or CV Builder document required. The CV page's "CV vs market" runs the same kind of AI
+            match but against your whole profile with no single vacancy in mind, and CV Builder's
+            Compare/Tailor need the vacancy already saved in the tracker. */}
+        <p className="text-xs text-ink-dim mb-2">
+          <Trans
+            i18nKey="textarea.scopeCaption"
+            ns="analyzer"
+            components={{
+              cvLink: <Link to="/cv" className="text-signal hover:underline" />,
+              builderLink: <Link to="/cvbuilder" className="text-signal hover:underline" />,
+            }}
+          />
+        </p>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
