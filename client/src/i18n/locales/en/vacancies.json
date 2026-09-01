@@ -160,7 +160,11 @@
     "cardStatus": "{{company}}, {{position}}. Status: {{status}}.",
     "leftArrowHint": " Left arrow — \"{{status}}\".",
     "rightArrowHint": " Right arrow — \"{{status}}\".",
-    "move": "Move"
+    "move": "Move",
+    "touchHint": {
+      "text": "Drag doesn't work here yet — tap a card, then \"{{move}}\", to change its status.",
+      "dismiss": "Got it"
+    }
   },
   "toasts": {
     "added": "Vacancy added →",

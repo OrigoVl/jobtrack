@@ -9,6 +9,53 @@ import { statusLabel } from "../../shared/status-labels";
 import { STATUS_DOT_CLASS, STATUS_BORDER_L_CLASS, DEFAULT_STATUS_DOT_CLASS, DEFAULT_STATUS_BORDER_L_CLASS } from "../../shared/status-tone";
 import { SimilarVacanciesButton } from "./similar-vacancies-button";
 
+// Same Tailwind `lg` breakpoint vacancies.tsx's own DESKTOP_MIN_WIDTH check uses for the
+// table/board default — "narrow screen" means the same thing here.
+const DESKTOP_MIN_WIDTH = 1024;
+// Shown once, ever, the first time a touch user opens Board on a narrow screen — same
+// localStorage-dismiss pattern as section-tabs.tsx's ShortcutHint. HTML5 drag-and-drop (used
+// below, onDragStart/onDrop) doesn't fire from touch scrolling on iOS Safari/Chrome Android, so a
+// touch user swiping a card just scrolls the column instead — the working path is tapping the
+// card, then its "Move ▾" dropdown, but nothing on the card signals that; it looks fully
+// "grabbable" (cursor-grab, hover shadow) either way. `(pointer: coarse)` rather than viewport
+// width alone: a touch laptop above DESKTOP_MIN_WIDTH also can't drag here, and a narrow window on
+// a mouse-driven desktop can drag just fine.
+const TOUCH_HINT_KEY = "jobtrack.kanbanTouchHintSeen";
+function isNarrowTouchScreen(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.innerWidth < DESKTOP_MIN_WIDTH && (window.matchMedia?.("(pointer: coarse)").matches ?? false);
+}
+
+/** A single dismissible line pointing touch users at "Move ▾" instead of dragging. */
+function TouchMoveHint() {
+  const { t } = useTranslation("vacancies");
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return !isNarrowTouchScreen() || localStorage.getItem(TOUCH_HINT_KEY) === "1";
+    } catch {
+      // Private-mode/blocked storage — better to skip the tip entirely than to crash the board.
+      return true;
+    }
+  });
+  if (dismissed) return null;
+  const dismiss = () => {
+    try {
+      localStorage.setItem(TOUCH_HINT_KEY, "1");
+    } catch {
+      /* ignore — the tip just reappears next session, which is harmless */
+    }
+    setDismissed(true);
+  };
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-grid bg-surface-2 px-3 py-1.5 mb-2 text-xs text-ink-dim">
+      <span>{t("kanban.touchHint.text", { move: t("kanban.move") })}</span>
+      <button onClick={dismiss} className="ml-auto shrink-0 font-medium hover:text-ink" aria-label={t("kanban.touchHint.dismiss")}>
+        {t("kanban.touchHint.dismiss")}
+      </button>
+    </div>
+  );
+}
+
 /* ---------- Vacancies board (drag-and-drop + keyboard) ---------- */
 export function VacancyBoard({ onOpenDetail }: { onOpenDetail: (id: number) => void }) {
   const { t } = useTranslation(["vacancies", "common"]);
@@ -37,153 +84,158 @@ export function VacancyBoard({ onOpenDetail }: { onOpenDetail: (id: number) => v
     );
   };
   return (
-    // snap-x/snap-proximity (mobile only, sm:snap-none above): a phone-width column would
-    // otherwise stop mid-scroll showing an awkward sliver of two half-visible columns — a swipe
-    // now settles on one full column at a time. Column width itself scales the same way (~90vw
-    // on a phone → the fixed 256px board unchanged from sm: up), pure CSS, no change to the
-    // drag/keyboard/dropdown status-change logic below.
-    <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar snap-x snap-proximity sm:snap-none">
-      {STATUSES.map((status) => {
-        const items = vacancies.filter((v) => v.status === status);
-        return (
-          <div
-            key={status}
-            role="list"
-            aria-label={t("kanban.columnAriaLabel", { status: statusLabel(status), count: items.length })}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setOver(status);
-            }}
-            onDragLeave={() => setOver((cur) => (cur === status ? null : cur))}
-            onDrop={onDrop(status)}
-            className={`shrink-0 w-[90vw] sm:w-64 snap-start rounded-xl border p-2 transition-colors ${
-              over === status ? "border-signal/50 bg-signal/10" : "border-grid bg-surface-2"
-            }`}
-          >
-            <div className="flex items-center justify-between px-1.5 py-1 mb-1.5">
-              <span className="flex items-center gap-1.5 text-xs font-bold text-ink-dim">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT_CLASS[status] ?? DEFAULT_STATUS_DOT_CLASS}`} />
-                {statusLabel(status)}
-              </span>
-              <span className="text-[11px] text-ink-dim">{items.length}</span>
-            </div>
-            <div className="space-y-2 min-h-[40px]">
-              {items.map((v) => {
-                const idx = STATUSES.indexOf(status);
-                // Mark exactly the card whose status is currently being saved (drag-and-drop or
-                // keyboard move) — updateVacancyMutation is one hook for the whole board, so
-                // scope by variables.id so the spinner doesn't flash on every card at once.
-                const isSaving = updateVacancyMutation.isPending && updateVacancyMutation.variables?.id === v.id;
-                const cardAriaLabel =
-                  t("kanban.cardStatus", { company: v.company, position: v.position, status: statusLabel(status) }) +
-                  (idx > 0 ? t("kanban.leftArrowHint", { status: statusLabel(STATUSES[idx - 1]!) }) : "") +
-                  (idx < STATUSES.length - 1 ? t("kanban.rightArrowHint", { status: statusLabel(STATUSES[idx + 1]!) }) : "");
-                return (
-                  <div
-                    key={v.id}
-                    ref={(el) => {
-                      cardRefs.current[v.id] = el;
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={cardAriaLabel}
-                    draggable
-                    onDragStart={(e) => e.dataTransfer.setData("text/plain", String(v.id))}
-                    // Opens the "Jira issue"-style detail popup (vacancy-detail-modal.tsx) —
-                    // except when the click actually landed on a real nested control (the "Move ▾"
-                    // dropdown, "Similar vacancies"), which should handle its own click instead.
-                    // A completed drag doesn't fire a click event at all, so this doesn't conflict
-                    // with dragging the card between columns.
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest("button, a")) return;
-                      onOpenDetail(v.id);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "ArrowRight") {
-                        e.preventDefault();
-                        moveByKeyboard(v, 1);
-                      } else if (e.key === "ArrowLeft") {
-                        e.preventDefault();
-                        moveByKeyboard(v, -1);
-                      } else if ((e.key === "Enter" || e.key === " ") && !(e.target as HTMLElement).closest("button, a")) {
-                        // A real <button> would dispatch this automatically; a div role="button"
-                        // needs it wired by hand for keyboard parity with the onClick above.
-                        e.preventDefault();
+    <div>
+      <TouchMoveHint />
+      {/* snap-x/snap-proximity (mobile only, sm:snap-none above): a phone-width column would
+      otherwise stop mid-scroll showing an awkward sliver of two half-visible columns — a swipe
+      now settles on one full column at a time. Column width itself scales the same way (~90vw
+      on a phone → the fixed 256px board unchanged from sm: up), pure CSS, no change to the
+      drag/keyboard/dropdown status-change logic below. */}
+      <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar snap-x snap-proximity sm:snap-none">
+        {STATUSES.map((status) => {
+          const items = vacancies.filter((v) => v.status === status);
+          return (
+            <div
+              key={status}
+              role="list"
+              aria-label={t("kanban.columnAriaLabel", { status: statusLabel(status), count: items.length })}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setOver(status);
+              }}
+              onDragLeave={() => setOver((cur) => (cur === status ? null : cur))}
+              onDrop={onDrop(status)}
+              className={`shrink-0 w-[90vw] sm:w-64 snap-start rounded-xl border p-2 transition-colors ${
+                over === status ? "border-signal/50 bg-signal/10" : "border-grid bg-surface-2"
+              }`}
+            >
+              <div className="flex items-center justify-between px-1.5 py-1 mb-1.5">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-ink-dim">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT_CLASS[status] ?? DEFAULT_STATUS_DOT_CLASS}`} />
+                  {statusLabel(status)}
+                </span>
+                <span className="text-[11px] text-ink-dim">{items.length}</span>
+              </div>
+              <div className="space-y-2 min-h-[40px]">
+                {items.map((v) => {
+                  const idx = STATUSES.indexOf(status);
+                  // Mark exactly the card whose status is currently being saved (drag-and-drop or
+                  // keyboard move) — updateVacancyMutation is one hook for the whole board, so
+                  // scope by variables.id so the spinner doesn't flash on every card at once.
+                  const isSaving = updateVacancyMutation.isPending && updateVacancyMutation.variables?.id === v.id;
+                  const cardAriaLabel =
+                    t("kanban.cardStatus", { company: v.company, position: v.position, status: statusLabel(status) }) +
+                    (idx > 0 ? t("kanban.leftArrowHint", { status: statusLabel(STATUSES[idx - 1]!) }) : "") +
+                    (idx < STATUSES.length - 1 ? t("kanban.rightArrowHint", { status: statusLabel(STATUSES[idx + 1]!) }) : "");
+                  return (
+                    <div
+                      key={v.id}
+                      ref={(el) => {
+                        cardRefs.current[v.id] = el;
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={cardAriaLabel}
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData("text/plain", String(v.id))}
+                      // Opens the "Jira issue"-style detail popup (vacancy-detail-modal.tsx) —
+                      // except when the click actually landed on a real nested control (the "Move ▾"
+                      // dropdown, "Similar vacancies"), which should handle its own click instead.
+                      // A completed drag doesn't fire a click event at all, so this doesn't conflict
+                      // with dragging the card between columns.
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).closest("button, a")) return;
                         onOpenDetail(v.id);
-                      }
-                    }}
-                    className={`relative bg-surface border border-grid border-l-4 ${STATUS_BORDER_L_CLASS[status] ?? DEFAULT_STATUS_BORDER_L_CLASS} rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-card focus:outline-none focus:ring-2 focus:ring-signal/50 transition-opacity ${isSaving ? "opacity-60" : ""}`}
-                  >
-                    <div className="flex items-start justify-between gap-1">
-                      <div className="min-w-0 flex items-start gap-1">
-                        <button
-                          type="button"
-                          onClick={() => updateVacancyMutation.mutate({ id: v.id, patch: { favorite: !v.favorite } })}
-                          title={v.favorite ? t("favorite.removeTitle") : t("favorite.addTitle")}
-                          aria-label={t(v.favorite ? "favorite.removeAriaLabel" : "favorite.addAriaLabel", { company: v.company })}
-                          aria-pressed={v.favorite}
-                          className={`shrink-0 mt-0.5 rounded p-0.5 -m-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${
-                            v.favorite ? "text-amber-400 hover:text-amber-500" : "text-ink-dim hover:text-amber-400"
-                          }`}
-                        >
-                          <StarIcon className="h-3 w-3" fill={v.favorite ? "currentColor" : "none"} />
-                        </button>
-                        <div className="min-w-0">
-                          <div className="font-semibold text-sm text-ink truncate">{v.company}</div>
-                          <div className="text-xs text-ink-dim truncate">{v.position}</div>
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "ArrowRight") {
+                          e.preventDefault();
+                          moveByKeyboard(v, 1);
+                        } else if (e.key === "ArrowLeft") {
+                          e.preventDefault();
+                          moveByKeyboard(v, -1);
+                        } else if ((e.key === "Enter" || e.key === " ") && !(e.target as HTMLElement).closest("button, a")) {
+                          // A real <button> would dispatch this automatically; a div role="button"
+                          // needs it wired by hand for keyboard parity with the onClick above.
+                          e.preventDefault();
+                          onOpenDetail(v.id);
+                        }
+                      }}
+                      className={`relative bg-surface border border-grid border-l-4 ${STATUS_BORDER_L_CLASS[status] ?? DEFAULT_STATUS_BORDER_L_CLASS} rounded-lg p-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-card focus:outline-none focus:ring-2 focus:ring-signal/50 transition-opacity ${isSaving ? "opacity-60" : ""}`}
+                    >
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="min-w-0 flex items-start gap-1">
+                          <button
+                            type="button"
+                            onClick={() => updateVacancyMutation.mutate({ id: v.id, patch: { favorite: !v.favorite } })}
+                            title={v.favorite ? t("favorite.removeTitle") : t("favorite.addTitle")}
+                            aria-label={t(v.favorite ? "favorite.removeAriaLabel" : "favorite.addAriaLabel", { company: v.company })}
+                            aria-pressed={v.favorite}
+                            className={`shrink-0 mt-0.5 rounded p-0.5 -m-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${
+                              v.favorite ? "text-amber-400 hover:text-amber-500" : "text-ink-dim hover:text-amber-400"
+                            }`}
+                          >
+                            <StarIcon className="h-3 w-3" fill={v.favorite ? "currentColor" : "none"} />
+                          </button>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-sm text-ink truncate">{v.company}</div>
+                            <div className="text-xs text-ink-dim truncate">{v.position}</div>
+                          </div>
+                        </div>
+                        <div className="shrink-0">
+                          {isSaving ? (
+                            <span className="text-signal inline-flex" aria-label={t("common:state.saving")}>
+                              <Spinner className="h-3 w-3" />
+                            </span>
+                          ) : (
+                            // Jumping straight to any status (not just the adjacent one drag/←/→
+                            // give you) — the fast path for e.g. "Want to apply" → "Rejected" without
+                            // dragging across the whole board or repeating an arrow key.
+                            <Dropdown label={t("kanban.move")} align="right">
+                              {STATUSES.filter((s) => s !== status).map((s) => (
+                                <button
+                                  key={s}
+                                  type="button"
+                                  onClick={() => updateVacancyMutation.mutate({ id: v.id, patch: { status: s } })}
+                                  className="w-full flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-left hover:bg-surface-2"
+                                >
+                                  <span
+                                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT_CLASS[s] ?? DEFAULT_STATUS_DOT_CLASS}`}
+                                  />
+                                  {statusLabel(s)}
+                                </button>
+                              ))}
+                            </Dropdown>
+                          )}
                         </div>
                       </div>
-                      <div className="shrink-0">
-                        {isSaving ? (
-                          <span className="text-signal inline-flex" aria-label={t("common:state.saving")}>
-                            <Spinner className="h-3 w-3" />
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        <Chip tone={fitTone[v.fit]}>{fitLabel(v.fit)}</Chip>
+                        {v.stack.slice(0, 2).map((s) => (
+                          <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim">
+                            {s}
                           </span>
-                        ) : (
-                          // Jumping straight to any status (not just the adjacent one drag/←/→
-                          // give you) — the fast path for e.g. "Want to apply" → "Rejected" without
-                          // dragging across the whole board or repeating an arrow key.
-                          <Dropdown label={t("kanban.move")} align="right">
-                            {STATUSES.filter((s) => s !== status).map((s) => (
-                              <button
-                                key={s}
-                                type="button"
-                                onClick={() => updateVacancyMutation.mutate({ id: v.id, patch: { status: s } })}
-                                className="w-full flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-left hover:bg-surface-2"
-                              >
-                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT_CLASS[s] ?? DEFAULT_STATUS_DOT_CLASS}`} />
-                                {statusLabel(s)}
-                              </button>
-                            ))}
-                          </Dropdown>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      <Chip tone={fitTone[v.fit]}>{fitLabel(v.fit)}</Chip>
-                      {v.stack.slice(0, 2).map((s) => (
-                        <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 text-ink-dim">
-                          {s}
+                        ))}
+                        {v.stack.length > 2 && <span className="text-[10px] text-ink-dim">+{v.stack.length - 2}</span>}
+                        <span className="ml-auto">
+                          <SimilarVacanciesButton vacancyId={v.id} />
                         </span>
-                      ))}
-                      {v.stack.length > 2 && <span className="text-[10px] text-ink-dim">+{v.stack.length - 2}</span>}
-                      <span className="ml-auto">
-                        <SimilarVacanciesButton vacancyId={v.id} />
-                      </span>
-                    </div>
-                    {v.salary && <div className="text-[11px] text-signal mt-1">{v.salary}</div>}
-                    {v.next && (
-                      <div className="text-[11px] text-alert mt-1 flex items-center gap-1">
-                        <CalendarIcon className="h-3 w-3 shrink-0" />
-                        {v.next}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                      {v.salary && <div className="text-[11px] text-signal mt-1">{v.salary}</div>}
+                      {v.next && (
+                        <div className="text-[11px] text-alert mt-1 flex items-center gap-1">
+                          <CalendarIcon className="h-3 w-3 shrink-0" />
+                          {v.next}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
