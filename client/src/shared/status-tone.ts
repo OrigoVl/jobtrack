@@ -17,6 +17,9 @@ export const STATUS_SELECT_CLASS: Record<VacancyStatus, string> = {
   Offer: "bg-good/10 text-good border-good/30",
   Rejected: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800",
   Paused: "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
+  // A distinct hue from Rejected (rose) and Paused (zinc): the posting itself disappeared from
+  // the market, which isn't the same signal as "candidate was turned down" or "on hold for now".
+  Removed: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800",
 };
 
 // Screening/Final use the vivid, theme-independent --star token (not the deepened --signal value)
@@ -39,6 +42,7 @@ export const STATUS_DOT_CLASS: Record<VacancyStatus, string> = {
   Offer: "bg-good",
   Rejected: "bg-rose-500",
   Paused: "bg-zinc-400",
+  Removed: "bg-amber-500",
 };
 
 // Same color as STATUS_DOT_CLASS, but as the card's left border in the Kanban board — so status
@@ -53,6 +57,7 @@ export const STATUS_BORDER_L_CLASS: Record<VacancyStatus, string> = {
   Offer: "border-l-good",
   Rejected: "border-l-rose-500",
   Paused: "border-l-zinc-400",
+  Removed: "border-l-amber-500",
 };
 
 // Fallback just in case: status on Vacancy is typed as string (the server has historically

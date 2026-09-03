@@ -41,7 +41,7 @@ describe("status tone tables", () => {
       const classes = STATUS_SELECT_CLASS[status];
       // Design-token classes (bg-surface-2, bg-signal/10, …) already adapt via CSS variables;
       // only the raw Tailwind palette colors need an explicit dark override.
-      const usesRawPalette = /\bbg-(sky|purple|fuchsia|rose|zinc)-\d{2,3}\b/.test(classes);
+      const usesRawPalette = /\bbg-(sky|purple|fuchsia|rose|zinc|amber)-\d{2,3}\b/.test(classes);
       if (usesRawPalette) expect(classes).toMatch(/\bdark:bg-/);
     }
   });

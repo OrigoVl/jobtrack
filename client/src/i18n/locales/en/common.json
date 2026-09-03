@@ -25,7 +25,8 @@
     "final": "Final",
     "offer": "Offer",
     "rejected": "Rejected",
-    "paused": "Paused"
+    "paused": "Paused",
+    "removed": "Removed"
   },
   "dateInput": {
     "openCalendar": "Open calendar",

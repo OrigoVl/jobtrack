@@ -25,7 +25,8 @@
     "final": "Фінал",
     "offer": "Офер",
     "rejected": "Відмова",
-    "paused": "На паузі"
+    "paused": "На паузі",
+    "removed": "Знято"
   },
   "dateInput": {
     "openCalendar": "Відкрити календар",
