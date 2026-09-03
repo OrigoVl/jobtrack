@@ -4,6 +4,7 @@ import { PROJECTS_UK } from "./projects.data.uk.js";
 import { chatJson, llmAvailable } from "../../llm/index.js";
 import { getKvJson, setKvJson, type Profile } from "../../db/index.js";
 import type { UserId } from "../../db/user-id.js";
+import { kbFor, catFor } from "../knowledge/knowledge-base.js";
 import { hashString } from "../../shared/hash.js";
 import { slugify } from "../../shared/slug.js";
 import { topGapTechs } from "../../shared/demand.js";
@@ -93,6 +94,11 @@ export async function getDynamicProjects(
       const cached = await getKvJson<CachedProjectPayload>(userId, cacheKey);
       if (cached) return buildPersonalProject(tech, count, cached);
 
+      // `.learn` doesn't depend on track (kbFor's track param only filters drills/cards), so
+      // the default track is deliberate here — same reasoning as study.service.ts's scopeHints().
+      // Skip the block entirely for an uncurated tech (catFor === null): kbFor()'s generic
+      // fallback is a single "start with the docs" bullet, not real reference material.
+      const scope = catFor(tech) !== null ? kbFor(tech).learn : [];
       const out = await chatJson(
         userId,
         `You design portfolio pet-project ideas for a candidate (${role}) preparing for job interviews.`,
@@ -100,6 +106,10 @@ export async function getDynamicProjects(
           `They need to demonstrate "${tech}"${count ? ` (required in ${count} vacancies from their tracked list)` : ""} to employers.\n` +
           `Design ONE portfolio pet-project that bridges from their familiar stack toward "${tech}" — reuse ` +
           `2-4 of their known technologies alongside it, don't propose an unrelated from-scratch stack.\n` +
+          (scope.length > 0
+            ? `Curated syllabus topics for "${tech}" — ground the project's goal/DoD in these where it demonstrably ` +
+              `helps, don't invent unrelated facts:\n${scope.map((l) => `- ${l}`).join("\n")}\n`
+            : "") +
           `Return JSON strictly in this format (no markdown):\n` +
           `{"name":"short catchy project name","subtitle":"one short tagline",` +
           `"goal":"1-2 sentences: what it proves and why it closes this specific gap",` +
