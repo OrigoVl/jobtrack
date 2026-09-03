@@ -74,8 +74,9 @@
   },
   "errors": {
     "generic": "An error occurred",
-    "UNSUPPORTED_FILE_TYPE": "Unsupported file type. Allowed: PDF, DOCX, DOC, TXT, ZIP.",
+    "UNSUPPORTED_FILE_TYPE": "Unsupported file type. Allowed: PDF, DOCX, TXT, ZIP.",
     "CV_EXTRACT_FAILED": "Couldn't extract text from the file (it might be a scan or image).",
+    "CV_EXTRACT_PARSE_FAILED": "Couldn't read this file — try a PDF, DOCX or plain text file instead.",
     "LINKEDIN_ARCHIVE_INVALID": "Couldn't read the archive. It must be a .zip export from LinkedIn (Settings → Get a copy of your data).",
     "LINKEDIN_ARCHIVE_MISSING_FILES": "No Profile.csv / Positions.csv / Skills.csv found in the archive.",
     "CV_SHARE_NOT_FOUND": "This CV link doesn't exist or has been disabled",

@@ -54,7 +54,15 @@ r.post(
     const id = Number(req.params.id);
     const current = await requireProfile(userId, id);
     if (!req.file) throw new HttpError(400, "No file received");
-    const text = await extractText(req.file.buffer, req.file.originalname, req.file.mimetype);
+    let text: string;
+    try {
+      text = await extractText(req.file.buffer, req.file.originalname, req.file.mimetype);
+    } catch {
+      // A parser (mammoth/pdfjs) threw deep inside — e.g. a legacy binary .doc that slipped past
+      // upload.ts's MIME sniffing, or a corrupted/non-standard PDF or DOCX. Surface a clear 400
+      // instead of letting the raw exception fall through to the global error handler as a 500.
+      throw new HttpError(400, "Couldn't read this file — try a PDF, DOCX or plain text file instead.", null, "CV_EXTRACT_PARSE_FAILED");
+    }
     if (!text || text.trim().length < 20) {
       throw new HttpError(422, "Couldn't extract text from the file (it might be a scan or image).", null, "CV_EXTRACT_FAILED");
     }
