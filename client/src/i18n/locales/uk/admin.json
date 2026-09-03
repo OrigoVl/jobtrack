@@ -36,6 +36,7 @@
       "plan": "Тариф",
       "costRecent": "Вартість (нещодавно)",
       "blockedRecent": "Блоковано (нещодавно)",
+      "grants": "Ручні надання",
       "bannedBadge": "заблоковано",
       "actions": "Дії"
     },
@@ -45,6 +46,16 @@
     },
     "banConfirmTitle": "Заблокувати {{name}}?",
     "banConfirmMessage": "Користувач не зможе увійти, доки блокування не знято.",
+    "grants": {
+      "daysAriaLabel": "Кількість днів",
+      "callsAriaLabel": "Кількість бонусних викликів ШІ",
+      "grantPlan": "Надати Pro",
+      "grantBonus": "+ виклики ШІ",
+      "planConfirmTitle": "Надати {{name}} тимчасовий Pro?",
+      "planConfirmMessage": "Встановлює тариф Pro на {{days}} дн., в обхід Stripe. Це перезапише поточний тариф/дату закінчення періоду на акаунті.",
+      "bonusConfirmTitle": "Надати {{name}} бонусні виклики ШІ?",
+      "bonusConfirmMessage": "Додає {{count}} викликів до постійного бонусу квоти ШІ (від'ємне число виправляє помилкове надання)."
+    },
     "showingSummary": "Показано {{count}} з {{total}}.",
     "searchPlaceholder": "Пошук за ім'ям або email…",
     "searchAriaLabel": "Пошук користувачів за ім'ям або email",
