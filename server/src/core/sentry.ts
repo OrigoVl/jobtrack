@@ -41,7 +41,11 @@ if (env.sentry.isAvailable) {
   });
 }
 
-/** Attaches a Sentry event to a specific user — called from requireAuth once auth is added. */
+/** Attaches a Sentry event to a specific user — called from core/http.ts's authed()/
+ * requireAdmin() once a session resolves, the only two places a userId is available for
+ * authorization. Deliberately takes just the bare id (not the full session/user record): Sentry
+ * events should be attributable to an account without also carrying its email/name into a
+ * third-party service, consistent with sendDefaultPii: false and scrubPii() above. */
 export function setSentryUser(userId: string): void {
   if (env.sentry.isAvailable) Sentry.setUser({ id: userId });
 }
