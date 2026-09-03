@@ -16,6 +16,8 @@ import {
   requestGeneratedCards,
   dedupeGeneratedCards,
   computeSrsGrade,
+  buildGenerateDrillsPrompt,
+  buildGenerateCardsPrompt,
 } from "./study.service.js";
 import { llmAvailable, chatJson } from "../../llm/index.js";
 import { BOOTSTRAP_USER_ID } from "../../db/user-id.js";
@@ -96,6 +98,37 @@ describe("requestGeneratedCards()", () => {
     const result = await requestGeneratedCards(BOOTSTRAP_USER_ID, "Frontend Engineer", "React", []);
     expect(result).toEqual({ offline: false, items: cards });
     expect(vi.mocked(chatJson).mock.calls[0]![4]).toMatchObject({ tier: "fast", cache: true });
+  });
+});
+
+// Prompt-grounding: knowledge-base.ts's `learn` topics for the target tech/topic are added as
+// "scope hints" so a generated drill/card set covers the same subtopics as the curated syllabus
+// instead of wandering into unrelated ground — but only for a tech that actually has a real
+// entry there (an uncurated one only has kbFor()'s generic "start with the docs" filler, not
+// worth steering generation with).
+describe("buildGenerateDrillsPrompt()", () => {
+  it("includes curated syllabus topics as scope hints for a tech with a real KB entry", () => {
+    const prompt = buildGenerateDrillsPrompt("Frontend Engineer", ["JavaScript"], "React", []);
+    expect(prompt).toContain("Curated syllabus topics");
+    expect(prompt).toContain("Hooks");
+  });
+
+  it("omits the scope-hints block for a tech with no curated KB entry", () => {
+    const prompt = buildGenerateDrillsPrompt("Frontend Engineer", [], "SomeMadeUpTechXYZ", []);
+    expect(prompt).not.toContain("Curated syllabus topics");
+  });
+});
+
+describe("buildGenerateCardsPrompt()", () => {
+  it("includes curated syllabus topics as scope hints for a topic with a real KB entry", () => {
+    const prompt = buildGenerateCardsPrompt("Frontend Engineer", "React", []);
+    expect(prompt).toContain("Curated syllabus topics");
+    expect(prompt).toContain("Hooks");
+  });
+
+  it("omits the scope-hints block for a topic with no curated KB entry", () => {
+    const prompt = buildGenerateCardsPrompt("Frontend Engineer", "SomeMadeUpTechXYZ", []);
+    expect(prompt).not.toContain("Curated syllabus topics");
   });
 });
 
