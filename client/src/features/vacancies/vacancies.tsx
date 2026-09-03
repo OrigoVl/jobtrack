@@ -295,13 +295,21 @@ export function Vacancies() {
               />
               {/* Multi-select checkbox dropdowns (same pattern as the "Columns" menu below) rather
                   than single-value <select>s — lets you filter by several statuses/fit levels at
-                  once (e.g. "Applied" + "Screening" together), OR'd within their own category. */}
+                  once (e.g. "Applied" + "Screening" together), OR'd within their own category.
+                  `data-keep-open` on each <label>: PopoverPanel closes on any click that isn't
+                  inside a `[data-keep-open]` element (see popover.tsx) — without it, clicking the
+                  LABEL TEXT (not the tiny checkbox square) closes the panel on the label's own
+                  bubbled click, unmounting the checkbox before the browser's separately-dispatched
+                  synthetic click on the input (label's native "activate the control" behavior) can
+                  toggle it — so the box silently fails to check. Also lets you tick several boxes
+                  in one open session instead of the panel closing after every single pick. */}
               <Dropdown
                 label={filterStatus.length === 0 ? t("filters.allStatuses") : t("filters.statusCount", { count: filterStatus.length })}
               >
                 {STATUSES.map((s) => (
                   <label
                     key={s}
+                    data-keep-open
                     className="flex items-center gap-2 px-2 py-1.5 text-sm text-ink rounded-lg hover:bg-surface-2 cursor-pointer"
                   >
                     <input
@@ -318,6 +326,7 @@ export function Vacancies() {
                 {(["high", "med", "low"] as const).map((f) => (
                   <label
                     key={f}
+                    data-keep-open
                     className="flex items-center gap-2 px-2 py-1.5 text-sm text-ink rounded-lg hover:bg-surface-2 cursor-pointer"
                   >
                     <input type="checkbox" checked={filterFit.includes(f)} onChange={() => toggleFitFilter(f)} className="accent-signal" />
@@ -340,6 +349,7 @@ export function Vacancies() {
                 {OPTIONAL_COLUMNS.map((key) => (
                   <label
                     key={key}
+                    data-keep-open
                     className="flex items-center gap-2 px-2 py-1.5 text-sm text-ink rounded-lg hover:bg-surface-2 cursor-pointer"
                   >
                     <input type="checkbox" checked={isColVisible(key)} onChange={() => toggleColumn(key)} className="accent-signal" />
