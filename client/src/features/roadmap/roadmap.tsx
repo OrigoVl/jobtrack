@@ -262,16 +262,23 @@ export function Roadmap() {
         title={t("title")}
         subtitle={t("subtitle")}
         actions={
-          <Segmented
-            value={view}
-            onChange={setView}
-            options={[
-              { value: "list", label: t("view.list") },
-              { value: "radar", label: t("view.radar") },
-              { value: "materials", label: t("view.materials") },
-              { value: "plan", label: t("view.plan") },
-            ]}
-          />
+          // `variant="subnav"` + the caption: this switches WITHIN the Roadmap page (SectionTabs,
+          // one level up, already owns the accent-colored "which page am I on" control) — see
+          // Segmented's own comment in shared/ui.tsx for why the two must not look alike.
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-ink-dim uppercase tracking-wide">{t("common:labels.view")}</span>
+            <Segmented
+              variant="subnav"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: "list", label: t("view.list") },
+                { value: "radar", label: t("view.radar") },
+                { value: "materials", label: t("view.materials") },
+                { value: "plan", label: t("view.plan") },
+              ]}
+            />
+          </div>
         }
       />
 

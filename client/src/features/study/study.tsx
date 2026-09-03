@@ -97,7 +97,7 @@ function DrillSandbox({ drill }: { drill: Drill }) {
   );
 }
 export function Study() {
-  const { t } = useTranslation("study");
+  const { t } = useTranslation(["study", "common"]);
   const { data: study } = useStudy();
   const { data: learn } = useLearn();
   const { data: health } = useHealth();
@@ -201,22 +201,29 @@ export function Study() {
           // Shared `Segmented` (shared/ui.tsx) instead of four hand-rolled Btns — same control,
           // same look as every other mode/view switcher in the app. The card-index reset only
           // matters for the two card-driven modes; mock/design have no card cursor to rewind.
-          <Segmented
-            value={mode}
-            onChange={(next) => {
-              setMode(next);
-              if (next === "srs" || next === "drill") {
-                setI(0);
-                setShow(false);
-              }
-            }}
-            options={[
-              { value: "srs", label: t("tabs.flashcards") },
-              { value: "drill", label: t("tabs.drill") },
-              { value: "mock", label: t("tabs.mock") },
-              { value: "design", label: t("tabs.design") },
-            ]}
-          />
+          // `variant="subnav"` + the caption: this switches WITHIN the Practice page (SectionTabs,
+          // one level up, already owns the accent-colored "which page am I on" control) — see
+          // Segmented's own comment in shared/ui.tsx for why the two must not look alike.
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-ink-dim uppercase tracking-wide">{t("common:labels.view")}</span>
+            <Segmented
+              variant="subnav"
+              value={mode}
+              onChange={(next) => {
+                setMode(next);
+                if (next === "srs" || next === "drill") {
+                  setI(0);
+                  setShow(false);
+                }
+              }}
+              options={[
+                { value: "srs", label: t("tabs.flashcards") },
+                { value: "drill", label: t("tabs.drill") },
+                { value: "mock", label: t("tabs.mock") },
+                { value: "design", label: t("tabs.design") },
+              ]}
+            />
+          </div>
         }
       />
       {mode !== "mock" && mode !== "design" && (

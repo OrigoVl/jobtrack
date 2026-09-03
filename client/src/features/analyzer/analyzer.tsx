@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
+import { Link } from "react-router";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useAddVacancy, useFetchAllJobStatus, useStartFetchAllJob, useVacancies } from "../../shared/queries";
@@ -7,6 +8,7 @@ import { Btn, Card, Chip, PageHeader, ProgressBar } from "../../shared/ui";
 import { Markdown } from "../../shared/markdown";
 import type { AnalyzeResult, Fit } from "../../shared/types";
 import { fitText } from "../../shared/fit-tone";
+import { useMutationErrorToast } from "../../shared/use-error-toast";
 import { VacancyDetailModal } from "../vacancies/vacancy-detail-modal";
 
 /* ---------- Analyzer ---------- */
@@ -14,6 +16,11 @@ export function Analyzer() {
   const { t } = useTranslation(["analyzer", "common"]);
   const addVacancyMutation = useAddVacancy();
   const startFetchAllMutation = useStartFetchAllJob();
+  // This analysis isn't a mutation (its result feeds local `res` state, not the query cache), so
+  // it doesn't get the `onError` a mutation hook would — reuse the same code->i18n resolver
+  // mutations use, so a failed analysis surfaces the same error toast as everything else instead
+  // of the spinner just vanishing silently.
+  const onAnalyzeError = useMutationErrorToast();
   // Polled globally (see shared/fetch-all-notifier.tsx, mounted once at the app shell) — this
   // page just reads whatever the shared job state currently is, so progress/results are visible
   // here regardless of whether THIS page or the notifier itself started the poll.
@@ -30,8 +37,8 @@ export function Analyzer() {
     setBusy(true);
     try {
       setRes(await api.analyzeVacancy(text));
-    } catch {
-      /* toast lives in the store for mutations; this analysis doesn't use a mutation */
+    } catch (e) {
+      onAnalyzeError(e);
     } finally {
       setBusy(false);
     }
@@ -128,6 +135,20 @@ export function Analyzer() {
       </Card>
 
       <Card>
+        {/* This is the "haven't saved it anywhere yet" entry point — free text in, no tracker row
+            or CV Builder document required. The CV page's "CV vs market" runs the same kind of AI
+            match but against your whole profile with no single vacancy in mind, and CV Builder's
+            Compare/Tailor need the vacancy already saved in the tracker. */}
+        <p className="text-xs text-ink-dim mb-2">
+          <Trans
+            i18nKey="textarea.scopeCaption"
+            ns="analyzer"
+            components={{
+              cvLink: <Link to="/cv" className="text-signal hover:underline" />,
+              builderLink: <Link to="/cvbuilder" className="text-signal hover:underline" />,
+            }}
+          />
+        </p>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}

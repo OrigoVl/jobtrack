@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Trans, useTranslation } from "react-i18next";
+import { Link } from "react-router";
 import { api } from "../../shared/api";
 import { useUi } from "../../shared/ui-state";
 import { useToast } from "../../shared/use-toast";
@@ -775,7 +776,14 @@ export function CvBuilder({ llm }: { llm: boolean }) {
               />
             )}
           </Dropdown>
-          <Btn size="sm" variant="ghost" onClick={doMatch} loading={busyMatch} disabled={!matchVacId}>
+          <Btn
+            size="sm"
+            variant="ghost"
+            onClick={doMatch}
+            loading={busyMatch}
+            disabled={!matchVacId}
+            title={t("builder.compareButtonTitle")}
+          >
             {t("builder.compareButton")}
           </Btn>
           <Btn
@@ -805,6 +813,20 @@ export function CvBuilder({ llm }: { llm: boolean }) {
           </Btn>
         </div>
       </div>
+      {/* Compare/Tailor above always need a vacancy already saved in the tracker — they score the
+          STRUCTURED doc (this editor), not the flat CV text. A posting that isn't saved anywhere
+          yet belongs in the Vacancy Analyzer; a general, no-single-role score belongs on the CV
+          page's "CV vs market". */}
+      <p className="text-xs text-ink-dim -mt-2">
+        <Trans
+          i18nKey="builder.vacancyMenu.scopeCaption"
+          ns="cv"
+          components={{
+            analyzerLink: <Link to="/analyzer" className="text-signal hover:underline" />,
+            cvLink: <Link to="/cv" className="text-signal hover:underline" />,
+          }}
+        />
+      </p>
       {auditJob?.status === "error" && (
         <Card className="!py-3 bg-alert/10 border-alert/30">
           <div className="text-sm text-alert">{auditJob.error || t("builder.toasts.analysisError")}</div>

@@ -111,11 +111,17 @@ export function CVView({ llm }: { llm: boolean }) {
   const { data: profile } = useProfile();
   const saveProfileMutation = useSaveProfile();
   const applyCvUpload = useApplyCvUpload();
-  // Uploading here parses into the structured CV Builder doc as a side effect (r.cvDoc below) —
-  // this page predates CV Builder's multiple profiles, so it always targets the first (default)
-  // one, same as the Dashboard's read-only ResumeCompleteness card.
+  // Uploading here parses into the structured CV Builder doc as a side effect (r.cvDoc below).
+  // This page has no editor tabs of its own, so it targets whichever profile is the CV Builder's
+  // OWN active tab — same `cvbuilder.activeProfileId` key (shared module-singleton store, see
+  // shared/ui-state.ts), read here too so switching CVs in the Builder during this session also
+  // repoints uploads on this page. Falls back to the first (lowest-position) profile — same as
+  // the Builder's own fallback effect — when that key hasn't been set yet this session, or points
+  // at a profile that's since been deleted.
   const { data: cvProfiles } = useCvProfiles();
-  const defaultCvProfileId = cvProfiles?.[0]?.id;
+  const [activeCvProfileId, setActiveCvProfileId] = useUi<number | null>("cvbuilder.activeProfileId", null);
+  const targetCvProfile = cvProfiles?.find((p) => p.id === activeCvProfileId) ?? cvProfiles?.[0];
+  const targetCvProfileId = targetCvProfile?.id;
   const { toast } = useToast();
   const [draft, setDraft] = useUi<{ cvText: string; skills: string[]; domain?: string; track?: Track } | null>("cv.draft", null);
   const [analysis, setAnalysis] = useUi<CvAnalysis | null>("cv.analysis", null);
@@ -148,10 +154,10 @@ export function CVView({ llm }: { llm: boolean }) {
   };
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (!f || !defaultCvProfileId) return;
+    if (!f || !targetCvProfileId) return;
     setBusy("upload");
     try {
-      const r = await api.uploadCV(defaultCvProfileId, f);
+      const r = await api.uploadCV(targetCvProfileId, f);
       setDraft({ cvText: r.text, skills: r.skills });
       setAnalysis(r);
       await applyCvUpload(r);
@@ -198,12 +204,45 @@ export function CVView({ llm }: { llm: boolean }) {
               accept=".pdf,.docx,.txt"
               onChange={onFile}
               className="hidden"
-              disabled={busy === "upload" || !defaultCvProfileId}
+              disabled={busy === "upload" || !targetCvProfileId}
             />
           </label>
+          {/* Which CV profile the upload lands in — this page has no tabs of its own (see the
+              comment on targetCvProfile above), so it has to say so explicitly rather than let it
+              stay implicit like the old always-first-profile behavior did. */}
+          {targetCvProfile &&
+            (cvProfiles && cvProfiles.length > 1 ? (
+              <label className="flex items-center gap-1.5">
+                <span className="text-[11px] text-ink-dim">{t("cvPage.uploadTargetLabel")}</span>
+                <Select
+                  value={targetCvProfileId}
+                  onChange={(e) => setActiveCvProfileId(Number(e.target.value))}
+                  aria-label={t("cvPage.uploadTargetAria")}
+                  className="!py-1 !px-2 text-xs"
+                >
+                  {cvProfiles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name || t("builder.profiles.unnamed")}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            ) : (
+              <span className="text-[11px] text-ink-dim">
+                {t("cvPage.uploadTargetLabel")}{" "}
+                <span className="font-semibold text-ink">{targetCvProfile.name || t("builder.profiles.unnamed")}</span>
+              </span>
+            ))}
           <span className="mx-1 h-5 w-px bg-grid" aria-hidden />
           <span className="text-xs font-semibold text-ink-dim">{t("cvPage.aiAnalysisLabel")}</span>
-          <Btn size="sm" variant="ghost" onClick={analyze} loading={busyAnalysis} disabled={!cvText.trim()}>
+          <Btn
+            size="sm"
+            variant="ghost"
+            onClick={analyze}
+            loading={busyAnalysis}
+            disabled={!cvText.trim()}
+            title={t("cvPage.compareMarketTitle")}
+          >
             {t("cvPage.compareMarket")}
           </Btn>
           {/* "Deep review" used to live here as a second AI button. It ran the SAME review the CV
@@ -218,6 +257,20 @@ export function CVView({ llm }: { llm: boolean }) {
             {t("cvPage.deepReviewMoved")}
           </Link>
         </div>
+        {/* "CV vs market" above is deliberately general — it scores this whole profile, not any
+            one role. Checking a single posting has its own, more targeted tools: an unsaved one in
+            the Vacancy Analyzer, a tracked one in CV Builder's Compare/Tailor (which also reasons
+            over the structured document, not this flat text). */}
+        <p className="text-xs text-ink-dim">
+          <Trans
+            i18nKey="cvPage.compareMarketCaption"
+            ns="cv"
+            components={{
+              analyzerLink: <Link to="/analyzer" className="text-signal hover:underline" />,
+              builderLink: <Link to="/cvbuilder" className="text-signal hover:underline" />,
+            }}
+          />
+        </p>
         <details className="text-xs text-ink-dim border-t border-surface-2 pt-2.5">
           <summary className="cursor-pointer select-none hover:text-ink font-medium">{t("cvPage.howItWorksSummary")}</summary>
           <div className="mt-1.5 text-ink-dim">

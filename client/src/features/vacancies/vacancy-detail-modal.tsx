@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
+import { Link } from "react-router";
 import { api } from "../../shared/api";
 import {
   useAddContact,
@@ -16,6 +17,7 @@ import { useToast } from "../../shared/use-toast";
 import { Btn, SearchSelect, Segmented, Spinner } from "../../shared/ui";
 import { StarIcon } from "../../shared/icons";
 import { useConfirm } from "../../shared/use-confirm";
+import { useFocusTrap } from "../../shared/use-focus-trap";
 import { SkillsInput } from "../../shared/view-kit";
 import { STATUSES, type CvMatch, type Fit, type Vacancy, type VacancyStatus } from "../../shared/types";
 import { fitLabel, fitText } from "../../shared/fit-tone";
@@ -143,6 +145,9 @@ export function VacancyDetailModal({
   const addContactMutation = useAddContact();
   const confirm = useConfirm();
   const [tab, setTab] = useState<Tab>(initialTab);
+  // Mounted only while the modal is open (the caller unmounts it to close), so the default
+  // `active=true` is right — trap + restore run once, on mount/unmount.
+  const dialogRef = useFocusTrap<HTMLDivElement>();
 
   // Seeded once, on mount: this modal is remounted per vacancy (the table/Kanban render it only
   // for the open row), so there's no "the prop changed under us" case to re-sync from — and not
@@ -326,6 +331,7 @@ export function VacancyDetailModal({
     >
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`${vacancy.position || t("detail.untitled")} — ${vacancy.company}`}
@@ -708,7 +714,7 @@ export function VacancyDetailModal({
             <div className="space-y-3">
               {/* No `loading` on the button: the analysis already has its own spinner row below,
                   and two spinners for one request read as two things happening. */}
-              <Btn size="sm" onClick={genMatch} disabled={!hasCvText || matchBusy}>
+              <Btn size="sm" onClick={genMatch} disabled={!hasCvText || matchBusy} title={t("detail.fitButtonTitle")}>
                 {match ? t("detail.regenerate") : t("detail.generateFit")}
               </Btn>
               {!hasCvText && <div className="text-xs text-ink-dim">{t("detail.noCvHint")}</div>}
@@ -719,6 +725,17 @@ export function VacancyDetailModal({
                 </div>
               )}
               {match && <CvMatchPanel match={match} />}
+              {/* This reads your plain CV text (same as the CV page's "CV vs market"), just scoped
+                  to this one vacancy. CV Builder's Compare/Tailor read the structured CV document
+                  instead — pointing at the exact section a suggestion is about, and able to
+                  reorder skills/bullets for this vacancy, not just report a gap. */}
+              <p className="text-xs text-ink-dim">
+                <Trans
+                  i18nKey="detail.fitBuilderHint"
+                  ns="vacancies"
+                  components={{ builderLink: <Link to="/cvbuilder" className="text-signal hover:underline" /> }}
+                />
+              </p>
             </div>
           )}
         </div>

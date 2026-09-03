@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Btn } from "./ui";
 import { ConfirmContext, type ConfirmFn, type ConfirmOptions } from "./confirm-context";
+import { useFocusTrap } from "./use-focus-trap";
 
 interface PendingConfirm extends ConfirmOptions {
   resolve: (value: boolean) => void;
@@ -37,11 +38,10 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
   }, [pending, close]);
 
   // Focuses the confirm button on open without the disallowed `autoFocus` prop (project eslint
-  // config bans it — a plain ref+effect keeps focus management explicit and testable).
+  // config bans it — a plain ref+effect keeps focus management explicit and testable), and traps
+  // Tab inside the dialog / restores focus to whatever opened it on close (useFocusTrap).
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (pending) confirmBtnRef.current?.focus();
-  }, [pending]);
+  const dialogRef = useFocusTrap<HTMLDivElement>(!!pending, confirmBtnRef);
 
   return (
     <ConfirmContext.Provider value={confirm}>
@@ -55,6 +55,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
           >
             {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
             <div
+              ref={dialogRef}
               role="alertdialog"
               aria-modal="true"
               aria-labelledby="confirm-dialog-title"

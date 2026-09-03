@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useUi } from "../../shared/ui-state";
 import { useResources, useSetResourcesFocus } from "../../shared/queries";
-import { Btn, Card, Chip, PageHeader, Segmented } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Chip, PageHeader, Segmented } from "../../shared/ui";
 import { TargetIcon } from "../../shared/icons";
 import type { ResourcesData } from "../../shared/types";
 
@@ -104,7 +104,7 @@ export function Resources() {
     setDone(n);
     localStorage.setItem("jt-check", JSON.stringify(n));
   };
-  if (!d) return null;
+  if (!d) return <CardsSkeleton count={3} />;
   const checkN = Object.values(done).filter(Boolean).length;
   return (
     <div className="space-y-4">

@@ -9,6 +9,7 @@ import { contactLabel, TYPE_KEY } from "./calendar-shared";
 import { buildIcs, googleCalendarUrl, icsFileName } from "./calendar-export";
 import { normalizeMeetingUrl } from "./meeting-link";
 import { JoinCallLink } from "./join-call-link";
+import { useFocusTrap } from "../../shared/use-focus-trap";
 
 /** The full create/edit form for a calendar event. Extracted from calendar.tsx, which now also
  * owns a grid, a day popover and an upcoming list — this is the one place a whole event (times,
@@ -31,6 +32,9 @@ export function EventModal({
   deleting: boolean;
 }) {
   const { t } = useTranslation(["calendar", "common"]);
+  // Mounted only while the modal is open, so the default `active=true` is right — trap + restore
+  // run once, on mount/unmount.
+  const dialogRef = useFocusTrap<HTMLDivElement>();
   const [form, setForm] = useState(draft);
   const { data: vacancies = [] } = useVacancies();
   const { data: contacts = [] } = useContacts();
@@ -73,6 +77,7 @@ export function EventModal({
       {/* role="dialog" like the vacancy detail modal: it's what makes this addressable as a
           dialog (assistive tech and e2e alike) rather than an anonymous div over the page. */}
       <Card
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={editingId ? t("modal.editEvent") : t("modal.newEvent")}

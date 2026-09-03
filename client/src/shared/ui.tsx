@@ -278,14 +278,19 @@ export function Wordmark({ size = "md", className = "" }: { size?: "sm" | "md" |
 }
 
 /** `rounded-card` (18px, tailwind.config.js) + `.card-shadow` (index.css) match the landing
- * page's own `.card` rule exactly — the single reused card shape its whole design rests on. */
-export function Card({ className = "", children, ...rest }: { className?: string } & HTMLAttributes<HTMLDivElement>) {
+ * page's own `.card` rule exactly — the single reused card shape its whole design rests on.
+ * forwardRef so a caller that renders a dialog as a Card (event-modal.tsx) can attach a focus-trap
+ * container ref to it — same reasoning as Btn above. */
+export const Card = forwardRef<HTMLDivElement, { className?: string } & HTMLAttributes<HTMLDivElement>>(function Card(
+  { className = "", children, ...rest },
+  ref,
+) {
   return (
-    <div {...rest} className={`rounded-card card-shadow bg-surface border border-grid p-4 md:p-5 ${className}`}>
+    <div ref={ref} {...rest} className={`rounded-card card-shadow bg-surface border border-grid p-4 md:p-5 ${className}`}>
       {children}
     </div>
   );
-}
+});
 
 /** `eyebrow` reproduces the landing page's own section anatomy — a small uppercase mono kicker
  * line sitting directly above the heading (`.section-head .eyebrow` there) — so every page's
@@ -397,25 +402,49 @@ export function EmptyState({ icon, title, hint, action }: { icon?: string; title
   );
 }
 
+// "default" is the ordinary page-local view/mode switch (Vacancies' Table/Kanban, CV Builder's
+// Content/Appearance, …) — its active pill uses the `signal` accent, same as everything else that
+// marks "this is the selected thing" across the app.
+//
+// "subnav" exists for the one narrower case where a `Segmented` sits *inside* a page that's
+// itself one tab of `SectionTabs` (app/section-tabs.tsx) — Roadmap's List/Radar/Materials/
+// Intensive, Practice's Flashcards/Drill/Mock/Design. `SectionTabs` already owns the `signal`
+// accent for "which page am I on"; reusing that same accent one level down, on a control that
+// only changes how the CURRENT page is displayed, made the two reads as one long list of tabs
+// instead of two levels of navigation. `subnav` drops the border/filled track and the accent on
+// the active pill (plain `text-ink` instead of `text-signal`) so it reads as a quieter, secondary
+// control — pair it with a small caption (see roadmap.tsx/study.tsx) naming what it toggles.
+type SegmentedVariant = "default" | "subnav";
+const SEGMENTED_CONTAINER: Record<SegmentedVariant, string> = {
+  default: "bg-surface-2 border border-grid",
+  subnav: "bg-transparent border border-transparent",
+};
+const SEGMENTED_ACTIVE: Record<SegmentedVariant, string> = {
+  default: "bg-surface text-signal",
+  subnav: "bg-surface-2 text-ink",
+};
+
 export function Segmented<T extends string | number>({
   value,
   onChange,
   options,
   size = "sm",
+  variant = "default",
 }: {
   value: T;
   onChange: (v: T) => void;
   options: { value: T; label: ReactNode }[];
   size?: "sm" | "md";
+  variant?: SegmentedVariant;
 }) {
   const pad = size === "sm" ? "px-2.5 py-1 text-xs" : "px-3.5 py-1.5 text-sm";
   return (
-    <div className="inline-flex rounded-lg bg-surface-2 border border-grid p-0.5">
+    <div className={`inline-flex rounded-lg p-0.5 ${SEGMENTED_CONTAINER[variant]}`}>
       {options.map((o) => (
         <button
           key={String(o.value)}
           onClick={() => onChange(o.value)}
-          className={`${pad} rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${value === o.value ? "bg-surface text-signal" : "text-ink-dim hover:text-ink"}`}
+          className={`${pad} rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-signal/50 ${value === o.value ? SEGMENTED_ACTIVE[variant] : "text-ink-dim hover:text-ink"}`}
         >
           {o.label}
         </button>

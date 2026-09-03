@@ -13,6 +13,9 @@
     "saving": "Saving…",
     "noMatches": "No matches"
   },
+  "labels": {
+    "view": "View"
+  },
   "vacancyStatus": {
     "wantToApply": "Want to apply",
     "applied": "Applied",
@@ -85,11 +88,16 @@
     "COMPANY_NAME_REQUIRED": "Company name is required",
     "COMPANY_NAME_TAKEN": "You already have a company with this name",
     "COMPANY_NOT_FOUND": "This company no longer exists",
+    "COMPANY_WEBSITE_MISSING": "This company has no website saved",
     "CALENDAR_EVENT_NOT_FOUND": "This event no longer exists",
     "CV_SHARE_NOT_GENERATED": "No share link yet — generate one first",
     "CV_TEXT_TOO_SHORT": "There isn't enough CV content yet — add a few more details first.",
     "CV_NO_VACANCY_DATA": "This vacancy has no details to compare against yet",
     "CV_FILL_IN_FIRST": "Fill in the CV first",
+    "CV_PROFILE_NOT_FOUND": "This CV profile no longer exists",
+    "CV_PROFILE_LIMIT": "You can have up to 5 CV profiles",
+    "CV_PROFILE_NAME_EMPTY": "Name can't be empty",
+    "CV_PROFILE_LAST_ONE": "Can't delete your only CV profile",
     "ALREADY_SUBSCRIBED": "You already have an active paid subscription",
     "NO_STRIPE_CUSTOMER": "Subscribe first — billing management isn't available yet",
     "UNKNOWN_PLAN": "Unknown plan"
