@@ -8,6 +8,16 @@ import type { UserId } from "../../db/user-id.js";
 import type { SrsRow } from "../../db/types.js";
 import type { DrillItem } from "./content.js";
 import { scheduleFsrs, type FsrsRating } from "./fsrs.js";
+import { kbFor, catFor } from "../knowledge/knowledge-base.js";
+
+/** Curated syllabus topics for a tech/topic, as short "scope hint" lines — only when there's a
+ * REAL curated knowledge-base entry (catFor(tech) !== null); kbFor()'s generic fallback for an
+ * uncurated tech is a single "start with the docs" bullet, not worth steering generation with.
+ * `.learn` doesn't depend on track (see knowledge-base.ts's kbFor — track only filters
+ * drills/cards), so this is called with the default track deliberately. */
+function scopeHints(tech: string): string[] {
+  return catFor(tech) !== null ? kbFor(tech).learn : [];
+}
 
 // ---------- progressive hints for a task ----------
 
@@ -80,9 +90,14 @@ export function buildAvoidList(existingQ: Set<string>, max = 40, sliceLen = 120)
 }
 
 export function buildGenerateDrillsPrompt(role: string, skills: string[], tech: string, avoid: string[]): string {
+  const scope = scopeHints(tech);
   return (
     `The candidate (${role}) knows: ${skills.join(", ") || "—"}. Needs to brush up on "${tech}".\n` +
     `Generate 3 new practical interview-level tasks specifically for "${tech}", of varying difficulty.\n` +
+    (scope.length
+      ? `Curated syllabus topics for "${tech}" — use as scope hints, cover ground within/around these, ` +
+        `don't stray into unrelated topics:\n${scope.map((l) => `- ${l}`).join("\n")}\n`
+      : "") +
     (avoid.length
       ? `The candidate ALREADY has the tasks below — every task you return must cover different ground, ` +
         `not a reworded version of one of these:\n${avoid.map((q) => `- ${q}`).join("\n")}\n`
@@ -161,9 +176,14 @@ export interface NewCardEntry {
 const GEN_CARDS_SYSTEM = "You are the author of flashcards for interview prep. Respond ONLY with valid JSON.";
 
 export function buildGenerateCardsPrompt(role: string, topic: string, avoid: string[]): string {
+  const scope = scopeHints(topic);
   return (
     `Role/topic: "${topic}" (candidate — ${role}).\n` +
     `Generate 5 flashcards, "question → concise accurate answer", at interview level.\n` +
+    (scope.length
+      ? `Curated syllabus topics for "${topic}" — use as scope hints, cover ground within/around these, ` +
+        `don't stray into unrelated topics:\n${scope.map((l) => `- ${l}`).join("\n")}\n`
+      : "") +
     (avoid.length
       ? `The candidate ALREADY has the questions below — every card you return must ask about ` +
         `something else, not a reworded version of one of these:\n${avoid.map((q) => `- ${q}`).join("\n")}\n`

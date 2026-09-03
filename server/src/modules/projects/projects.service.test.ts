@@ -105,6 +105,32 @@ describe("getDynamicProjects()", () => {
     expect(result.personalized).toBe(true);
   });
 
+  // Prompt-grounding: getDynamicProjects()'s prompt already had `tech` as its bridge target — these
+  // tests prove kbFor()'s curated syllabus for that tech is also passed as reference material (not
+  // just a name), and that a gap tech with no real KB entry doesn't add a useless grounding block.
+  it("grounds the prompt in curated syllabus topics for a gap that has a real KB entry", async () => {
+    chatJson.mockResolvedValue({ name: "Idea", subtitle: "s", goal: "g", tech: ["React"], dod: ["A"] });
+    await getDynamicProjects(BOOTSTRAP_USER_ID, {
+      profile: { skills: ["JavaScript"] },
+      demand: { React: 5 },
+      gapPriority: { React: 5 },
+    });
+    const prompt = chatJson.mock.calls[0]![2] as string;
+    expect(prompt).toContain("Curated syllabus topics");
+    expect(prompt).toContain("Hooks");
+  });
+
+  it("omits the grounding block for a gap tech with no curated KB entry", async () => {
+    chatJson.mockResolvedValue({ name: "Idea", subtitle: "s", goal: "g", tech: ["SomeMadeUpTechXYZ"], dod: ["A"] });
+    await getDynamicProjects(BOOTSTRAP_USER_ID, {
+      profile: { skills: [] },
+      demand: { SomeMadeUpTechXYZ: 5 },
+      gapPriority: { SomeMadeUpTechXYZ: 5 },
+    });
+    const prompt = chatJson.mock.calls[0]![2] as string;
+    expect(prompt).not.toContain("Curated syllabus topics");
+  });
+
   it("picks and orders gap projects by gapPriority, NOT by raw demand — the two can disagree", async () => {
     getKvJson.mockResolvedValue({ name: "Idea", subtitle: "s", goal: "g", tech: ["X"], dod: ["A"] });
     // Docker has more raw mentions (demand), but AWS is the higher set-cover priority — the

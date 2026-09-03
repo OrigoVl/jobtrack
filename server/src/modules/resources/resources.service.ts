@@ -5,7 +5,7 @@
 import { getProfile, getKvJson, setKvJson } from "../../db/index.js";
 import { demandMap, gapPriorityMap } from "../../shared/demand.js";
 import { TECHS } from "../../shared/tech-dict.js";
-import { kbFor } from "../knowledge/knowledge-base.js";
+import { kbFor, catFor } from "../knowledge/knowledge-base.js";
 import { chatJson, llmAvailable } from "../../llm/index.js";
 import { hashString } from "../../shared/hash.js";
 import { z } from "zod";
@@ -150,6 +150,22 @@ function personalizedCheatSection(gaps: string[], isUk: boolean, track: Track): 
   };
 }
 
+/** Short "tech: topic" reference lines for the gaps that have a REAL curated knowledge-base entry
+ * (catFor(tech) !== null) — a tech with no curated entry only has kbFor()'s generic "start with
+ * the docs" fallback, which isn't worth grounding an LLM prompt in. Used by both getFocusNote()
+ * and getPersonalizedActions() below so their prompts point at the same vetted material
+ * getPersonalizedActions()'s own offline fallback already pulls from, instead of the model
+ * inventing topics from scratch. */
+function curatedTopicLines(gaps: string[], track: Track, max = 2): string[] {
+  return gaps
+    .filter((tech) => catFor(tech) !== null)
+    .flatMap((tech) =>
+      kbFor(tech, track)
+        .learn.slice(0, max)
+        .map((l) => `${tech}: ${l}`),
+    );
+}
+
 /** Ranked by gapPriority (which gap unlocks the most vacancies), not raw demand (which merely
  * mentions it most) — see shared/demand.ts's computeGapPriority for why the two can disagree. */
 function topGaps(gapPriority: Record<string, number>, skillSet: Set<string>, limit = 3): string[] {
@@ -182,17 +198,28 @@ const FocusSchema = z.object({ focus: z.string().min(1) });
  * same shape as knowledge.service.ts's per-tech `focus`: always works offline, the LLM only
  * adds a warmer, more specific phrasing when available. Cached per-user (keyed on the exact
  * skills+gaps that produced it) so a page reload doesn't re-spend a call for the same input. */
-async function getFocusNote(userId: UserId, skills: string[], domain: string | undefined, gaps: string[], isUk: boolean): Promise<string> {
+async function getFocusNote(
+  userId: UserId,
+  skills: string[],
+  domain: string | undefined,
+  gaps: string[],
+  isUk: boolean,
+  track: Track,
+): Promise<string> {
   const fallback = staticFocus(gaps.length > 0 || skills.length > 0, gaps, isUk);
   if (!llmAvailable() || gaps.length === 0) return fallback;
   const cacheKey = `resources-focus:${hashString(`${[...skills].sort().join(",")}|${gaps.join(",")}`)}`;
   const cached = await getKvJson<string>(userId, cacheKey);
   if (cached) return cached;
+  const topics = curatedTopicLines(gaps, track);
   const out = await chatJson(
     userId,
     `You are a concise career mentor for the role "${domain || "professional"}".`,
     `The candidate already knows: ${skills.join(", ") || "—"}.\n` +
       `Their own vacancies most often require, but they don't have yet: ${gaps.join(", ")}.\n` +
+      (topics.length > 0
+        ? `Reference material — known-good topics for these gaps; ground your suggestion in this where relevant, don't invent unrelated facts:\n${topics.map((t) => `- ${t}`).join("\n")}\n`
+        : "") +
       `Write ONE short, encouraging, concrete sentence (max 30 words) on what to prioritize studying this week and why.\n` +
       `Return JSON: {"focus":"..."}`,
     FocusSchema,
@@ -243,10 +270,14 @@ async function getPersonalizedActions(
   const cacheKey = `resources-actions:${hashString(`${[...skills].sort().join(",")}|${gaps.join(",")}`)}`;
   const cached = await getKvJson<string[]>(userId, cacheKey);
   if (cached && cached.length === gaps.length) return cached;
+  const topics = curatedTopicLines(gaps, track);
   const out = await chatJson(
     userId,
     `You are a concise career mentor for the role "${domain || "professional"}".`,
     `The candidate needs to close these skill gaps, in this priority order: ${gaps.join(", ")}.\n` +
+      (topics.length > 0
+        ? `Reference material — known-good topics per gap; ground actions in this where relevant, don't invent unrelated facts:\n${topics.map((t) => `- ${t}`).join("\n")}\n`
+        : "") +
       `For EACH gap, in the SAME order, write ONE short, concrete, checklist-style action (max 18 words) — ` +
       `something specific to build or practice this week, not generic advice.\n` +
       `Return JSON: {"actions": ["...", ...]} with exactly ${gaps.length} item(s), one per gap, in order.`,
@@ -274,7 +305,7 @@ export async function getDynamicResources(userId: UserId, isUk: boolean): Promis
   // A user-set focus wins outright and short-circuits getFocusNote() — no point spending an LLM
   // call (or even the static fallback) on a sentence nobody will see.
   const override = await getFocusOverride(userId);
-  const focus = override || (await getFocusNote(userId, skills, profile.domain, gaps, isUk));
+  const focus = override || (await getFocusNote(userId, skills, profile.domain, gaps, isUk, track));
   const actions = await getPersonalizedActions(userId, skills, profile.domain, gaps, isUk, track);
 
   const personalizedGroup = personalizedBestPracticeGroup(gaps, isUk, track);
