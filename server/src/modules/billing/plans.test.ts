@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { limitsForPlan, planForPriceId } from "./plans.js";
+import { limitsForPlan, planForPriceId, FREE_AI_RATE_LIMIT } from "./plans.js";
+import { FREE_AI_RATE_LIMIT as RATE_LIMIT_FREE_AI_RATE_LIMIT } from "../../core/rate-limit.js";
 
 describe("limitsForPlan()", () => {
   it("returns the configured monthly call ceiling and the unchanged 30/15min rate limit for free", () => {
@@ -30,5 +31,14 @@ describe("planForPriceId()", () => {
 
   it("falls back to 'free' when proPriceId is unconfigured", () => {
     expect(planForPriceId("price_pro_123", undefined)).toBe("free");
+  });
+});
+
+describe("FREE_AI_RATE_LIMIT", () => {
+  it("stays equal to core/rate-limit.ts's own copy of the same number", () => {
+    // The two constants can't share one source without either file importing the other (each
+    // file's own comment explains why that's deliberately avoided), so this is the only thing
+    // that would catch one of them drifting out of sync with the other.
+    expect(FREE_AI_RATE_LIMIT).toBe(RATE_LIMIT_FREE_AI_RATE_LIMIT);
   });
 });

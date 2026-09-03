@@ -16,7 +16,10 @@ export interface PlanLimits {
 // Free's rate limit (30) matches aiLimiter's ORIGINAL hardcoded constant exactly, so a
 // deployment with billing unconfigured (env.billing.isAvailable === false) — every dev machine,
 // all of e2e, every self-hoster — behaves byte-identically to before this module existed.
-const FREE_AI_RATE_LIMIT = 30;
+// Exported so plans.test.ts can assert this stays equal to core/rate-limit.ts's own copy —
+// the two can't share one source without either file importing the other (see each file's own
+// comment on why the duplication is deliberate), so a test is the only thing catching drift.
+export const FREE_AI_RATE_LIMIT = 30;
 const PAID_AI_RATE_LIMIT = 90;
 
 export function limitsForPlan(plan: PlanId, freeAiCallsPerMonth: number): PlanLimits {
