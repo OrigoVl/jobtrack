@@ -333,7 +333,12 @@ Already addressed, continued:
   handling, and a pricing page (`features/billing/pricing.tsx`). Inert until
   `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`STRIPE_PRICE_PRO_MONTHLY` are set
   (`server/.env.example`) — every account is unlimited/free without them, same
-  "optional, degrades gracefully" convention as the LLM keys.
+  "optional, degrades gracefully" convention as the LLM keys. `PlanId` (`modules/billing/plans.ts`)
+  already includes `"team"`, and the `subscriptions` table (`db/schema/billing.ts`) already carries
+  `seats`/`grantedByUserId` — deliberate forward compat for a not-yet-built Team tier (no Stripe
+  price mapped to it, no pricing-page card), not dead code: the schema's own comment is that
+  `getEntitlements()` needs zero changes once seat rows start being written, since it already reads
+  a row whose `plan` can say `"team"`.
 - **Terms of Service / Privacy Policy.** Static pages (`features/legal/{terms,privacy}.tsx`),
   linked from the auth/legal footer. Covers the *published-policy* half of GDPR-style compliance;
   account data export and self-service deletion (`account/` module, better-auth's `deleteUser`)
