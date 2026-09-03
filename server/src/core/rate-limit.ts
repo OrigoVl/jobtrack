@@ -101,7 +101,9 @@ const ANONYMOUS_AI_RATE_LIMIT = 10;
 // Free's own rate limit, kept as a plain constant here (not read from modules/billing/plans.ts)
 // so this file's only dependency on the billing module is the single LAZY import below — this
 // is the value returned when that import/lookup fails, matching the module's own default.
-const FREE_AI_RATE_LIMIT = 30;
+// Exported (not just for this file's own fallback) so plans.test.ts can assert it stays in sync
+// with billing/plans.ts's own copy of the same number — see that test for why both exist.
+export const FREE_AI_RATE_LIMIT = 30;
 
 // `../modules/billing/entitlements.js` is imported LAZILY (dynamic import inside the function
 // below, not a static top-level one) for the exact reason http.ts's getSession() is: it
