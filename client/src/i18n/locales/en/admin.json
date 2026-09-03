@@ -36,6 +36,7 @@
       "plan": "Plan",
       "costRecent": "Cost (recent)",
       "blockedRecent": "Blocked (recent)",
+      "grants": "Manual grants",
       "bannedBadge": "banned",
       "actions": "Actions"
     },
@@ -45,6 +46,16 @@
     },
     "banConfirmTitle": "Ban {{name}}?",
     "banConfirmMessage": "They won't be able to sign in until unbanned.",
+    "grants": {
+      "daysAriaLabel": "Number of days",
+      "callsAriaLabel": "Number of bonus AI calls",
+      "grantPlan": "Grant Pro",
+      "grantBonus": "+ AI calls",
+      "planConfirmTitle": "Grant {{name}} temporary Pro?",
+      "planConfirmMessage": "Sets their plan to Pro for {{days}} day(s), bypassing Stripe. This overwrites any existing plan/period end on their account.",
+      "bonusConfirmTitle": "Grant {{name}} bonus AI calls?",
+      "bonusConfirmMessage": "Adds {{count}} calls to their standing AI-quota bonus (a negative number corrects a mistaken grant)."
+    },
     "showingSummary": "Showing {{count}} of {{total}}.",
     "searchPlaceholder": "Search by name or email…",
     "searchAriaLabel": "Search users by name or email",

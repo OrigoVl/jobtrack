@@ -312,6 +312,13 @@ export const api = {
   adminBanUser: (userId: string, reason?: string) =>
     req<{ ok: boolean }>(`/admin/users/${userId}/ban`, { method: "POST", body: JSON.stringify({ reason }) }),
   adminUnbanUser: (userId: string) => req<{ ok: boolean }>(`/admin/users/${userId}/unban`, { method: "POST" }),
+  adminGrantPlan: (userId: string, plan: "pro" | "team", days: number) =>
+    req<{ ok: boolean }>(`/admin/users/${userId}/grant-plan`, { method: "POST", body: JSON.stringify({ plan, days }) }),
+  adminGrantBonusAiCalls: (userId: string, count: number) =>
+    req<{ ok: boolean; total: number }>(`/admin/users/${userId}/grant-bonus-ai-calls`, {
+      method: "POST",
+      body: JSON.stringify({ count }),
+    }),
 
   calendarCombined: (range: { from?: string; to?: string } = {}) => {
     const q = new URLSearchParams();

@@ -16,6 +16,10 @@ let listUsersWithActivity: typeof import("./admin.service.js").listUsersWithActi
 let getLlmUsageSummary: typeof import("./admin.service.js").getLlmUsageSummary;
 let getProductEventsSummary: typeof import("./admin.service.js").getProductEventsSummary;
 let getBillingSummary: typeof import("./admin.service.js").getBillingSummary;
+let grantTemporaryPlan: typeof import("./admin.service.js").grantTemporaryPlan;
+let grantBonusAiCalls: typeof import("./admin.service.js").grantBonusAiCalls;
+let getSubscription: typeof import("../billing/billing.repo.js").getSubscription;
+let getAdminBonusAiCalls: typeof import("../billing/admin-bonus.js").getAdminBonusAiCalls;
 let llmUsage: typeof import("../../db/schema/index.js").llmUsage;
 let productEvents: typeof import("../../db/schema/index.js").productEvents;
 let vacancies: typeof import("../../db/schema/index.js").vacancies;
@@ -32,6 +36,12 @@ beforeAll(async () => {
   getLlmUsageSummary = service.getLlmUsageSummary;
   getProductEventsSummary = service.getProductEventsSummary;
   getBillingSummary = service.getBillingSummary;
+  grantTemporaryPlan = service.grantTemporaryPlan;
+  grantBonusAiCalls = service.grantBonusAiCalls;
+  const billingRepo = await import("../billing/billing.repo.js");
+  getSubscription = billingRepo.getSubscription;
+  const adminBonus = await import("../billing/admin-bonus.js");
+  getAdminBonusAiCalls = adminBonus.getAdminBonusAiCalls;
   const schema = await import("../../db/schema/index.js");
   llmUsage = schema.llmUsage;
   productEvents = schema.productEvents;
@@ -230,5 +240,45 @@ describe("getProductEventsSummary() (PGlite)", () => {
     expect(reactQuery?.count).toBe(2); // "React" and "react" merge into one bucket
     const backendQuery = summary.topSearchQueries.find((q) => q.query === "backend");
     expect(backendQuery?.count).toBe(1);
+  });
+});
+
+describe("grantTemporaryPlan() (PGlite)", () => {
+  it("upserts a new subscription row for a user who never had one (USER_B is on Free)", async () => {
+    await grantTemporaryPlan(USER_A, USER_B, "pro", 30);
+    const sub = await getSubscription(USER_B);
+    expect(sub?.plan).toBe("pro");
+    expect(sub?.status).toBe("active");
+    expect(sub?.cancelAtPeriodEnd).toBe(false);
+    const periodEnd = new Date(sub!.currentPeriodEnd!).getTime();
+    const expected = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    expect(Math.abs(periodEnd - expected)).toBeLessThan(5000); // within 5s of "now + 30 days"
+  });
+
+  it("overwrites an existing plan/period end but preserves the Stripe linkage already on file (USER_A is on Pro via Stripe)", async () => {
+    await grantTemporaryPlan(USER_A, USER_A, "team", 7);
+    const sub = await getSubscription(USER_A);
+    expect(sub?.plan).toBe("team");
+    expect(sub?.stripeCustomerId).toBe("cus_admin_test"); // seeded in beforeAll, must survive the grant
+    const periodEnd = new Date(sub!.currentPeriodEnd!).getTime();
+    const expected = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    expect(Math.abs(periodEnd - expected)).toBeLessThan(5000);
+  });
+});
+
+describe("grantBonusAiCalls() (PGlite)", () => {
+  it("adds to a user's standing bonus and returns the running total", async () => {
+    const first = await grantBonusAiCalls(USER_A, USER_B, 25);
+    expect(first).toBe(25);
+    expect(await getAdminBonusAiCalls(USER_B)).toBe(25);
+
+    const second = await grantBonusAiCalls(USER_A, USER_B, 10);
+    expect(second).toBe(35);
+  });
+
+  it("floors a negative correction at 0 rather than going negative", async () => {
+    await grantBonusAiCalls(USER_A, USER_A, 5);
+    const corrected = await grantBonusAiCalls(USER_A, USER_A, -100);
+    expect(corrected).toBe(0);
   });
 });
