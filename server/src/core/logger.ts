@@ -2,7 +2,7 @@
 // in prod — structured JSON (easily parsed by log aggregators).
 import pino from "pino";
 import { env } from "../config/env.js";
-import { getRequestId } from "./request-context.js";
+import { getContextUserId, getRequestId } from "./request-context.js";
 
 const logger = pino({
   level: env.logLevel,
@@ -31,14 +31,20 @@ const logger = pino({
 });
 
 /**
- * A child logger with the current HTTP request's reqId attached (via AsyncLocalStorage), if
- * the code is running inside request handling — otherwise the plain base logger. Use it in
- * code without direct access to `req` (e.g. llm/client.ts) so its logs can be correlated with
- * a specific user request the same way pino-http does for HTTP access logs.
+ * A child logger with the current HTTP request's reqId (and, once core/http.ts's authed()/
+ * requireAdmin() has resolved a session, userId) attached via AsyncLocalStorage, if the code is
+ * running inside request handling — otherwise the plain base logger. Use it in code without
+ * direct access to `req` (e.g. llm/client.ts) so its logs can be correlated with a specific user
+ * request the same way pino-http does for HTTP access logs, and grepped by userId the same way
+ * Sentry events already can be (core/sentry.ts's setSentryUser()).
  */
 export function contextLogger(): pino.Logger {
   const reqId = getRequestId();
-  return reqId ? logger.child({ reqId }) : logger;
+  const userId = getContextUserId();
+  const bindings: Record<string, string> = {};
+  if (reqId) bindings.reqId = reqId;
+  if (userId) bindings.userId = userId;
+  return Object.keys(bindings).length > 0 ? logger.child(bindings) : logger;
 }
 
 export default logger;
