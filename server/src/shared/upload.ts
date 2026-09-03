@@ -3,10 +3,18 @@ import type { RequestHandler } from "express";
 import multer from "multer";
 import { HttpError } from "../core/http.js";
 
-// /cv/upload accepts pdf/docx/doc/txt (parsed in cv-extract.service.ts),
+// /cv/upload accepts pdf/docx/txt (parsed in cv-extract.service.ts),
 // /cv/linkedin-import accepts zip (LinkedIn "Get a copy of your data" export).
 // Both routes share a single multer instance, so the filter allows the combined list.
-const ALLOWED_EXTENSIONS = [".pdf", ".docx", ".doc", ".txt", ".zip"];
+// Legacy binary .doc is deliberately NOT in this list: mammoth (the library cv-extract.service.ts
+// uses for word documents) only understands modern OOXML .docx, not the old binary format — it
+// throws deep inside the parser on a real .doc file. Advertising an extension that reliably fails
+// would be worse than not accepting it; full legacy .doc support needs a different library and is
+// out of scope here. The msword MIME pattern below is kept (for the occasional browser that
+// mislabels a real .docx upload as application/msword) — a stray legacy .doc that slips through
+// on that MIME match still fails cleanly, since cv.routes.ts wraps the extractText() call in a
+// try/catch and turns any parser exception into a 400, not a raw 500.
+const ALLOWED_EXTENSIONS = [".pdf", ".docx", ".txt", ".zip"];
 const ALLOWED_MIME_PATTERNS = [/pdf/, /wordprocessingml/, /msword/, /^text\/plain$/, /zip/];
 
 function isAllowedFile(originalname: string, mimetype: string): boolean {
@@ -31,7 +39,7 @@ const upload = multer({
       cb(null, true);
       return;
     }
-    cb(new HttpError(400, "Unsupported file type. Allowed: PDF, DOCX, DOC, TXT, ZIP.", null, "UNSUPPORTED_FILE_TYPE"));
+    cb(new HttpError(400, "Unsupported file type. Allowed: PDF, DOCX, TXT, ZIP.", null, "UNSUPPORTED_FILE_TYPE"));
   },
 });
 
