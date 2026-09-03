@@ -12,7 +12,7 @@ import {
 import { api } from "../../shared/api";
 import { useToast } from "../../shared/use-toast";
 import { useConfirm } from "../../shared/use-confirm";
-import { Btn, Card, CardsSkeleton, Dropdown, EmptyState, PageHeader, Segmented, Select, Spinner } from "../../shared/ui";
+import { Btn, Card, CardsSkeleton, Dropdown, EmptyState, PageHeader, Segmented, Spinner } from "../../shared/ui";
 import { DateInput } from "../../shared/date-input";
 import { StarIcon } from "../../shared/icons";
 import { STATUSES, type Fit, type VacancyStatus } from "../../shared/types";
@@ -129,8 +129,11 @@ export function Vacancies() {
     localStorage.setItem(VIEW_STORAGE_KEY, v);
   };
   const [search, setSearch] = useUi("vacancies.search", "");
-  const [filterStatus, setFilterStatus] = useUi<string>("vacancies.filterStatus", "all");
-  const [filterFit, setFilterFit] = useUi<string>("vacancies.filterFit", "all");
+  const [filterStatus, setFilterStatus] = useUi<string[]>("vacancies.filterStatus", []);
+  const [filterFit, setFilterFit] = useUi<string[]>("vacancies.filterFit", []);
+  const toggleStatusFilter = (s: string) =>
+    setFilterStatus(filterStatus.includes(s) ? filterStatus.filter((x) => x !== s) : [...filterStatus, s]);
+  const toggleFitFilter = (f: string) => setFilterFit(filterFit.includes(f) ? filterFit.filter((x) => x !== f) : [...filterFit, f]);
   const [favoritesOnly, setFavoritesOnly] = useUi<boolean>("vacancies.favoritesOnly", false);
   const [sortBy, setSortBy] = useUi<SortKey>("vacancies.sortBy", "default");
   const [sortDir, setSortDir] = useUi<"asc" | "desc">("vacancies.sortDir", "asc");
@@ -149,11 +152,11 @@ export function Vacancies() {
     }
   };
   const sortArrow = (key: SortKey) => (sortBy === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
-  const hasActiveFilters = filterStatus !== "all" || filterFit !== "all" || favoritesOnly || search.trim() !== "";
+  const hasActiveFilters = filterStatus.length > 0 || filterFit.length > 0 || favoritesOnly || search.trim() !== "";
   const resetFilters = () => {
     setSearch("");
-    setFilterStatus("all");
-    setFilterFit("all");
+    setFilterStatus([]);
+    setFilterFit([]);
     setFavoritesOnly(false);
   };
   const visibleVacancies = filterAndSortVacancies(vacancies, {
@@ -290,20 +293,38 @@ export function Vacancies() {
                 aria-label={t("filters.searchAriaLabel")}
                 className="flex-1 min-w-[180px] bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
               />
-              <Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-                <option value="all">{t("filters.allStatuses")}</option>
+              {/* Multi-select checkbox dropdowns (same pattern as the "Columns" menu below) rather
+                  than single-value <select>s — lets you filter by several statuses/fit levels at
+                  once (e.g. "Applied" + "Screening" together), OR'd within their own category. */}
+              <Dropdown
+                label={filterStatus.length === 0 ? t("filters.allStatuses") : t("filters.statusCount", { count: filterStatus.length })}
+              >
                 {STATUSES.map((s) => (
-                  <option key={s} value={s}>
+                  <label
+                    key={s}
+                    className="flex items-center gap-2 px-2 py-1.5 text-sm text-ink rounded-lg hover:bg-surface-2 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={filterStatus.includes(s)}
+                      onChange={() => toggleStatusFilter(s)}
+                      className="accent-signal"
+                    />
                     {statusLabel(s)}
-                  </option>
+                  </label>
                 ))}
-              </Select>
-              <Select value={filterFit} onChange={(e) => setFilterFit(e.target.value)}>
-                <option value="all">{t("filters.allFits")}</option>
-                <option value="high">{fitLabel("high")}</option>
-                <option value="med">{fitLabel("med")}</option>
-                <option value="low">{fitLabel("low")}</option>
-              </Select>
+              </Dropdown>
+              <Dropdown label={filterFit.length === 0 ? t("filters.allFits") : t("filters.fitCount", { count: filterFit.length })}>
+                {(["high", "med", "low"] as const).map((f) => (
+                  <label
+                    key={f}
+                    className="flex items-center gap-2 px-2 py-1.5 text-sm text-ink rounded-lg hover:bg-surface-2 cursor-pointer"
+                  >
+                    <input type="checkbox" checked={filterFit.includes(f)} onChange={() => toggleFitFilter(f)} className="accent-signal" />
+                    {fitLabel(f)}
+                  </label>
+                ))}
+              </Dropdown>
               <button
                 type="button"
                 onClick={() => setFavoritesOnly(!favoritesOnly)}
