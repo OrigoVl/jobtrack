@@ -34,13 +34,16 @@ export function filterAndSortVacancies(
     favoritesOnly,
     sortBy,
     sortDir,
-  }: { search: string; status: string; fit: string; favoritesOnly: boolean; sortBy: SortKey; sortDir: "asc" | "desc" },
+  }: { search: string; status: string[]; fit: string[]; favoritesOnly: boolean; sortBy: SortKey; sortDir: "asc" | "desc" },
 ): Vacancy[] {
   const q = search.trim().toLowerCase();
   const filtered = vacancies.filter((v) => {
     if (favoritesOnly && !v.favorite) return false;
-    if (status !== "all" && v.status !== status) return false;
-    if (fit !== "all" && v.fit !== fit) return false;
+    // Empty selection means "no filter applied" (every status/fit passes) — a non-empty
+    // selection is OR'd within its own category (any of the checked statuses matches), while
+    // the two categories still AND together, same as the old single-value "all"/one-value filter.
+    if (status.length > 0 && !status.includes(v.status)) return false;
+    if (fit.length > 0 && !fit.includes(v.fit)) return false;
     if (q && !`${v.company} ${v.position} ${v.stack.join(" ")} ${v.notes}`.toLowerCase().includes(q)) return false;
     return true;
   });

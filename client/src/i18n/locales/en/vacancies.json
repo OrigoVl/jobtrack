@@ -114,6 +114,8 @@
     "searchAriaLabel": "Search vacancies",
     "allStatuses": "All statuses",
     "allFits": "All fit levels",
+    "statusCount": "Status ({{count}})",
+    "fitCount": "Fit ({{count}})",
     "favoritesOnly": "Favorites only",
     "columns": "Columns",
     "reset": "Reset filters",

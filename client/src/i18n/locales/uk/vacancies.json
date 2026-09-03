@@ -114,6 +114,8 @@
     "searchAriaLabel": "Пошук вакансій",
     "allStatuses": "Усі статуси",
     "allFits": "Уся відповідність",
+    "statusCount": "Статус ({{count}})",
+    "fitCount": "Відповідність ({{count}})",
     "favoritesOnly": "Тільки обране",
     "columns": "Колонки",
     "reset": "Скинути фільтри",

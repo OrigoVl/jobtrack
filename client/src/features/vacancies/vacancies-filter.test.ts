@@ -25,7 +25,14 @@ function vacancy(overrides: Partial<Vacancy> = {}): Vacancy {
   };
 }
 
-const noFilter = { search: "", status: "all", fit: "all", favoritesOnly: false, sortBy: "default" as const, sortDir: "asc" as const };
+const noFilter = {
+  search: "",
+  status: [] as string[],
+  fit: [] as string[],
+  favoritesOnly: false,
+  sortBy: "default" as const,
+  sortDir: "asc" as const,
+};
 
 describe("filterAndSortVacancies", () => {
   it("keeps the original (server) order when sortBy is 'default'", () => {
@@ -33,15 +40,36 @@ describe("filterAndSortVacancies", () => {
     expect(filterAndSortVacancies(rows, noFilter).map((v) => v.id)).toEqual([1, 2]);
   });
 
-  it("filters by status", () => {
+  it("filters by a single status", () => {
     const rows = [vacancy({ id: 1, status: "Applied" }), vacancy({ id: 2, status: "Rejected" })];
-    const out = filterAndSortVacancies(rows, { ...noFilter, status: "Rejected" });
+    const out = filterAndSortVacancies(rows, { ...noFilter, status: ["Rejected"] });
     expect(out.map((v) => v.id)).toEqual([2]);
   });
 
-  it("filters by fit", () => {
+  it("filters by several statuses at once (OR within the category)", () => {
+    const rows = [vacancy({ id: 1, status: "Applied" }), vacancy({ id: 2, status: "Screening" }), vacancy({ id: 3, status: "Rejected" })];
+    const out = filterAndSortVacancies(rows, { ...noFilter, status: ["Applied", "Screening"] });
+    expect(out.map((v) => v.id)).toEqual([1, 2]);
+  });
+
+  it("filters by a single fit", () => {
     const rows = [vacancy({ id: 1, fit: "high" }), vacancy({ id: 2, fit: "low" })];
-    expect(filterAndSortVacancies(rows, { ...noFilter, fit: "high" }).map((v) => v.id)).toEqual([1]);
+    expect(filterAndSortVacancies(rows, { ...noFilter, fit: ["high"] }).map((v) => v.id)).toEqual([1]);
+  });
+
+  it("filters by several fit levels at once (OR within the category)", () => {
+    const rows = [vacancy({ id: 1, fit: "high" }), vacancy({ id: 2, fit: "med" }), vacancy({ id: 3, fit: "low" })];
+    expect(filterAndSortVacancies(rows, { ...noFilter, fit: ["high", "low"] }).map((v) => v.id)).toEqual([1, 3]);
+  });
+
+  it("ANDs status and fit together when both categories have a selection", () => {
+    const rows = [
+      vacancy({ id: 1, status: "Applied", fit: "high" }),
+      vacancy({ id: 2, status: "Applied", fit: "low" }),
+      vacancy({ id: 3, status: "Rejected", fit: "high" }),
+    ];
+    const out = filterAndSortVacancies(rows, { ...noFilter, status: ["Applied"], fit: ["high"] });
+    expect(out.map((v) => v.id)).toEqual([1]);
   });
 
   it("filters to favorites only", () => {
@@ -98,7 +126,7 @@ describe("filterAndSortVacancies", () => {
       vacancy({ id: 2, status: "Applied", company: "Alpha" }),
       vacancy({ id: 3, status: "Rejected", company: "Beta" }),
     ];
-    const out = filterAndSortVacancies(rows, { ...noFilter, status: "Applied", sortBy: "company", sortDir: "asc" });
+    const out = filterAndSortVacancies(rows, { ...noFilter, status: ["Applied"], sortBy: "company", sortDir: "asc" });
     expect(out.map((v) => v.company)).toEqual(["Alpha", "Zeta"]);
   });
 });
