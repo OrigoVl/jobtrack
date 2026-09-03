@@ -174,6 +174,50 @@ describe("getDynamicResources()", () => {
   });
 });
 
+// Prompt-grounding: getFocusNote()/getPersonalizedActions() already had a deterministic offline
+// fallback pulling straight from kbFor()'s curated `learn` bullets — these tests prove the same
+// curated content also reaches both LLM prompts (not just the fallback), and that a gap tech with
+// no real knowledge-base.ts entry doesn't add a useless grounding block.
+describe("getDynamicResources() — grounds the focus/actions prompts in the curated knowledge base", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    llmAvailableMock.mockReturnValue(true);
+  });
+
+  it("includes curated topics for a gap that has a real KB entry", async () => {
+    getProfileMock.mockResolvedValue({ skills: ["Vue"], cvText: "", domain: "Frontend" });
+    demandMapMock.mockResolvedValue({ React: 9 });
+    gapPriorityMapMock.mockResolvedValue({ React: 9 });
+    chatJsonMock
+      .mockResolvedValueOnce({ focus: "Spend this week on React." })
+      .mockResolvedValueOnce({ actions: ["Build a tiny React app."] });
+
+    await getDynamicResources(BOOTSTRAP_USER_ID, false);
+
+    expect(chatJsonMock).toHaveBeenCalledTimes(2);
+    const focusPrompt = chatJsonMock.mock.calls[0]![2] as string;
+    const actionsPrompt = chatJsonMock.mock.calls[1]![2] as string;
+    expect(focusPrompt).toContain("Reference material");
+    expect(focusPrompt).toContain("React:");
+    expect(actionsPrompt).toContain("Reference material");
+    expect(actionsPrompt).toContain("React:");
+  });
+
+  it("does not add a grounding block for a gap tech with no curated entry", async () => {
+    getProfileMock.mockResolvedValue({ skills: [], cvText: "", domain: "" });
+    demandMapMock.mockResolvedValue({ SomeMadeUpTechXYZ: 9 });
+    gapPriorityMapMock.mockResolvedValue({ SomeMadeUpTechXYZ: 9 });
+    chatJsonMock.mockResolvedValueOnce({ focus: "Spend this week on it." }).mockResolvedValueOnce({ actions: ["Practice it."] });
+
+    await getDynamicResources(BOOTSTRAP_USER_ID, false);
+
+    const focusPrompt = chatJsonMock.mock.calls[0]![2] as string;
+    const actionsPrompt = chatJsonMock.mock.calls[1]![2] as string;
+    expect(focusPrompt).not.toContain("Reference material");
+    expect(actionsPrompt).not.toContain("Reference material");
+  });
+});
+
 describe("setFocusOverride()", () => {
   beforeEach(() => vi.clearAllMocks());
 
