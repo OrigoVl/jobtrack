@@ -4,7 +4,7 @@
 // unparametrized "roadmap.sh" homepage link regardless of locale or tech; now it's tech-
 // parametrized search links plus a properly localized learn bullet.
 import { describe, expect, it } from "vitest";
-import { kbFor } from "./knowledge-base.js";
+import { KB, kbFor } from "./knowledge-base.js";
 import { runWithRequestContext } from "../../core/request-context.js";
 
 describe("kbFor()", () => {
@@ -35,5 +35,15 @@ describe("kbFor()", () => {
     const kb = kbFor("Some Made Up Tech Xyz");
     expect(kb.drills).toEqual([]);
     expect(kb.cards).toEqual([]);
+  });
+});
+
+// Sanity check for the mechanical split of KB's literal into entries/<track>.ts (one file per
+// shared/tracks.ts Track, merged back into one KB object here) — 319 is the exact count of
+// top-level KB keys counted BEFORE that split, pinned as a literal rather than derived from
+// entries/*.ts so this test would actually fail if the merge silently dropped or duplicated a key.
+describe("KB (post entries/ split)", () => {
+  it("still has exactly as many curated entries as before the split into entries/<track>.ts", () => {
+    expect(Object.keys(KB).length).toBe(319);
   });
 });
