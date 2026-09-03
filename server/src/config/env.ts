@@ -354,3 +354,20 @@ if (!env.llm.isAvailable) {
     );
   }
 }
+
+// Telegram is enabled (bot token + username set) but the webhook secret isn't — the webhook
+// URL alone is then the only thing standing between the internet and resolveLinkToken()/
+// applyStatusChange() (telegram.routes.ts), and a chat_id isn't secret (it's visible to anyone
+// in a chat with the bot), so this is a real spoofing risk, not just a hardening nice-to-have.
+// Kept as a warning, not a hard fail — same "never break a deployment over an optional secret"
+// convention as the rest of this file (see TELEGRAM_WEBHOOK_SECRET's own comment above) — so a
+// self-hosted instance that registered its webhook before this existed keeps working; it just
+// gets told to close the gap.
+if (env.telegram.isAvailable && !env.telegram.webhookSecret) {
+  // eslint-disable-next-line no-console -- the logger (core/logger.ts) itself depends on env.ts (import order), not available yet here
+  console.warn(
+    "⚠️  TELEGRAM_BOT_TOKEN is set, but TELEGRAM_WEBHOOK_SECRET is not — the Telegram webhook is unauthenticated " +
+      "(any request to its URL is trusted as a real Telegram callback). Set TELEGRAM_WEBHOOK_SECRET and re-run " +
+      "server/scripts/set-telegram-webhook.mjs.",
+  );
+}

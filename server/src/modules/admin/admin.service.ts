@@ -11,6 +11,11 @@ import { and, count, desc, eq, gte, ilike, inArray, or, sql, sum } from "drizzle
 import db from "../../db/client.js";
 import { llmUsage, productEvents, subscriptions, user, vacancies } from "../../db/schema/index.js";
 import { env } from "../../config/env.js";
+import { contextLogger } from "../../core/logger.js";
+import type { UserId } from "../../db/user-id.js";
+import type { GrantablePlan } from "../../shared/validation.js";
+import { addAdminBonusAiCalls } from "../billing/admin-bonus.js";
+import { getSubscription, upsertSubscription } from "../billing/billing.repo.js";
 import { PRO_MONTHLY_PRICE_USD } from "../billing/plans.js";
 
 function daysAgo(days: number): Date {
@@ -340,4 +345,41 @@ export async function getProductEventsSummary(days = 30): Promise<AdminProductEv
       .limit(10),
   ]);
   return { days, byName, searchesByDay, topSearchQueries };
+}
+
+// ---------- manual grants (rescue hatch for a solo operator's first paying customers) ----------
+// Both functions below let an admin act on ANOTHER user's billing state without going through
+// Stripe — e.g. apologizing to a complaining user with a free month of Pro, or topping up someone's
+// AI quota by hand. `targetUserId` is NOT the requesting admin's own session id (that's
+// `adminUserId`, threaded through purely for the audit log below) — it's the one narrow,
+// intentional exception to "a repository function's userId always comes from THIS request's own
+// session": requireAdmin() already gates every route here, and every write is logged with both ids
+// so who-did-what-to-whom stays reconstructable.
+
+/** Grants `plan` through `currentPeriodEnd = now + days`, unconditionally overwriting any existing
+ * period end — this is a one-shot manual grant, not a renewal on top of whatever was already
+ * there. Preserves any existing Stripe linkage (customer/subscription/price ids) so a later real
+ * Stripe event for this user can't get confused by fields a manual grant wiped out. */
+export async function grantTemporaryPlan(adminUserId: UserId, targetUserId: UserId, plan: GrantablePlan, days: number): Promise<void> {
+  const existing = await getSubscription(targetUserId);
+  const currentPeriodEnd = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+  await upsertSubscription(targetUserId, {
+    plan,
+    status: "active",
+    stripeCustomerId: existing?.stripeCustomerId ?? null,
+    stripeSubscriptionId: existing?.stripeSubscriptionId ?? null,
+    stripePriceId: existing?.stripePriceId ?? null,
+    currentPeriodEnd,
+    cancelAtPeriodEnd: false,
+  });
+  contextLogger().warn({ adminUserId, targetUserId, plan, days, currentPeriodEnd }, "Admin granted a temporary plan");
+}
+
+/** Adds `count` bonus AI calls to the target's standing admin bonus (modules/billing/admin-bonus.ts)
+ * — additive across repeated grants, a negative `count` corrects a mistaken one. Returns the
+ * resulting total so the route can echo it back to the admin UI. */
+export async function grantBonusAiCalls(adminUserId: UserId, targetUserId: UserId, count: number): Promise<number> {
+  const total = await addAdminBonusAiCalls(targetUserId, count);
+  contextLogger().warn({ adminUserId, targetUserId, count, total }, "Admin granted bonus AI calls");
+  return total;
 }

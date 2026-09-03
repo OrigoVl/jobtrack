@@ -1,6 +1,7 @@
 // A single HTTP error type + wrappers for async routes (Express doesn't catch rejections on its own).
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import type { UserId } from "../db/user-id.js";
+import { setContextUserId } from "./request-context.js";
 
 export class HttpError extends Error {
   status: number;
@@ -44,6 +45,19 @@ async function getSession(req: Request) {
   return auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
 }
 
+// Same lazy-import rationale as getSession()'s own doc comment, for a different reason:
+// core/sentry.ts pulls in config/env.js at module-load time (to read SENTRY_DSN and call
+// Sentry.init()), and several unit tests (e.g. billing.service.test.ts) `vi.mock("../../config/
+// env.js", ...)` with a factory that reads local top-level consts declared AFTER their `import {
+// HttpError } from "../../core/http.js"` — a static top-level import of sentry.js here would
+// force that mock factory to run during those imports' own evaluation, before the consts it
+// closes over are initialized (a TDZ crash), even though those tests never call authed()/
+// requireAdmin() at all.
+async function tagSentryUser(userId: UserId): Promise<void> {
+  const { setSentryUser } = await import("./sentry.js");
+  setSentryUser(userId);
+}
+
 // Memoizes the resolved id ON THE REQUEST OBJECT (a Symbol-keyed property, not a WeakMap — a
 // single Express Request is never reused across requests, so there's no cross-request leak to
 // worry about). aiLimiter now calls this twice per request — once as `keyGenerator`, once inside
@@ -73,15 +87,22 @@ export async function getSessionUserIdForRateLimit(req: Request): Promise<UserId
 // place that reads a better-auth session. No repository and no route ever imports a session or
 // reads req.user directly; they all go through the `userId` this function hands them.
 //
-// Deliberately explicit-parameter, not AsyncLocalStorage: an ALS-scoped userId is invisible at
-// the call site — a repository function that forgets to filter by it still compiles and
-// silently returns every user's rows, and no type checker catches that. A required `userId:
-// UserId` argument turns "forgot to scope this query" into a compile error instead.
+// Deliberately explicit-parameter, not AsyncLocalStorage, for AUTHORIZATION: an ALS-scoped
+// userId is invisible at the call site — a repository function that forgets to filter by it
+// still compiles and silently returns every user's rows, and no type checker catches that. A
+// required `userId: UserId` argument turns "forgot to scope this query" into a compile error
+// instead. The setContextUserId()/tagSentryUser() calls below are a SEPARATE, observability-only
+// use of ALS — they let contextLogger() (core/logger.ts) and Sentry events tag themselves with
+// the userId this function already resolved, without changing how that id reaches services/
+// repositories (still exclusively the explicit `userId` argument passed to `fn` below).
 export function authed(fn: AuthedRequestHandler): RequestHandler {
   return asyncHandler(async (req, res) => {
     const session = await getSession(req);
     if (!session) throw new HttpError(401, "Not authenticated");
-    await fn(session.user.id as UserId, req, res);
+    const userId = session.user.id as UserId;
+    setContextUserId(userId);
+    await tagSentryUser(userId);
+    await fn(userId, req, res);
   });
 }
 
@@ -93,6 +114,9 @@ export function requireAdmin(fn: AuthedRequestHandler): RequestHandler {
     const session = await getSession(req);
     if (!session) throw new HttpError(401, "Not authenticated");
     if (session.user.role !== "admin") throw new HttpError(403, "Admin access required");
-    await fn(session.user.id as UserId, req, res);
+    const userId = session.user.id as UserId;
+    setContextUserId(userId);
+    await tagSentryUser(userId);
+    await fn(userId, req, res);
   });
 }

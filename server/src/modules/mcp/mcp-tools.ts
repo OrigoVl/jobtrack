@@ -7,9 +7,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import type { UserId } from "../../db/user-id.js";
-import { listVacancies, getVacancy, createVacancy, updateVacancyStatus } from "../vacancies/vacancies.repo.js";
+import { listVacancies, getVacancy, updateVacancyStatus } from "../vacancies/vacancies.repo.js";
 import { recordStatusChange } from "../../db/index.js";
 import { parseVacancyInput, STATUSES, type VacancyStatus } from "../../shared/validation.js";
+import { createVacancyWithDedupe } from "../vacancies/vacancy-import.service.js";
 import { getUserRoadmap } from "../roadmap/roadmap.service.js";
 import { listProfiles, getProfileFull } from "../cv/cv-profiles.repo.js";
 import { getCombinedCalendar } from "../calendar/calendar.service.js";
@@ -131,7 +132,11 @@ export function createMcpServer(userId: UserId, scope: "read" | "read_write"): M
       },
       async (args) => {
         const parsed = parseVacancyInput(args, { partial: false });
-        const id = await createVacancy(userId, {
+        // Same creation path POST /vacancies uses (vacancy-import.service.ts's
+        // createVacancyWithDedupe) — the SimHash near-duplicate heads-up and the
+        // auto-enrichment-from-URL a human adding a vacancy gets apply here too, instead of this
+        // tool keeping its own thinner copy that silently skipped both.
+        const { vacancy, possibleDuplicateOf } = await createVacancyWithDedupe(userId, {
           company: parsed.company!,
           position: parsed.position!,
           level: parsed.level!,
@@ -149,8 +154,7 @@ export function createMcpServer(userId: UserId, scope: "read" | "read_write"): M
           coverLetter: parsed.coverLetter ?? "",
           coverLetterDetails: parsed.coverLetterDetails ?? "",
         });
-        await recordStatusChange(userId, id, parsed.status!);
-        return textResult(await getVacancy(userId, id));
+        return textResult({ ...vacancy, possibleDuplicateOf });
       },
     );
 

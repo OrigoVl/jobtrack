@@ -14,6 +14,8 @@ import {
   parseDesignGradeInput,
   parseDesignHelpInput,
   parseApiTokenInput,
+  parseGrantPlanInput,
+  parseGrantBonusAiCallsInput,
   assertSafeVacancyUrl,
   STATUSES,
   FITS,
@@ -169,6 +171,51 @@ describe("parseSkillLevelInput", () => {
   it("trims and truncates tech at 80 chars", () => {
     const long = "x".repeat(100);
     expect(parseSkillLevelInput({ tech: long, level: 1 }).tech).toBe("x".repeat(80));
+  });
+});
+
+describe("parseGrantPlanInput", () => {
+  it("parses a valid pro/team grant", () => {
+    expect(parseGrantPlanInput({ plan: "pro", days: 30 })).toEqual({ plan: "pro", days: 30 });
+    expect(parseGrantPlanInput({ plan: "team", days: 1 })).toEqual({ plan: "team", days: 1 });
+  });
+
+  it("accepts the days boundaries 1 and 365", () => {
+    expect(parseGrantPlanInput({ plan: "pro", days: 1 }).days).toBe(1);
+    expect(parseGrantPlanInput({ plan: "pro", days: 365 }).days).toBe(365);
+  });
+
+  it("rejects an unrecognized plan", () => {
+    expect(() => parseGrantPlanInput({ plan: "free", days: 30 })).toThrow(HttpError);
+    expect(() => parseGrantPlanInput({ plan: "enterprise", days: 30 })).toThrow(HttpError);
+    expect(() => parseGrantPlanInput({ days: 30 })).toThrow(HttpError);
+  });
+
+  it("rejects out-of-range or non-integer days", () => {
+    expect(() => parseGrantPlanInput({ plan: "pro", days: 0 })).toThrow(HttpError);
+    expect(() => parseGrantPlanInput({ plan: "pro", days: 366 })).toThrow(HttpError);
+    expect(() => parseGrantPlanInput({ plan: "pro", days: 2.5 })).toThrow(HttpError);
+    expect(() => parseGrantPlanInput({ plan: "pro" })).toThrow(HttpError);
+  });
+});
+
+describe("parseGrantBonusAiCallsInput", () => {
+  it("parses a valid positive or negative count", () => {
+    expect(parseGrantBonusAiCallsInput({ count: 25 })).toEqual({ count: 25 });
+    expect(parseGrantBonusAiCallsInput({ count: -10 })).toEqual({ count: -10 });
+  });
+
+  it("accepts the boundaries -1000 and 1000", () => {
+    expect(parseGrantBonusAiCallsInput({ count: 1000 }).count).toBe(1000);
+    expect(parseGrantBonusAiCallsInput({ count: -1000 }).count).toBe(-1000);
+  });
+
+  it("rejects zero, out-of-range, or non-integer counts", () => {
+    expect(() => parseGrantBonusAiCallsInput({ count: 0 })).toThrow(HttpError);
+    expect(() => parseGrantBonusAiCallsInput({ count: 1001 })).toThrow(HttpError);
+    expect(() => parseGrantBonusAiCallsInput({ count: -1001 })).toThrow(HttpError);
+    expect(() => parseGrantBonusAiCallsInput({ count: 2.5 })).toThrow(HttpError);
+    expect(() => parseGrantBonusAiCallsInput({})).toThrow(HttpError);
   });
 });
 

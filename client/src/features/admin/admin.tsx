@@ -11,10 +11,13 @@ import {
   useAdminProductEvents,
   useAdminUsers,
   useBanUser,
+  useGrantBonusAiCalls,
+  useGrantTemporaryPlan,
   useUnbanUser,
 } from "../../shared/queries";
 import { useConfirm } from "../../shared/use-confirm";
 import { useSession } from "../../shared/auth-client";
+import type { AdminUserRow } from "../../shared/types";
 
 // CSS custom properties (not hardcoded hex) so these Recharts props — which take inline styles/SVG
 // props, not Tailwind classes — stay correct across the light/dark toggle and the token repaint.
@@ -56,6 +59,87 @@ function OverviewTab({ days }: { days: number }) {
       <StatCard label={t("overview.totalVacancies")} value={String(data.totalVacancies)} />
       <StatCard label={t("overview.llmCostLabel", { days })} value={money(data.llmCostUsd)} hint={t("overview.llmCostHint")} />
       <StatCard label={t("overview.llmCallsLabel", { days })} value={String(data.llmCalls)} />
+    </div>
+  );
+}
+
+const NUMBER_FIELD_CLASS =
+  "w-14 bg-surface-2 border border-grid rounded-lg px-1.5 py-1 text-xs text-right focus:outline-none focus:ring-2 focus:ring-signal/50";
+
+/** Manual grant controls for one user row (users.grants.* i18n) — the "rescue hatch" for a solo
+ * operator's first paying customers (apologize with a free month of Pro, top up someone's AI
+ * quota by hand) without going through Stripe. Both actions are sensitive (they alter another
+ * account's billing state), hence the useConfirm() gate and per-row loading state, same pattern
+ * as the ban button above. */
+function UserGrantActions({ user }: { user: AdminUserRow }) {
+  const { t } = useTranslation(["admin", "common"]);
+  const confirm = useConfirm();
+  const [days, setDays] = useState(30);
+  const [bonusCalls, setBonusCalls] = useState(25);
+  const grantPlanMutation = useGrantTemporaryPlan();
+  const grantBonusMutation = useGrantBonusAiCalls();
+  const isGrantingPlan = grantPlanMutation.isPending && grantPlanMutation.variables?.userId === user.id;
+  const isGrantingBonus = grantBonusMutation.isPending && grantBonusMutation.variables?.userId === user.id;
+  const name = user.name || user.email;
+
+  return (
+    <div className="flex flex-col items-end gap-1.5">
+      <div className="flex items-center gap-1.5">
+        <input
+          type="number"
+          min={1}
+          max={365}
+          value={days}
+          onChange={(e) => setDays(Math.max(1, Math.min(365, Number(e.target.value) || 1)))}
+          aria-label={t("users.grants.daysAriaLabel")}
+          className={NUMBER_FIELD_CLASS}
+        />
+        <Btn
+          variant="ghost"
+          size="sm"
+          loading={isGrantingPlan}
+          onClick={async () => {
+            if (
+              await confirm({
+                title: t("users.grants.planConfirmTitle", { name }),
+                message: t("users.grants.planConfirmMessage", { days }),
+                tone: "primary",
+              })
+            )
+              grantPlanMutation.mutate({ userId: user.id, plan: "pro", days });
+          }}
+        >
+          {t("users.grants.grantPlan")}
+        </Btn>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <input
+          type="number"
+          min={-1000}
+          max={1000}
+          value={bonusCalls}
+          onChange={(e) => setBonusCalls(Math.max(-1000, Math.min(1000, Number(e.target.value) || 0)))}
+          aria-label={t("users.grants.callsAriaLabel")}
+          className={NUMBER_FIELD_CLASS}
+        />
+        <Btn
+          variant="ghost"
+          size="sm"
+          loading={isGrantingBonus}
+          onClick={async () => {
+            if (
+              await confirm({
+                title: t("users.grants.bonusConfirmTitle", { name }),
+                message: t("users.grants.bonusConfirmMessage", { count: bonusCalls }),
+                tone: "primary",
+              })
+            )
+              grantBonusMutation.mutate({ userId: user.id, count: bonusCalls });
+          }}
+        >
+          {t("users.grants.grantBonus")}
+        </Btn>
+      </div>
     </div>
   );
 }
@@ -114,6 +198,7 @@ function UsersTab() {
             <th className="py-2 pr-3 text-right">{t("users.table.llmCallsRecent")}</th>
             <th className="py-2 pr-3 text-right">{t("users.table.costRecent")}</th>
             <th className="py-2 pr-3 text-right">{t("users.table.blockedRecent")}</th>
+            <th className="py-2 pr-3 text-right">{t("users.table.grants")}</th>
             <th className="py-2 text-right">{t("users.table.actions")}</th>
           </tr>
         </thead>
@@ -143,6 +228,9 @@ function UsersTab() {
                 <td className="py-2 pr-3 text-right">{money(u.llmCostRecentUsd)}</td>
                 <td className="py-2 pr-3 text-right">
                   {u.blockedCallsRecent > 0 ? <Chip tone="amber">{u.blockedCallsRecent}</Chip> : "—"}
+                </td>
+                <td className="py-2 pr-3 text-right">
+                  {isSelf ? <span className="text-xs text-ink-dim">—</span> : <UserGrantActions user={u} />}
                 </td>
                 <td className="py-2 text-right">
                   {isSelf ? (

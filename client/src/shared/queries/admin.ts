@@ -40,3 +40,23 @@ export function useUnbanUser() {
     onError,
   });
 }
+
+// useGrantTemporaryPlan invalidates adminUsers so the row's plan/subStatus column updates without
+// a manual refetch. useGrantBonusAiCalls doesn't — the users table has no bonus-calls column
+// today, so there's nothing there to invalidate.
+export function useGrantTemporaryPlan() {
+  const qc = useQueryClient();
+  const onError = useMutationErrorToast();
+  return useMutation({
+    mutationFn: ({ userId, plan, days }: { userId: string; plan: "pro" | "team"; days: number }) => api.adminGrantPlan(userId, plan, days),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.adminUsers }),
+    onError,
+  });
+}
+export function useGrantBonusAiCalls() {
+  const onError = useMutationErrorToast();
+  return useMutation({
+    mutationFn: ({ userId, count }: { userId: string; count: number }) => api.adminGrantBonusAiCalls(userId, count),
+    onError,
+  });
+}

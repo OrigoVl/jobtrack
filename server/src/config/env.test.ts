@@ -62,3 +62,47 @@ describe("env.llm.isAvailable", () => {
     expect(env.llm.isAvailable).toBe(true);
   });
 });
+
+// The Telegram webhook (telegram.routes.ts) has no session — an unset TELEGRAM_WEBHOOK_SECRET
+// leaves the webhook URL as the only thing standing between the internet and
+// resolveLinkToken()/applyStatusChange(), and a chat_id isn't secret. Not enforced (a self-hosted
+// deployment that registered its webhook before the secret existed must keep working), but it
+// must warn at startup the same way an LLM misconfiguration does.
+describe("Telegram webhook secret startup warning", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", undefined);
+    vi.stubEnv("TELEGRAM_BOT_USERNAME", undefined);
+    vi.stubEnv("TELEGRAM_WEBHOOK_SECRET", undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("warns when Telegram is enabled but no webhook secret is set", async () => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "123:abc");
+    vi.stubEnv("TELEGRAM_BOT_USERNAME", "zorya_bot");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await import("./env.js");
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("TELEGRAM_WEBHOOK_SECRET"));
+    warnSpy.mockRestore();
+  });
+
+  it("does not warn when Telegram is enabled and a webhook secret is set", async () => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "123:abc");
+    vi.stubEnv("TELEGRAM_BOT_USERNAME", "zorya_bot");
+    vi.stubEnv("TELEGRAM_WEBHOOK_SECRET", "shh");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await import("./env.js");
+    expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining("TELEGRAM_WEBHOOK_SECRET"));
+    warnSpy.mockRestore();
+  });
+
+  it("does not warn when Telegram is not configured at all", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await import("./env.js");
+    expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining("TELEGRAM_WEBHOOK_SECRET"));
+    warnSpy.mockRestore();
+  });
+});

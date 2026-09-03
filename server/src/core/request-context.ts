@@ -8,11 +8,20 @@
 // the way threading it through as an explicit parameter. Populated by the same middleware in
 // app.ts, from the client's X-Locale header (see shared/api.ts, auth-client.ts).
 import { AsyncLocalStorage } from "node:async_hooks";
+import type { UserId } from "../db/user-id.js";
 import { DEFAULT_LOCALE, type AppLocale } from "../shared/locale.js";
 
 interface RequestContextStore {
   reqId: string;
   locale: AppLocale;
+  // Set mid-request by core/http.ts's authed()/requireAdmin() (the only place a session is
+  // resolved) via setContextUserId(), once the session lookup completes — NOT known yet when
+  // app.ts's context-setup middleware calls runWithRequestContext(), since that runs before
+  // auth. Undefined for unauthenticated requests and for the brief window before authed()
+  // resolves. Purely an observability aid (contextLogger()'s structured logs, core/sentry.ts's
+  // setSentryUser()) — never a substitute for authed()'s explicit `userId: UserId` parameter
+  // passed into services/repositories.
+  userId?: UserId;
   // Mutable flags set mid-request by code with no direct access to `res` (llm/client.ts's plan
   // quota check) and read back by app.ts's response middleware to attach an advisory header —
   // one seam instead of threading a signal through every AI route's response shape. Plain
@@ -25,6 +34,21 @@ const storage = new AsyncLocalStorage<RequestContextStore>();
 /** Runs `fn` in the context of a specific request — called once from the middleware in app.ts. */
 export function runWithRequestContext<T>(reqId: string, locale: AppLocale, fn: () => T): T {
   return storage.run({ reqId, locale, flags: { aiQuotaExceeded: false } }, fn);
+}
+
+/** Called by core/http.ts's authed()/requireAdmin() once a session resolves to a userId, so
+ * every contextLogger() call for the rest of this request automatically tags its structured
+ * logs with it — the same mechanism reqId already rides. A no-op outside a request context
+ * (boot-time code, the scheduler, tests that don't set up a store). */
+export function setContextUserId(userId: UserId): void {
+  const store = storage.getStore();
+  if (store) store.userId = userId;
+}
+
+/** The current request's authenticated userId, if `setContextUserId` has already run inside
+ * this request (otherwise undefined — an unauthenticated route, or before auth resolves). */
+export function getContextUserId(): UserId | undefined {
+  return storage.getStore()?.userId;
 }
 
 /** Called by llm/client.ts's plan-quota check when a Free-plan user is over their monthly AI

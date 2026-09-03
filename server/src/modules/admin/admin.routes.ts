@@ -1,7 +1,16 @@
 import express from "express";
 import { requireAdmin, HttpError } from "../../core/http.js";
-import { parsePagination } from "../../shared/validation.js";
-import { getOverview, listUsersWithActivity, getLlmUsageSummary, getProductEventsSummary, getBillingSummary } from "./admin.service.js";
+import type { UserId } from "../../db/user-id.js";
+import { parseGrantBonusAiCallsInput, parseGrantPlanInput, parsePagination } from "../../shared/validation.js";
+import {
+  getOverview,
+  listUsersWithActivity,
+  getLlmUsageSummary,
+  getProductEventsSummary,
+  getBillingSummary,
+  grantBonusAiCalls,
+  grantTemporaryPlan,
+} from "./admin.service.js";
 
 const r = express.Router();
 
@@ -71,6 +80,32 @@ r.post(
     const [{ auth }, { fromNodeHeaders }] = await Promise.all([import("../../auth/auth.js"), import("better-auth/node")]);
     await auth.api.unbanUser({ body: { userId: targetUserId }, headers: fromNodeHeaders(req.headers) });
     res.json({ ok: true });
+  }),
+);
+
+// Manual grants (admin.service.ts's "rescue hatch" comment) — `targetUserId` is cast to UserId
+// here, not derived from a session: these two routes are the one sanctioned place a repository
+// function's userId is a route param rather than the requesting admin's own session, exactly
+// because their whole purpose is to act on ANOTHER user's billing state (see requireAdmin() gate
+// + the audit-log comment in admin.service.ts).
+r.post(
+  "/admin/users/:userId/grant-plan",
+  requireAdmin(async (adminUserId, req, res) => {
+    const targetUserId = req.params.userId;
+    if (!targetUserId) throw new HttpError(400, "Missing user id");
+    const { plan, days } = parseGrantPlanInput(req.body);
+    await grantTemporaryPlan(adminUserId, targetUserId as UserId, plan, days);
+    res.json({ ok: true });
+  }),
+);
+r.post(
+  "/admin/users/:userId/grant-bonus-ai-calls",
+  requireAdmin(async (adminUserId, req, res) => {
+    const targetUserId = req.params.userId;
+    if (!targetUserId) throw new HttpError(400, "Missing user id");
+    const { count } = parseGrantBonusAiCallsInput(req.body);
+    const total = await grantBonusAiCalls(adminUserId, targetUserId as UserId, count);
+    res.json({ ok: true, total });
   }),
 );
 
