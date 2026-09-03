@@ -16,6 +16,7 @@ const STATUS_KEY: Record<VacancyStatus, string> = {
   Offer: "offer",
   Rejected: "rejected",
   Paused: "paused",
+  Removed: "removed",
 };
 
 /** `status` is typed as `string` server-side historically (arbitrary values were accepted before

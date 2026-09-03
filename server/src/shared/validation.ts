@@ -14,6 +14,7 @@ export const STATUSES = [
   "Offer",
   "Rejected",
   "Paused",
+  "Removed",
 ] as const;
 export type VacancyStatus = (typeof STATUSES)[number];
 
