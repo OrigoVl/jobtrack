@@ -44,7 +44,11 @@ function RadialProgress({ value, max, size = 88, stroke = 8 }: { value: number; 
   const c = 2 * Math.PI * r;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90 shrink-0">
-      <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} className="stroke-surface-2" fill="none" />
+      {/* stroke-grid, not stroke-surface-2: the same low-contrast "recessed surface with no
+          defining edge" issue as ProgressBar's track (shared/ui.tsx) — at 0% progress this ring
+          was barely visible against the card. --grid sits one step further from --surface than
+          --surface-2 does, same role a border-grid outline plays on the linear bar's track. */}
+      <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} className="stroke-grid" fill="none" />
       <circle
         cx={size / 2}
         cy={size / 2}
