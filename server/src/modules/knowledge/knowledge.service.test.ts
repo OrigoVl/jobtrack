@@ -18,7 +18,7 @@ vi.mock("../../llm/index.js", () => ({
 
 import { getDynamicKnowledge } from "./knowledge.service.js";
 import { getKvJson } from "../../db/index.js";
-import { chatJson } from "../../llm/index.js";
+import { chatJson, llmAvailable } from "../../llm/index.js";
 import { BOOTSTRAP_USER_ID } from "../../db/user-id.js";
 
 describe("getDynamicKnowledge() offline fallback", () => {
@@ -37,5 +37,45 @@ describe("getDynamicKnowledge() offline fallback", () => {
     expect(result.learn.length).toBeGreaterThan(0);
     expect(getKvJson).not.toHaveBeenCalled();
     expect(chatJson).not.toHaveBeenCalled();
+  });
+});
+
+// Prompt-grounding: getDynamicKnowledge() already computes `base = kbFor(tech, track)` for its
+// own offline fallback — these tests prove that same curated content also reaches the LLM prompt
+// (not just the fallback path), and that an uncurated tech (no real knowledge-base.ts entry)
+// doesn't pollute the prompt with kbFor()'s generic "start with the docs" filler.
+describe("getDynamicKnowledge() online — grounds the prompt in the curated knowledge base", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(llmAvailable).mockReturnValue(true);
+    vi.mocked(getKvJson).mockResolvedValue(null);
+    vi.mocked(chatJson).mockResolvedValue({
+      focus: "Focus on hooks.",
+      learn: ["Hooks basics"],
+      resources: [],
+    });
+  });
+
+  it("includes curated learn bullets and resources in the prompt for a real KB entry", async () => {
+    await getDynamicKnowledge(BOOTSTRAP_USER_ID, "React", {
+      profile: { skills: ["JavaScript"], domain: "Frontend" },
+      demand: { React: 5 },
+    });
+
+    expect(chatJson).toHaveBeenCalledTimes(1);
+    const prompt = vi.mocked(chatJson).mock.calls[0]![2] as string;
+    expect(prompt).toContain("Reference material");
+    expect(prompt).toContain("Hooks");
+    expect(prompt).toContain("react.dev");
+  });
+
+  it("does not add a grounding block for a tech with no curated entry", async () => {
+    await getDynamicKnowledge(BOOTSTRAP_USER_ID, "SomeMadeUpFrameworkXYZ", {
+      profile: { skills: [], domain: "Frontend" },
+      demand: {},
+    });
+
+    const prompt = vi.mocked(chatJson).mock.calls[0]![2] as string;
+    expect(prompt).not.toContain("Reference material");
   });
 });

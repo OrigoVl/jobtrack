@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { kbFor, type Resource } from "./knowledge-base.js";
+import { kbFor, catFor, type Resource } from "./knowledge-base.js";
 import { chatJson, llmAvailable } from "../../llm/index.js";
 import { getKvJson, setKvJson, type Profile } from "../../db/index.js";
 import type { UserId } from "../../db/user-id.js";
@@ -118,12 +118,25 @@ export async function getDynamicKnowledge(
   }
   const count = demand[tech] || 0;
   const role = profile.domain || "professional";
+  // Only ground the prompt in `base` when it's a REAL curated entry (catFor(tech) !== null) —
+  // kbFor()'s generic fallback for an uncurated tech is a single "start with the docs" bullet
+  // plus generic search-engine links, not real reference material worth grounding the model in.
+  const curated = catFor(tech) !== null;
+  const groundingBlock =
+    curated && base.learn.length > 0
+      ? `Reference material — a curated syllabus that already exists for "${tech}", vetted by a human:\n` +
+        `${base.learn.map((l) => `- ${l}`).join("\n")}\n` +
+        (base.resources.length > 0 ? `Known-good resources:\n${base.resources.map((r) => `- ${r.t}: ${r.u}`).join("\n")}\n` : "") +
+        `Ground your answer in this material — personalize/reorder/expand it for this candidate where it ` +
+        `demonstrably helps, but don't invent facts or URLs that aren't already given here.\n`
+      : "";
   const out = await chatJson(
     userId,
     `You are a mentor for the role "${role}".`,
     `The candidate already knows: ${skills.join(", ") || "—"}.\n` +
       `They need to pick up "${tech}"${count ? ` (required in ${count} vacancies from the list)` : ""}.\n` +
       `Build bridges from their familiar stack to the new one; don't duplicate what they already know.\n` +
+      groundingBlock +
       `Return JSON strictly in this format (no markdown):\n` +
       `{"focus":"1-2 sentences of personal advice specifically for this candidate",` +
       `"learn":["5-7 concrete topics from easy to advanced, interview-oriented"],` +
