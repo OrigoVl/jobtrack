@@ -385,7 +385,11 @@ export function ProgressBar({ value, max, tone = "indigo" }: { value: number; ma
   // is kept for call-site compatibility.
   void tone;
   return (
-    <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
+    // border-grid: every other bg-surface-2 "recessed" surface in this file (ghost Btn, Select,
+    // Chip) pairs it with a border for definition against the card's bg-surface — this was the
+    // one place that didn't, so an empty (0%) bar read as barely-there instead of "a track that's
+    // just empty right now".
+    <div className="h-2 w-full rounded-full bg-surface-2 border border-grid overflow-hidden">
       <div className="h-full bg-star rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
     </div>
   );
