@@ -414,6 +414,47 @@ export function parseSavedSearchInput(body: unknown): SavedSearchInput {
   return { query, region: region as JobSearchRegion, label: asString(b.label).trim().slice(0, 120) };
 }
 
+// Only the two paid tiers — an admin grant is a rescue hatch for "give this account Pro/Team for
+// a while", never a way to name a plan that doesn't otherwise exist (there is no admin path back
+// to "free"; upsertSubscription with status "canceled" already covers un-granting if ever needed).
+export const GRANTABLE_PLANS = ["pro", "team"] as const;
+export type GrantablePlan = (typeof GRANTABLE_PLANS)[number];
+
+export interface GrantPlanInput {
+  plan: GrantablePlan;
+  days: number;
+}
+
+/** POST /admin/users/:userId/grant-plan body (admin.routes.ts) — a manual, non-Stripe temporary
+ * plan grant. `days` bounded 1..365: a "forever" grant belongs in Stripe (or a direct DB edit),
+ * not this escape hatch. */
+export function parseGrantPlanInput(body: unknown): GrantPlanInput {
+  const b = (body || {}) as Record<string, unknown>;
+  const plan = asString(b.plan);
+  if (!GRANTABLE_PLANS.includes(plan as GrantablePlan)) throw new HttpError(400, `Invalid plan: "${plan}"`);
+  const days = Number(b.days);
+  if (!Number.isInteger(days) || days < 1 || days > 365) throw new HttpError(400, 'Field "days" must be an integer between 1 and 365');
+  return { plan: plan as GrantablePlan, days };
+}
+
+export interface GrantBonusAiCallsInput {
+  count: number;
+}
+
+/** POST /admin/users/:userId/grant-bonus-ai-calls body (admin.routes.ts) — a one-time top-up on
+ * the Free plan's monthly AI-call quota, additive to any existing standing bonus (see
+ * modules/billing/admin-bonus.ts). Negative allowed (correcting a mistaken grant); zero is
+ * rejected since it's a no-op that would otherwise silently "succeed" without changing anything.
+ * Bounded to ±1000 — well past anything a manual apology grant should ever need. */
+export function parseGrantBonusAiCallsInput(body: unknown): GrantBonusAiCallsInput {
+  const b = (body || {}) as Record<string, unknown>;
+  const count = Number(b.count);
+  if (!Number.isInteger(count) || count === 0 || count < -1000 || count > 1000) {
+    throw new HttpError(400, 'Field "count" must be a non-zero integer between -1000 and 1000');
+  }
+  return { count };
+}
+
 export const API_TOKEN_SCOPES = ["read", "read_write"] as const;
 export type ApiTokenScope = (typeof API_TOKEN_SCOPES)[number];
 
