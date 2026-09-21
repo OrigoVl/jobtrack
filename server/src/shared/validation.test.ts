@@ -71,6 +71,22 @@ describe("parseVacancyInput", () => {
     expect(parseVacancyInput({ salary: "  $90k-110k  " }).salary).toBe("$90k-110k");
     expect(parseVacancyInput({ salary: "x".repeat(100) }).salary).toHaveLength(60);
   });
+
+  it("accepts freeform location/workMode/employmentType, no enum enforcement, defaulting to null not ''", () => {
+    expect(parseVacancyInput({}).location).toBeNull();
+    expect(parseVacancyInput({}).workMode).toBeNull();
+    expect(parseVacancyInput({}).employmentType).toBeNull();
+    expect(parseVacancyInput({ location: "  Kyiv, Ukraine  " }).location).toBe("Kyiv, Ukraine");
+    // workMode isn't restricted to office/hybrid/remote — any freeform value is accepted, same as level.
+    expect(parseVacancyInput({ workMode: "on the moon" }).workMode).toBe("on the moon");
+    expect(parseVacancyInput({ employmentType: "  Contract  " }).employmentType).toBe("Contract");
+    // An explicit "" also normalizes to null (the tri-state "unset" convention for these nullable
+    // columns), not stored as an empty string like level/salary would be.
+    expect(parseVacancyInput({ location: "" }).location).toBeNull();
+    expect(parseVacancyInput({ location: "x".repeat(300) }).location).toHaveLength(200);
+    expect(parseVacancyInput({ workMode: "x".repeat(100) }).workMode).toHaveLength(40);
+    expect(parseVacancyInput({ employmentType: "x".repeat(100) }).employmentType).toHaveLength(60);
+  });
 });
 
 describe("parseJsonVacancyItem", () => {

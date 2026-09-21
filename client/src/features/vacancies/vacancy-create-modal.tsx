@@ -29,6 +29,11 @@ export function VacancyCreateModal({ onClose, onCreated }: { onClose: () => void
   const [url, setUrl] = useState("");
   const [level, setLevel] = useState("");
   const [salary, setSalary] = useState("");
+  // "" is this form's local "unset" sentinel (like every other field here) — converted to `null`
+  // only in save()'s payload, matching Vacancy's genuinely-nullable convention for these three.
+  const [location, setLocation] = useState("");
+  const [workMode, setWorkMode] = useState("");
+  const [employmentType, setEmploymentType] = useState("");
   const [status, setStatus] = useState<string>(STATUSES[0]);
   const [stack, setStack] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
@@ -66,6 +71,9 @@ export function VacancyCreateModal({ onClose, onCreated }: { onClose: () => void
       if (details.position) setPosition((cur) => cur || details.position);
       if (details.level) setLevel((cur) => cur || details.level);
       if (details.salary) setSalary((cur) => cur || details.salary);
+      if (details.location) setLocation((cur) => cur || details.location);
+      if (details.workMode) setWorkMode((cur) => cur || details.workMode);
+      if (details.employmentType) setEmploymentType((cur) => cur || details.employmentType);
       if (details.notes) setNotes((cur) => cur || details.notes);
       if (details.stack.length) {
         setStack((cur) => {
@@ -122,7 +130,20 @@ export function VacancyCreateModal({ onClose, onCreated }: { onClose: () => void
       }
     }
     addVacancyMutation.mutate(
-      { company, position, url, level, salary, status, stack, notes, ...(companyId ? { companyId } : {}) },
+      {
+        company,
+        position,
+        url,
+        level,
+        salary,
+        location: location.trim() || null,
+        workMode: workMode.trim() || null,
+        employmentType: employmentType.trim() || null,
+        status,
+        stack,
+        notes,
+        ...(companyId ? { companyId } : {}),
+      },
       { onSuccess: (row) => onCreated(row) },
     );
   };
@@ -243,6 +264,45 @@ export function VacancyCreateModal({ onClose, onCreated }: { onClose: () => void
               />
             </label>
           </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <label className="space-y-1">
+              <div className="text-xs font-semibold text-ink-dim">{t("detail.locationAriaLabel")}</div>
+              <input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder={t("detail.locationPlaceholder")}
+                aria-label={t("detail.locationAriaLabel")}
+                className="w-full bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+              />
+            </label>
+            <label className="space-y-1">
+              <div className="text-xs font-semibold text-ink-dim">{t("detail.workModeAriaLabel")}</div>
+              <input
+                value={workMode}
+                onChange={(e) => setWorkMode(e.target.value)}
+                placeholder={t("detail.workModePlaceholder")}
+                aria-label={t("detail.workModeAriaLabel")}
+                list="work-mode-suggestions"
+                className="w-full bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+              />
+            </label>
+            <label className="space-y-1">
+              <div className="text-xs font-semibold text-ink-dim">{t("detail.employmentTypeAriaLabel")}</div>
+              <input
+                value={employmentType}
+                onChange={(e) => setEmploymentType(e.target.value)}
+                placeholder={t("detail.employmentTypePlaceholder")}
+                aria-label={t("detail.employmentTypeAriaLabel")}
+                className="w-full bg-surface-2 border border-grid rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+              />
+            </label>
+          </div>
+          <datalist id="work-mode-suggestions">
+            {(t("detail.workModeSuggestions", { returnObjects: true }) as string[]).map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
 
           <div>
             {showStack ? (

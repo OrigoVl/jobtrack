@@ -70,6 +70,9 @@ type VacancyDraft = Pick<
   | "url"
   | "level"
   | "salary"
+  | "location"
+  | "workMode"
+  | "employmentType"
   | "notes"
   | "nextAction"
   | "coverLetterDetails"
@@ -84,6 +87,9 @@ const DRAFT_FIELDS = [
   "url",
   "level",
   "salary",
+  "location",
+  "workMode",
+  "employmentType",
   "notes",
   "nextAction",
   "coverLetterDetails",
@@ -98,6 +104,9 @@ const draftOf = (v: Vacancy): VacancyDraft => ({
   url: v.url,
   level: v.level,
   salary: v.salary,
+  location: v.location,
+  workMode: v.workMode,
+  employmentType: v.employmentType,
   notes: v.notes,
   nextAction: v.nextAction,
   coverLetterDetails: v.coverLetterDetails,
@@ -281,6 +290,11 @@ export function VacancyDetailModal({
       if (!draft.position.trim() && details.position) draftPatch.position = details.position;
       if (!draft.level.trim() && details.level) draftPatch.level = details.level;
       if (!draft.salary.trim() && details.salary) draftPatch.salary = details.salary;
+      // location/workMode/employmentType are `string | null` on the draft (unlike level/salary's
+      // "" tri-state), so guard against null before trimming.
+      if (!(draft.location ?? "").trim() && details.location) draftPatch.location = details.location;
+      if (!(draft.workMode ?? "").trim() && details.workMode) draftPatch.workMode = details.workMode;
+      if (!(draft.employmentType ?? "").trim() && details.employmentType) draftPatch.employmentType = details.employmentType;
       if (!draft.notes.trim() && details.notes) draftPatch.notes = details.notes;
       if (!draft.company.trim() && details.company) draftPatch.company = details.company;
 
@@ -499,6 +513,33 @@ export function VacancyDetailModal({
             placeholder={t("table.salaryPlaceholder")}
             aria-label={t("table.salaryAriaLabel", { company: vacancy.company })}
             className="bg-surface border border-grid rounded px-2 py-1 text-xs w-24 outline-none focus:ring-1 focus:ring-signal/40"
+          />
+          <input
+            value={draft.location ?? ""}
+            onChange={(e) => patchDraft({ location: e.target.value || null })}
+            placeholder={t("detail.locationPlaceholder")}
+            aria-label={t("detail.locationAriaLabel")}
+            className="bg-surface border border-grid rounded px-2 py-1 text-xs w-28 outline-none focus:ring-1 focus:ring-signal/40"
+          />
+          <input
+            value={draft.workMode ?? ""}
+            onChange={(e) => patchDraft({ workMode: e.target.value || null })}
+            placeholder={t("detail.workModePlaceholder")}
+            aria-label={t("detail.workModeAriaLabel")}
+            list="work-mode-suggestions"
+            className="bg-surface border border-grid rounded px-2 py-1 text-xs w-24 outline-none focus:ring-1 focus:ring-signal/40"
+          />
+          <datalist id="work-mode-suggestions">
+            {(t("detail.workModeSuggestions", { returnObjects: true }) as string[]).map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+          <input
+            value={draft.employmentType ?? ""}
+            onChange={(e) => patchDraft({ employmentType: e.target.value || null })}
+            placeholder={t("detail.employmentTypePlaceholder")}
+            aria-label={t("detail.employmentTypeAriaLabel")}
+            className="bg-surface border border-grid rounded px-2 py-1 text-xs w-28 outline-none focus:ring-1 focus:ring-signal/40"
           />
           <label className="flex items-center gap-1.5 text-xs text-ink-dim">
             {t("table.applied")}

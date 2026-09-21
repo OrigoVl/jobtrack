@@ -27,6 +27,15 @@ export interface Vacancy {
   position: string;
   level: string;
   salary: string;
+  /** Where the role is based, e.g. "Kyiv, remote" — null means unset. Unlike `level`/`salary`/
+   * `notes`'s "" tri-state convention, this is genuinely nullable: it round-trips as `null`
+   * server-side, never coerced to "". */
+  location: string | null;
+  /** e.g. "office" / "hybrid" / "remote", freeform (not a closed enum) — same nullable convention
+   * as `location`. */
+  workMode: string | null;
+  /** e.g. "full-time" / "contract", freeform — same nullable convention as `location`. */
+  employmentType: string | null;
   url: string;
   status: string;
   fit: Fit;
@@ -417,6 +426,11 @@ export interface VacancyDetails {
   position: string;
   level: string;
   salary: string;
+  /** "" when the posting didn't state it — same convention as `level`/`salary` on this endpoint,
+   * NOT the nullable convention `Vacancy.location` uses once persisted. */
+  location: string;
+  workMode: string;
+  employmentType: string;
   stack: string[];
   fit: Fit;
   notes: string;

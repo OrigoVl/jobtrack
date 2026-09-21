@@ -46,6 +46,47 @@ describe("vacancies.repo (PGlite)", () => {
     expect(row?.stack).toEqual(["React", "TypeScript"]);
   });
 
+  it("createVacancy() + getVacancy() round-trips location/workMode/employmentType (null when omitted)", async () => {
+    const idWithout = await repo.createVacancy(USER_A, NEW_VACANCY);
+    const rowWithout = await repo.getVacancy(USER_A, idWithout);
+    expect(rowWithout?.location).toBeNull();
+    expect(rowWithout?.workMode).toBeNull();
+    expect(rowWithout?.employmentType).toBeNull();
+
+    const idWith = await repo.createVacancy(USER_A, {
+      ...NEW_VACANCY,
+      location: "Kyiv, Ukraine",
+      workMode: "hybrid",
+      employmentType: "Full-time",
+    });
+    const rowWith = await repo.getVacancy(USER_A, idWith);
+    expect(rowWith?.location).toBe("Kyiv, Ukraine");
+    expect(rowWith?.workMode).toBe("hybrid");
+    expect(rowWith?.employmentType).toBe("Full-time");
+  });
+
+  it("updateVacancyImportedTitle() persists salary/location/workMode/employmentType onto a bulk-imported row", async () => {
+    const id = await repo.createVacancyMinimal(USER_A, {
+      company: "",
+      position: "(imported)",
+      url: "https://djinni.co/jobs/1",
+      status: "Want to apply",
+    });
+
+    await repo.updateVacancyImportedTitle(USER_A, id, {
+      salary: "$3000-4000",
+      location: "Berlin, Germany",
+      workMode: "remote",
+      employmentType: "Contract",
+    });
+
+    const row = await repo.getVacancy(USER_A, id);
+    expect(row?.salary).toBe("$3000-4000");
+    expect(row?.location).toBe("Berlin, Germany");
+    expect(row?.workMode).toBe("remote");
+    expect(row?.employmentType).toBe("Contract");
+  });
+
   it("listVacancies() never returns another user's rows", async () => {
     const idB = await repo.createVacancy(USER_B, { ...NEW_VACANCY, company: "Other Co" });
     const rowsA = await repo.listVacancies(USER_A);

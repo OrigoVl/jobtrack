@@ -18,6 +18,13 @@ export interface VacancyRow {
   position: string;
   level: string;
   salary: string;
+  /** Free-text location as written on the posting. `null` — the posting doesn't state one (see
+   * db/schema/app.ts's own comment on why this is nullable rather than level/salary's "" convention). */
+  location: string | null;
+  /** Free-text work mode ("office" | "hybrid" | "remote" expected, not enum-enforced). `null` when unstated. */
+  workMode: string | null;
+  /** Free-text employment type (e.g. "Full-time", "Contract"). `null` when unstated. */
+  employmentType: string | null;
   url: string;
   status: string;
   fit: string;

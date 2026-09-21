@@ -13,6 +13,7 @@
     "untitled": "Untitled"
   },
   "addVacancy": "+ Add vacancy",
+  "addFromLink": "🔗 Add from link",
   "addFirst": "+ Add the first one",
   "favorite": {
     "addTitle": "Add to favorites",
@@ -48,6 +49,13 @@
     "createCompanyFromField": "+ Create company",
     "levelPlaceholder": "Level",
     "levelAriaLabel": "Level",
+    "locationPlaceholder": "e.g. Kyiv, remote",
+    "locationAriaLabel": "Location",
+    "workModePlaceholder": "Office / Hybrid / Remote",
+    "workModeAriaLabel": "Work mode",
+    "workModeSuggestions": ["Office", "Hybrid", "Remote"],
+    "employmentTypePlaceholder": "e.g. Full-time",
+    "employmentTypeAriaLabel": "Employment type",
     "createdLabel": "Added {{date}}",
     "stackLabel": "Tech stack",
     "stackPlaceholder": "Add a technology…",

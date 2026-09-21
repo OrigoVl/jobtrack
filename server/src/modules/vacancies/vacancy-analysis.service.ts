@@ -19,13 +19,17 @@ import { computeFit, extractMainContent, extractSalary, stripHtml } from "./vaca
 // vacancy-text.js (see vacancy-text.test.ts), so re-exporting it here would be redundant.
 export { computeFit };
 
-/**
- * Fetches a job posting and returns just the POSTING's text — extractMainContent() first, so the
- * page's "similar jobs"/"hot jobs"/category-nav chrome never reaches any analysis downstream (see
- * that function's own comment for the concrete bug this fixed). Every URL-driven feature goes
- * through here — single autofill, bulk import, the re-parse-everything job — so they all benefit.
- */
-export async function fetchVacancyText(url: string): Promise<string> {
+interface FetchedVacancyPage {
+  /** The posting's own text, after extractMainContent()+stripHtml() — every text-based analysis
+   * downstream (quickAnalyze, extractVacancyFacts, summarizeVacancy) reads this, never rawHtml. */
+  text: string;
+  /** The untouched HTML response body, kept around only for template-driven deterministic
+   * extraction off a specific site's own markup (currently DOU's location badge — see
+   * extractDouLocationHint below). Nothing else should need it. */
+  rawHtml: string;
+}
+
+async function fetchVacancyPage(url: string): Promise<FetchedVacancyPage> {
   // Validated here as well as inside fetchTextSafely(), because THIS call is what turns a bad
   // paste into the specific 400 the user sees ("Only https links are allowed"); the helper
   // deliberately reports a blocked url as an ordinary non-result instead of throwing.
@@ -33,12 +37,22 @@ export async function fetchVacancyText(url: string): Promise<string> {
   // fetchTextSafely re-checks every redirect hop. It used to be a plain fetch() with the default
   // `redirect: "follow"`, which meant the guard above only ever saw the first url: a posting URL
   // answering 302 → http://169.254.169.254/ was followed, and its body came back here.
-  const { text, status } = await fetchTextSafely(safeUrl, { timeoutMs: 12000 });
+  const { text: rawHtml, status } = await fetchTextSafely(safeUrl, { timeoutMs: 12000 });
   // status 0 = never reached (blocked hop, network failure, redirect loop). Previously a network
   // error propagated as a raw fetch rejection and surfaced as a 500; a 502 is the honest code for
   // "the upstream site is the problem", and every caller already handles a thrown error.
-  if (status !== 200 || !text) throw new HttpError(502, status ? `HTTP ${status}` : "Could not reach the page");
-  return stripHtml(extractMainContent(text));
+  if (status !== 200 || !rawHtml) throw new HttpError(502, status ? `HTTP ${status}` : "Could not reach the page");
+  return { text: stripHtml(extractMainContent(rawHtml)), rawHtml };
+}
+
+/**
+ * Fetches a job posting and returns just the POSTING's text — extractMainContent() first, so the
+ * page's "similar jobs"/"hot jobs"/category-nav chrome never reaches any analysis downstream (see
+ * that function's own comment for the concrete bug this fixed). Every URL-driven feature goes
+ * through here — single autofill, bulk import, the re-parse-everything job — so they all benefit.
+ */
+export async function fetchVacancyText(url: string): Promise<string> {
+  return (await fetchVacancyPage(url)).text;
 }
 
 export interface QuickAnalysis {
@@ -73,9 +87,11 @@ export async function quickAnalyze(userId: UserId, text: string): Promise<QuickA
  * generic-link bulk import's title/company guess in vacancies.routes.ts): NEVER throws — a host
  * blocked by SSRF protection (local/internal), a network error, a timeout, or an empty/too-short
  * page (usually a JS-rendered/login-walled/anti-bot page we can't read) all just return null, so
- * every caller can safely continue its main operation even when this fails.
+ * every caller can safely continue its main operation even when this fails. Returns the raw HTML
+ * alongside the extracted text (see FetchedVacancyPage) — callers that only need the text should
+ * use safeFetchVacancyText below instead of reaching into `.text` themselves.
  */
-export async function safeFetchVacancyText(url: string): Promise<string | null> {
+export async function safeFetchVacancyPage(url: string): Promise<FetchedVacancyPage | null> {
   if (!url) return null;
   try {
     assertSafeVacancyUrl(url);
@@ -86,18 +102,24 @@ export async function safeFetchVacancyText(url: string): Promise<string | null> 
     return null;
   }
   try {
-    const text = await fetchVacancyText(url);
-    if (text.length < 200) {
+    const page = await fetchVacancyPage(url);
+    if (page.text.length < 200) {
       // The most common user-facing cause of "the stack didn't fill in": the page is protected
       // against scraping (JS rendering, login wall, anti-bot) — without this log we'd have to guess why.
-      contextLogger().warn({ url, textLength: text.length }, "Auto-enrich skipped: fetched page text too short/empty");
+      contextLogger().warn({ url, textLength: page.text.length }, "Auto-enrich skipped: fetched page text too short/empty");
       return null;
     }
-    return text;
+    return page;
   } catch (e) {
     contextLogger().warn({ url, err: e }, "Auto-enrich failed: could not fetch or analyze vacancy URL");
     return null;
   }
+}
+
+/** Thin `.text`-only projection of safeFetchVacancyPage above, for the (still more common)
+ * callers that have no use for the raw HTML. */
+export async function safeFetchVacancyText(url: string): Promise<string | null> {
+  return (await safeFetchVacancyPage(url))?.text ?? null;
 }
 
 /**
@@ -205,8 +227,9 @@ export async function summarizeVacancy(userId: UserId, text: string): Promise<Va
     `Summarize this job posting for the candidate's own tracker:\n\n${quoteUntrustedText("POSTING TEXT", text.slice(0, 6000))}\n\n` +
       `Return JSON with exactly these keys:\n` +
       `{"vacancyNotes":"compact plain-text digest of the ROLE (5-10 short lines, one fact per line): ` +
-      `location and work format, key responsibilities, must-have requirements, notable perks, and ` +
-      `the hiring process steps if stated",` +
+      `location and work format, key responsibilities, must-have requirements, notable perks, ` +
+      `years of experience required, visa sponsorship/relocation support, language requirements ` +
+      `beyond the posting's own language, and the hiring process steps — each only if stated",` +
       `"companyNotes":"2-4 sentences about the EMPLOYER only: what it does, its product/market, ` +
       `size, and anything notable about how it works",` +
       `"questionsToAsk":["3-5 specific questions this posting makes worth asking the employer at ` +
@@ -227,11 +250,62 @@ export function companyFromDouUrl(url: string): string | null {
   return (m[1] ?? "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// DOU vacancy pages carry no JobPosting JSON-LD (confirmed against a live page), but DO have a
+// stable location badge right next to the title, in DOU's own shared vacancy-page template:
+// `<span class="place bi bi-geo-alt-fill"> Київ, віддалено</span>`. Matches on the `place` class
+// token rather than the full class string since other tokens (here, a Bootstrap Icons class) sit
+// alongside it. A plain regex over the raw HTML, not an LLM call — deterministic and works fully
+// offline, unlike extractVacancyFacts's location/workMode guess below.
+const DOU_LOCATION_BADGE_RE = /class="place[^"]*"[^>]*>([^<]+)<\/span>/;
+
+/** The free-text location off a DOU vacancy page's own location badge (see
+ * DOU_LOCATION_BADGE_RE above), e.g. "Київ, віддалено" or "Remote". `null` when the badge isn't
+ * present (a page layout change, or `rawHtml` isn't actually a DOU vacancy page). */
+export function extractDouLocationBadge(rawHtml: string): string | null {
+  const value = DOU_LOCATION_BADGE_RE.exec(rawHtml)?.[1]?.trim();
+  return value || null;
+}
+
+/** Simple case-insensitive keyword match over DOU's free-text location badge — deliberately not
+ * an NLP exercise, just the handful of words DOU's own UI uses for the same concept. Defaults to
+ * "office" once a badge is present without a remote/hybrid keyword (i.e. it names a city). */
+function guessDouWorkMode(location: string): "remote" | "hybrid" | "office" {
+  const lower = location.toLowerCase();
+  if (lower.includes("віддалено") || lower.includes("remote")) return "remote"; // covers "remotely" too
+  if (lower.includes("гібрид") || lower.includes("hybrid")) return "hybrid";
+  return "office";
+}
+
+export interface DouLocationHint {
+  location: string;
+  workMode: "remote" | "hybrid" | "office";
+}
+
+/** DOU-specific deterministic location+workMode read straight off a vacancy page's raw HTML (see
+ * extractDouLocationBadge/guessDouWorkMode above) — ground truth from the page's own markup, not
+ * an LLM guess, so callers should prefer this over extractVacancyFacts's location/workMode for
+ * the same posting rather than merging the two. `null` when the badge isn't present. */
+export function extractDouLocationHint(rawHtml: string): DouLocationHint | null {
+  const location = extractDouLocationBadge(rawHtml);
+  if (!location) return null;
+  return { location, workMode: guessDouWorkMode(location) };
+}
+
 export interface VacancyDetails {
   company: string;
   position: string;
   level: string;
   salary: string;
+  /** Free-text location as written on the posting. "" when unstated (offline, or the model/page
+   * didn't say) — for a DOU URL this comes from extractDouLocationHint (ground truth off the
+   * page's own markup) in preference to the LLM's guess; for any other site, LLM-only. */
+  location: string;
+  /** Free-text work mode ("office" | "hybrid" | "remote" expected, not enum-enforced). Same
+   * DOU-deterministic-over-LLM preference as `location` above. */
+  workMode: string;
+  /** Free-text employment type (e.g. "Full-time", "Contract"). "" when unstated — LLM-only, DOU
+   * states this nowhere on the page. */
+  employmentType: string;
   stack: string[];
   fit: Fit;
   /** Digest of the posting for the vacancy's own notes field. "" offline — see summarizeVacancy(). */
@@ -257,11 +331,15 @@ export interface VacancyDetails {
  * Deliberately does NOT write anything itself — the caller decides what to keep and when.
  */
 export async function fetchVacancyDetails(userId: UserId, url: string): Promise<VacancyDetails> {
+  const douCompany = companyFromDouUrl(url);
   const details: VacancyDetails = {
-    company: companyFromDouUrl(url) ?? "",
+    company: douCompany ?? "",
     position: "",
     level: "",
     salary: "",
+    location: "",
+    workMode: "",
+    employmentType: "",
     stack: [],
     fit: "med",
     notes: "",
@@ -269,8 +347,9 @@ export async function fetchVacancyDetails(userId: UserId, url: string): Promise<
     companyWebsite: "",
     companyQuestions: [],
   };
-  const text = await safeFetchVacancyText(url);
-  if (!text) return details;
+  const page = await safeFetchVacancyPage(url);
+  if (!page) return details;
+  const { text, rawHtml } = page;
   // Independent of each other and all three are slow — the analysis, the structured facts and the
   // prose summary run concurrently rather than serially, as POST /vacancies/analyze already does.
   const [analysis, facts, summary] = await Promise.all([
@@ -291,7 +370,15 @@ export async function fetchVacancyDetails(userId: UserId, url: string): Promise<
     if (!details.company && facts.company) details.company = facts.company;
     if (!details.level && facts.level) details.level = facts.level;
     details.companyWebsite = facts.companyWebsite;
+    details.employmentType = facts.employmentType;
   }
+  // DOU's location badge (see extractDouLocationHint) is ground truth off the page's own markup,
+  // computed with no LLM call — prefer it over the LLM's location/workMode guess in `facts`
+  // rather than merging the two. Works fully offline: this still fills in for a DOU URL even with
+  // llmAvailable() false, when `facts` above is null.
+  const douHint = douCompany !== null ? extractDouLocationHint(rawHtml) : null;
+  details.location = douHint?.location || facts?.location || "";
+  details.workMode = douHint?.workMode || facts?.workMode || "";
   if (summary) {
     details.notes = summary.vacancyNotes;
     details.companyNotes = summary.companyNotes;

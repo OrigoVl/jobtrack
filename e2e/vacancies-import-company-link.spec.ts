@@ -26,7 +26,7 @@ test("importing a DOU link creates AND links the real company row, not just the 
   const [importRes] = await Promise.all([
     page.waitForResponse((r) => /\/api\/vacancies\/import$/.test(r.url()) && r.request().method() === "POST"),
     (async () => {
-      await page.getByRole("button", { name: "Import" }).click();
+      await page.getByRole("button", { name: /Add from link/ }).click();
       await page.getByLabel("HTML or text containing vacancy links to import").fill(html);
       await page.getByRole("button", { name: "Import links" }).click();
     })(),

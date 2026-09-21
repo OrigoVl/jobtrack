@@ -19,6 +19,9 @@ const VACANCY_COLUMNS = {
   position: vacancies.position,
   level: vacancies.level,
   salary: vacancies.salary,
+  location: vacancies.location,
+  workMode: vacancies.workMode,
+  employmentType: vacancies.employmentType,
   url: vacancies.url,
   status: vacancies.status,
   fit: vacancies.fit,
@@ -88,6 +91,13 @@ export interface NewVacancy {
   position: string;
   level: string;
   salary: string;
+  /** Optional — omitted defaults to NULL (the column has no other default, see db/schema/app.ts's
+   * own comment on why this is nullable rather than level/salary's "" convention). */
+  location?: string | null;
+  /** Optional — same reasoning as `location` above. */
+  workMode?: string | null;
+  /** Optional — same reasoning as `location` above. */
+  employmentType?: string | null;
   url: string;
   status: string;
   fit: string;
@@ -156,6 +166,12 @@ export interface VacancyUpdate {
   position: string;
   level: string;
   salary: string;
+  /** Optional — see NewVacancy's own comment on why this isn't required and is nullable. */
+  location?: string | null;
+  /** Optional — see NewVacancy's own comment on why this isn't required and is nullable. */
+  workMode?: string | null;
+  /** Optional — see NewVacancy's own comment on why this isn't required and is nullable. */
+  employmentType?: string | null;
   url: string;
   status: string;
   fit: string;
@@ -214,22 +230,31 @@ export async function updateVacancyEnrichment(
     .where(and(eq(vacancies.userId, userId), eq(vacancies.id, numId)));
 }
 
-/** Fills in company/position/companyId guessed after the fact for a bulk import (see
- * vacancies.routes.ts's POST /vacancies/import and vacancy-analysis.service.ts's
- * extractTitleCompany/companyFromDouUrl) — unlike a DOU export, a generic link doesn't encode
- * either field, so the row is first created with placeholders and only patched here if the
- * best-effort guess succeeded. `companyId` is separate from `company` (the free-text name) since
- * the caller only has an id once it has actually created/found the `companies` row — imported
- * vacancies used to get the text name but never a real link, so the detail modal (which only
- * shows the linked-company picker, no free-text field — see VacancyDraft's own comment) displayed
- * "No linked company" for every imported vacancy even when the name was guessed correctly. */
+/** Fills in company/position/companyId/salary/location/workMode/employmentType guessed after the
+ * fact for a bulk import (see vacancies.routes.ts's POST /vacancies/import and
+ * vacancy-analysis.service.ts's extractVacancyFacts/extractDouLocationHint/companyFromDouUrl) —
+ * unlike a DOU export, a generic link doesn't encode most of these structurally, so the row is
+ * first created with placeholders and only patched here once best-effort enrichment has run.
+ * `companyId` is separate from `company` (the free-text name) since the caller only has an id
+ * once it has actually created/found the `companies` row — imported vacancies used to get the
+ * text name but never a real link, so the detail modal (which only shows the linked-company
+ * picker, no free-text field — see VacancyDraft's own comment) displayed "No linked company" for
+ * every imported vacancy even when the name was guessed correctly. */
 export async function updateVacancyImportedTitle(
   userId: UserId,
   id: number,
-  title: { company?: string; position?: string; companyId?: number },
+  title: {
+    company?: string;
+    position?: string;
+    companyId?: number;
+    salary?: string;
+    location?: string;
+    workMode?: string;
+    employmentType?: string;
+  },
 ): Promise<void> {
-  if (!title.company && !title.position && title.companyId === undefined) return;
   const { companyId, ...rest } = title;
+  if (Object.keys(rest).length === 0 && companyId === undefined) return;
   await db
     .update(vacancies)
     .set(companyId === undefined ? rest : { ...rest, companyId })

@@ -32,7 +32,15 @@ vi.mock("../../shared/demand.js", () => ({ demandMap: vi.fn(async () => ({})) })
 const mockLog = { debug: vi.fn(), warn: vi.fn(), error: vi.fn() };
 vi.mock("../../core/logger.js", () => ({ contextLogger: () => mockLog }));
 
-import { tryAutoEnrichStack, companyFromDouUrl, fetchVacancyDetails, fetchVacancyText } from "./vacancy-analysis.service.js";
+import {
+  tryAutoEnrichStack,
+  companyFromDouUrl,
+  fetchVacancyDetails,
+  fetchVacancyText,
+  extractDouLocationBadge,
+  extractDouLocationHint,
+  summarizeVacancy,
+} from "./vacancy-analysis.service.js";
 import { llmAvailable, chatJson } from "../../llm/index.js";
 
 // fetchVacancyText() now goes through shared/safe-fetch.ts, which reads the body as a STREAM (so a
@@ -187,6 +195,41 @@ describe("companyFromDouUrl()", () => {
   });
 });
 
+// extractDouLocationBadge()/extractDouLocationHint() — deterministic (no LLM, no network) reads
+// of DOU's own location badge markup, verified against a live jobs.dou.ua page (see the task's
+// own worked example). Pure functions over a raw HTML string, so tested directly here rather than
+// through a fetch mock.
+describe("extractDouLocationBadge()/extractDouLocationHint()", () => {
+  it("extracts the free-text location from DOU's place badge, trimming whitespace", () => {
+    const html = `<div class="sh-info"><span class="place bi bi-geo-alt-fill"> Київ, віддалено</span></div>`;
+    expect(extractDouLocationBadge(html)).toBe("Київ, віддалено");
+  });
+
+  it("returns null when the badge is absent (page layout change, or not a DOU page)", () => {
+    expect(extractDouLocationBadge('<div class="sh-info">no badge here</div>')).toBeNull();
+  });
+
+  it("guesses workMode 'remote' for a badge mentioning віддалено/remote", () => {
+    expect(extractDouLocationHint('<span class="place">Remote</span>')).toEqual({ location: "Remote", workMode: "remote" });
+    expect(extractDouLocationHint('<span class="place">Київ, віддалено</span>')).toEqual({
+      location: "Київ, віддалено",
+      workMode: "remote",
+    });
+  });
+
+  it("guesses workMode 'hybrid' for a badge mentioning гібрид/hybrid", () => {
+    expect(extractDouLocationHint('<span class="place">Київ, гібрид</span>')).toEqual({ location: "Київ, гібрид", workMode: "hybrid" });
+  });
+
+  it("guesses workMode 'office' for a badge naming just a city, no remote/hybrid keyword", () => {
+    expect(extractDouLocationHint('<span class="place">Львів</span>')).toEqual({ location: "Львів", workMode: "office" });
+  });
+
+  it("returns null (not a workMode guess) when there's no badge at all", () => {
+    expect(extractDouLocationHint("<div>no badge</div>")).toBeNull();
+  });
+});
+
 // fetchVacancyDetails() — single-URL equivalent of the bulk import's per-link enrichment, powering
 // the "+ Add vacancy" modal's "autofill from link" button. llmAvailable is mocked false in this
 // suite (see the top-of-file mock), so extractTitleCompany always resolves null here — these
@@ -229,6 +272,28 @@ describe("fetchVacancyDetails()", () => {
     expect(details.notes).toBe("");
     expect(details.companyNotes).toBe("");
     expect(details.companyQuestions).toEqual([]);
+  });
+
+  it("leaves location/workMode/employmentType blank for a non-DOU url offline", async () => {
+    const html = `<html><body>${"Looking for a Senior React TypeScript developer. ".repeat(5)}</body></html>`;
+    fetchMock.mockResolvedValue(pageResponse(html));
+    const details = await fetchVacancyDetails(BOOTSTRAP_USER_ID, "https://www.linkedin.com/jobs/view/123456/");
+    expect(details.location).toBe("");
+    expect(details.workMode).toBe("");
+    expect(details.employmentType).toBe("");
+  });
+
+  it("fills location/workMode for a DOU url from its deterministic location badge, even fully offline", async () => {
+    const html =
+      `<div class="l-vacancy __hot" itemprop="description"><h1 class="g-h2">Payments Product Manager</h1>` +
+      `<div class="sh-info"><span class="place bi bi-geo-alt-fill"> Київ, віддалено</span></div>` +
+      `<div class="b-typo vacancy-section">${"Looking for a Senior Backend developer. ".repeat(5)}</div></div>`;
+    fetchMock.mockResolvedValue(pageResponse(html));
+    const details = await fetchVacancyDetails(BOOTSTRAP_USER_ID, "https://jobs.dou.ua/companies/acme/vacancies/1/");
+    expect(details.location).toBe("Київ, віддалено");
+    expect(details.workMode).toBe("remote");
+    // DOU states no employment type anywhere on the page — this stays LLM-only, and there's no LLM here.
+    expect(details.employmentType).toBe("");
   });
 });
 
@@ -305,5 +370,52 @@ describe("fetchVacancyDetails() with an LLM available", () => {
   it("falls back to the model's salary when the page states none in a parseable form", async () => {
     const details = await fetchVacancyDetails(BOOTSTRAP_USER_ID, "https://www.linkedin.com/jobs/view/123456/");
     expect(details.salary).toBe("$1-2");
+  });
+
+  it("uses the LLM's location/workMode/employmentType facts for a non-DOU url", async () => {
+    const details = await fetchVacancyDetails(BOOTSTRAP_USER_ID, "https://www.linkedin.com/jobs/view/123456/");
+    expect(details.location).toBe("Kyiv");
+    expect(details.workMode).toBe("hybrid");
+    expect(details.employmentType).toBe("full-time");
+  });
+
+  it("prefers DOU's deterministic location badge over the LLM's own location/workMode guess", async () => {
+    const withBadge = PAGE.replace("<article>", '<article><div class="sh-info"><span class="place bi bi-geo-alt-fill"> Львів</span></div>');
+    fetchMock.mockResolvedValue(pageResponse(withBadge));
+    const details = await fetchVacancyDetails(BOOTSTRAP_USER_ID, "https://jobs.dou.ua/companies/king-group/vacancies/1/");
+    // The badge names a city with no remote/hybrid keyword -> "office", NOT the LLM's "hybrid"/"Kyiv".
+    expect(details.location).toBe("Львів");
+    expect(details.workMode).toBe("office");
+    // employmentType has no DOU-deterministic source — still comes from the LLM facts.
+    expect(details.employmentType).toBe("full-time");
+  });
+});
+
+describe("summarizeVacancy()", () => {
+  beforeEach(() => {
+    vi.mocked(llmAvailable).mockReturnValue(true);
+    vi.mocked(chatJson).mockResolvedValue({ vacancyNotes: "", companyNotes: "", questionsToAsk: [] });
+  });
+
+  afterEach(() => {
+    vi.mocked(llmAvailable).mockReturnValue(false);
+    vi.mocked(chatJson).mockReset();
+  });
+
+  it("returns null offline (llmAvailable() false), without ever calling chatJson", async () => {
+    vi.mocked(llmAvailable).mockReturnValue(false);
+    expect(await summarizeVacancy(BOOTSTRAP_USER_ID, "some posting text")).toBeNull();
+    expect(chatJson).not.toHaveBeenCalled();
+  });
+
+  it("asks the model to fold years of experience, visa/relocation, and extra language requirements into vacancyNotes", async () => {
+    await summarizeVacancy(BOOTSTRAP_USER_ID, "some posting text");
+    const [, , userPrompt] = vi.mocked(chatJson).mock.calls[0]!;
+    expect(userPrompt).toContain("years of experience required");
+    expect(userPrompt).toContain("visa sponsorship/relocation support");
+    expect(userPrompt).toContain("language requirements beyond the posting's own language");
+    // Unrelated instructions (companyNotes/questionsToAsk) stay exactly as before.
+    expect(userPrompt).toContain("2-4 sentences about the EMPLOYER only");
+    expect(userPrompt).toContain("3-5 specific questions");
   });
 });

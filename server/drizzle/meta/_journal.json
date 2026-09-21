@@ -162,6 +162,13 @@
       "when": 1787065248222,
       "tag": "0022_nervous_champions",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790001558067,
+      "tag": "0023_brainy_doctor_strange",
+      "breakpoints": true
     }
   ]
 }

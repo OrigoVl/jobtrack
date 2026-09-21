@@ -34,15 +34,32 @@ const upsertCompanyEnrichment = vi.fn(async (_userId: unknown, input: { name: st
 }));
 vi.mock("../companies/companies.repo.js", () => ({ getCompanyById, upsertCompanyEnrichment }));
 
+interface MockVacancyFacts {
+  company: string;
+  position: string;
+  level: string;
+  salary: string;
+  location: string;
+  workMode: string;
+  employmentType: string;
+  companyWebsite: string;
+}
+interface MockDouLocationHint {
+  location: string;
+  workMode: "remote" | "hybrid" | "office";
+}
+
 const quickAnalyze = vi.fn(async () => ({ techs: ["React"], level: "Middle", match: [], gap: [], fit: "med" as const }));
 const tryAutoEnrichStack = vi.fn(async () => null as { techs: string[]; level: string; fit: string } | null);
-const safeFetchVacancyText = vi.fn(async () => null as string | null);
-const extractTitleCompany = vi.fn(async () => null as { company: string; position: string } | null);
+const safeFetchVacancyPage = vi.fn(async () => null as { text: string; rawHtml: string } | null);
+const extractVacancyFacts = vi.fn(async () => null as MockVacancyFacts | null);
+const extractDouLocationHint = vi.fn(() => null as MockDouLocationHint | null);
 vi.mock("./vacancy-analysis.service.js", () => ({
   quickAnalyze,
   tryAutoEnrichStack,
-  safeFetchVacancyText,
-  extractTitleCompany,
+  safeFetchVacancyPage,
+  extractVacancyFacts,
+  extractDouLocationHint,
   companyFromDouUrl: (url: string) => {
     const m = /^https:\/\/jobs\.dou\.ua\/companies\/([^/]+)\/vacancies\/\d+\/?$/.exec(url);
     return m ? (m[1] ?? "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : null;
@@ -94,8 +111,9 @@ beforeEach(() => {
   createVacancy.mockResolvedValue(1);
   createVacancyMinimal.mockResolvedValue(1);
   createVacancyFromJson.mockResolvedValue(1);
-  safeFetchVacancyText.mockResolvedValue(null);
-  extractTitleCompany.mockResolvedValue(null);
+  safeFetchVacancyPage.mockResolvedValue(null);
+  extractVacancyFacts.mockResolvedValue(null);
+  extractDouLocationHint.mockReturnValue(null);
   tryAutoEnrichStack.mockResolvedValue(null);
   upsertCompanyEnrichment.mockImplementation(async (_userId: unknown, input: { name: string }) => ({
     id: 42,
@@ -345,25 +363,105 @@ describe("importVacanciesFromHtml()", () => {
 
   it("auto-enriches a newly-imported generic link from its fetched text, filling company only when the link had none", async () => {
     createVacancyMinimal.mockResolvedValue(11);
-    safeFetchVacancyText.mockResolvedValue("some real vacancy text");
-    extractTitleCompany.mockResolvedValue({ company: "Globex", position: "Backend Dev" });
+    safeFetchVacancyPage.mockResolvedValue({ text: "some real vacancy text", rawHtml: "<html></html>" });
+    extractVacancyFacts.mockResolvedValue({
+      company: "Globex",
+      position: "Backend Dev",
+      level: "",
+      salary: "",
+      location: "",
+      workMode: "",
+      employmentType: "",
+      companyWebsite: "",
+    });
     const html = `https://djinni.co/jobs/999-backend`;
     await importVacanciesFromHtml(USER, html);
     expect(updateVacancyEnrichment).toHaveBeenCalledWith(USER, 11, { stack: ["React"], level: "Middle", fit: "med" });
     expect(upsertCompanyEnrichment).toHaveBeenCalledWith(USER, { name: "Globex", notes: "", questions: [], website: "" });
     expect(updateVacancyImportedTitle).toHaveBeenCalledWith(USER, 11, { company: "Globex", position: "Backend Dev", companyId: 42 });
+    // A generic (non-DOU) link never triggers the DOU-specific deterministic extractor.
+    expect(extractDouLocationHint).not.toHaveBeenCalled();
   });
 
   it("never lets a guessed company overwrite a DOU link's slug-derived company", async () => {
     createVacancyMinimal.mockResolvedValue(12);
-    safeFetchVacancyText.mockResolvedValue("some real vacancy text");
-    extractTitleCompany.mockResolvedValue({ company: "Some Other Name", position: "Backend Dev" });
+    safeFetchVacancyPage.mockResolvedValue({ text: "some real vacancy text", rawHtml: "<html></html>" });
+    extractVacancyFacts.mockResolvedValue({
+      company: "Some Other Name",
+      position: "Backend Dev",
+      level: "",
+      salary: "",
+      location: "",
+      workMode: "",
+      employmentType: "",
+      companyWebsite: "",
+    });
     const html = `https://jobs.dou.ua/companies/acme/vacancies/1/`;
     await importVacanciesFromHtml(USER, html);
     // updateVacancyImportedTitle called once for the DOU companyId link, once for the position-only guess
     expect(updateVacancyImportedTitle).toHaveBeenCalledWith(USER, 12, { companyId: 42 });
     expect(updateVacancyImportedTitle).toHaveBeenCalledWith(USER, 12, { position: "Backend Dev" });
     expect(updateVacancyImportedTitle).not.toHaveBeenCalledWith(USER, 12, expect.objectContaining({ company: "Some Other Name" }));
+  });
+
+  it("fills salary/location/workMode/employmentType/companyWebsite on a generic-link import from extractVacancyFacts", async () => {
+    createVacancyMinimal.mockResolvedValue(13);
+    safeFetchVacancyPage.mockResolvedValue({ text: "some real vacancy text", rawHtml: "<html></html>" });
+    extractVacancyFacts.mockResolvedValue({
+      company: "Globex",
+      position: "Backend Dev",
+      level: "",
+      salary: "$3000-4000",
+      location: "Berlin, Germany",
+      workMode: "hybrid",
+      employmentType: "Full-time",
+      companyWebsite: "globex.example",
+    });
+    const html = `https://djinni.co/jobs/1000-backend`;
+    await importVacanciesFromHtml(USER, html);
+    expect(upsertCompanyEnrichment).toHaveBeenCalledWith(USER, { name: "Globex", notes: "", questions: [], website: "globex.example" });
+    expect(updateVacancyImportedTitle).toHaveBeenCalledWith(USER, 13, {
+      company: "Globex",
+      position: "Backend Dev",
+      companyId: 42,
+      salary: "$3000-4000",
+      location: "Berlin, Germany",
+      workMode: "hybrid",
+      employmentType: "Full-time",
+    });
+  });
+
+  it("fills location/workMode on a DOU import from the deterministic badge alone, fully offline (extractVacancyFacts null)", async () => {
+    createVacancyMinimal.mockResolvedValue(14);
+    safeFetchVacancyPage.mockResolvedValue({
+      text: "some real vacancy text",
+      rawHtml: '<span class="place bi bi-geo-alt-fill"> Київ, віддалено</span>',
+    });
+    extractVacancyFacts.mockResolvedValue(null); // offline: no LLM key configured
+    extractDouLocationHint.mockReturnValue({ location: "Київ, віддалено", workMode: "remote" });
+    const html = `https://jobs.dou.ua/companies/acme/vacancies/2/`;
+    await importVacanciesFromHtml(USER, html);
+    expect(extractDouLocationHint).toHaveBeenCalledWith('<span class="place bi bi-geo-alt-fill"> Київ, віддалено</span>');
+    expect(updateVacancyImportedTitle).toHaveBeenCalledWith(USER, 14, { location: "Київ, віддалено", workMode: "remote" });
+  });
+
+  it("prefers the deterministic DOU location/workMode over extractVacancyFacts's own guess when both are present", async () => {
+    createVacancyMinimal.mockResolvedValue(15);
+    safeFetchVacancyPage.mockResolvedValue({ text: "some real vacancy text", rawHtml: "<html></html>" });
+    extractVacancyFacts.mockResolvedValue({
+      company: "",
+      position: "",
+      level: "",
+      salary: "",
+      location: "Remote (LLM guess)",
+      workMode: "hybrid",
+      employmentType: "",
+      companyWebsite: "",
+    });
+    extractDouLocationHint.mockReturnValue({ location: "Київ", workMode: "office" });
+    const html = `https://jobs.dou.ua/companies/acme/vacancies/3/`;
+    await importVacanciesFromHtml(USER, html);
+    expect(updateVacancyImportedTitle).toHaveBeenCalledWith(USER, 15, expect.objectContaining({ location: "Київ", workMode: "office" }));
   });
 });
 

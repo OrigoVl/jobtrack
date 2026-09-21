@@ -17,8 +17,9 @@ import { getCompanyById, upsertCompanyEnrichment } from "../companies/companies.
 import {
   quickAnalyze,
   tryAutoEnrichStack,
-  safeFetchVacancyText,
-  extractTitleCompany,
+  safeFetchVacancyPage,
+  extractVacancyFacts,
+  extractDouLocationHint,
   companyFromDouUrl,
 } from "./vacancy-analysis.service.js";
 import { vacancyEmbeddingText } from "./vacancy-text.js";
@@ -193,7 +194,7 @@ export async function importVacanciesFromHtml(userId: UserId, html: string): Pro
   // always runs during enrichment below regardless of this flag — it only gates whether that
   // guess is allowed to also overwrite `company` (never for DOU: the slug-derived name is
   // reliable and shouldn't be clobbered by a possibly-wrong LLM guess).
-  const newIds: { id: number; url: string; hasCompany: boolean }[] = [];
+  const newIds: { id: number; url: string; hasCompany: boolean; isDou: boolean }[] = [];
   const added: { company: string; url: string }[] = [];
   // Snapshot once, before any inserts below — advisory only (see the SimHash comment on
   // createVacancyWithDedupe above). A newly-imported item's `position` is still the "(imported)"
@@ -216,7 +217,7 @@ export async function importVacanciesFromHtml(userId: UserId, html: string): Pro
       const companyRow = await upsertCompanyEnrichment(userId, { name: company, notes: "", questions: [], website: "" });
       if (companyRow.id) await updateVacancyImportedTitle(userId, id, { companyId: companyRow.id });
     }
-    newIds.push({ id, url, hasCompany: true });
+    newIds.push({ id, url, hasCompany: true, isDou: true });
     added.push({ company, url });
     if (existingAtCompany) {
       possibleDuplicates.push({
@@ -231,34 +232,72 @@ export async function importVacanciesFromHtml(userId: UserId, html: string): Pro
     if (await findVacancyByUrl(userId, url)) continue;
     const id = await createVacancyMinimal(userId, { company: "", position: "(imported)", url, status: "Want to apply" });
     await recordStatusChange(userId, id, "Want to apply");
-    newIds.push({ id, url, hasCompany: false });
+    newIds.push({ id, url, hasCompany: false, isDou: false });
     added.push({ company: "", url });
   }
 
-  for (const { id, url, hasCompany } of newIds) {
-    const text = await safeFetchVacancyText(url);
-    if (text) {
+  for (const { id, url, hasCompany, isDou } of newIds) {
+    const page = await safeFetchVacancyPage(url);
+    if (page) {
+      const { text, rawHtml } = page;
       const analysis = await quickAnalyze(userId, text);
       await updateVacancyEnrichment(userId, id, { stack: analysis.techs, level: analysis.level || "", fit: analysis.fit });
+
+      // Full structured-facts extraction (company/position/level/salary/location/workMode/
+      // employmentType/companyWebsite) — the same richer LLM call fetchVacancyDetails already
+      // makes for the single-link "autofill"/"refresh" flow, replacing the narrower
+      // extractTitleCompany (company/position only) this used to call. Still a single LLM call
+      // either way (cost-neutral), now filling the new columns on every bulk-imported row instead
+      // of leaving them blank until a later manual refresh.
+      //
+      // Deliberately does NOT also call summarizeVacancy() (the notes/questions LLM call) here —
+      // that stays exclusive to the single-vacancy create/refresh flow. Auto-generating notes for
+      // every row of a multi-link paste would be a surprising amount of prose to review, and would
+      // double the LLM cost across what can be many links pasted at once. Don't "fix" this by
+      // adding a summarizeVacancy() call back in.
+      const facts = await extractVacancyFacts(userId, text);
+
+      // DOU exposes a deterministic location badge in its shared page template (see
+      // extractDouLocationHint) — ground truth off the actual markup, computed with no LLM call,
+      // so it's filled in even fully offline. Takes priority over the LLM's guess for the same
+      // fields rather than being merged with it (same "never let a guess clobber a more reliable
+      // already-set value" rule the DOU-derived `company` above follows).
+      const douHint = isDou ? extractDouLocationHint(rawHtml) : null;
+
       // Position is never encoded in the URL either way, so this always runs; only `company` is
-      // gated (see `hasCompany`'s own comment above). Each field is only copied over when the
-      // guess actually produced something — extractTitleCompany guarantees at least ONE of
-      // company/position is non-empty when it returns non-null, not both, and an empty guess for
-      // the other must never overwrite the "(imported)" placeholder with blank.
-      const guess = await extractTitleCompany(userId, text);
-      if (guess) {
-        const title: { company?: string; position?: string; companyId?: number } = {};
-        if (guess.position) title.position = guess.position;
-        if (!hasCompany && guess.company) {
-          title.company = guess.company;
-          // Same non-destructive upsert as the DOU branch above — an LLM-guessed name is less
-          // certain than a URL-derived one, but still worth linking for real rather than leaving
-          // the detail modal's company picker permanently empty for every generic-link import.
-          const companyRow = await upsertCompanyEnrichment(userId, { name: guess.company, notes: "", questions: [], website: "" });
-          if (companyRow.id) title.companyId = companyRow.id;
-        }
-        if (title.company || title.position || title.companyId !== undefined) await updateVacancyImportedTitle(userId, id, title);
+      // gated (see `hasCompany`'s own comment above). Each field is only copied over when
+      // extraction actually produced something — an empty guess for any field must never
+      // overwrite the "(imported)" placeholder (or an already-set value) with blank.
+      const title: {
+        company?: string;
+        position?: string;
+        companyId?: number;
+        salary?: string;
+        location?: string;
+        workMode?: string;
+        employmentType?: string;
+      } = {};
+      if (facts?.position) title.position = facts.position;
+      if (!hasCompany && facts?.company) {
+        title.company = facts.company;
+        // Same non-destructive upsert as the DOU branch above — an LLM-guessed name is less
+        // certain than a URL-derived one, but still worth linking for real rather than leaving
+        // the detail modal's company picker permanently empty for every generic-link import.
+        const companyRow = await upsertCompanyEnrichment(userId, {
+          name: facts.company,
+          notes: "",
+          questions: [],
+          website: facts.companyWebsite || "",
+        });
+        if (companyRow.id) title.companyId = companyRow.id;
       }
+      if (facts?.salary) title.salary = facts.salary;
+      if (facts?.employmentType) title.employmentType = facts.employmentType;
+      const location = douHint?.location || facts?.location || "";
+      const workMode = douHint?.workMode || facts?.workMode || "";
+      if (location) title.location = location;
+      if (workMode) title.workMode = workMode;
+      await updateVacancyImportedTitle(userId, id, title);
     }
     await new Promise((resolve) => setTimeout(resolve, 400)); // polite pause
   }

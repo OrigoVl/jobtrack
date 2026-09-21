@@ -67,6 +67,14 @@ export interface VacancyInput {
   position?: string;
   level?: string;
   salary?: string;
+  /** Free-text location, e.g. "Kyiv, Ukraine" — `null` clears it (matches the nullable column,
+   * see db/schema/app.ts), unlike level/salary's own "" tri-state convention. */
+  location?: string | null;
+  /** Free-text work mode, expected vocabulary "office" | "hybrid" | "remote" but not enum-enforced
+   * (same freeform-text call as `level`). `null` clears it. */
+  workMode?: string | null;
+  /** Free-text employment type, e.g. "Full-time", "Contract". `null` clears it. */
+  employmentType?: string | null;
   url?: string;
   status?: VacancyStatus;
   fit?: Fit;
@@ -89,6 +97,12 @@ export function parseVacancyInput(body: unknown, { partial = false }: { partial?
   if (!partial || has("position")) out.position = asString(b.position).trim().slice(0, 200);
   if (!partial || has("level")) out.level = asString(b.level).trim().slice(0, 40);
   if (!partial || has("salary")) out.salary = asString(b.salary).trim().slice(0, 60);
+  // "" normalizes to `null` (not stored as an empty string) — location/workMode/employmentType
+  // are nullable columns with their own "unstated" tri-state (null), unlike level/salary's ""
+  // convention (see db/schema/app.ts and VacancyInput's own comments above).
+  if (!partial || has("location")) out.location = asString(b.location).trim().slice(0, 200) || null;
+  if (!partial || has("workMode")) out.workMode = asString(b.workMode).trim().slice(0, 40) || null;
+  if (!partial || has("employmentType")) out.employmentType = asString(b.employmentType).trim().slice(0, 60) || null;
   if (!partial || has("url")) out.url = toUrl(b.url, "url");
   if (!partial || has("status")) {
     const status = asString(b.status, "Want to apply");

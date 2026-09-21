@@ -39,6 +39,17 @@ export const vacancies = pgTable(
     companyId: integer("company_id").references(() => companies.id, { onDelete: "set null" }),
     position: text().notNull().default(""),
     level: text().notNull().default(""),
+    // Free-text location as written on the posting (e.g. "Kyiv, Ukraine", "Remote (EU)") — a
+    // brand-new, optional field, so nullable rather than the "" tri-state convention `level`
+    // above uses: a posting may simply not state one, and existing rows have no value at all.
+    location: text(),
+    // Free-text work mode, expected vocabulary "office" | "hybrid" | "remote" but deliberately
+    // stored as freeform text rather than a Postgres enum — same "app-level cap, not a check
+    // constraint" call `level` above documents. Nullable for the same reason as `location`.
+    workMode: text("work_mode"),
+    // Free-text employment type (e.g. "Full-time", "Contract", "B2B") — same freeform/nullable
+    // reasoning as `location`/`workMode` above.
+    employmentType: text("employment_type"),
     // Freeform, like `level` above — not structured min/max/currency columns: candidates paste
     // whatever the posting itself says ("$90k-110k", "80000 UAH/mo", "negotiable"), and forcing
     // that into a single currency/number pair would lose information for the common case of a

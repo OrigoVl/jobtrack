@@ -13,6 +13,7 @@
     "untitled": "Без назви"
   },
   "addVacancy": "+ Додати вакансію",
+  "addFromLink": "🔗 Додати за посиланням",
   "addFirst": "+ Додати першу",
   "favorite": {
     "addTitle": "Додати в обране",
@@ -48,6 +49,13 @@
     "createCompanyFromField": "+ Створити компанію",
     "levelPlaceholder": "Рівень",
     "levelAriaLabel": "Рівень",
+    "locationPlaceholder": "напр. Київ, віддалено",
+    "locationAriaLabel": "Локація",
+    "workModePlaceholder": "Офіс / Гібрид / Віддалено",
+    "workModeAriaLabel": "Формат роботи",
+    "workModeSuggestions": ["Офіс", "Гібрид", "Віддалено"],
+    "employmentTypePlaceholder": "напр. Повна зайнятість",
+    "employmentTypeAriaLabel": "Тип зайнятості",
     "createdLabel": "Додано {{date}}",
     "stackLabel": "Технічний стек",
     "stackPlaceholder": "Додати технологію…",

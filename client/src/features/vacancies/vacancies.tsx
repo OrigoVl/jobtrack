@@ -214,17 +214,18 @@ export function Vacancies() {
               ]}
             />
             <Btn onClick={() => setCreateOpen(true)}>{t("addVacancy")}</Btn>
-            {/* Collapsed by default — the two import forms used to render as full-width cards
-                ABOVE the table/board on every visit, pushing every actual vacancy off-screen on
-                first load. Grouped into one Dropdown, same pattern as cv-builder.tsx's own
-                "Import ▾" menu; data-keep-open on the interactive bits so typing/clicking inside
-                doesn't close the panel out from under the user (see cv-builder.tsx's <select
-                data-keep-open> for the precedent). width=360: wider than Dropdown's 220px
-                default (a short menu-item list) since this panel holds a textarea + descriptive
-                text — Dropdown's positioning math needs the REAL width or the panel overflows
-                the viewport and clips its own content on the right (this happened before this
-                comment was written: the panel was still positioned as if 220px wide). */}
-            <Dropdown label={t("importMenu.label")} align="right" width={360}>
+            {/* A separate control from "Import" below, on purpose: this is still "add a vacancy"
+                (one or many), just sourced from pasted links instead of the blank form — not a
+                data import/export operation like the JSON panel. Collapsed into a Dropdown rather
+                than a full-width card above the table (that used to push every actual vacancy
+                off-screen on first load); data-keep-open on the textarea/button so typing/clicking
+                inside doesn't close the panel (see cv-builder.tsx's <select data-keep-open> for the
+                precedent). width=360: wider than Dropdown's 220px default (a short menu-item list)
+                since this panel holds a textarea + descriptive text — Dropdown's positioning math
+                needs the REAL width or the panel overflows the viewport and clips its own content
+                on the right (this happened before this comment was written: the panel was still
+                positioned as if 220px wide). */}
+            <Dropdown label={t("addFromLink")} width={360}>
               <div data-keep-open>
                 <div className="text-sm font-semibold mb-2 text-ink px-1">{t("import.heading")}</div>
                 <textarea
@@ -238,7 +239,11 @@ export function Vacancies() {
                   {importVacanciesMutation.isPending ? t("import.importing") : t("import.importLinks")}
                 </Btn>
               </div>
-              <div className="border-t border-grid my-2" />
+            </Dropdown>
+            {/* JSON import/export only — actual data import/export (a full backup/sync file),
+                distinct from "Add from link" above which creates vacancies one/many at a time from
+                a posting URL. See that Dropdown's comment for why they're split. */}
+            <Dropdown label={t("importMenu.label")} align="right" width={360}>
               <div data-keep-open>
                 <div className="text-sm font-semibold mb-1 text-ink px-1">{t("jsonImportExport.heading")}</div>
                 <p className="text-xs text-ink-dim mb-2 px-1">
