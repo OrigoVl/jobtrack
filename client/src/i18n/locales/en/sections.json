@@ -17,18 +17,39 @@
   "growth": {
     "ariaLabel": "Growth sections",
     "tabs": {
-      "roadmap": "Roadmap",
-      "study": "Practice",
-      "projects": "Pet projects",
-      "resources": "Resources"
+      "roadmap": {
+        "label": "Roadmap",
+        "description": "Your skills vs. market demand — plus the skill radar, learning plan and intensive plan"
+      },
+      "study": {
+        "label": "Practice",
+        "description": "Spaced-repetition flashcards, code drills, mock interviews and the architecture trainer"
+      },
+      "projects": {
+        "label": "Pet projects",
+        "description": "Projects built on your vacancies' stack — real proof of skills on GitHub"
+      },
+      "resources": {
+        "label": "Resources",
+        "description": "A static reference: guides, cheatsheets, a prep checklist"
+      }
     }
   },
   "cv": {
     "ariaLabel": "CV sections",
     "tabs": {
-      "builder": "Builder",
-      "review": "CV text",
-      "coverLetter": "Cover letter"
+      "builder": {
+        "label": "Builder",
+        "description": "Fill in your CV's sections, edit them, and export to PDF"
+      },
+      "review": {
+        "label": "CV text",
+        "description": "Your CV as plain text — quick to read and copy"
+      },
+      "coverLetter": {
+        "label": "Cover letter",
+        "description": "Generate a cover letter for a specific vacancy"
+      }
     }
   }
 }

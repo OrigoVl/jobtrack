@@ -38,7 +38,13 @@ export function SkillRadar({ embedded = false }: { embedded?: boolean } = {}) {
   const gapSummary = axes.length > 0 ? [...axes].sort((a, b) => b.demandPct - a.demandPct - (b.level - a.level))[0] : undefined;
   return (
     <div className="space-y-4">
-      {!embedded && (
+      {embedded ? (
+        // Roadmap's own PageHeader (features/roadmap/roadmap.tsx) stays on its generic title
+        // regardless of which of its 4 views is active — this line is what actually tells you
+        // you're looking at the radar specifically, matching LearnPlan/Plan21's own embedded
+        // subtitle (this used to render nothing at all here, the one outlier among the three).
+        <p className="text-sm text-ink-dim">{t("radar.subtitle")}</p>
+      ) : (
         <div>
           <h1 className="font-display text-2xl font-bold text-ink">{t("radar.title")}</h1>
           <p className="text-sm text-ink-dim mt-1">{t("radar.subtitle")}</p>

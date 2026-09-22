@@ -1,10 +1,18 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { NavLink, Outlet } from "react-router";
+import { NavLink, Outlet, useLocation } from "react-router";
 
 export interface SectionTab {
   path: string;
   label: string;
+  /** One line saying what's actually behind this tab — shown, always-visible, for whichever tab
+   * is currently active (below the strip, above ShortcutHint/the page itself). Optional: a
+   * section with few, self-explanatory tabs (Vacancies, Network) doesn't need one — this exists
+   * because a hub-like section (Growth: 4 tabs, one of which alone hides 4 more sub-modes; CV)
+   * otherwise gives no hint of what's inside a tab until you click it, and the sidebar's own
+   * equivalent hint (`groupHint` in app/App.tsx) only ever shows on hover, which doesn't exist on
+   * touch/mobile at all. */
+  description?: string;
 }
 
 /**
@@ -76,6 +84,10 @@ function ShortcutHint() {
 }
 
 export function SectionTabs({ tabs, ariaLabel }: { tabs: SectionTab[]; ariaLabel: string }) {
+  // Exact-path match, not startsWith: these tabs ARE the routes (see App.tsx's layout functions),
+  // none of them have their own sibling sub-routes the way a NAV_DEF sidebar row can (alsoMatches).
+  const { pathname } = useLocation();
+  const activeTab = tabs.find((tab) => tab.path === pathname);
   return (
     <div className="space-y-4">
       {/* The border sits on the nav itself so the rule runs the full content width, with each
@@ -97,6 +109,7 @@ export function SectionTabs({ tabs, ariaLabel }: { tabs: SectionTab[]; ariaLabel
           ))}
         </div>
       </nav>
+      {activeTab?.description && <p className="text-xs text-ink-dim -mt-2">{activeTab.description}</p>}
       <ShortcutHint />
       <Outlet />
     </div>

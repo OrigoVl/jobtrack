@@ -1,7 +1,7 @@
 {
   "eyebrow": "Growth",
   "title": "Practice",
-  "subtitle": "Smart flashcards with spaced repetition (like Anki) + a drill mode with hands-on problems.",
+  "subtitle": "Spaced-repetition flashcards (like Anki), hands-on drills, a timed mock interview, and an architecture trainer — all here, switch tabs above.",
   "tabs": {
     "flashcards": "Flashcards",
     "drill": "Drill",

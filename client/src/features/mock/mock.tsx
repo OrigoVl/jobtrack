@@ -181,7 +181,15 @@ export function MockInterview({ embedded = false }: { embedded?: boolean } = {})
   const [sub, setSub] = useUi<"pool" | "live">("mock.subMode", "pool");
   return (
     <div className="space-y-4">
-      {!embedded && <PageHeader eyebrow={t("eyebrow")} title={t("title")} subtitle={t("subtitle")} />}
+      {embedded ? (
+        // Nested inside Practice (study.tsx) with no header of its own until now — switching to
+        // this mode gave zero indication of what it even was, unlike the srs/drill modes (which
+        // at least show a "due today"/"solved" stat line). Matches LearnPlan/Plan21/SkillRadar's
+        // own embedded subtitle line.
+        <p className="text-sm text-ink-dim">{t("subtitle")}</p>
+      ) : (
+        <PageHeader eyebrow={t("eyebrow")} title={t("title")} subtitle={t("subtitle")} />
+      )}
       <div className="flex justify-end">
         <Segmented
           size="sm"

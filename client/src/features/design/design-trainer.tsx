@@ -81,7 +81,15 @@ export function DesignTrainer({ embedded = false }: { embedded?: boolean } = {})
 
   return (
     <div className="space-y-4">
-      {!embedded && <PageHeader eyebrow={t("eyebrow")} title={t("title")} subtitle={t("subtitle")} />}
+      {embedded ? (
+        // Nested inside Practice (study.tsx) with no header of its own until now — this is
+        // arguably the single most hidden feature in the app (sidebar → Growth → Practice →
+        // "Архітектура", 3 clicks deep, named nowhere else). Matches LearnPlan/Plan21/SkillRadar/
+        // MockInterview's own embedded subtitle line.
+        <p className="text-sm text-ink-dim">{t("subtitle")}</p>
+      ) : (
+        <PageHeader eyebrow={t("eyebrow")} title={t("title")} subtitle={t("subtitle")} />
+      )}
       {designLevel && (
         <div className="text-sm text-ink-dim">
           <span className="text-ink font-medium">{t("level.heading", { level: designLevel.level })}</span>{" "}

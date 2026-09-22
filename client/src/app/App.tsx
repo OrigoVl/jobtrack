@@ -302,10 +302,10 @@ function GrowthLayout() {
     <SectionTabs
       ariaLabel={t("growth.ariaLabel")}
       tabs={[
-        { path: "/roadmap", label: t("growth.tabs.roadmap") },
-        { path: "/study", label: t("growth.tabs.study") },
-        { path: "/projects", label: t("growth.tabs.projects") },
-        { path: "/resources", label: t("growth.tabs.resources") },
+        { path: "/roadmap", label: t("growth.tabs.roadmap.label"), description: t("growth.tabs.roadmap.description") },
+        { path: "/study", label: t("growth.tabs.study.label"), description: t("growth.tabs.study.description") },
+        { path: "/projects", label: t("growth.tabs.projects.label"), description: t("growth.tabs.projects.description") },
+        { path: "/resources", label: t("growth.tabs.resources.label"), description: t("growth.tabs.resources.description") },
       ]}
     />
   );
@@ -316,9 +316,9 @@ function CvLayout() {
     <SectionTabs
       ariaLabel={t("cv.ariaLabel")}
       tabs={[
-        { path: "/cvbuilder", label: t("cv.tabs.builder") },
-        { path: "/cv", label: t("cv.tabs.review") },
-        { path: "/cover-letter", label: t("cv.tabs.coverLetter") },
+        { path: "/cvbuilder", label: t("cv.tabs.builder.label"), description: t("cv.tabs.builder.description") },
+        { path: "/cv", label: t("cv.tabs.review.label"), description: t("cv.tabs.review.description") },
+        { path: "/cover-letter", label: t("cv.tabs.coverLetter.label"), description: t("cv.tabs.coverLetter.description") },
       ]}
     />
   );
