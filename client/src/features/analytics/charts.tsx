@@ -85,6 +85,7 @@ export function Analytics() {
                     {funnel.map((_, i) => (
                       <Cell key={i} fill="rgb(var(--star))" />
                     ))}
+                    <LabelList dataKey="value" position="top" fill="rgb(var(--ink-dim))" fontSize={11} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -108,6 +109,7 @@ export function Analytics() {
                     {funnelReached.map((_, i) => (
                       <Cell key={i} fill="rgb(var(--horizon))" />
                     ))}
+                    <LabelList dataKey="value" position="top" fill="rgb(var(--ink-dim))" fontSize={11} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -194,7 +196,9 @@ export function Analytics() {
                     labelStyle={TOOLTIP_LABEL}
                     itemStyle={TOOLTIP_ITEM}
                   />
-                  <Bar dataKey="value" radius={[0, 6, 6, 0]} fill="rgb(var(--star))" />
+                  <Bar dataKey="value" radius={[0, 6, 6, 0]} fill="rgb(var(--star))">
+                    <LabelList dataKey="value" position="right" fill="rgb(var(--ink-dim))" fontSize={11} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
