@@ -13,6 +13,8 @@ import { api } from "../../shared/api";
 import { useToast } from "../../shared/use-toast";
 import { useConfirm } from "../../shared/use-confirm";
 import { Btn, Card, CardsSkeleton, Dropdown, EmptyState, PageHeader, Segmented, Spinner } from "../../shared/ui";
+import { usePopover } from "../../shared/use-popover";
+import { PopoverPanel } from "../../shared/popover";
 import { DateInput } from "../../shared/date-input";
 import { StarIcon } from "../../shared/icons";
 import { STATUSES, type Fit, type VacancyStatus } from "../../shared/types";
@@ -123,6 +125,19 @@ export function Vacancies() {
   const { toast } = useToast();
   const jsonFileInputRef = useRef<HTMLInputElement | null>(null);
   const [imp, setImp] = useUi("vacancies.import", "");
+  // The "Add from link" panel used to be its own full Dropdown button next to "+ Add vacancy" —
+  // visually that read as 4 separate top-level controls crammed into one row (view toggle, Add,
+  // Add-from-link, Import). Folding it into a caret glued to "+ Add vacancy" (a "split button",
+  // same idea as GitHub's "New ▾") keeps the one-click reach to this panel while reading as ONE
+  // primary action with an alternate entry point, not two competing buttons. Built on the same
+  // usePopover/PopoverPanel primitives Dropdown itself uses (see shared/ui.tsx's Dropdown and
+  // similar-vacancies-button.tsx for the same custom-trigger pattern) rather than reusing Dropdown
+  // directly, since Dropdown always renders its own label text + chevron as one button — there's
+  // no way to make its trigger a bare caret sitting flush against a separate sibling button.
+  const addFromLink = usePopover((rect) => {
+    const width = 360;
+    return { top: rect.bottom + 4, left: Math.min(Math.max(8, rect.left), window.innerWidth - width - 8) };
+  });
   const [view, setViewUi] = useUi<"table" | "board">("vacancies.view", readStoredView());
   const setView = (v: "table" | "board") => {
     setViewUi(v);
@@ -213,33 +228,61 @@ export function Vacancies() {
                 { value: "board", label: t("view.board") },
               ]}
             />
-            <Btn onClick={() => setCreateOpen(true)}>{t("addVacancy")}</Btn>
-            {/* A separate control from "Import" below, on purpose: this is still "add a vacancy"
+            {/* A split button, not two separate buttons: "Add from link" is still "add a vacancy"
                 (one or many), just sourced from pasted links instead of the blank form — not a
-                data import/export operation like the JSON panel. Collapsed into a Dropdown rather
-                than a full-width card above the table (that used to push every actual vacancy
-                off-screen on first load); data-keep-open on the textarea/button so typing/clicking
-                inside doesn't close the panel (see cv-builder.tsx's <select data-keep-open> for the
-                precedent). width=360: wider than Dropdown's 220px default (a short menu-item list)
-                since this panel holds a textarea + descriptive text — Dropdown's positioning math
-                needs the REAL width or the panel overflows the viewport and clips its own content
-                on the right (this happened before this comment was written: the panel was still
-                positioned as if 220px wide). */}
-            <Dropdown label={t("addFromLink")} width={360}>
-              <div data-keep-open>
-                <div className="text-sm font-semibold mb-2 text-ink px-1">{t("import.heading")}</div>
-                <textarea
-                  value={imp}
-                  onChange={(e) => setImp(e.target.value)}
-                  aria-label={t("import.ariaLabel")}
-                  placeholder={t("import.placeholder")}
-                  className="w-full h-20 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
-                />
-                <Btn className="mt-2 w-full" variant="ghost" onClick={doImport} disabled={!imp} loading={importVacanciesMutation.isPending}>
-                  {importVacanciesMutation.isPending ? t("import.importing") : t("import.importLinks")}
+                data import/export operation like the JSON panel below, so it stays a variant of
+                THIS action rather than joining "Import". The caret is glued flush to "+ Add
+                vacancy" (no gap, shared rounded-full silhouette via rounded-r-none/rounded-l-none)
+                so the pair reads as one primary action with an alternate entry point. */}
+            <div className="inline-flex">
+              <Btn onClick={() => setCreateOpen(true)} className="rounded-r-none">
+                {t("addVacancy")}
+              </Btn>
+              <div ref={addFromLink.anchorRef} className="relative">
+                <Btn
+                  onClick={() => addFromLink.setOpen(!addFromLink.open)}
+                  aria-expanded={addFromLink.open}
+                  aria-label={t("addFromLink")}
+                  title={t("addFromLink")}
+                  className="rounded-l-none border-l border-on-signal/25 px-2"
+                >
+                  <span className={`text-[10px] transition-transform ${addFromLink.open ? "rotate-180" : ""}`}>▾</span>
                 </Btn>
+                {/* Same panel the old standalone Dropdown rendered — only the trigger changed.
+                    data-keep-open on the textarea/button so typing/clicking inside doesn't close
+                    the panel (see cv-builder.tsx's <select data-keep-open> for the precedent).
+                    width=360: wide enough for a textarea + descriptive text — usePopover's
+                    positioning math needs the REAL width or the panel clips its own content. */}
+                <PopoverPanel
+                  open={addFromLink.open}
+                  panelRef={addFromLink.panelRef}
+                  coords={addFromLink.coords}
+                  onClose={() => addFromLink.setOpen(false)}
+                  className="p-2 space-y-1"
+                  style={{ width: 360 }}
+                >
+                  <div data-keep-open>
+                    <div className="text-sm font-semibold mb-2 text-ink px-1">{t("import.heading")}</div>
+                    <textarea
+                      value={imp}
+                      onChange={(e) => setImp(e.target.value)}
+                      aria-label={t("import.ariaLabel")}
+                      placeholder={t("import.placeholder")}
+                      className="w-full h-20 bg-surface-2 border border-grid rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-signal/50"
+                    />
+                    <Btn
+                      className="mt-2 w-full"
+                      variant="ghost"
+                      onClick={doImport}
+                      disabled={!imp}
+                      loading={importVacanciesMutation.isPending}
+                    >
+                      {importVacanciesMutation.isPending ? t("import.importing") : t("import.importLinks")}
+                    </Btn>
+                  </div>
+                </PopoverPanel>
               </div>
-            </Dropdown>
+            </div>
             {/* JSON import/export only — actual data import/export (a full backup/sync file),
                 distinct from "Add from link" above which creates vacancies one/many at a time from
                 a posting URL. See that Dropdown's comment for why they're split. */}
