@@ -48,4 +48,17 @@ r.post(
   }),
 );
 
+// Stateless Streamable HTTP: this server offers no standalone SSE stream (GET) and has no
+// sessions to terminate (DELETE). The MCP spec requires 405 for both — without these handlers
+// they fell through to the generic JSON 404, which some MCP clients (Claude's custom connectors
+// among them) read as "the server isn't there" and refuse to connect.
+const methodNotAllowed: express.RequestHandler = (_req, res) => {
+  res
+    .status(405)
+    .set("Allow", "POST")
+    .json({ jsonrpc: "2.0", error: { code: -32000, message: "Method not allowed." }, id: null });
+};
+r.get("/mcp", methodNotAllowed);
+r.delete("/mcp", methodNotAllowed);
+
 export default r;

@@ -140,6 +140,11 @@ app.use("/api", apiLimiter, routes);
 // unknown API endpoint → JSON 404 (not the HTML SPA)
 app.use("/api", (_q, res) => res.status(404).json({ error: "Endpoint not found" }));
 
+// /.well-known/* probes (OAuth protected-resource / authorization-server discovery that MCP
+// clients run before connecting) must get a real 404, not the SPA's index.html with a 200 —
+// an HTML 200 there reads as a broken OAuth metadata document and aborts the connection.
+app.use("/.well-known", (_q, res) => res.status(404).json({ error: "Not found" }));
+
 // serve the built frontend if it exists
 if (fs.existsSync(env.clientDistPath)) {
   // Vite's hashed assets/ files are safe to cache forever (`immutable`); `index: false` stops
