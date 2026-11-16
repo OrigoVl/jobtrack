@@ -22,6 +22,12 @@ const verifier: OAuthTokenVerifier = {
       token,
       clientId: String(resolved.tokenId),
       scopes: [resolved.scope],
+      // The SDK's requireBearerAuth rejects any AuthInfo without a numeric `expiresAt` (seconds
+      // since epoch) with 401 "Token has no expiration time" — so without this field EVERY
+      // request failed, even with a valid token. resolveApiToken() above has already rejected
+      // expired/revoked tokens (and is re-run on every request), so this only needs to be a
+      // short, always-in-the-future window for the SDK's own check, not the token's real expiry.
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
       extra: { userId: resolved.userId, scope: resolved.scope },
     };
   },

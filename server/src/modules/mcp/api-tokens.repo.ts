@@ -87,6 +87,14 @@ export async function resolveApiToken(rawToken: string): Promise<ResolvedApiToke
       ),
     );
   if (!row) return null;
-  void db.update(apiTokens).set({ lastUsedAt: new Date() }).where(eq(apiTokens.id, row.id));
+  // `.catch()` is what actually RUNS this: a Drizzle query builder is a lazy thenable that only
+  // executes once `.then()`/`.catch()`/`await` touches it, so the previous bare `void db.update(...)`
+  // never sent the statement at all and `lastUsedAt` stayed NULL forever ("never used" in the UI).
+  // Still fire-and-forget — not awaited, and a failed bookkeeping write is swallowed.
+  void db
+    .update(apiTokens)
+    .set({ lastUsedAt: new Date() })
+    .where(eq(apiTokens.id, row.id))
+    .catch(() => {});
   return { userId: row.userId as UserId, scope: row.scope as "read" | "read_write", tokenId: row.id };
 }
